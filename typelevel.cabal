@@ -1,5 +1,5 @@
 name:                typelevel
-version:             1.0
+version:             1.0.1
 synopsis:            Useful type level operations (type families and related operators).
 -- description:         
 license:             Apache-2.0
@@ -7,8 +7,8 @@ license-file:        LICENSE
 author:              Wojciech Danilo
 maintainer:          Wojciech Danilo <wojciech.danilo@gmail.com>
 stability:           experimental
-homepage:            https://github.com/wdanilo/rtuple
-bug-reports:         https://github.com/wdanilo/rtuple/issues
+homepage:            https://github.com/wdanilo/typelevel
+bug-reports:         https://github.com/wdanilo/typelevel/issues
 copyright:           Copyright (C) 2014 Wojciech Danilo
 category:            Text
 build-type:          Simple
