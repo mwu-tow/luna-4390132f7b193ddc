@@ -46,6 +46,7 @@ Library
                       TypeFamilies
   
   exposed-modules:    Data.Repr
+                      Data.Repr.Meta
                     -- , Data.Repr.Generics
 
   build-depends:      base >=4.6 && <4.9
