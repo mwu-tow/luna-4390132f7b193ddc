@@ -1,5 +1,5 @@
 name:                typelevel
-version:             1.0.1
+version:             1.0.2
 synopsis:            Useful type level operations (type families and related operators).
 -- description:         
 license:             Apache-2.0
@@ -45,7 +45,8 @@ Library
                       ViewPatterns
                       TypeFamilies
   
-  exposed-modules:    Type.Bool
+  exposed-modules:    Constraint.Container.Homo 
+                    , Type.Bool
                     , Type.List
 
   build-depends:      base >=4.6 && <4.9
