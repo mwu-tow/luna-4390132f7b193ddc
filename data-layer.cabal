@@ -46,6 +46,7 @@ Library
                       TypeFamilies
   
   exposed-modules:    Data.Layer
+                      Data.Coat
                       Data.Layer.Immersed
 
   build-depends:      base >=4.6 && <4.9
