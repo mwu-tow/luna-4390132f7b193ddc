@@ -17,7 +17,7 @@ class Layered l where
     default layered :: (Unlayered l ~ Unwrapped l, Wrapped l) => Lens' l (Unlayered l)
     layered = _Wrapped'
 
-class Layered l => IsLayer l where
+class IsLayer l where
     layer :: Unlayered l -> l
 
 unlayer :: Layered l => l -> Unlayered l
@@ -35,10 +35,6 @@ class LayeredM m l where
     default setLayeredM :: (Layered l, Monad m) => Unlayered l -> l -> m l
     setLayeredM = (fmap . fmap) return $ set layered
 
-class LayeredM m l => IsLayerM m l where
-    layerM :: Unlayered l -> m l
-    default layerM :: (IsLayer l, Monad m) => Unlayered l -> m l
-    layerM = return . layer
 
 unlayerM :: LayeredM m l => l -> m (Unlayered l)
 unlayerM = viewLayeredM
@@ -50,8 +46,7 @@ withLayeredM' :: (LayeredM m a, Monad m) => (Unlayered a -> Unlayered a) -> a ->
 withLayeredM' = withLayeredM . (return .)
 
 
--- === Layer generators ===
-
-class LayerGen    m l where genLayer :: Unlayered l -> m l
 
 
+--class Cover   m l where cover   :: Unlayered l -> m l
+--class Uncover m l where uncover :: l -> m (Unlayered l)

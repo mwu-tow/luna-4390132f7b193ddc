@@ -5,6 +5,7 @@ module Data.Layer.Coat where
 import Prelude
 import Control.Lens
 import Control.Monad
+import Data.Construction
 import Data.Layer
 
 
@@ -58,13 +59,13 @@ instance {-# OVERLAPPABLE #-} Monad m => CoatedM m (Coat a) where viewCoatedM   
 
 -- === Coat generator ===
 
-class CoatGen m a where genCoat :: Uncoated a -> m a
+class CoatConstructor m a where constructCoat :: Uncoated a -> m a
 instance {-# OVERLAPPABLE #-} ( Monad m
-                              , Uncoated (Unlayered a) ~ Uncoated a
-                              , CoatGen m (Unlayered a)
-                              , LayerGen m a
-                              )       => CoatGen m a        where genCoat = genCoat >=> genLayer
-instance {-# OVERLAPPABLE #-} Monad m => CoatGen m (Coat a) where genCoat = return . Coat
+                              , CoatConstructor m (Destructed a)
+                              , Uncoated a ~ Uncoated (Destructed a)
+                              , Constructor m a
+                              )       => CoatConstructor m a        where constructCoat = constructCoat >=> construct
+instance {-# OVERLAPPABLE #-} Monad m => CoatConstructor m (Coat a) where constructCoat = return . Coat
 
 
 --class Destruction m a where destroy :: a -> m (Uncoated a)

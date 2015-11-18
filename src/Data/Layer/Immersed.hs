@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 module Data.Layer.Immersed where
 
 
