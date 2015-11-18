@@ -16,7 +16,7 @@ import Type.Bool
 
 -- === Basic operations ===
 
-type family Removed    (el :: e) (cont :: c) :: l
+type family Removed    (el :: e)    (cont :: c) :: l
 type family RemovedIdx (idx :: Nat) (cont :: c) :: l
 type family ElAt       (idx :: Nat) (cont :: c) :: l 
 
