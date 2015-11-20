@@ -60,13 +60,18 @@ instance {-# OVERLAPPABLE #-} Monad m => CoatedM m (Coat a) where viewCoatedM   
 -- === Coat generator ===
 
 class CoatConstructor m a where constructCoat :: Uncoated a -> m a
-instance {-# OVERLAPPABLE #-} ( Monad m
-                              , CoatConstructor m (Destructed a)
+instance {-# OVERLAPPABLE #-} ( CoatConstructor m (Destructed a)
                               , Uncoated a ~ Uncoated (Destructed a)
                               , Constructor m a
-                              )       => CoatConstructor m a        where constructCoat = constructCoat >=> construct
-instance {-# OVERLAPPABLE #-} Monad m => CoatConstructor m (Coat a) where constructCoat = return . Coat
+                              , Monad m ) => CoatConstructor m a        where constructCoat = constructCoat >=> construct
+instance {-# OVERLAPPABLE #-}   Monad m   => CoatConstructor m (Coat a) where constructCoat = return . Coat
 
+class CoatDestructor m a where destructCoat :: a -> m (Uncoated a)
+instance {-# OVERLAPPABLE #-} ( Uncoated a ~ Uncoated (Destructed a)
+                              , CoatDestructor m (Destructed a)
+                              , Destructor m a
+                              , Monad m ) => CoatDestructor m a        where destructCoat = destruct >=> destructCoat
+instance {-# OVERLAPPABLE #-}   Monad m   => CoatDestructor m (Coat a) where destructCoat = return . view _Wrapped'
 
 --class Destruction m a where destroy :: a -> m (Uncoated a)
 --instance {-# OVERLAPPABLE #-} Monad m => Destruction m (Coat a) where destroy = return . unlayer
