@@ -1,5 +1,5 @@
 name:                data-construction
-version:             1.0
+version:             1.1
 synopsis:            Data construction abstractions including Constructor, Destructor, Maker, Destroyer, Producer and Consumer.
 -- description:         
 license:             Apache-2.0
