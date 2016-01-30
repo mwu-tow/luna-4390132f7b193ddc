@@ -1,11 +1,5 @@
----------------------------------------------------
--- This is a generated cabal configuration file. --
--- DO NOT EDIT!                                  --
--- Use gencabal instead.                         --
----------------------------------------------------
-
 name:                typelevel
-version:             1.0.4
+version:             1.0.3
 synopsis:            Useful type level operations (type families and related operators).
 -- description:         
 license:             Apache-2.0
@@ -51,21 +45,7 @@ Library
                       ViewPatterns
                       TypeFamilies
   
-  Exposed-modules: 
-        Constraint.Container.Homo,
-        Type.Bool,
-        Type.Container,
-        Type.Either,
-        Type.List,
-        Type.Map,
-        Type.Maybe,
-        Type.Operators,
-        Type.Promotion,
-        Type.Sequence,
-        Type.Set,
-        Type.Show,
-        Type.Wrapped,
-        Type.Zip
+  Exposed-modules: `findmodules('src', '.*\.hs')`
 
   build-depends:      base >=4.6 && <4.9
                     , pretty-show
