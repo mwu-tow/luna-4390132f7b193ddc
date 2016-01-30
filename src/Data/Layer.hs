@@ -17,6 +17,11 @@ class Layered l where
     default layered :: (Unlayered l ~ Unwrapped l, Wrapped l) => Lens' l (Unlayered l)
     layered = _Wrapped'
 
+class TransLayered l l' where
+    transLayered :: Lens l l' (Unlayered l) (Unlayered l')
+    default transLayered :: (Unlayered l ~ Unwrapped l, Unlayered l' ~ Unwrapped l', Rewrapping l l') => Lens l l' (Unlayered l) (Unlayered l')
+    transLayered = _Wrapped ; {-# INLINE transLayered #-}
+
 class IsLayer l where
     layer :: Unlayered l -> l
 
@@ -46,6 +51,8 @@ withLayeredM' :: (LayeredM m a, Monad m) => (Unlayered a -> Unlayered a) -> a ->
 withLayeredM' = withLayeredM . (return .)
 
 
+
+class LayerConstructor m l where constructLayer :: (Unlayered l) -> m l
 
 
 --class Cover   m l where cover   :: Unlayered l -> m l
