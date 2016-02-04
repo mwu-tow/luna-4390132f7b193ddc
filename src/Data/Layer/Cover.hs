@@ -63,14 +63,17 @@ instance {-# OVERLAPPABLE #-} Monad m => CoveredM m (Cover a) where viewCoveredM
 
 -- === Cover generator ===
 
-class CoverConstructor m a where constructCover :: Uncovered a -> m a
+class Monad m => CoverConstructor    m a where constructCover    :: Uncovered a -> m a
+class Monad m => CoverConstructorFix m a where constructCoverFix :: Uncovered a -> m a
+class Monad m => CoverDestructor     m a where destructCover     :: a -> m (Uncovered a)
+class Monad m => CoverDestructorFix  m a where destructCoverFix  :: a -> m (Uncovered a)
+
 instance {-# OVERLAPPABLE #-} ( CoverConstructor m (Unlayered a)
                               , Uncovered a ~ Uncovered (Unlayered a)
                               , LayerConstructor m a
                               , Monad m ) => CoverConstructor m a         where constructCover = constructCover >=> constructLayer
 instance {-# OVERLAPPABLE #-}   Monad m   => CoverConstructor m (Cover a) where constructCover = return . Cover
 
-class CoverConstructorFix m a where constructCoverFix :: Uncovered a -> m a
 instance {-# OVERLAPPABLE #-} ( CoverConstructorFix m (Unlayered a)
                               , Uncovered a ~ Uncovered (Unlayered a)
                               , LayerConstructor m a
@@ -80,6 +83,15 @@ instance {-# OVERLAPPABLE #-} ( CoverConstructorFix m (Unlayered a)
         l   <- constructCoverFix base 
         return out
 instance {-# OVERLAPPABLE #-}   Monad m   => CoverConstructorFix m (Cover a) where constructCoverFix = return . Cover
+
+
+instance {-# OVERLAPPABLE #-} ( CoverDestructor m (Unlayered a)
+                              , Uncovered a ~ Uncovered (Unlayered a)
+                              , LayerDestructor m a) => CoverDestructor m a         where destructCover = destructLayer >=> destructCover
+
+instance Monad m => CoverDestructor m (Cover a) where destructCover = return . view _Wrapped'
+--instance {-# OVERLAPPABLE #-}   Monad m   => CoverDestructor m (Cover a) where destructCover = return . Cover
+
 
 --class CoverConstructor m a where constructCover :: Uncovered a -> m a
 --instance {-# OVERLAPPABLE #-} ( CoverConstructor m (Destructed a)

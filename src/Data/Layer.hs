@@ -52,7 +52,8 @@ withLayeredM' = withLayeredM . (return .)
 
 
 
-class LayerConstructor m l where constructLayer :: (Unlayered l) -> m l
+class Monad m => LayerConstructor m l where constructLayer :: (Unlayered l) -> m l
+class Monad m => LayerDestructor  m l where destructLayer  :: l -> m (Unlayered l)
 
 
 --class Cover   m l where cover   :: Unlayered l -> m l
