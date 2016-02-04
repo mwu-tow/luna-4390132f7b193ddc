@@ -1,10 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE DoRec                #-}
+{-# LANGUAGE RecursiveDo          #-}
 
 module Data.Layer.Cover where
 
 import Prelude
-import Control.Lens
+import Control.Lens      hiding (Getter, Setter)
 import Control.Monad
 import Control.Monad.Fix
 import Data.Construction
@@ -106,3 +106,7 @@ instance {-# OVERLAPPABLE #-}   Monad m   => CoverConstructorFix m (Cover a) whe
 -- >\\>
 -- >><>
 
+
+-- Attributes
+
+--instance MayHaveAttr a (Cover t) where checkAttr _ = Nothing 
