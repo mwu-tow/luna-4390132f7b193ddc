@@ -18,3 +18,8 @@ class Consumer m a where consume :: a -> m ()
 
 class Maker     m a where make    :: m a
 class Destroyer m a where destroy :: a -> m ()
+
+-- Registration
+
+class Register   m a where register   :: a -> m ()
+class Unregister m a where unregister :: a -> m ()
