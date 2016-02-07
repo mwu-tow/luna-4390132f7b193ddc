@@ -16,8 +16,13 @@ import Data.Layer
 newtype Cover a = Cover a deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 type instance Unlayered (Cover a) = a
 
-type family Uncovered a where Uncovered (Cover a) = a
-                              Uncovered a         = Uncovered (Unlayered a)
+--type family Uncovered a where Uncovered (Cover a) = a
+--                              Uncovered a         = Uncovered (Unlayered a)
+
+type family   Uncovered a
+type instance Uncovered (Cover a) = a
+-- TODO[WD]: Add TH function to automatically create the default Uncovered instance:
+--           type instance Uncovered <a> = Uncovered (Unlayered <a>)
 
 -- Instances
 
@@ -39,7 +44,7 @@ class Covered a where covered :: Lens' a (Uncovered a)
 instance {-# OVERLAPPABLE #-} ( Layered a
                               , Covered (Unlayered a)
                               , Uncovered a ~ Uncovered (Unlayered a)
-                              ) => Covered a        where covered = layered . covered
+                              ) => Covered a         where covered = layered . covered
 instance {-# OVERLAPPABLE #-}      Covered (Cover a) where covered = _Wrapped'
 
 uncover :: Covered a => a -> Uncovered a
@@ -80,7 +85,7 @@ instance {-# OVERLAPPABLE #-} ( CoverConstructorFix m (Unlayered a)
                               , MonadFix m ) => CoverConstructorFix m a         where
     constructCoverFix base = mdo
         out <- constructLayer l
-        l   <- constructCoverFix base 
+        l   <- constructCoverFix base
         return out
 instance {-# OVERLAPPABLE #-}   Monad m   => CoverConstructorFix m (Cover a) where constructCoverFix = return . Cover
 
@@ -121,4 +126,4 @@ instance Monad m => CoverDestructor m (Cover a) where destructCover = return . v
 
 -- Attributes
 
---instance MayHaveAttr a (Cover t) where checkAttr _ = Nothing 
+--instance MayHaveAttr a (Cover t) where checkAttr _ = Nothing
