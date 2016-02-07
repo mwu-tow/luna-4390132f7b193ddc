@@ -7,7 +7,7 @@
 name:                typelevel
 version:             1.0.4
 synopsis:            Useful type level operations (type families and related operators).
--- description:         
+-- description:
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Wojciech Danilo
@@ -18,7 +18,7 @@ bug-reports:         https://github.com/wdanilo/typelevel/issues
 copyright:           Copyright (C) 2014 Wojciech Danilo
 category:            Text
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.10
 
 
@@ -39,6 +39,7 @@ Library
                       EmptyDataDecls
                       FlexibleContexts
                       FlexibleInstances
+                      FunctionalDependencies
                       GeneralizedNewtypeDeriving
                       InstanceSigs
                       LambdaCase
@@ -50,12 +51,13 @@ Library
                       TypeOperators
                       ViewPatterns
                       TypeFamilies
-  
+
   Exposed-modules: 
         Constraint.Container.Homo,
         Type.Bool,
         Type.Container,
         Type.Either,
+        Type.Inference,
         Type.List,
         Type.Map,
         Type.Maybe,
