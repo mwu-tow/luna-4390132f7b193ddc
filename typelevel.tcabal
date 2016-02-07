@@ -51,3 +51,5 @@ Library
   build-depends:      base >=4.6 && <4.9
                     , pretty-show
                     , pretty
+                    , lens
+                    , mtl
