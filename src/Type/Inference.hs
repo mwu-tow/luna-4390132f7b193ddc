@@ -36,7 +36,10 @@ infer :: Inferable a t m => a -> t -> m t
 infer a t = t <$ infer_ a t
 
 inferM :: Inferable a t m => a -> m t -> m t
-inferM a t = t <* (infer_ a =<< t)
+inferM a mt = do
+    t <- mt
+    infer_ a t
+    return t
 
 
 -- === Instances === ---
