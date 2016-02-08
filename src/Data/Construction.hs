@@ -16,8 +16,10 @@ class Monad m => Constructor   m a where construct   :: Deconstructed a -> m a  
                                                                                  ; construct _ = create ; {-# INLINE construct #-}
 class Monad m => Deconstructor m a where deconstruct :: a -> m (Deconstructed a) ; default deconstruct :: Breaker a => a -> m (Deconstructed a)
                                                                                  ; deconstruct = return . break ; {-# INLINE deconstruct #-}
-class Monad m => Creator       m a where create      ::                    m a   ; default create :: Maker a => Deconstructed a -> m a
+class Monad m => Creator       m a where create      :: m a                      ; default create :: Maker a => Deconstructed a -> m a
                                                                                  ; create = return . make ; {-# INLINE create #-}
+class Monad m => Generator     m a where new         :: m a                      ; default new :: Maker a => Deconstructed a -> m a
+                                                                                 ; new = return . make ; {-# INLINE new #-}
 class Monad m => Destructor    m a where destruct    :: a -> m ()                ; default destruct :: Deconstructor m a => a -> m ()
                                                                                  ; destruct = deconstruct_ ; {-# INLINE destruct #-}
 
