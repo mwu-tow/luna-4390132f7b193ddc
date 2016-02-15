@@ -40,7 +40,8 @@ instance Convertible a a' => Convertible (Cover a) (Cover a') where convert = _W
 
 -- pure interface
 
-class Covered a where covered :: Lens' a (Uncovered a)
+class Covered a where covered :: Lens' a (Uncovered a) -- TODO[WD]: refactor to covered'
+class FullCovered a a' where fullCovered :: Lens a a' (Uncovered a) (Uncovered a') -- TODO[WD]: refactor to covered
 instance {-# OVERLAPPABLE #-} ( Layered a
                               , Covered (Unlayered a)
                               , Uncovered a ~ Uncovered (Unlayered a)
