@@ -52,7 +52,7 @@ Library
                       ViewPatterns
                       TypeFamilies
 
-  Exposed-modules: 
+  Exposed-modules:
         Constraint.Container.Homo,
         Type.Bool,
         Type.Container,
@@ -74,3 +74,5 @@ Library
                     , pretty
                     , lens
                     , mtl
+                    , transformers
+                    , exceptions
