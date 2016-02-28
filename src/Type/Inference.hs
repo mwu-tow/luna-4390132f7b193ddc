@@ -5,6 +5,7 @@ module Type.Inference where
 import           Prelude
 import           Data.Typeable
 
+import           Control.Applicative
 import           Control.Lens
 import           Control.Monad.Catch
 import           Control.Monad.Fix
@@ -20,7 +21,7 @@ import           Control.Monad.Trans.Identity
 --   evaluating the monadic stack.
 
 type    KnownType  cls t     = KnownTypeT cls t Identity
-newtype KnownTypeT cls t m a = KnownTypeT (IdentityT m a) deriving (Show, Functor, Monad, MonadIO, MonadFix, MonadTrans, Applicative, MonadThrow, MonadCatch, MonadMask)
+newtype KnownTypeT cls t m a = KnownTypeT (IdentityT m a) deriving (Show, Functor, Monad, MonadIO, MonadFix, MonadTrans, Applicative, MonadThrow, MonadCatch, MonadMask, MonadPlus, Alternative)
 makeWrapped ''KnownTypeT
 
 class Monad m => Inferable cls t m | cls m -> t where infer_ :: cls -> t -> m ()
