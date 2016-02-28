@@ -54,3 +54,5 @@ Library
                     , pretty
                     , lens
                     , mtl
+                    , transformers
+                    , exceptions
