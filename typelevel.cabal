@@ -51,12 +51,14 @@ Library
                       TypeOperators
                       ViewPatterns
                       TypeFamilies
+                      GADTs
 
   Exposed-modules: 
         Constraint.Container.Homo,
         Type.Bool,
         Type.Container,
         Type.Either,
+        Type.Hidden,
         Type.Inference,
         Type.List,
         Type.Map,

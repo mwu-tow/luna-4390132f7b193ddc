@@ -45,6 +45,7 @@ Library
                       TypeOperators
                       ViewPatterns
                       TypeFamilies
+                      GADTs
 
   Exposed-modules: `findmodules('src', '.*\.hs')`
 
