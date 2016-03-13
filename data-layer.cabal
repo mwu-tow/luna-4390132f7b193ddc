@@ -6,8 +6,8 @@
 
 name:                data-layer
 version:             1.0.4
-synopsis:            Data layering utilities. Layer is a data-type which wrapps other one, but keeping additional information. If you want to access content of simple newtype object, use Lens.Wrapper instead. 
--- description:         
+synopsis:            Data layering utilities. Layer is a data-type which wrapps other one, but keeping additional information. If you want to access content of simple newtype object, use Lens.Wrapper instead.
+-- description:
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Wojciech Danilo
@@ -18,7 +18,7 @@ bug-reports:         https://github.com/wdanilo/layer/issues
 copyright:           Copyright (C) 2015 Wojciech Danilo
 category:            Text
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.10
 
 
@@ -50,7 +50,7 @@ Library
                       TypeOperators
                       ViewPatterns
                       TypeFamilies
-  
+
   exposed-modules:    
         Data.Abstract,
         Data.Coat,
@@ -61,4 +61,5 @@ Library
   build-depends:      base >=4.6 && <4.9
                     , convert
                     , data-construction
+                    , deepseq
                     , lens

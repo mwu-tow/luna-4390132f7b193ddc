@@ -10,10 +10,12 @@ import Control.Monad.Fix
 import Data.Construction
 import Data.Convert
 import Data.Layer
+import GHC.Generics      (Generic)
+import Control.DeepSeq   (NFData)
 
 -- === Cover ===
 
-newtype Cover a = Cover a deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+newtype Cover a = Cover a deriving (Generic, NFData, Show, Eq, Ord, Functor, Foldable, Traversable)
 type instance Unlayered (Cover a) = a
 
 --type family Uncovered a where Uncovered (Cover a) = a
