@@ -41,3 +41,8 @@ instance (val ~ Either l r, Known t r) => Known ('Right t) val where typeVal _ =
 -- Lists
 instance Known ('[]) [a] where typeVal _ = []
 instance (Known t a, Known ts [a]) => Known (t ': ts) [a] where typeVal _ = typeVal (Proxy :: Proxy t) : typeVal (Proxy :: Proxy ts)
+
+-- KnownNats
+class                                  KnownNats (nats :: [Nat]) where natVals :: Proxy nats -> [Integer]
+instance                               KnownNats '[]             where natVals _ = []                                                      ; {-# INLINE natVals #-}
+instance (KnownNat n, KnownNats ns) => KnownNats (n ': ns)       where natVals _ = natVal (Proxy :: Proxy n) : natVals (Proxy :: Proxy ns) ; {-# INLINE natVals #-}
