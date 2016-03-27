@@ -50,9 +50,10 @@ Library
   Exposed-modules: `findmodules('src', '.*\.hs')`
 
   build-depends:      base >=4.6 && <4.9
-                    , pretty-show
-                    , pretty
+                    , exceptions
                     , lens
                     , mtl
+                    , pretty
+                    , pretty-show
+                    , primitive
                     , transformers
-                    , exceptions
