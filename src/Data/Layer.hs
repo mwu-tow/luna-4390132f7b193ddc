@@ -4,11 +4,15 @@ import Prelude
 import Control.Lens
 import Control.Monad
 
+--------------------
+-- === Layers === --
+--------------------
+-- | Layer is a generalization of Wrapper able to carry some information, so it is a lens, not an isomorphism.
 
--- === Data Layering ===
+
+-- === Definitions === --
 
 type family Unlayered l
-
 
 -- Non-monadic interface
 
@@ -21,9 +25,6 @@ class TransLayered l l' where
     transLayered :: Lens l l' (Unlayered l) (Unlayered l')
     default transLayered :: (Unlayered l ~ Unwrapped l, Unlayered l' ~ Unwrapped l', Rewrapping l l') => Lens l l' (Unlayered l) (Unlayered l')
     transLayered = _Wrapped ; {-# INLINE transLayered #-}
-
-class IsLayer l where
-    layer :: Unlayered l -> l
 
 unlayer :: Layered l => l -> Unlayered l
 unlayer = view layered
@@ -51,10 +52,7 @@ withLayeredM' :: (LayeredM m a, Monad m) => (Unlayered a -> Unlayered a) -> a ->
 withLayeredM' = withLayeredM . (return .)
 
 
+-- === Constructors === --
 
 class Monad m => LayerConstructor m l where constructLayer :: (Unlayered l) -> m l
 class Monad m => LayerDestructor  m l where destructLayer  :: l -> m (Unlayered l)
-
-
---class Cover   m l where cover   :: Unlayered l -> m l
---class Uncover m l where uncover :: l -> m (Unlayered l)

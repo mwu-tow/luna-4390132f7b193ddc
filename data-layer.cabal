@@ -53,7 +53,6 @@ Library
 
   exposed-modules:    
         Data.Abstract,
-        Data.Coat,
         Data.Layer,
         Data.Layer.Cover,
         Data.Layer.Immersed
