@@ -193,3 +193,9 @@ type instance Select 2 (t1,t2,t3,t4,t5) = t2
 type instance Select 3 (t1,t2,t3,t4,t5) = t3
 type instance Select 4 (t1,t2,t3,t4,t5) = t4
 type instance Select 5 (t1,t2,t3,t4,t5) = t5
+
+
+
+type family Update (n :: Nat) (a :: k) (lst :: [k]) :: [k] where
+    Update 0 a (l ': ls) = a ': ls
+    Update n a (l ': ls) = l ': Update (n - 1) a ls
