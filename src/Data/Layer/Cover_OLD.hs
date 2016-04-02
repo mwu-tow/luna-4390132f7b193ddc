@@ -1,7 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE RecursiveDo          #-}
+{-# LANGUAGE RankNTypes           #-}
 
-module Data.Layer.Cover where
+{-# LANGUAGE MagicHash            #-}
+
+module Data.Layer.Cover_OLD where
 
 import Prelude
 import Control.Lens      hiding (Getter, Setter)
@@ -12,6 +15,9 @@ import Data.Convert
 import Data.Layer
 import GHC.Generics      (Generic)
 import Control.DeepSeq   (NFData)
+import Data.Typeable     (Proxy(Proxy))
+
+import GHC.Prim (unsafeCoerce#)
 
 -- === Cover ===
 
@@ -21,7 +27,7 @@ type instance Unlayered (Cover a) = a
 --type family Uncovered a where Uncovered (Cover a) = a
 --                              Uncovered a         = Uncovered (Unlayered a)
 
-type family   Uncovered a
+type family Uncovered a
 type instance Uncovered (Cover a) = a
 -- TODO[WD]: Add TH function to automatically create the default Uncovered instance:
 --           type instance Uncovered <a> = Uncovered (Unlayered <a>)
@@ -130,3 +136,5 @@ instance Monad m => CoverDestructor m (Cover a) where destructCover = return . v
 -- Attributes
 
 --instance MayHaveAttr a (Cover t) where checkAttr _ = Nothing
+
+

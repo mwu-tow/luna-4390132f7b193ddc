@@ -52,3 +52,7 @@ Library
                     , data-construction
                     , deepseq
                     , lens
+                    , data-rtuple
+                    , lens-utils
+
+                    , ghc-prim

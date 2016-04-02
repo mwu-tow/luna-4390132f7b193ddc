@@ -54,7 +54,7 @@ Library
   exposed-modules:    
         Data.Abstract,
         Data.Layer,
-        Data.Layer.Cover,
+        Data.Layer.Cover_OLD,
         Data.Layer.Immersed
 
   build-depends:      base >=4.6 && <4.9
@@ -62,3 +62,7 @@ Library
                     , data-construction
                     , deepseq
                     , lens
+                    , data-rtuple
+                    , lens-utils
+
+                    , ghc-prim
