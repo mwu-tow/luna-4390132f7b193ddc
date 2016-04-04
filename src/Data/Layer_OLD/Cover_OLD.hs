@@ -4,7 +4,7 @@
 
 {-# LANGUAGE MagicHash            #-}
 
-module Data.Layer.Cover_OLD where
+module Data.Layer_OLD.Cover_OLD where
 
 import Prelude
 import Control.Lens      hiding (Getter, Setter)
@@ -12,7 +12,7 @@ import Control.Monad
 import Control.Monad.Fix
 import Data.Construction
 import Data.Convert
-import Data.Layer
+import Data.Layer_OLD
 import GHC.Generics      (Generic)
 import Control.DeepSeq   (NFData)
 import Data.Typeable     (Proxy(Proxy))
