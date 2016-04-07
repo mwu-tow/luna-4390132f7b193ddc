@@ -9,13 +9,12 @@
 
 module Type.List where
 
-import Data.Typeable
 import Prelude
-import GHC.Exts (Constraint)
 import GHC.TypeLits
 import Type.Bool
 import Type.Container
 import qualified Type.Set as Set
+import Type.Monoid
 
 -- === Wrappers ===
 
@@ -37,21 +36,21 @@ type instance RemovedIdx idx (l ': ls) = If (idx == 0) ls (l ': RemovedIdx (idx 
 type instance ElAt idx (l ': ls) = If (idx == 0) l (ElAt (idx - 1) ls)
 
 
-type instance In a (l ': ls) = If (a == l) True (In a ls)
-type instance In a '[]       = False
+type instance In a (l ': ls) = If (a == l) 'True (In a ls)
+type instance In a '[]       = 'False
 
 
-type family SuccMaybe (m :: Maybe Nat) where SuccMaybe (Just n) = Just (n + 1)
-                                             SuccMaybe Nothing  = Nothing
+type family SuccMaybe (m :: Maybe Nat) where SuccMaybe ('Just n) = 'Just (n + 1)
+                                             SuccMaybe 'Nothing  = 'Nothing
 
-type instance Index a (l ': ls) = If (a == l) (Just 0) (SuccMaybe (Index a ls))
-type instance Index a '[]       = (Nothing :: Maybe Nat)
+type instance Index a (l ': ls) = If (a == l) ('Just 0) (SuccMaybe (Index a ls))
+type instance Index a '[]       = ('Nothing :: Maybe Nat)
 
 
 data Recursive a
 
-type instance Index a (Recursive (l ': ls)) = If (a == l) (Just 0) (SuccMaybe (Index a (Recursive ls)))
-type instance Index a (Recursive '[]      ) = (Nothing :: Maybe Nat)
+type instance Index a (Recursive (l ': ls)) = If (a == l) ('Just 0) (SuccMaybe (Index a (Recursive ls)))
+type instance Index a (Recursive '[]      ) = ('Nothing :: Maybe Nat)
 
 
 --type family Index2 (idx :: i) (cont :: c) :: el

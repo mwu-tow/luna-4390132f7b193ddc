@@ -8,14 +8,11 @@
 
 module Type.Set where
 
-import Data.Typeable
-import Prelude
-import GHC.Exts (Constraint)
-import GHC.TypeLits
 import Type.Bool
 import Type.Container
 import Type.Wrapped
 import Type.Operators
+import Type.Monoid
 
 
 -- === Declarations ===

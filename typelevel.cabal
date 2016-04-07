@@ -5,7 +5,7 @@
 ---------------------------------------------------
 
 name:                typelevel
-version:             1.0.6
+version:             1.0.7
 synopsis:            Useful type level operations (type families and related operators).
 -- description:
 license:             Apache-2.0
@@ -56,14 +56,17 @@ Library
   Exposed-modules: 
         Constraint.Container.Homo,
         Data.Proxify,
+        Type.Applicative,
         Type.Bool,
         Type.Container,
         Type.Either,
+        Type.Functor,
         Type.Hidden,
         Type.Inference,
         Type.List,
         Type.Map,
         Type.Maybe,
+        Type.Monoid,
         Type.Operators,
         Type.Promotion,
         Type.Sequence,

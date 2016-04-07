@@ -20,7 +20,7 @@ type family Reverse           (cont :: k) :: k
 
 type family Unique            (cont :: k) :: k
 
-type family Concat (a :: k) (b :: k) :: k
+
 
 type family Diff  (c :: k) (c' :: k) :: k
 type family Union (c :: k) (c' :: k) :: k
@@ -28,8 +28,6 @@ type family Union (c :: k) (c' :: k) :: k
 --infixr 6      :<>
 --type family (a :: k) :<> (b :: k) where a :<> b = Concat a b
 
-infixr 6      <>
-type family (a :: k) <> (b :: k) where a <> b = Concat a b
 
 
 
