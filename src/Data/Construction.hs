@@ -4,11 +4,13 @@
 module Data.Construction where
 
 import Prelude hiding (break)
+import Control.Lens
 
 
--- Construction
+-- === Definitions === --
 
 type family Deconstructed a
+type family Args          a
 
 class            Maker           a where make        :: Deconstructed a -> a
 class            Breaker         a where break       :: a -> Deconstructed a
@@ -22,6 +24,10 @@ class Monad m => Generator     m a where new         :: m a                     
                                                                                  ; new = return . make ; {-# INLINE new #-}
 class Monad m => Destructor    m a where destruct    :: a -> m ()                ; default destruct :: Deconstructor m a => a -> m ()
                                                                                  ; destruct = deconstruct_ ; {-# INLINE destruct #-}
+
+class            DataType      a b where args        :: Iso  a b (Args a) (Args b)
+class            DataType'     a   where args'       :: Iso' a   (Args a)
+
 
 deconstruct_ :: Deconstructor m a => a -> m ()
 deconstruct_ a = () <$ deconstruct a ; {-# INLINE deconstruct_ #-}
