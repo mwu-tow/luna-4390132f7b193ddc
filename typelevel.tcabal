@@ -1,5 +1,5 @@
 name:                typelevel
-version:             1.0.7
+version:             1.0.8
 synopsis:            Useful type level operations (type families and related operators).
 -- description:
 license:             Apache-2.0

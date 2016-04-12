@@ -198,3 +198,8 @@ type instance Select 5 (t1,t2,t3,t4,t5) = t5
 type family Update (n :: Nat) (a :: k) (lst :: [k]) :: [k] where
     Update 0 a (l ': ls) = a ': ls
     Update n a (l ': ls) = l ': Update (n - 1) a ls
+
+type family TakeUntil (a :: k) (ls :: [k]) :: [k] where
+    TakeUntil a '[]       = '[]
+    TakeUntil a (a ': ls) = '[a]
+    TakeUntil a (l ': ls) = l ': TakeUntil a ls
