@@ -1,0 +1,21 @@
+name:                visualization-api
+version:             0.1.0.0
+synopsis:            Visualization API
+description:         Please see README.md
+homepage:            https://github.com/githubuser/visualization-api#readme
+author:              New Byte Order
+maintainer:          contact@luna-lang.org
+copyright:           2016 New Byte Order
+
+dependencies:
+  - base >= 4.7 && < 5
+  - binary
+  - lens
+
+default-extensions:
+  - TemplateHaskell
+  - DeriveGeneric
+
+library:
+  source-dirs:      src
+

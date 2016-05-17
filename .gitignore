@@ -1,0 +1,56 @@
+*.o
+*.hi
+*.chi
+*.chs.h
+.virthualenv
+*.tix
+*~
+*.swp
+*.imports
+*.dll
+*.dll.a
+out
+a.out
+*.li
+
+# profiling results
+*.hp
+*.prof
+
+
+# haskell coverage reports
+.hpc
+
+#generated files
+gen
+
+# OS X temp
+.DS_Store
+
+# emacs backup files
+.\#*
+\#*\#
+
+#IntelliJ IDEA
+.idea
+
+# eclipse files
+.dist-buildwrapper/
+.project
+.settings
+
+# haste compilation files
+*.jsmod
+
+# cabal config
+*.cabal
+
+#general builds
+dist
+DllWrappers
+
+.autoenv.zsh
+
+temp
+
+.stack-work
