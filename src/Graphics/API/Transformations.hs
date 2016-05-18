@@ -1,6 +1,7 @@
 module Graphics.API.Transformations where
 
 import           Control.Lens
+import           Data.Aeson   (ToJSON)
 import           Data.Binary  (Binary)
 import           Data.Default
 import           GHC.Generics (Generic)
@@ -17,3 +18,4 @@ instance Default Transformation where
 makeLenses ''Transformation
 
 instance Binary Transformation
+instance ToJSON Transformation

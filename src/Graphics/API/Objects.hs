@@ -1,6 +1,7 @@
 module Graphics.API.Objects where
 
 import           Control.Lens
+import           Data.Aeson   (ToJSON)
 import           Data.Binary  (Binary)
 import           GHC.Generics (Generic)
 
@@ -18,3 +19,5 @@ data Object = Object { _shape          :: Shape
 makeLenses ''Object
 
 instance Binary Object
+instance ToJSON Object
+
