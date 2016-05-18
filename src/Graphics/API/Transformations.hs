@@ -2,24 +2,18 @@ module Graphics.API.Transformations where
 
 import           Control.Lens
 import           Data.Binary  (Binary)
+import           Data.Default
 import           GHC.Generics (Generic)
 
-data Translate a = Translate { _trObj :: a
-                             , _dx    :: Double
-                             , _dy    :: Double
-                             } deriving (Show, Eq, Generic)
+data Transformation = Transformation { _dx    :: Double
+                                     , _dy    :: Double
+                                     , _angle :: Double
+                                     , _refl  :: Bool
+                                     } deriving (Show, Eq, Generic)
 
-data Rotate a = Rotate { _rotObj :: a
-                       , _angle  :: Double
-                       } deriving (Show, Eq, Generic)
+instance Default Transformation where
+    def = Transformation 0.0 0.0 0.0 False
 
-data Reflect a = Reflect { _reflObj :: a
-                         } deriving (Show, Eq, Generic)
+makeLenses ''Transformation
 
-makeLenses ''Translate
-makeLenses ''Rotate
-makeLenses ''Reflect
-
-instance Binary a => Binary (Translate a)
-instance Binary a => Binary (Rotate a)
-instance Binary a => Binary (Reflect a)
+instance Binary Transformation
