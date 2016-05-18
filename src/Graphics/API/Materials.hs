@@ -1,0 +1,16 @@
+module Graphics.API.Materials where
+
+import           Control.Lens
+import           Data.Binary  (Binary)
+import           GHC.Generics (Generic)
+
+data Color = Color { _r :: Double
+                   , _g :: Double
+                   , _b :: Double
+                   , _a :: Double
+                   } deriving (Show, Eq, Generic)
+
+
+makeLenses ''Color
+
+instance Binary Color
