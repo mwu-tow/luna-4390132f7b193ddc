@@ -1,7 +1,7 @@
 module Graphics.API.Materials where
 
 import           Control.Lens
-import           Data.Aeson   (ToJSON)
+import           Data.Aeson   (ToJSON, FromJSON)
 import           Data.Binary  (Binary)
 import           GHC.Generics (Generic)
 
@@ -15,4 +15,6 @@ data Color = Color { _r :: Double
 makeLenses ''Color
 
 instance Binary Color
+
 instance ToJSON Color
+instance FromJSON Color
