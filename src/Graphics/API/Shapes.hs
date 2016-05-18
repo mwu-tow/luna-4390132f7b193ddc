@@ -4,13 +4,13 @@ import           Control.Lens
 import           Data.Binary  (Binary)
 import           GHC.Generics (Generic)
 
-data Square = Square { _s :: Int } deriving (Show, Eq, Generic)
+data Square = Square { _s :: Double } deriving (Show, Eq, Generic)
 
-data Rectangle = Rectangle { _w :: Int
-                           , _h :: Int
+data Rectangle = Rectangle { _w :: Double
+                           , _h :: Double
                            } deriving (Show, Eq, Generic)
 
-data Circle = Circle { _d :: Int } deriving (Show, Eq, Generic)
+data Circle = Circle { _d :: Double } deriving (Show, Eq, Generic)
 
 makeLenses ''Square
 makeLenses ''Rectangle

@@ -4,13 +4,13 @@ import           Control.Lens
 import           Data.Binary  (Binary)
 import           GHC.Generics (Generic)
 
-data Translate a = Translate { _dx    :: Int
-                             , _dy    :: Int
-                             , _trObj :: a
+data Translate a = Translate { _trObj :: a
+                             , _dx    :: Double
+                             , _dy    :: Double
                              } deriving (Show, Eq, Generic)
 
-data Rotate a = Rotate { _deg    :: Int
-                       , _rotObj :: a
+data Rotate a = Rotate { _rotObj :: a
+                       , _angle  :: Double
                        } deriving (Show, Eq, Generic)
 
 data Reflect a = Reflect { _reflObj :: a
