@@ -1,4 +1,4 @@
-module Graphics.API.Shapes where
+module Graphics.API.Shape where
 
 import           Control.Lens
 import           Data.Aeson   (ToJSON, FromJSON)

@@ -1,4 +1,4 @@
-module Graphics.API.Transformations where
+module Graphics.API.Transformation where
 
 import           Control.Lens
 import           Data.Aeson   (ToJSON, FromJSON)

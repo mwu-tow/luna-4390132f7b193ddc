@@ -1,4 +1,4 @@
-module Graphics.API.Materials where
+module Graphics.API.Material where
 
 import           Control.Lens
 import           Data.Aeson   (ToJSON, FromJSON)
