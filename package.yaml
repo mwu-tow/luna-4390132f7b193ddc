@@ -13,6 +13,7 @@ dependencies:
   - aeson
   - data-default
   - lens
+  - containers
 
 default-extensions:
   - TemplateHaskell
