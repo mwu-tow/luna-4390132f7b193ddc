@@ -38,6 +38,7 @@ instance Binary   Point3
 instance ToJSON   Point3
 instance FromJSON Point3
 
+
 -- === Attributes === --
 
 -- data AttributeType = Point | Vertex | Face | Detail
@@ -60,6 +61,7 @@ instance Binary   Attributes
 instance ToJSON   Attributes
 instance FromJSON Attributes
 
+
 -- === Figure === --
 
 data Figure = Square    { _s :: Double }
@@ -72,6 +74,7 @@ instance Binary   Figure
 instance ToJSON   Figure
 instance FromJSON Figure
 
+
 -- === Primitive === --
 
 data Primitive = Primitive Figure Point2 Attributes
@@ -81,6 +84,7 @@ data Primitive = Primitive Figure Point2 Attributes
 instance Binary   Primitive
 instance ToJSON   Primitive
 instance FromJSON Primitive
+
 
 -- === Shape === --
 
@@ -93,6 +97,7 @@ data Shape = Single    Primitive
 instance Binary   Shape
 instance ToJSON   Shape
 instance FromJSON Shape
+
 
 -- === Surface === --
 
@@ -107,28 +112,30 @@ instance FromJSON Surface
 
 
 -- === Transformation === --
+
 -- TODO: matrix + methods
+data Transformation = Transformation { _scaleX :: Double
+                                     , _scaleY :: Double
+                                     , _dx     :: Double
+                                     , _dy     :: Double
+                                     , _angle  :: Double
+                                     , _refl   :: Bool
+                                     } deriving (Show, Eq, Generic)
 
-data Trans = Trans { _scaleX :: Double
-                   , _scaleY :: Double
-                   , _dx     :: Double
-                   , _dy     :: Double
-                   , _angle  :: Double
-                   , _refl   :: Bool
-                   } deriving (Show, Eq, Generic)
+instance Default Transformation where
+    def = Transformation 1.0 1.0 0.0 0.0 0.0 False
 
-instance Default Trans where
-    def = Trans 1.0 1.0 0.0 0.0 0.0 False
+makeLenses ''Transformation
 
-makeLenses ''Trans
-
-instance Binary   Trans
-instance ToJSON   Trans
-instance FromJSON Trans
+instance Binary   Transformation
+instance ToJSON   Transformation
+instance FromJSON Transformation
 
 
 -- === Material === --
 
+
+-- TODO: expand possibilities
 data Material = SolidColor { _r :: Double
                            , _g :: Double
                            , _b :: Double
@@ -140,12 +147,43 @@ instance Binary   Material
 instance ToJSON   Material
 instance FromJSON Material
 
+
 -- === Geometry === --
 
-data Geo = Geo [Surface] Trans Material
-         | Group [Geo]   Trans Material
-         deriving (Show, Eq, Generic)
+data Geometry = Geometry { _content        :: GeoComponent
+                         , _transformation :: Transformation
+                         , _material       :: Maybe Material
+                         } deriving (Show, Eq, Generic)
 
-instance Binary   Geo
-instance ToJSON   Geo
-instance FromJSON Geo
+instance Binary   Geometry
+instance ToJSON   Geometry
+instance FromJSON Geometry
+
+data GeoComponent = GeoElem  [Surface]
+                  | GeoGroup [Geometry]
+                  deriving (Show, Eq, Generic)
+
+instance Binary   GeoComponent
+instance ToJSON   GeoComponent
+instance FromJSON GeoComponent
+
+
+-- === Layer === --
+
+data Layer = Layer { _geometry        :: Geometry
+                   , _transformations :: [Transformation]
+                   } deriving (Show, Eq, Generic)
+
+instance Binary Layer
+instance ToJSON Layer
+instance FromJSON Layer
+
+
+-- === Graphics === --
+
+data Graphics = Graphics { _graphics :: [Layer]
+                         } deriving (Show, Eq, Generic)
+
+instance Binary Graphics
+instance ToJSON Graphics
+instance FromJSON Graphics
