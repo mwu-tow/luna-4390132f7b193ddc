@@ -131,6 +131,18 @@ instance Binary   Transformation
 instance ToJSON   Transformation
 instance FromJSON Transformation
 
+scale :: Transformation -> Double -> Double -> Transformation
+scale (Transformation sx sy dx dy a r) sx' sy' = Transformation (sx * sx') (sy * sy') dx dy a r
+
+translate :: Transformation -> Double -> Double -> Transformation
+translate (Transformation sx sy dx dy a r) dx' dy' = Transformation sx sy (dx + dx') (dy + dy') a r
+
+rotate :: Transformation -> Double -> Transformation
+rotate (Transformation sx sy dx dy a r) a' = Transformation sx sy dx dy (a + a') r
+
+reflect :: Transformation -> Transformation
+reflect (Transformation sx sy dx dy a r) = Transformation sx sy dx dy a (not r)
+
 
 -- === Material === --
 
