@@ -61,6 +61,8 @@ instance Binary   Attributes
 instance ToJSON   Attributes
 instance FromJSON Attributes
 
+instance Default Attributes where
+    def = Attributes def
 
 -- === Figure === --
 
@@ -79,7 +81,6 @@ instance FromJSON Figure
 
 data Primitive = Primitive Figure Point2 Attributes
                  deriving (Show, Eq, Generic)
-
 
 instance Binary   Primitive
 instance ToJSON   Primitive
