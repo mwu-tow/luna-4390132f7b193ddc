@@ -30,13 +30,19 @@ instance Binary   Point2
 instance ToJSON   Point2
 instance FromJSON Point2
 
+instance Default Point2 where
+    def = Point2 def def
+
+
 data Point3 = Point3 Double Double Double
               deriving (Show, Eq, Generic)
-
 
 instance Binary   Point3
 instance ToJSON   Point3
 instance FromJSON Point3
+
+instance Default Point3 where
+    def = Point3 def def def
 
 
 -- === Attributes === --
@@ -155,10 +161,12 @@ data Material = SolidColor { _r :: Double
                            , _a :: Double
                            } deriving (Show, Eq, Generic)
 
-
 instance Binary   Material
 instance ToJSON   Material
 instance FromJSON Material
+
+instance Default Material where
+    def = SolidColor 1.0 1.0 1.0 1.0
 
 
 -- === Geometry === --
