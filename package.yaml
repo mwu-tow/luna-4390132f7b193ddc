@@ -18,6 +18,7 @@ dependencies:
 default-extensions:
   - TemplateHaskell
   - DeriveGeneric
+  - DeriveAnyClass
 
 library:
   source-dirs:      src
