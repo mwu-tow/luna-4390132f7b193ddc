@@ -14,11 +14,13 @@ dependencies:
   - data-default
   - lens
   - containers
+  - convert
 
 default-extensions:
   - TemplateHaskell
   - DeriveGeneric
   - DeriveAnyClass
+  - MultiParamTypeClasses
 
 library:
   source-dirs:      src
