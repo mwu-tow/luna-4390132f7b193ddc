@@ -46,14 +46,14 @@ data Transformation = Transformation { _scaleX :: Double
 
 makeLenses ''Transformation
 
-scale :: Double -> Double ->  Transformation -> Transformation
-scale sx' sy' (Transformation sx sy dx dy a r) = Transformation (sx * sx') (sy * sy') dx dy a r
+scale :: Transformation -> Double -> Double -> Transformation
+scale (Transformation sx sy dx dy a r) sx' sy' = Transformation (sx * sx') (sy * sy') dx dy a r
 
-translate :: Double -> Double -> Transformation -> Transformation
-translate dx' dy' (Transformation sx sy dx dy a r) = Transformation sx sy (dx + dx') (dy + dy') a r
+translate :: Transformation -> Double -> Double -> Transformation
+translate (Transformation sx sy dx dy a r) dx' dy' = Transformation sx sy (dx + dx') (dy + dy') a r
 
-rotate :: Double -> Transformation -> Transformation
-rotate a' (Transformation sx sy dx dy a r) = Transformation sx sy dx dy (a + a') r
+rotate :: Transformation -> Double -> Transformation
+rotate (Transformation sx sy dx dy a r) a' = Transformation sx sy dx dy (a + a') r
 
 reflect :: Transformation -> Transformation
 reflect (Transformation sx sy dx dy a r) = Transformation sx sy dx dy a (not r)
