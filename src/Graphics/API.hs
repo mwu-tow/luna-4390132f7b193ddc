@@ -13,11 +13,9 @@ import           GHC.Generics     (Generic)
 
 -- === Common === --
 
--- data One
--- data Two
 
-data Point2 = Point2 Double Double
-              deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+data Point = Point Double Double
+             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
 data Point3 = Point3 Double Double Double
               deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
@@ -88,7 +86,7 @@ data Figure = Square    { _s :: Double }
 
 -- TODO: remove position
 data Primitive = Primitive { _figure     :: Figure
-                           , _position   :: Point2
+                           , _position   :: Point
                            , _attributes :: Attributes
                            } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
@@ -129,8 +127,8 @@ data Graphics = Graphics { _graphics :: [Layer]
 -- === Default instances === --
 -------------------------------
 
-instance Default Point2 where
-    def = Point2 def def
+instance Default Point where
+    def = Point def def
 
 instance Default Point3 where
     def = Point3 def def def
