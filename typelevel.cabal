@@ -5,7 +5,7 @@
 ---------------------------------------------------
 
 name:                typelevel
-version:             1.0.8
+version:             1.0.9
 synopsis:            Useful type level operations (type families and related operators).
 -- description:
 license:             Apache-2.0
@@ -75,7 +75,7 @@ Library
         Type.Wrapped,
         Type.Zip
 
-  build-depends:      base >=4.6 && <4.9
+  build-depends:      base >=4.6 && <4.10
                     , exceptions
                     , lens
                     , mtl
