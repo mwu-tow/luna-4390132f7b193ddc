@@ -1,5 +1,5 @@
 name:                data-construction
-version:             1.1.1
+version:             1.1.2
 synopsis:            Data construction abstractions including Constructor, Destructor, Maker, Destroyer, Producer and Consumer.
 -- description:
 license:             Apache-2.0
@@ -47,5 +47,5 @@ Library
 
   exposed-modules:    `findmodules('src', '.*\.hs')`
 
-  build-depends:      base >=4.6 && <4.9
+  build-depends:      base >=4.6 && <4.10
                     , lens
