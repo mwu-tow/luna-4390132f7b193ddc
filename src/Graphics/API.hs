@@ -44,17 +44,22 @@ data Transformation = Transformation { _scaleX :: Double
 
 makeLenses ''Transformation
 
+
 scale :: Transformation -> Double -> Double -> Transformation
 scale (Transformation sx sy dx dy a r) sx' sy' = Transformation (sx * sx') (sy * sy') dx dy a r
+{-# INLINE scale #-}
 
 translate :: Transformation -> Double -> Double -> Transformation
 translate (Transformation sx sy dx dy a r) dx' dy' = Transformation sx sy (dx + dx') (dy + dy') a r
+{-# INLINE translate #-}
 
 rotate :: Transformation -> Double -> Transformation
 rotate (Transformation sx sy dx dy a r) a' = Transformation sx sy dx dy (a + a') r
+{-# INLINE rotate #-}
 
 reflect :: Transformation -> Transformation
 reflect (Transformation sx sy dx dy a r) = Transformation sx sy dx dy a (not r)
+{-# INLINE reflect #-}
 
 
 -- === Attributes === --
@@ -113,10 +118,18 @@ data GeoComponent = GeoElem  [Surface]
                   deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
 
+-- === Texts === --
+
+data Label = Label { _labelPosition :: Point
+                   , _fontSize      :: Double
+                   , _text          :: String
+                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+
 -- === Multiple shaders layers === --
 
 data Layer = Layer { _geometry        :: Geometry
                    , _transformations :: [Transformation]
+                   , _labels          :: [Label]
                    } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
 data Graphics = Graphics { _graphics :: [Layer]
@@ -148,24 +161,31 @@ instance Default Attributes where
 
 figureToPrimitive :: Figure -> Primitive
 figureToPrimitive figure = Primitive figure def def
+{-# INLINE figureToPrimitive #-}
 
 primitiveToShape :: Primitive -> Shape
 primitiveToShape = Shape
+{-# INLINE primitiveToShape #-}
 
 shapeToSurface :: Shape -> Surface
 shapeToSurface = ShapeSurface
+{-# INLINE shapeToSurface #-}
 
 surfaceToGeoComponent :: Surface -> GeoComponent
 surfaceToGeoComponent = GeoElem . pure
+{-# INLINE surfaceToGeoComponent #-}
 
 geoComponentToGeometry :: GeoComponent -> Geometry
 geoComponentToGeometry geoComponent = Geometry geoComponent def (Just def)
+{-# INLINE geoComponentToGeometry #-}
 
 geometryToLayer :: Geometry -> Layer
-geometryToLayer geometry = Layer geometry [def]
+geometryToLayer geometry = Layer geometry [def] []
+{-# INLINE geometryToLayer #-}
 
 layerToGraphics :: Layer -> Graphics
 layerToGraphics = Graphics . pure
+{-# INLINE layerToGraphics #-}
 
 instance Convertible Layer        Graphics     where convert =           layerToGraphics
 instance Convertible Geometry     Graphics     where convert = convert . geometryToLayer
