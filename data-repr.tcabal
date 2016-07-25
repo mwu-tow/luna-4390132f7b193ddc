@@ -1,7 +1,7 @@
 name:                data-repr
-version:             1.0.1
+version:             1.0.2
 synopsis:            Alternative to Show data printing utility.
--- description:         
+-- description:
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Wojciech Danilo
@@ -12,7 +12,7 @@ bug-reports:         https://github.com/wdanilo/data-repr/issues
 copyright:           Copyright (C) 2014 Wojciech Danilo
 category:            Text
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >=1.10
 
 
@@ -44,9 +44,9 @@ Library
                       TypeOperators
                       ViewPatterns
                       TypeFamilies
-  
+
   exposed-modules:    `findmodules('src', '.*\.hs')`
 
-  build-depends:      base >=4.6 && <4.9
+  build-depends:      base >=4.6 && <4.10
                     , generic-deriving
                     , lens

@@ -46,28 +46,28 @@ instance (GShow c) => GShow' (K1 i c) where
 -- No instances for P or Rec because gshow is only applicable to types of kind *
 
 instance (GShow' a, Constructor c) => GShow' (M1 C c a) where
-  gshowsPrec' _ n c@(M1 x) = 
-    case fixity of
-      Prefix    -> showParen (n > appPrec && not (isNullary x)) 
-                    ( showString (conName c) 
-                    . if (isNullary x) then id else showChar ' '
-                    . showBraces t (gshowsPrec' t appPrec x))
-      Infix _ m -> showParen (n > m) (showBraces t (gshowsPrec' t m x))
-      where fixity = conFixity c
-            t = if (conIsRecord c) then Rec else
-                  case (conIsTuple c) of
-                    True -> Tup
-                    False -> case fixity of
-                                Prefix    -> Pref
-                                Infix _ _ -> Inf (show (conName c))
-            showBraces :: Type -> ShowS -> ShowS
-            showBraces Rec     p = showChar '{' . p . showChar '}'
-            showBraces Tup     p = showChar '(' . p . showChar ')'
-            showBraces Pref    p = p
-            showBraces (Inf _) p = p
-            conIsTuple y = tupleName (conName y) where
-              tupleName ('(':',':_) = True
-              tupleName _           = False
+  gshowsPrec' _ n c@(M1 x) = error "FIXME GHC8 in Data.Repr"
+    -- case fixity of
+    --   Prefix    -> showParen (n > appPrec && not (isNullary x))
+    --                 ( showString (conName c)
+    --                 . if (isNullary x) then id else showChar ' '
+    --                 . showBraces t (gshowsPrec' t appPrec x))
+    --   Infix _ m -> showParen (n > m) (showBraces t (gshowsPrec' t m x))
+    --   where fixity = conFixity c
+    --         t = if (conIsRecord c) then Rec else
+    --               case (conIsTuple c) of
+    --                 True -> Tup
+    --                 False -> case fixity of
+    --                             Prefix    -> Pref
+    --                             Infix _ _ -> Inf (show (conName c))
+    --         showBraces :: Type -> ShowS -> ShowS
+    --         showBraces Rec     p = showChar '{' . p . showChar '}'
+    --         showBraces Tup     p = showChar '(' . p . showChar ')'
+    --         showBraces Pref    p = p
+    --         showBraces (Inf _) p = p
+    --         conIsTuple y = tupleName (conName y) where
+    --           tupleName ('(':',':_) = True
+    --           tupleName _           = False
 
 instance (Selector s, GShow' a) => GShow' (M1 S s a) where
   gshowsPrec' t n s@(M1 x) | selName s == "" = --showParen (n > appPrec)
@@ -93,12 +93,12 @@ instance (GShow' a, GShow' b) => GShow' (a :*: b) where
     gshowsPrec' t n     a . showChar ','    . gshowsPrec' t n     b
   gshowsPrec' t@Pref    n (a :*: b) =
     gshowsPrec' t (n+1) a . showChar ' '    . gshowsPrec' t (n+1) b
-  
+
   -- If we have a product then it is not a nullary constructor
   isNullary _ = False
 
 
-class GShow a where 
+class GShow a where
   gshowsPrec :: Int -> a -> ShowS
   gshows :: a -> ShowS
   gshows = gshowsPrec 0
