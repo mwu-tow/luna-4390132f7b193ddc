@@ -5,7 +5,7 @@
 ---------------------------------------------------
 
 name:                data-layer
-version:             1.0.5
+version:             1.0.6
 synopsis:            Data layering utilities. Layer is a data-type which wrapps other one, but keeping additional information. If you want to access content of simple newtype object, use Lens.Wrapper instead.
 -- description:
 license:             Apache-2.0
@@ -57,7 +57,7 @@ Library
         Data.Layer_OLD.Cover_OLD,
         Data.Layer_OLD.Immersed
 
-  build-depends:      base >=4.6 && <4.9
+  build-depends:      base >=4.6 && <4.10
                     , convert
                     , data-construction
                     , deepseq

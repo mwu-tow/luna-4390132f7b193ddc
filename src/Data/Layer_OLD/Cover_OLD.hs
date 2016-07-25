@@ -99,7 +99,8 @@ instance {-# OVERLAPPABLE #-} ( CoverConstructorFix m (Unlayered a)
 instance {-# OVERLAPPABLE #-}   Monad m   => CoverConstructorFix m (Cover a) where constructCoverFix = return . Cover
 
 
-instance {-# OVERLAPPABLE #-} ( CoverDestructor m (Unlayered a)
+instance {-# OVERLAPPABLE #-} ( Monad m
+                              , CoverDestructor m (Unlayered a)
                               , Uncovered a ~ Uncovered (Unlayered a)
                               , LayerDestructor m a) => CoverDestructor m a         where destructCover = destructLayer >=> destructCover
 
@@ -136,5 +137,3 @@ instance Monad m => CoverDestructor m (Cover a) where destructCover = return . v
 -- Attributes
 
 --instance MayHaveAttr a (Cover t) where checkAttr _ = Nothing
-
-
