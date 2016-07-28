@@ -120,8 +120,12 @@ data GeoComponent = GeoElem  [Surface]
 
 -- === Texts === --
 
+data TextAlignment = Left | Center | Right
+                   deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+
 data Label = Label { _labelPosition :: Point
                    , _fontSize      :: Double
+                   , _textAlign     :: TextAlignment
                    , _text          :: String
                    } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
