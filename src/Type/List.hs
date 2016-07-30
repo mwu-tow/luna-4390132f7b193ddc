@@ -7,12 +7,12 @@
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE ScopedTypeVariables            #-}
 
-module Type.List where
+module Type.List (module Type.List, module X) where
 
 import Prelude
 import GHC.TypeLits
 import Type.Bool
-import Type.Container
+import Type.Container as X
 import qualified Type.Set as Set
 import Type.Monoid
 
