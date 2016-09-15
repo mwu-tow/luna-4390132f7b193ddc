@@ -131,9 +131,16 @@ data Label = Label { _labelPosition :: Point
 
 -- === Multiple shaders layers === --
 
-data Layer = Layer { _geometry        :: Geometry
-                   , _transformations :: [Transformation]
-                   , _labels          :: [Label]
+data Placement = Transformations { _transformations :: [Transformation] }
+               | Translations    { _translations    :: [Point] }
+               deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+
+data Labels = Labels { _labelsList :: [Labels]
+                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+
+data Layer = Layer { _geometry  :: Geometry
+                   , _placement :: Placement
+                   , _labels    :: Labels
                    } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
 data Graphics = Graphics { _graphics :: [Layer]
@@ -158,6 +165,12 @@ instance Default Transformation where
 
 instance Default Attributes where
     def = Attributes def
+
+instance Default Placement where
+    def = Translations [def]
+
+instance Default Labels where
+    def = Labels def
 
 -----------------------------------
 -- === Convertible instances === --
@@ -184,7 +197,7 @@ geoComponentToGeometry geoComponent = Geometry geoComponent def (Just def)
 {-# INLINE geoComponentToGeometry #-}
 
 geometryToLayer :: Geometry -> Layer
-geometryToLayer geometry = Layer geometry [def] []
+geometryToLayer geometry = Layer geometry def def
 {-# INLINE geometryToLayer #-}
 
 layerToGraphics :: Layer -> Graphics
