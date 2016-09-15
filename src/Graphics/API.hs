@@ -132,10 +132,10 @@ data Label = Label { _labelPosition :: Point
 -- === Multiple shaders layers === --
 
 data Placement = Transformations { _transformations :: [Transformation] }
-               | Translations    { _translations    :: [Point] }
+               | Translations    { _translations    :: [Point]          }
                deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
-data Labels = Labels { _labelsList :: [Labels]
+data Labels = Labels { _labelsList :: [Label]
                      } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
 
 data Layer = Layer { _geometry  :: Geometry
