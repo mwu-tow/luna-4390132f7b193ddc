@@ -9,7 +9,8 @@ import GHC.TypeLits
 
 type family In     (el :: ke) (cont :: k) :: Bool
 type family Index2 (idx :: i) (cont :: c) :: el
-type family Index  (el :: ke) (cont :: k) :: Maybe Nat
+type family Index  (el :: ke) (cont :: k) :: Maybe Nat -- TODO: refactor to TryIndex or LookupIndex
+type family IndexF (el :: ke) (cont :: k) :: Nat
 type family Append (el :: ke) (cont :: k) :: k
 type family Insert (el :: ke) (cont :: k) :: k
 type family Remove (el :: ke) (cont :: k) :: k

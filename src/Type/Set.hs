@@ -6,13 +6,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PolyKinds            #-}
 
-module Type.Set where
+module Type.Set (module Type.Set, module X) where
 
 import Type.Bool
 import Type.Container
 import Type.Wrapped
 import Type.Operators
-import Type.Monoid
+import Type.Monoid as X
 
 
 -- === Declarations ===

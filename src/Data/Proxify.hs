@@ -1,3 +1,5 @@
+{-# LANGUAGE PolyKinds #-}
+
 module Data.Proxify (module Data.Proxify, module X) where
 
 import Data.Proxy as X
@@ -11,3 +13,6 @@ type family Proxified a where
 
 proxify :: a -> Proxy (Proxified a)
 proxify _ = Proxy
+
+
+type family Deproxy p where Deproxy (Proxy a) = a

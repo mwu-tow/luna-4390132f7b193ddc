@@ -1,5 +1,5 @@
 name:                typelevel
-version:             1.0.10
+version:             1.0.11
 synopsis:            Useful type level operations (type families and related operators).
 -- description:
 license:             Apache-2.0
@@ -57,3 +57,4 @@ Library
                     , pretty-show
                     , primitive
                     , transformers
+                    , constraints

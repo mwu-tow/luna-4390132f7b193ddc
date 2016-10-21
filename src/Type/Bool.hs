@@ -46,12 +46,12 @@ type family (a :: k) == (b :: l) where
     a == a = 'True
     a == b = 'False
 
+type family (a :: k) > (b :: k) :: Bool
+type family (a :: k) < (b :: k) :: Bool
+
 
 -- === Type level queries ===
 
 class    KnownBool (b :: Bool) where boolVal :: Proxy b -> Bool
 instance KnownBool True        where boolVal _ = True
 instance KnownBool False       where boolVal _ = False
-
-
-

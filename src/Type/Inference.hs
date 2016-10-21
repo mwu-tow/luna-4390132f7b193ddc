@@ -1,4 +1,9 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PolyKinds            #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE AllowAmbiguousTypes  #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 
 module Type.Inference where
 
@@ -22,16 +27,23 @@ import           Control.Monad.Primitive
 --   evaluating the monadic stack.
 
 type    KnownType  cls t     = KnownTypeT cls t Identity
-newtype KnownTypeT cls t m a = KnownTypeT (IdentityT m a) deriving (Show, Functor, Monad, MonadIO, MonadFix, MonadTrans, Applicative, MonadThrow, MonadCatch, MonadMask, MonadPlus, Alternative)
+newtype KnownTypeT (cls :: *) (t :: k) (m :: * -> *) (a :: *) = KnownTypeT (IdentityT m a) deriving (Show, Functor, Monad, MonadIO, MonadFix, MonadTrans, Applicative, MonadThrow, MonadCatch, MonadMask, MonadPlus, Alternative)
 makeWrapped ''KnownTypeT
 
-class Monad m => Inferable cls t m | cls m -> t where infer_ :: cls -> t -> m ()
+class Monad m => Inferable cls t m | cls m -> t where infer_ :: cls -> t -> m () -- Depreciated
+
+class Monad m => Inferable2 (cls :: *) (t :: k) m | cls m -> t where infer2_ :: m ()
 
 
 -- === Utils === --
 
 runInferenceT :: cls -> Proxy t -> KnownTypeT cls t m a -> m a
 runInferenceT _ _ = runIdentityT . view _Wrapped' ; {-# INLINE runInferenceT #-}
+
+
+runInferenceT2 :: forall cls t m a. KnownTypeT cls t m a -> m a
+runInferenceT2 = runIdentityT . view _Wrapped' ; {-# INLINE runInferenceT2 #-}
+
 
 runInference :: cls -> Proxy t -> KnownType cls t a -> a
 runInference cls t m = runIdentity $ runInferenceT cls t m ; {-# INLINE runInference #-}
@@ -59,3 +71,6 @@ instance PrimMonad m => PrimMonad (KnownTypeT cls t m) where
     {-# INLINE primitive #-}
 
 
+-- Inferable recursive resolution
+instance {-# OVERLAPPABLE #-} (t ~ t', Monad m)                               => Inferable2 cls t (KnownTypeT cls t' m) where infer2_ = return ()              ; {-# INLINE infer2_ #-}
+instance {-# OVERLAPPABLE #-} (Inferable2 cls t n, MonadTrans m, Monad (m n)) => Inferable2 cls t (m n)                 where infer2_ = lift $ infer2_ @cls @t ; {-# INLINE infer2_ #-}

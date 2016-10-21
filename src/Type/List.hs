@@ -14,7 +14,7 @@ import GHC.TypeLits
 import Type.Bool
 import Type.Container as X
 import qualified Type.Set as Set
-import Type.Monoid
+import Type.Monoid as X
 
 -- === Wrappers ===
 
@@ -45,6 +45,8 @@ type family SuccMaybe (m :: Maybe Nat) where SuccMaybe ('Just n) = 'Just (n + 1)
 
 type instance Index a (l ': ls) = If (a == l) ('Just 0) (SuccMaybe (Index a ls))
 type instance Index a '[]       = ('Nothing :: Maybe Nat)
+
+type instance IndexF a (l ': ls) = If (a == l) 0 (IndexF a ls + 1)
 
 
 data Recursive a
@@ -116,7 +118,9 @@ type family Drop (n :: Nat) lst where
 
 --type instance RecIndex a ((l ': ls) :: [[*]]) = If (RecIndex a l == 'Nothing) (SuccMaybe (RecIndex a ls)) (Just 0)
 
-
+type family Join (lst :: [[k]]) :: [k] where
+    Join '[]           = '[]
+    Join (lst ': lsts) = Concat lst (Join lsts)
 
 type family Last (lst :: [k]) :: k where
     Last '[x]      = x
