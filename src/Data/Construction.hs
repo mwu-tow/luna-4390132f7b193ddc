@@ -9,6 +9,7 @@ import qualified Data.RTuple as List
 import           Data.RTuple (List)
 import           Type.Applicative
 import           Data.Constraints
+import           Data.Text.Lazy hiding (break)
 
 
 -- === Definitions === --
@@ -62,3 +63,14 @@ deconstruct_ a = () <$ deconstruct a ; {-# INLINE deconstruct_ #-}
 
 type ConsFields cons a = Constraints (cons <$> Fields a)
 type ShowFields      a = ConsFields Show a
+
+
+
+-- === FieldNames === --
+
+class HasFieldNames a where
+    fieldNames :: a -> [Text]
+
+type family FieldsType a
+class HasFields a where
+    fieldList :: a -> [FieldsType a]
