@@ -13,5 +13,6 @@ instance TypeError err => Assert 'False err
 
 -- === Formatters === --
 
-type Ticked a = 'Text "`" :<>: a :<>: 'Text "`"
-type a :</>: b = a :<>: 'Text " " :<>: b
+type Sentence a = a :<>: 'Text "."
+type Ticked   a = 'Text "`" :<>: a :<>: 'Text "`"
+type a :</>: b  = a :<>: 'Text " " :<>: b

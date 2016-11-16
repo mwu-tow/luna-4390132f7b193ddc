@@ -26,6 +26,8 @@ type family Unique            (cont :: k) :: k
 type family Diff  (c :: k) (c' :: k) :: k
 type family Union (c :: k) (c' :: k) :: k
 
+type family Every a :: [*]
+
 --infixr 6      :<>
 --type family (a :: k) :<> (b :: k) where a :<> b = Concat a b
 
