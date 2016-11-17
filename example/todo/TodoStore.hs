@@ -56,7 +56,7 @@ instance StoreData TodoState where
         return $ TodoState newTodos
 
 todoStore :: ReactStore TodoState
-todoStore = mkStore $ TodoState
+todoStore = unsafeMkStore $ TodoState
     [ (0, Todo "Learn react" True False)
     , (1, Todo "Learn react-flux" False False)
     ]

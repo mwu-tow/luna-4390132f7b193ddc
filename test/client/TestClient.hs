@@ -39,7 +39,7 @@ instance StoreData OutputStoreData where
         trace (unlines $ map T.unpack ss) $ return OutputStoreData
 
 outputStore :: ReactStore OutputStoreData
-outputStore = mkStore OutputStoreData
+outputStore = unsafeMkStore OutputStoreData
 
 output :: [T.Text] -> [SomeStoreAction]
 output s = [SomeStoreAction outputStore s]
@@ -255,7 +255,7 @@ data SCUIndex = SCU1 | SCU2 | SCU3 | SCU4
 data ShouldComponentUpdateAction = IncrementAllSCUData SCUIndex
                                  | IncrementFirstSCUData SCUIndex
                                  | NoChangeToSCUData
-    deriving (Show, Typeable, Generic, NFData) 
+    deriving (Show, Typeable, Generic, NFData)
 
 toggleSCU :: ShouldComponentUpdateData -> ShouldComponentUpdateData
 toggleSCU (ShouldComponentUpdateData i s) = ShouldComponentUpdateData (i+1) s
@@ -264,7 +264,7 @@ instance StoreData [ShouldComponentUpdate] where
     type StoreAction [ShouldComponentUpdate] = ShouldComponentUpdateAction
     transform _ [] = error "Will never happen"
     transform action ds@(first:rest) =
-        pure $ case action of 
+        pure $ case action of
             NoChangeToSCUData -> ds
             (IncrementAllSCUData SCU1) -> [ShouldComponentUpdate (toggleSCU s1) s2 s3 s4 | ShouldComponentUpdate s1 s2 s3 s4 <- ds]
             (IncrementAllSCUData SCU2) -> [ShouldComponentUpdate s1 (toggleSCU s2) s3 s4  | ShouldComponentUpdate s1 s2 s3 s4 <- ds]
@@ -276,7 +276,7 @@ instance StoreData [ShouldComponentUpdate] where
             (IncrementFirstSCUData SCU4) -> first { scu4 = toggleSCU $ scu4 first } : rest
 
 shouldComponentUpdateStore :: ReactStore [ShouldComponentUpdate]
-shouldComponentUpdateStore = mkStore
+shouldComponentUpdateStore = unsafeMkStore
         [ ShouldComponentUpdate (mkS 1 "Quick Ben") (mkS 2 "Whiskeyjack") (mkS 3 "Fiddler") (mkS 4 "Kellanved")
         , ShouldComponentUpdate (mkS 5 "Karsa") (mkS 6 "Tehol") (mkS 7 "Tayschrenn") (mkS 8 "Kruppe")
         , ShouldComponentUpdate (mkS 9 "Anomander Rake") (mkS 10 "Iskaral Pust") (mkS 11 "Dujek") (mkS 12 "Tavore")
@@ -332,7 +332,7 @@ logComp3_ :: ShouldComponentUpdateData -> ShouldComponentUpdateData -> ShouldCom
 logComp3_ !sc1 !sc2 !sc3 i = viewWithKey logComponentWillUpdateTriple i (sc1, sc2, sc3) mempty
 
 shouldComponentUpdateSpec :: ReactView ()
-shouldComponentUpdateSpec = defineControllerView "should component update" shouldComponentUpdateStore $ \ds () -> 
+shouldComponentUpdateSpec = defineControllerView "should component update" shouldComponentUpdateStore $ \ds () ->
     div_ ["id" $= "should-component-update"] $ do
         ul_ ["id" $= "should-component-update-single"] $ forM_ (zip ds [(0 :: Int)..]) $ \(d,i)  ->
             li_ $ logComp1_ (scu1 d) i
@@ -390,7 +390,7 @@ intlSpec = defineView "intl" $ \() ->
         view intlSpecBody () mempty
 
 intlSpecBody :: ReactView ()
-intlSpecBody = defineView "intl body" $ \() -> div_ ["id" $= "intl-spec"] $ 
+intlSpecBody = defineView "intl body" $ \() -> div_ ["id" $= "intl-spec"] $
     ul_ $ do
         li_ ["id" $= "f-number"] $
             formattedNumber_ [ "value" @= (0.9 :: Double), "style" $= "percent" ]

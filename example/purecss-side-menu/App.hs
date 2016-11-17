@@ -19,37 +19,37 @@ data Page = Page
   }
 
 -- | Convert a page id to a page
-pageFor :: NavPageId -> Page
-pageFor Page1 = Page Page1 "Page 1" page1
-pageFor Page2 = Page Page2 "Page 2" page2
-pageFor Page3 = Page Page3 "Page 3" page3
+pageFor :: ReactStore NavState -> NavPageId -> Page
+pageFor navStore Page1 = Page Page1 "Page 1" $ page1 navStore
+pageFor navStore Page2 = Page Page2 "Page 2" $ page2 navStore
+pageFor navStore Page3 = Page Page3 "Page 3" $ page3 navStore
 
 -- | A single menu item entry in the sidebar.
-menuItem_ :: NavPageId -> NavPageId -> ReactElementM ViewEventHandler ()
-menuItem_ curPageId linkPageId =
-    let linkPage = pageFor linkPageId
+menuItem_ :: ReactStore NavState -> NavPageId -> NavPageId -> ReactElementM ViewEventHandler ()
+menuItem_ navStore curPageId linkPageId =
+    let linkPage = pageFor navStore linkPageId
     in
     li_ [classNames [("pure-menu-item", True), ("pure-menu-selected", curPageId == pageId linkPage)]] $
-        a_ ["className" $= "pure-menu-link", onClick $ \_ _ -> changePageTo $ pageId linkPage] $
+        a_ ["className" $= "pure-menu-link", onClick $ \_ _ -> changePageTo navStore $ pageId linkPage] $
             pageTitle linkPage
 
 -- | The navigation menu
-navMenu_ :: NavPageId -> ReactElementM ViewEventHandler ()
-navMenu_ curPageId =
+navMenu_ :: ReactStore NavState -> NavPageId -> ReactElementM ViewEventHandler ()
+navMenu_ navStore curPageId =
     cldiv_ "pure-menu" $ do
         span_ ["className" $= "pure-menu-heading"] "My Brand"
         ul_ ["className" $= "pure-menu-list"] $
-            mapM_ (menuItem_ curPageId) allPageIds
+            mapM_ (menuItem_ navStore curPageId) allPageIds
 
 -- | The entire layout of the app, consisting of the menu and the main content section.
-myApp :: ReactView ()
-myApp = defineControllerView "my application" currentNavPageStore $ \navState () -> do
+myApp :: ReactStore NavState -> ReactView ()
+myApp navStore = defineControllerView "my application" navStore $ \navState () -> do
     div_ ["id" $= "layout", classNames [("active", sideMenuOpen navState)]] $ do
         a_ ["id" $= "menuLink"
            , classNames [("menu-link", True), ("active", sideMenuOpen navState)]
-           , onClick $ \_ _ -> [SomeStoreAction currentNavPageStore ToggleSideMenu]
+           , onClick $ \_ _ -> [SomeStoreAction navStore ToggleSideMenu]
            ] $ span_ mempty
         div_ ["id" $= "menu", classNames [("active", sideMenuOpen navState)]] $
-            navMenu_ $ currentPageId navState
+            navMenu_ navStore $ currentPageId navState
         div_ ["id" $= "main"] $
-            view (pageContent $ pageFor $ currentPageId navState) () mempty
+            view (pageContent $ pageFor navStore $ currentPageId navState) () mempty

@@ -49,7 +49,7 @@ instance StoreData ClockState where
         alterStore rst (ClockTick tm)
 
 store :: ReactStore ClockState
-store = mkStore $ ClockState Nothing
+store = unsafeMkStore $ ClockState Nothing
 
 view :: ReactView ClockState
 view = defineView "clock" $ \st ->
@@ -58,5 +58,3 @@ view = defineView "clock" $ \st ->
 view_ :: ClockState -> ReactElementM eventHandler ()
 view_ st =
   RF.view view st mempty
-
-

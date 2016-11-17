@@ -65,7 +65,7 @@ instance StoreData ETState where
     return st2
 
 store :: ReactStore ETState
-store = mkStore $ ETState [] "" True
+store = unsafeMkStore $ ETState [] "" True
 
 dispatchEventTest :: ETAction -> [SomeStoreAction]
 dispatchEventTest a = [SomeStoreAction store a]

@@ -50,8 +50,8 @@ instance StoreData NavState where
     transform ToggleSideMenu s =
         return $ s { sideMenuOpen = not (sideMenuOpen s) } -- use a lens!
 
-currentNavPageStore :: ReactStore NavState
-currentNavPageStore = mkStore (NavState False Page1)
+createNavPageStore :: IO (ReactStore NavState)
+createNavPageStore = mkStore (NavState False Page1)
 
 --------------------------------------------------------------------------
 --- History API
@@ -79,14 +79,13 @@ foreign import javascript unsafe
     "window['onpopstate'] = function(e) { $1(e['state'] ? e['state'].page : 0); };"
     js_setOnPopState :: Callback (JSVal -> IO ()) -> IO ()
 
-initHistory :: IO ()
-initHistory = do
+initHistory :: ReactStore NavState -> IO ()
+initHistory navStore = do
     -- set the document title to match page1
     let (title, _) = pageTitleAndUrl Page1
     js_setDocTitle $ JSString.pack title
-
     -- register a callback for onpopstate event
     c <- syncCallback1 ContinueAsync $ \pageRef -> do
         pageInt <- fromMaybe (error "Unable to parse page") <$> fromJSVal pageRef
-        alterStore currentNavPageStore $ BackToPage $ toEnum pageInt
+        alterStore navStore $ BackToPage $ toEnum pageInt
     js_setOnPopState c

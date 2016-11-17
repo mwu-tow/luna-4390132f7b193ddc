@@ -58,7 +58,7 @@ todoItem = defineView "todo item" $ \(todoIdx, todo) ->
     li_ [ classNames [("completed", todoComplete todo), ("editing", todoIsEditing todo)]
         , "key" @= todoIdx
         ] $ do
-        
+
         cldiv_ "view" $ do
             input_ [ "className" $= "toggle"
                    , "type" $= "checkbox"

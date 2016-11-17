@@ -91,7 +91,7 @@ instance StoreData TabbedState where
           error $ "Application index is out of range " ++ show idx
 
 newStore :: [Tab] -> ReactStore TabbedState
-newStore tabs = mkStore $ TabbedState 0 tabs
+newStore tabs = unsafeMkStore $ TabbedState 0 tabs
 
 view :: ReactStore TabbedState -> ParentRouter -> ReactView TabbedState
 view _ prouter = defineView "tabbed" $ \TabbedState{..} ->

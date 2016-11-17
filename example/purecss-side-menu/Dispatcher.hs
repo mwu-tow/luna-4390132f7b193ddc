@@ -7,5 +7,5 @@ module Dispatcher (
 import React.Flux
 import NavStore
 
-changePageTo :: NavPageId -> [SomeStoreAction]
-changePageTo p = [SomeStoreAction currentNavPageStore $ ChangePageTo p]
+changePageTo :: ReactStore NavState -> NavPageId -> [SomeStoreAction]
+changePageTo navStore p = [SomeStoreAction navStore $ ChangePageTo p]

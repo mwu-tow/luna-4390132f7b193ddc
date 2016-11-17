@@ -67,6 +67,7 @@ module React.Flux (
     ReactStore
   , StoreData(..)
   , mkStore
+  , unsafeMkStore
   , getStoreData
   , alterStore
   , SomeStoreAction(..)
@@ -199,10 +200,10 @@ reactRenderToString _ _ _ = error "reactRenderToString only works when compiled 
 
 #endif
 
--- $performance 
+-- $performance
 --
 -- React obtains high <https://facebook.github.io/react/docs/advanced-performance.html performance> from two techniques: the
--- <https://facebook.github.io/react/docs/reconciliation.html virtual DOM/reconciliation> and 
+-- <https://facebook.github.io/react/docs/reconciliation.html virtual DOM/reconciliation> and
 -- <https://facebook.github.io/react/docs/events.html event handlers> registered on the document.
 --
 -- __Reconciliation__

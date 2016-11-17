@@ -2,9 +2,10 @@ module Main (main) where
 
 import React.Flux
 import App
-import NavStore (initHistory)
+import NavStore (initHistory, createNavPageStore)
 
 main :: IO ()
 main = do
-    initHistory
-    reactRender "side-menu-app" myApp ()
+    navStore <- createNavPageStore
+    initHistory navStore
+    reactRender "side-menu-app" (myApp navStore) ()
