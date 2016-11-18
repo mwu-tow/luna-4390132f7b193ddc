@@ -1,0 +1,14 @@
+author: Wojciech Danilo
+category: Data
+default-extensions: [AllowAmbiguousTypes, ConstraintKinds, DataKinds, DefaultSignatures,
+  MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies,
+  TypeOperators]
+dependencies: [base, lens]
+github: https://github.com/wdanilo/data-prop
+library: {ghc-options: -Wall -O2, source-dirs: src}
+license: Apache-2.0
+maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
+name: data-prop
+stability: experimental
+synopsis: Abstraction for storing and accessing data properties.
+version: '0.2'
