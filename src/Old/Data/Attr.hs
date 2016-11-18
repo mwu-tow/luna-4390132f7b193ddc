@@ -40,4 +40,3 @@ type SubSetter a t = (Layered t, Setter a (Unlayered t), Attr a t ~ Attr a (Unla
 
 attr :: HasAttr a t => a -> Lens' t (Attr a t)
 attr a = lens (getter a) (flip $ setter a)
-
