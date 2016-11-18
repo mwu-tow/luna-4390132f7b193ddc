@@ -19,6 +19,8 @@ type family Args          a -- Depreciated
 
 class            Maker           a where make        :: Deconstructed a -> a
 class            Breaker         a where break       :: a -> Deconstructed a
+class Monad m => Constructor a m t where cons        :: a -> m t
+
 class Monad m => Constructor'  m a where construct'  :: Deconstructed a -> m a   ; default construct' :: Creator m a => Deconstructed a -> m a
                                                                                  ; construct' _ = create ; {-# INLINE construct' #-}
 class Monad m => Deconstructor m a where deconstruct :: a -> m (Deconstructed a) ; default deconstruct :: Breaker a => a -> m (Deconstructed a)
