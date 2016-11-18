@@ -1,20 +1,18 @@
+module Data.Repr where
 
-{-# LANGUAGE UndecidableInstances #-}
-
-module Data.Repr  where
-
-import Prelude
+import Control.Lens
 
 
+--------------------------
+-- === Content show === --
+--------------------------
+-- | Utilities allowin easy implementation of show instances for structures
+--   which provide content, so we can implement beginning and end sequence
+--   independently from body
 
--- == Types ==
+newtype Content a = Content a deriving (Functor, Traversable, Foldable)
+makeWrapped ''Content
 
-class Repr a where
-    repr :: a -> String
-
-
--- === Instances ===
-
-instance {-# OVERLAPPABLE #-} Show a => Repr a where
-    repr = show
-
+type ContentShow a = Show (Content a)
+contentShow :: ContentShow a => a -> String
+contentShow = show . Content ; {-# INLINE contentShow #-}
