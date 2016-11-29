@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           typelevel
-version:        1.0.12
+version:        1.0.13
 synopsis:       Useful type level operations (type families and related operators).
 category:       Text
 stability:      experimental

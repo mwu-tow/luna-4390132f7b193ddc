@@ -1,8 +1,12 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module Type.Error where
+module Type.Error (module Type.Error, module X) where
 
-import GHC.TypeLits (ErrorMessage(..), TypeError)
+import GHC.TypeLits as X (ErrorMessage (ShowType, (:<>:), (:$$:)), TypeError)
+import GHC.TypeLits      (ErrorMessage (Text))
+
+
+type ErrMsg = 'Text
 
 
 -- === Assertions === --
@@ -13,6 +17,6 @@ instance TypeError err => Assert 'False err
 
 -- === Formatters === --
 
-type Sentence a = a :<>: 'Text "."
-type Ticked   a = 'Text "`" :<>: a :<>: 'Text "`"
-type a :</>: b  = a :<>: 'Text " " :<>: b
+type Sentence a = a :<>: ErrMsg "."
+type Ticked   a = ErrMsg "`" :<>: a :<>: ErrMsg "`"
+type a :</>: b  = a :<>: ErrMsg " " :<>: b
