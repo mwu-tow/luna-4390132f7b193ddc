@@ -18,4 +18,4 @@ maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: data-repr
 stability: experimental
 synopsis: Alternative to Show data printing utility.
-version: 1.0.3
+version: 1.0.4

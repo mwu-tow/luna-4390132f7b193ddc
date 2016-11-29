@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           data-repr
-version:        1.0.2
+version:        1.0.3
 synopsis:       Alternative to Show data printing utility.
 category:       Text
 stability:      experimental
