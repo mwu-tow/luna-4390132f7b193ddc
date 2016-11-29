@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           data-layer
-version:        1.0.7
+version:        1.0.8
 synopsis:       Data layering utilities. Layer is a data-type which wrapps other one, but keeping additional information. If you want to access content of simple newtype object, use Lens.Wrapper instead.
 category:       Data
 stability:      experimental
