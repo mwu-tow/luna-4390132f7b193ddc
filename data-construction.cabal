@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           data-construction
-version:        1.1.4
+version:        1.1.5
 synopsis:       Data construction abstractions including Constructor, Destructor, Maker, Destroyer, Producer and Consumer.
 category:       Text
 stability:      stable
