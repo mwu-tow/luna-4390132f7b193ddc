@@ -34,6 +34,10 @@ class Monad m => Inferable cls t m | cls m -> t where infer_ :: cls -> t -> m ()
 
 class Monad m => Inferable2 (cls :: *) (t :: k) m | cls m -> t where infer2_ :: m ()
 
+type family Infered p m where
+    Infered p (KnownTypeT p a m) = a
+    Infered p (t m)              = Infered p m
+
 
 -- === Utils === --
 
