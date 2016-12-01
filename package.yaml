@@ -23,4 +23,4 @@ maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: typelevel
 stability: experimental
 synopsis: Useful type level operations (type families and related operators).
-version: 1.0.16
+version: 1.0.17

@@ -14,6 +14,8 @@ class                     Assert (ok :: Bool) (err :: ErrorMessage)
 instance                  Assert 'True  err
 instance TypeError err => Assert 'False err
 
+type Assert' ok = Assert ok (ErrMsg "Assertion failed.")
+
 
 -- === Formatters === --
 
