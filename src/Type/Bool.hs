@@ -17,7 +17,9 @@ type family Not a where
   Not 'True  = 'False
   Not 'False = 'True
 
-type family And a b where
+infixr 3 &&
+type a && b = And a b
+type family   And a b where
   And 'True 'True = 'True
   And a      b    = 'False
 
