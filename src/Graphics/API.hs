@@ -1,5 +1,6 @@
 module Graphics.API where
 
+import           Control.DeepSeq  (NFData)
 import           Control.Lens
 import           Data.Aeson       (FromJSON, ToJSON)
 import           Data.Binary      (Binary)
@@ -15,10 +16,10 @@ import           GHC.Generics     (Generic)
 
 
 data Point = Point Double Double
-             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Point3 = Point3 Double Double Double
-              deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+              deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 
 -- === Material === --
@@ -28,7 +29,7 @@ data Material = SolidColor { _r :: Double
                            , _g :: Double
                            , _b :: Double
                            , _a :: Double
-                           } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                           } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 
 -- === Transformation === --
@@ -40,7 +41,7 @@ data Transformation = Transformation { _scaleX :: Double
                                      , _dy     :: Double
                                      , _angle  :: Double
                                      , _refl   :: Bool
-                                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 makeLenses ''Transformation
 
@@ -77,7 +78,7 @@ type AttributeType = String
 -- lookup (AttrKey::AttrKey Attr.Point Attr.Color)
 
 data Attributes = Attributes (Map.Map AttributeType Double)
-                  deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                  deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 
 -- === Shader figures === --
@@ -87,13 +88,13 @@ data Figure = Square    { _s :: Double }
             | Rectangle { _w :: Double
                         , _h :: Double }
             | Circle    { _d :: Double }
-            deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+            deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 -- TODO: remove position
 data Primitive = Primitive { _figure     :: Figure
                            , _position   :: Point
                            , _attributes :: Attributes
-                           } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                           } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 -- TODO: add transformation (using auxiliary data type)
 -- TODO: consider lists of merge and intersect
@@ -101,50 +102,50 @@ data Shape = Shape     Primitive
            | Merge     Shape Shape
            | Subtract  Shape Shape
            | Intersect Shape Shape
-           deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+           deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Surface = ShapeSurface Shape
              | PolygonSurface
              | NumbsSurface
-             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Geometry = Geometry { _content        :: GeoComponent
                          , _transformation :: Transformation
                          , _material       :: Maybe Material
-                         } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                         } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data GeoComponent = GeoElem  [Surface]
                   | GeoGroup [Geometry]
-                  deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                  deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 
 -- === Texts === --
 
 data TextAlignment = Left | Center | Right
-                   deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                   deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Label = Label { _labelPosition :: Point
                    , _fontSize      :: Double
                    , _textAlign     :: TextAlignment
                    , _text          :: String
-                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 -- === Multiple shaders layers === --
 
 data Placement = Transformations { _transformations :: [Transformation] }
                | Translations    { _translations    :: [Point]          }
-               deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+               deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Labels = Labels { _labelsList :: [Label]
-                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Layer = Layer { _geometry  :: Geometry
                    , _placement :: Placement
                    , _labels    :: Labels
-                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 data Graphics = Graphics { _graphics :: [Layer]
-                         } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON)
+                         } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 
 -------------------------------

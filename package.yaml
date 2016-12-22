@@ -8,20 +8,20 @@ maintainer:          contact@luna-lang.org
 copyright:           2016 New Byte Order
 
 dependencies:
+  - aeson
   - base >= 4.7 && < 5
   - binary
-  - aeson
-  - data-default
-  - lens
   - containers
   - convert
+  - data-default
+  - deepseq
+  - lens
 
 default-extensions:
-  - TemplateHaskell
-  - DeriveGeneric
   - DeriveAnyClass
+  - DeriveGeneric
   - MultiParamTypeClasses
+  - TemplateHaskell
 
 library:
   source-dirs:      src
-
