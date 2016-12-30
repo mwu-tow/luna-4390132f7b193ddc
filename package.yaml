@@ -11,16 +11,10 @@ dependencies: [base >=4.6 && <4.10, exceptions, lens, mtl, pretty, pretty-show, 
   transformers, constraints]
 ghc-options: [-Wall, -O2]
 homepage: https://github.com/wdanilo/typelevel
-library:
-  exposed-modules: [Constraint.Container.Homo, Data.Constraints, Data.Proxify, Type.Applicative,
-    Type.Bool, Type.Container, Type.Either, Type.Error, Type.Functor, Type.Hidden,
-    Type.Inference, Type.List, Type.Map, Type.Maybe, Type.Monoid, Type.Operators,
-    Type.Promotion, Type.Relation, Type.Sequence, Type.Set, Type.Show, Type.Wrapped,
-    Type.Zip]
-  source-dirs: src
+library: {source-dirs: src}
 license: Apache-2.0
 maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: typelevel
 stability: experimental
 synopsis: Useful type level operations (type families and related operators).
-version: 1.0.19
+version: 1.0.20

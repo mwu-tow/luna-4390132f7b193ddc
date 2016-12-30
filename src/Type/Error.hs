@@ -19,6 +19,9 @@ type Assert' ok = Assert ok (ErrMsg "Assertion failed.")
 
 -- === Formatters === --
 
-type Sentence a = a :<>: ErrMsg "."
-type Ticked   a = ErrMsg "`" :<>: a :<>: ErrMsg "`"
+type Sentence a     = a :<>: ErrMsg "."
+type Ticked   a     = Between' "`" a
+type Parensed a     = Between "(" ")" a
+type Between  l r a = ErrMsg l :<>: a :<>: ErrMsg r
+type Between' s   a = Between s s a
 type a :</>: b  = a :<>: ErrMsg " " :<>: b

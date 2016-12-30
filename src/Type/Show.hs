@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE AllowAmbiguousTypes  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Type.Show where
@@ -23,7 +24,13 @@ import GHC.Exts         (Constraint)
 --                  s           -> s
 
 
-class TypeShow a where showType :: Proxy (a :: k) -> String
+class TypeShow a where
+    showType :: Proxy a -> String
+    default showType :: Typeable a => Proxy a -> String
+    showType = show . typeRep ; {-# INLINE showType #-}
+
+showType' :: forall t. TypeShow t => String
+showType' = showType (Proxy :: Proxy t) ; {-# INLINE showType' #-}
 
 printType :: TypeShow a => Proxy a -> IO ()
 printType = putStrLn . showType
@@ -55,4 +62,3 @@ class                                                           ListElemsShow a 
 instance {-# OVERLAPPABLE #-}                                   ListElemsShow '[]       where showListElems _ = ""
 instance {-# OVERLAPPABLE #-}  TypeShow a                    => ListElemsShow '[a]      where showListElems _ = showType (Proxy :: Proxy a)
 instance {-# OVERLAPPABLE #-} (TypeShow a, ListElemsShow as) => ListElemsShow (a ': as) where showListElems _ = showType (Proxy :: Proxy a) <> ", " <> showListElems (Proxy :: Proxy as)
-
