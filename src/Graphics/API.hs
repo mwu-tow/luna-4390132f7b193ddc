@@ -1,32 +1,35 @@
 module Graphics.API where
 
-import           Control.DeepSeq (NFData)
+import           Control.DeepSeq    (NFData)
 import           Control.Lens
-import           Data.Matrix     (Matrix)
-import qualified Data.Text       as Text
-import           GHC.Generics    (Generic)
+import           Data.Aeson         (FromJSON, ToJSON)
+import           Data.Binary        (Binary)
+import           Data.Matrix        (Matrix)
+import qualified Data.Text          as Text
+import           GHC.Generics       (Generic)
+import           Graphics.Instances ()
 import           Prelude
-
 
 ------------------
 -- === Math === --
 ------------------
 type Trans = Matrix Double
 
+
 data Point = Point { _x :: Double
                    , _y :: Double
-                   } deriving (Eq, Generic, NFData, Show)
+                   } deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
 makeLenses ''Point
 
-data Curve = Curve deriving (Eq, Generic, NFData, Show) -- TODO select Curve implementation
+data Curve = Curve deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON) -- TODO select Curve implementation
 
 -- === Boolean === --
 
 data Boolean a = Union        a a
                | Difference   a a
                | Intersection a a
-               deriving (Eq, Generic, NFData, Show)
+               deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
 
 ------------------------
@@ -47,7 +50,7 @@ data RGBA = RGBA { _rgba_r :: ColorVal
                  , _rgba_g :: ColorVal
                  , _rgba_b :: ColorVal
                  , _rgba_a :: ColorVal
-                 } deriving (Eq, Generic, NFData, Show)
+                 } deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 makeLenses ''RGBA
 
 class HasComponentR t where r :: Lens' t ColorVal
@@ -68,7 +71,7 @@ data HSVA = HSVA { _hsv_h :: ColorVal
                  , _hsv_s :: ColorVal
                  , _hsv_v :: ColorVal
                  , _hsv_a :: ColorVal
-                 } deriving (Eq, Generic, NFData, Show)
+                 } deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 makeLenses ''HSVA
 
 class HasComponentH t where h :: Lens' t ColorVal
@@ -90,7 +93,7 @@ instance HasRGBA HSVA where rgba = error "todo"
 
 data Color = Solid RGBA
            {- | Gradient -} -- kiedys
-           deriving (Eq, Generic, NFData, Show)
+           deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
 
 
@@ -100,16 +103,16 @@ data Color = Solid RGBA
 data Layer = Diffuse Color
            | Shadow  Size Color
            | Border  Size Color
-           deriving (Eq, Generic, NFData, Show)
+           deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
-data Material = Material [Layer] deriving (Eq, Generic, NFData, Show)
+data Material = Material [Layer] deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
 
 -- === Text === --
 
-data AlignmentH = Left | Center | Right deriving (Eq, Generic, NFData, Show)
-data Font    = Font    { _family :: Text.Text, _size :: Int } deriving (Eq, Generic, NFData, Show)
-data TextDef = TextDef { _txt :: Text.Text, _font :: Font, _aligment :: AlignmentH } deriving (Eq, Generic, NFData, Show)
+data AlignmentH = Left | Center | Right deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
+data Font    = Font    { _family :: Text.Text, _size :: Int } deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
+data TextDef = TextDef { _txt :: Text.Text, _font :: Font, _aligment :: AlignmentH } deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
 
 -- === Geometry === --
@@ -130,11 +133,11 @@ data Shape = Square    Size
            | Polygon   [Point]
            | Path      [Curve]
            | Text      TextDef
-           deriving (Eq, Generic, NFData, Show)
+           deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
 data Surface = Simple   Shape
              | Group    [Geometry]
              | Compound (Boolean Geometry)
-             deriving (Eq, Generic, NFData, Show)
+             deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)
 
-data Geometry = Geometry Material Trans Surface deriving (Eq, Generic, NFData, Show)
+data Geometry = Geometry Material Trans Surface deriving (Binary, Eq, FromJSON, Generic, NFData, Show, ToJSON)

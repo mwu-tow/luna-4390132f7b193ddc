@@ -8,7 +8,9 @@ maintainer:          contact@luna-lang.org
 copyright:           2016 New Byte Order
 
 dependencies:
+  - aeson
   - base >= 4.7 && < 5
+  - binary
   - deepseq
   - lens
   - matrix
@@ -17,6 +19,7 @@ dependencies:
 default-extensions:
   - DeriveAnyClass
   - DeriveGeneric
+  - FlexibleInstances
   - MultiParamTypeClasses
   - TemplateHaskell
 
