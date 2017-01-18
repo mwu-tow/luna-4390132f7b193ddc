@@ -1,11 +1,10 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Graphics.API where
 
+import           Control.DeepSeq (NFData)
 import           Control.Lens
-import           Data.Matrix   (Matrix)
-import qualified Data.Text     as Text
-import           GHC.Generics (Generic)
+import           Data.Matrix     (Matrix)
+import qualified Data.Text       as Text
+import           GHC.Generics    (Generic)
 import           Prelude
 
 
@@ -16,18 +15,18 @@ type Trans = Matrix Double
 
 data Point = Point { _x :: Double
                    , _y :: Double
-                   } deriving (Eq, Generic, Show)
+                   } deriving (Eq, Generic, NFData, Show)
 
 makeLenses ''Point
 
-data Curve = Curve deriving (Eq, Generic, Show) -- TODO select Curve implementation
+data Curve = Curve deriving (Eq, Generic, NFData, Show) -- TODO select Curve implementation
 
 -- === Boolean === --
 
 data Boolean a = Union        a a
                | Difference   a a
                | Intersection a a
-               deriving (Eq, Generic, Show)
+               deriving (Eq, Generic, NFData, Show)
 
 
 ------------------------
@@ -48,7 +47,7 @@ data RGBA = RGBA { _rgba_r :: ColorVal
                  , _rgba_g :: ColorVal
                  , _rgba_b :: ColorVal
                  , _rgba_a :: ColorVal
-                 } deriving (Eq, Generic, Show)
+                 } deriving (Eq, Generic, NFData, Show)
 makeLenses ''RGBA
 
 class HasComponentR t where r :: Lens' t ColorVal
@@ -69,7 +68,7 @@ data HSVA = HSVA { _hsv_h :: ColorVal
                  , _hsv_s :: ColorVal
                  , _hsv_v :: ColorVal
                  , _hsv_a :: ColorVal
-                 } deriving (Eq, Generic, Show)
+                 } deriving (Eq, Generic, NFData, Show)
 makeLenses ''HSVA
 
 class HasComponentH t where h :: Lens' t ColorVal
@@ -91,7 +90,7 @@ instance HasRGBA HSVA where rgba = error "todo"
 
 data Color = Solid RGBA
            {- | Gradient -} -- kiedys
-           deriving (Eq, Generic, Show)
+           deriving (Eq, Generic, NFData, Show)
 
 
 
@@ -101,16 +100,16 @@ data Color = Solid RGBA
 data Layer = Diffuse Color
            | Shadow  Size Color
            | Border  Size Color
-           deriving (Eq, Generic, Show)
+           deriving (Eq, Generic, NFData, Show)
 
-data Material = Material [Layer] deriving (Eq, Generic, Show)
+data Material = Material [Layer] deriving (Eq, Generic, NFData, Show)
 
 
 -- === Text === --
 
-data AlignmentH = Left | Center | Right deriving (Eq, Generic, Show)
-data Font    = Font    { _family :: Text.Text, _size :: Int } deriving (Eq, Generic, Show)
-data TextDef = TextDef { _txt :: Text.Text, _font :: Font, _aligment :: AlignmentH } deriving (Eq, Generic, Show)
+data AlignmentH = Left | Center | Right deriving (Eq, Generic, NFData, Show)
+data Font    = Font    { _family :: Text.Text, _size :: Int } deriving (Eq, Generic, NFData, Show)
+data TextDef = TextDef { _txt :: Text.Text, _font :: Font, _aligment :: AlignmentH } deriving (Eq, Generic, NFData, Show)
 
 
 -- === Geometry === --
@@ -131,11 +130,11 @@ data Shape = Square    Size
            | Polygon   [Point]
            | Path      [Curve]
            | Text      TextDef
-           deriving (Eq, Generic, Show)
+           deriving (Eq, Generic, NFData, Show)
 
 data Surface = Simple   Shape
              | Group    [Geometry]
              | Compound (Boolean Geometry)
-             deriving (Eq, Generic, Show)
+             deriving (Eq, Generic, NFData, Show)
 
-data Geometry = Geometry Material Trans Surface deriving (Eq, Generic, Show)
+data Geometry = Geometry Material Trans Surface deriving (Eq, Generic, NFData, Show)
