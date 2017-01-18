@@ -1,241 +1,141 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Graphics.API where
 
-import           Control.DeepSeq  (NFData)
 import           Control.Lens
-import           Data.Aeson       (FromJSON, ToJSON)
-import           Data.Binary      (Binary)
-import           Data.Convert
-import           Data.Default
-import           Data.Map         (Map)
-import qualified Data.Map         as Map
-import           GHC.Generics     (Generic)
+import           Data.Matrix   (Matrix)
+import qualified Data.Text     as Text
+import           GHC.Generics (Generic)
+import           Prelude
+
+
+------------------
+-- === Math === --
+------------------
+type Trans = Matrix Double
+
+data Point = Point { _x :: Double
+                   , _y :: Double
+                   } deriving (Eq, Generic, Show)
+
+makeLenses ''Point
+
+data Curve = Curve deriving (Eq, Generic, Show) -- TODO select Curve implementation
+
+-- === Boolean === --
+
+data Boolean a = Union        a a
+               | Difference   a a
+               | Intersection a a
+               deriving (Eq, Generic, Show)
+
+
+------------------------
+-- === ColorTypes === --
+------------------------
+
+type ColorVal = Double
+
+
+-- === Translucency === --
+
+class HasComponentA t where a :: Lens' t ColorVal
+
+
+-- === RGBAA === --
+
+data RGBA = RGBA { _rgba_r :: ColorVal
+                 , _rgba_g :: ColorVal
+                 , _rgba_b :: ColorVal
+                 , _rgba_a :: ColorVal
+                 } deriving (Eq, Generic, Show)
+makeLenses ''RGBA
+
+class HasComponentR t where r :: Lens' t ColorVal
+class HasComponentG t where g :: Lens' t ColorVal
+class HasComponentB t where b :: Lens' t ColorVal
+
+instance HasComponentR RGBA where r = rgba_r
+instance HasComponentG RGBA where g = rgba_g
+instance HasComponentB RGBA where b = rgba_b
+instance HasComponentA RGBA where a = rgba_a
+
+class HasRGBA t where rgba :: Lens' t RGBA
+
+
+-- === RGBAA === --
+
+data HSVA = HSVA { _hsv_h :: ColorVal
+                 , _hsv_s :: ColorVal
+                 , _hsv_v :: ColorVal
+                 , _hsv_a :: ColorVal
+                 } deriving (Eq, Generic, Show)
+makeLenses ''HSVA
+
+class HasComponentH t where h :: Lens' t ColorVal
+class HasComponentS t where s :: Lens' t ColorVal
+class HasComponentV t where v :: Lens' t ColorVal
+
+instance HasComponentH HSVA where h = hsv_h
+instance HasComponentS HSVA where s = hsv_s
+instance HasComponentV HSVA where v = hsv_v
+instance HasComponentA HSVA where a = hsv_a
+
+instance HasRGBA HSVA where rgba = error "todo"
 
 
 
--- === Common === --
+-------------------
+-- === Color === --
+-------------------
+
+data Color = Solid RGBA
+           {- | Gradient -} -- kiedys
+           deriving (Eq, Generic, Show)
 
 
-data Point = Point Double Double
-             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Point3 = Point3 Double Double Double
-              deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
 
 
 -- === Material === --
 
--- TODO: expand possibilities
-data Material = SolidColor { _r :: Double
-                           , _g :: Double
-                           , _b :: Double
-                           , _a :: Double
-                           } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
+data Layer = Diffuse Color
+           | Shadow  Size Color
+           | Border  Size Color
+           deriving (Eq, Generic, Show)
+
+data Material = Material [Layer] deriving (Eq, Generic, Show)
 
 
--- === Transformation === --
+-- === Text === --
 
--- TODO: matrix + methods
-data Transformation = Transformation { _scaleX :: Double
-                                     , _scaleY :: Double
-                                     , _dx     :: Double
-                                     , _dy     :: Double
-                                     , _angle  :: Double
-                                     , _refl   :: Bool
-                                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-makeLenses ''Transformation
+data AlignmentH = Left | Center | Right deriving (Eq, Generic, Show)
+data Font    = Font    { _family :: Text.Text, _size :: Int } deriving (Eq, Generic, Show)
+data TextDef = TextDef { _txt :: Text.Text, _font :: Font, _aligment :: AlignmentH } deriving (Eq, Generic, Show)
 
 
-scale :: Transformation -> Double -> Double -> Transformation
-scale (Transformation sx sy dx dy a r) sx' sy' = Transformation (sx * sx') (sy * sy') dx dy a r
-{-# INLINE scale #-}
+-- === Geometry === --
 
-translate :: Transformation -> Double -> Double -> Transformation
-translate (Transformation sx sy dx dy a r) dx' dy' = Transformation sx sy (dx + dx') (dy + dy') a r
-{-# INLINE translate #-}
+type Width   = Double
+type Height  = Double
+type Size    = Double
+type Radius  = Double
+type RadiusX = Double
+type RadiusY = Double
 
-rotate :: Transformation -> Double -> Transformation
-rotate (Transformation sx sy dx dy a r) a' = Transformation sx sy dx dy (a + a') r
-{-# INLINE rotate #-}
+data Shape = Square    Size
+           | Rectangle Width Height
+           | Circle    Radius
+           | Ellipse   RadiusX RadiusY
+           | Line      Width Point
+           | PolyLine  [Point]
+           | Polygon   [Point]
+           | Path      [Curve]
+           | Text      TextDef
+           deriving (Eq, Generic, Show)
 
-reflect :: Transformation -> Transformation
-reflect (Transformation sx sy dx dy a r) = Transformation sx sy dx dy a (not r)
-{-# INLINE reflect #-}
+data Surface = Simple   Shape
+             | Group    [Geometry]
+             | Compound (Boolean Geometry)
+             deriving (Eq, Generic, Show)
 
-
--- === Attributes === --
-
--- data AttributeType = Point | Vertex | Face | Detail
-
-
-type AttributeType = String
-
--- data Attributes = Attributes (Hmap (AttributeType, Key))
--- data Attributes = Attributes { _attr :: Hmap (AttrKey T A) -> A } deriving (Show, Eq, Generic)
-
--- data AttrKey a b = AttrKey
-
--- lookup (AttrKey::AttrKey Attr.Point Attr.Color)
-
-data Attributes = Attributes (Map.Map AttributeType Double)
-                  deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-
--- === Shader figures === --
-
--- TODO: Convertibles
-data Figure = Square    { _s :: Double }
-            | Rectangle { _w :: Double
-                        , _h :: Double }
-            | Circle    { _d :: Double }
-            deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
--- TODO: remove position
-data Primitive = Primitive { _figure     :: Figure
-                           , _position   :: Point
-                           , _attributes :: Attributes
-                           } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
--- TODO: add transformation (using auxiliary data type)
--- TODO: consider lists of merge and intersect
-data Shape = Shape     Primitive
-           | Merge     Shape Shape
-           | Subtract  Shape Shape
-           | Intersect Shape Shape
-           deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Surface = ShapeSurface Shape
-             | PolygonSurface
-             | NumbsSurface
-             deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Geometry = Geometry { _content        :: GeoComponent
-                         , _transformation :: Transformation
-                         , _material       :: Maybe Material
-                         } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data GeoComponent = GeoElem  [Surface]
-                  | GeoGroup [Geometry]
-                  deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-
--- === Texts === --
-
-data TextAlignment = Left | Center | Right
-                   deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Label = Label { _labelPosition :: Point
-                   , _fontSize      :: Double
-                   , _textAlign     :: TextAlignment
-                   , _text          :: String
-                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
--- === Multiple shaders layers === --
-
-data Placement = Transformations { _transformations :: [Transformation] }
-               | Translations    { _translations    :: [Point]          }
-               deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Labels = Labels { _labelsList :: [Label]
-                     } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Layer = Layer { _geometry  :: Geometry
-                   , _placement :: Placement
-                   , _labels    :: Labels
-                   } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-data Graphics = Graphics { _graphics :: [Layer]
-                         } deriving (Show, Eq, Generic, Binary, ToJSON, FromJSON, NFData)
-
-
--------------------------------
--- === Default instances === --
--------------------------------
-
-instance Default Point where
-    def = Point def def
-
-instance Default Point3 where
-    def = Point3 def def def
-
-instance Default Material where
-    def = SolidColor 1.0 1.0 1.0 1.0
-
-instance Default Transformation where
-    def = Transformation 1.0 1.0 0.0 0.0 0.0 False
-
-instance Default Attributes where
-    def = Attributes def
-
-instance Default Placement where
-    def = Translations [def]
-
-instance Default Labels where
-    def = Labels def
-
------------------------------------
--- === Convertible instances === --
------------------------------------
-
-figureToPrimitive :: Figure -> Primitive
-figureToPrimitive figure = Primitive figure def def
-{-# INLINE figureToPrimitive #-}
-
-primitiveToShape :: Primitive -> Shape
-primitiveToShape = Shape
-{-# INLINE primitiveToShape #-}
-
-shapeToSurface :: Shape -> Surface
-shapeToSurface = ShapeSurface
-{-# INLINE shapeToSurface #-}
-
-surfaceToGeoComponent :: Surface -> GeoComponent
-surfaceToGeoComponent = GeoElem . pure
-{-# INLINE surfaceToGeoComponent #-}
-
-geoComponentToGeometry :: GeoComponent -> Geometry
-geoComponentToGeometry geoComponent = Geometry geoComponent def (Just def)
-{-# INLINE geoComponentToGeometry #-}
-
-geometryToLayer :: Geometry -> Layer
-geometryToLayer geometry = Layer geometry def def
-{-# INLINE geometryToLayer #-}
-
-layerToGraphics :: Layer -> Graphics
-layerToGraphics = Graphics . pure
-{-# INLINE layerToGraphics #-}
-
-instance Convertible Layer        Graphics     where convert =           layerToGraphics
-instance Convertible Geometry     Graphics     where convert = convert . geometryToLayer
-instance Convertible GeoComponent Graphics     where convert = convert . geoComponentToGeometry
-instance Convertible Surface      Graphics     where convert = convert . surfaceToGeoComponent
-instance Convertible Shape        Graphics     where convert = convert . shapeToSurface
-instance Convertible Primitive    Graphics     where convert = convert . primitiveToShape
-instance Convertible Figure       Graphics     where convert = convert . figureToPrimitive
-
-instance Convertible Geometry     Layer        where convert =           geometryToLayer
-instance Convertible GeoComponent Layer        where convert = convert . geoComponentToGeometry
-instance Convertible Surface      Layer        where convert = convert . surfaceToGeoComponent
-instance Convertible Shape        Layer        where convert = convert . shapeToSurface
-instance Convertible Primitive    Layer        where convert = convert . primitiveToShape
-instance Convertible Figure       Layer        where convert = convert . figureToPrimitive
-
-instance Convertible GeoComponent Geometry     where convert =           geoComponentToGeometry
-instance Convertible Surface      Geometry     where convert = convert . surfaceToGeoComponent
-instance Convertible Shape        Geometry     where convert = convert . shapeToSurface
-instance Convertible Primitive    Geometry     where convert = convert . primitiveToShape
-instance Convertible Figure       Geometry     where convert = convert . figureToPrimitive
-
-instance Convertible Surface      GeoComponent where convert =           surfaceToGeoComponent
-instance Convertible Shape        GeoComponent where convert = convert . shapeToSurface
-instance Convertible Primitive    GeoComponent where convert = convert . primitiveToShape
-instance Convertible Figure       GeoComponent where convert = convert . figureToPrimitive
-
-instance Convertible Shape        Surface      where convert =           shapeToSurface
-instance Convertible Primitive    Surface      where convert = convert . primitiveToShape
-instance Convertible Figure       Surface      where convert = convert . figureToPrimitive
-
-instance Convertible Primitive    Shape        where convert =           primitiveToShape
-instance Convertible Figure       Shape        where convert = convert . figureToPrimitive
-
-instance Convertible Figure       Primitive    where convert =           figureToPrimitive
+data Geometry = Geometry Material Trans Surface deriving (Eq, Generic, Show)
