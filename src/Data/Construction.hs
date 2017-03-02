@@ -73,6 +73,6 @@ type ShowFields      a = ConsFields Show a
 class HasFieldNames a where
     fieldNames :: a -> [Text]
 
-type family FieldsType a
-class HasFields a where
-    fieldList :: a -> [FieldsType a]
+-- type family FieldsType a
+-- class HasFields a where
+--     fieldList :: a -> [FieldsType a]
