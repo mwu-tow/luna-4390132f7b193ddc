@@ -104,6 +104,9 @@ modColumn f = modify_ @Position $ column %~ f
 incColumn :: MonadState Position m => Delta -> m ()
 incColumn = modColumn . (+)
 
+succColumn :: MonadState Position m => m ()
+succColumn = modColumn succ
+
 succLine :: MonadState Position m => m ()
 succLine = modify_ @Position $ (column .~ 0) . (line %~ succ)
 
