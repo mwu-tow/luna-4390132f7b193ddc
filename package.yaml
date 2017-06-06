@@ -17,4 +17,4 @@ maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: text-processing
 stability: experimental
 synopsis: Text processing primitives.
-version: 1.0.2
+version: 1.0.3

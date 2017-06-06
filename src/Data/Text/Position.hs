@@ -16,16 +16,14 @@ import Control.Monad.State.Dependent
 
 -- === Definition === --
 
-newtype Delta = Delta Word64 deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Integral, Ix, Num, Ord, PrintfArg, Read, Real, Show, Storable)
+newtype Delta = Delta Int deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Integral, Ix, Num, Ord, PrintfArg, Read, Real, Show, Storable)
 makeWrapped ''Delta
 
 
 -- === Instances === --
 
-instance Convertible Word64 Delta  where convert = wrap
-instance Convertible Word   Delta  where convert = convertVia @Word64
-instance Convertible Int    Delta  where convert = convertVia @Word64
-instance Convertible Delta  Word64 where convert = unwrap
+instance Convertible Int   Delta where convert = wrap
+instance Convertible Delta Int   where convert = unwrap
 
 instance Default   Delta where def    = 0
 instance Mempty    Delta where mempty = 0
@@ -58,9 +56,8 @@ incOffset i = modify_ @Offset (+i)
 
 instance Convertible Delta  Offset where convert = wrap
 instance Convertible Offset Delta  where convert = unwrap
-instance Convertible Word64 Offset where convert = convertVia @Delta
-instance Convertible Offset Word64 where convert = convertVia @Delta
-instance Convertible Int    Offset where convert = convertVia @Word64
+instance Convertible Int    Offset where convert = convertVia @Delta
+instance Convertible Offset Int    where convert = convertVia @Delta
 
 
 
@@ -153,3 +150,5 @@ makeLenses ''FileOffset
 
 instance Convertible Delta FileOffset where convert = wrap
 instance Convertible FileOffset Delta where convert = unwrap
+instance Convertible Int   FileOffset where convert = convertVia @Delta
+instance Convertible FileOffset Int   where convert = convertVia @Delta

@@ -45,6 +45,13 @@ asOffsetSpan :: (IsSpacedSpan t, Num s) => t s -> t s
 asOffsetSpan s = s & offset %~ (+ s ^. length)
                    & length .~ 0
 
+measure :: (IsSpacedSpan t, Semigroup s) => t s -> s
+measure t = t ^. offset <> t ^. length
+
+-- | `concat` is the most primitive concatenation method, which does not treat offset only left spans in special way
+concat :: Num s => LeftSpacedSpan s -> LeftSpacedSpan s -> LeftSpacedSpan s
+concat (unwrap -> SpacedSpan off s) (unwrap -> SpacedSpan off' s') = wrap $ SpacedSpan off (s + off' + s')
+
 
 -- === Instances === --
 
