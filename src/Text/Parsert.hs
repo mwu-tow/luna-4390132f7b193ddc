@@ -44,6 +44,13 @@ newtype UncaughtError = UncaughtError String deriving (Show)
 instance (Monad m, Show t) => MonadErrorBuilder t m UncaughtError where
     buildError = return . UncaughtError . show
 
+newtype DescibedError = DescibedError Text deriving (Show)
+
+descibedError  :: MonadErrorParser DescibedError m => Text -> m a
+descibedError' :: (MonadErrorParser DescibedError m, Convertible t Text) => t -> m a
+descibedError  = raise . DescibedError
+descibedError' = descibedError . convert
+
 
 -- === Instances === --
 
@@ -165,7 +172,7 @@ data EmptyStreamError = EmptyStreamError deriving (Show)
 
 -- === Definition === --
 
-newtype Offset = Offset Word64 deriving (Show, Num, Enum)
+newtype Offset = Offset Int deriving (Show, Num, Enum, Ord, Eq)
 makeLenses ''Offset
 
 
@@ -176,6 +183,9 @@ evalOffsetRegister = flip evalStateT (def :: Offset)
 
 
 -- === Instances === --
+
+instance Convertible Int    Offset where convert = wrap
+instance Convertible Offset Int    where convert = unwrap
 
 instance Default   Offset where def    = mempty
 instance Mempty    Offset where mempty = Offset 0
@@ -193,22 +203,30 @@ instance MonadTokenParser m => MonadTokenParser (StateT Offset m) where
 
 -- === Definition === --
 
-newtype Stream s = Stream [s] deriving (Show, Functor, Foldable, Traversable, Default, Mempty, Semigroup, P.Monoid)
+data Stream s = Stream { _streamSplitter :: s -> Maybe (Item s, s)
+                       , _streamBuffer   :: s
+                       }
 makeLenses ''Stream
 
 
 -- === Utils === --
 
-evalStreamProvider :: Monad m => [s] -> StateT (Stream s) m a -> m a
-evalStreamProvider s = flip evalStateT $ Stream s
+evalStreamProvider :: Monad m => Stream s -> StateT (Stream s) m a -> m a
+evalStreamProvider = flip evalStateT
 
-splitStream :: Stream s -> Maybe (s, Stream s)
-splitStream = nested wrapped List.uncons
+splitStream :: Stream s -> Maybe (Item s, Stream s)
+splitStream (Stream splitter buffer) = Stream splitter <<$>> splitter buffer
+
+
+-- === Example streams === --
+
+listStream :: [a] -> Stream [a]
+listStream = Stream List.uncons
 
 
 -- === Instances === --
 
-type instance Token (StateT (Stream s) m) = s
+type instance Token (StateT (Stream s) m) = Item s
 instance Monad m => MonadTokenParser (StateT (Stream s) m) where
     lookupToken = modify @Stream go where
         go s = case splitStream s of
@@ -239,9 +257,9 @@ runFailParser = runEitherT . unwrap
 -- === Instances === --
 
 type instance Token (FailParser e m) = Token m
-instance (MonadProgressParser m, IsString e) => MonadPlus   (FailParser e m)
-instance (MonadProgressParser m, IsString e) => Alternative (FailParser e m) where
-    empty = throw "Unknown error"
+instance MonadProgressParser m => MonadPlus   (FailParser e m)
+instance MonadProgressParser m => Alternative (FailParser e m) where
+    empty = error "Do not use empty, use `raise` instead!" -- throw "Unknown error"
     l <|> r = failParser $ do
         p <- getProgress
         unsetProgress
@@ -425,14 +443,18 @@ instance (Show tok) => Show (History tok) where
 -- === Standard combinators === --
 ----------------------------------
 
-choice :: (Foldable t, Alternative f) => t (f a) -> f a
-choice = asum
+choice :: (Alternative m, MonadErrorParser SatisfyError m) => [m a] -> m a
+choice = foldr (<|>) $ raise SatisfyError
 
+option' :: Alternative m => a -> m a -> m a
 option :: (Alternative m, MonadProgressParser m) => a -> m a -> m a
-option a p = try p <|> pure a
+option' a p = p <|> pure a
+option  a p = option' a $ try p
 
-option_ :: Alternative m => m a -> m ()
-option_ p = void p <|> pure ()
+option'_ :: Alternative m                          => m a -> m ()
+option_  :: (Alternative m, MonadProgressParser m) => m a -> m ()
+option'_ p = void p <|> pure ()
+option_  p = option'_ $ try p
 
 counted :: Monad m => m [a] -> m (Int, [a])
 counted m = do
@@ -445,6 +467,11 @@ counted_ = fmap2 fst counted
 count :: Applicative m => Int -> m a -> m [a]
 count i p = if i <= 0 then pure []
                       else (:) <$> p <*> count (pred i) p
+
+
+fromJust :: MonadErrorParser SatisfyError m => Maybe a -> m a
+fromJust = maybe (raise SatisfyError) return
+
 
 
 --------------------------
@@ -472,20 +499,18 @@ instance (MonadState Offset m, MonadErrorBuilder t m a) => MonadErrorBuilder t m
         off <- get @Offset
         OffsetError off <$> buildError t
 
-instance IsString a => IsString (OffsetError a) where
-    fromString = OffsetError 0 . fromString
 
 runTest1 :: IO (Either String [Char])
 runTest1 = evalBacktracker
          $ runFailParser
-         $ evalStreamProvider "babbbaabab"
+         $ evalStreamProvider (listStream "babbbaabab")
          $ evalOffsetRegister
          $ (many (token 'a' <|> token 'b') )
 
 
 runTest2 :: IO (Either String (Char, History Char))
 runTest2 = runFailParser
-         $ evalStreamProvider "babbbaabab"
+         $ evalStreamProvider (listStream "babbbaabab")
          $ runHistoryRegister
          $ evalOffsetRegister
          $ ((token 'a' <|> token 'b') *> token 'a')
@@ -493,14 +518,14 @@ runTest2 = runFailParser
 runTest3 :: IO (Either String Char)
 runTest3 = evalBacktracker
          $ runFailParser
-         $ evalStreamProvider "babbbaabab"
+         $ evalStreamProvider (listStream "babbbaabab")
          $ evalOffsetRegister
          $ (try (token 'b' *> token 'b') <|> token 'b')
 
 runTest4 :: IO (Either (OffsetError String) ())
 runTest4 = evalBacktracker
          $ runFailParser @(OffsetError String)
-         $ evalStreamProvider "abbbaabab"
+         $ evalStreamProvider (listStream "abbbaabab")
          $ evalOffsetRegister
          $ recover_ (const dropToken) (token 'a' *> token 'a') <|> (() <$ token 'b')
         --  $ (token 'a' *> token 'a')
@@ -508,7 +533,7 @@ runTest4 = evalBacktracker
 runTest5 :: IO (Either String Char)
 runTest5 = evalBacktracker
          $ runFailParser
-         $ evalStreamProvider "babbbaabab"
+         $ evalStreamProvider (listStream "babbbaabab")
          $ evalOffsetRegister
          $ ((token 'b' *> (token 'x' <|> pure 'y') *> token 'z') <|> token 'b')
 
