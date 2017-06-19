@@ -3,8 +3,9 @@ module Luna.Manager.Repository where
 import Prologue
 
 import Luna.Manager.Version
-import Luna.Manager.System
+import Luna.Manager.System.Host
 import Luna.Manager.System.Path
+import Luna.Manager.Config.Class
 import Luna.Manager.Config.Aeson
 
 import Data.Map                      (Map)
@@ -52,3 +53,24 @@ makeLenses ''PackageDep
 -- Show
 instance EncodeShow PackageDep where
     encodeShow (PackageDep n v) = n <> "-" <> encodeShow v
+
+
+
+-----------------------------------
+-- === Repository management === --
+-----------------------------------
+
+-- === Definition === --
+
+data RepoConfig = RepoConfig { _repoPath   :: URIPath
+                             , _cachedRepo :: Maybe Repo
+                             }
+makeLenses ''RepoConfig
+
+
+-- === Instances === --
+
+instance {-# OVERLAPPABLE #-} MonadIO m => MonadDefaultConfig RepoConfig sys m where
+    defaultConfig = return $ RepoConfig { _repoPath   = "https://luna-lang.org/releases/config.yaml"
+                                        , _cachedRepo = Nothing
+                                        }

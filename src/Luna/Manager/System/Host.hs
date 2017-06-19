@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Luna.Manager.System where
+module Luna.Manager.System.Host where
 
 import Prologue
 import Luna.Manager.Config.Aeson
@@ -30,11 +30,11 @@ data SysDesc = SysDesc System SysArch deriving (Generic, Show, Eq, Ord)
 -- === System phantoms === --
 
 #ifdef mingw32_HOST_OS
-type CurrentSystem = 'Windows
+type CurrentHost = 'Windows
 #elif linux_HOST_OS
-type CurrentSystem = 'Linux
+type CurrentHost = 'Linux
 #elif darwin_HOST_OS
-type CurrentSystem = 'MacOS
+type CurrentHost = 'MacOS
 #else
 Running on unsupported system.
 #endif

@@ -1,7 +1,7 @@
 module Luna.Manager.Config.Class where
 
 import Prologue
-import Luna.Manager.System
+import Luna.Manager.System.Host
 
 
 ----------------------------
@@ -19,5 +19,5 @@ class Monad m => MonadDefaultConfig cfg (system :: System) m where
 defaultConfigFor :: forall system cfg m. MonadDefaultConfig cfg system m => m cfg
 defaultConfigFor = defaultConfig @cfg @system
 
-currentSysDefaultConfig :: MonadDefaultConfig cfg CurrentSystem m => m cfg
-currentSysDefaultConfig = defaultConfigFor @CurrentSystem
+currentSysDefaultConfig :: MonadDefaultConfig cfg CurrentHost m => m cfg
+currentSysDefaultConfig = defaultConfigFor @CurrentHost

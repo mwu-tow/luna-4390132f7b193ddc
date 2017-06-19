@@ -47,7 +47,8 @@ import qualified Data.Map  as Map
 import qualified Data.Text as Text
 -- default (Text.Text)
 
-import Luna.Manager.System
+import Luna.Manager.System.Host
+import Luna.Manager.System.Config
 import Luna.Manager.Version
 import Luna.Manager.Config.Aeson
 import Luna.Manager.Installer
@@ -55,35 +56,9 @@ import Luna.Manager.Config.Class
 import Luna.Manager.Repository
 import Luna.Manager.Shell
 import Luna.Manager.System.Path
+import Luna.Manager.Network
 
 
-
-
---------------------------
--- === GlobalConfig === --
---------------------------
-
--- === Definition === --
-
-data GlobalConfig = GlobalConfig { _localTempPath :: FilePath
-                                 , _repoConfigURL :: URIPath
-                                 }
-makeLenses ''GlobalConfig
-
-
--- === Utils === --
-
-getTmpPath :: MonadGetter GlobalConfig m => m FilePath
-getTmpPath = view localTempPath <$> get @GlobalConfig
-
-getDownloadPath :: MonadGetter GlobalConfig m => m FilePath
-getDownloadPath = getTmpPath
-
-
--- === Instances === --
-instance {-# OVERLAPPABLE #-} MonadIO m => MonadDefaultConfig GlobalConfig sys m where
-    defaultConfig = GlobalConfig <$> (convert <$> liftIO System.getTemporaryDirectory)
-                                 <*> pure "https://luna-lang.org/releases/config.yaml"
 
 
 
@@ -109,34 +84,17 @@ instance {-# OVERLAPPABLE #-} MonadIO m => MonadDefaultConfig GlobalConfig sys m
 --         a = normalise $ folded
 --     return a
 
-data DownloadError = DownloadError deriving (Show)
-instance Exception DownloadError
-
-downloadError :: SomeException
-downloadError = toException DownloadError
-
-
-takeFileNameFromURL :: URIPath -> Maybe Text
-takeFileNameFromURL url = convert <$> name where
-    name = maybeTail . URI.pathSegments =<< URI.parseURI (convert url)
-
-
-downloadFromURL :: (MonadIO m, MonadGetter GlobalConfig m, MonadException SomeException m) => URIPath -> m FilePath
-downloadFromURL address = tryJust downloadError =<< go where
-    go = withJust (takeFileNameFromURL address) $ \name -> do
-        path <- (</> name) <$> getDownloadPath
-        liftIO $ ByteStringL.writeFile (convert path) =<< HTTP.simpleHttp (convert address)
-        return (Just path)
 
 
 
 
-type MonadInstall m = (MonadStates '[GlobalConfig, InstallConfig] m, MonadIO m, MonadException SomeException m)
+
+type MonadInstall m = (MonadStates '[SystemConfig, InstallConfig] m, MonadIO m, MonadException SomeException m)
 
 downloadAndReadConf :: MonadInstall m => m Repo
 downloadAndReadConf = do
     liftIO $ System.getTemporaryDirectory >>= System.setCurrentDirectory
-    downloadedConfig <- downloadFromURL . view repoConfigURL =<< get @GlobalConfig
+    downloadedConfig <- downloadFromURL . view repoConfigURL =<< get @SystemConfig
     tryRight' =<< liftIO (Yaml.decodeFileEither $ convert downloadedConfig)
 
 installAppImage :: MonadInstall m => m ()
@@ -178,7 +136,7 @@ main :: IO ()
 main = do
     -- gc <- currentSysDefaultConfig
     -- ic <- currentSysDefaultConfig
-    -- handleAll (\_ -> undefined) $ flip (evalStateT @GlobalConfig)  gc
+    -- handleAll (\_ -> undefined) $ flip (evalStateT @SystemConfig)  gc
     --                             $ flip (evalStateT @InstallConfig) ic
     --                             $ installAppImage
     -- print "dziala"

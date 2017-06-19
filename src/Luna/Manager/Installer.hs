@@ -3,7 +3,7 @@ module Luna.Manager.Installer where
 import Prologue
 
 import Luna.Manager.Config.Class
-import Luna.Manager.System
+import Luna.Manager.System.Host
 
 
 ---------------------------------
