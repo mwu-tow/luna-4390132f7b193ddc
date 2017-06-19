@@ -1,0 +1,880 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
+module Main where
+
+import Prologue hiding (FilePath)
+
+import GHC.Generics
+import Control.Applicative
+import Data.Aeson (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+import qualified Data.Aeson          as JSON
+import qualified Data.Aeson.Types    as JSON
+import qualified Data.Aeson.Encoding as JSON
+import qualified Data.ByteString as BS
+import Data.ByteString.Char8 (unpack)
+import qualified Data.ByteString.Lazy.Char8 as ByteStringL
+import Data.Conduit (ConduitM, await, yield, ($$+-),($=+))
+import Data.Conduit.List (sinkNull)
+import Data.List.Split
+import Text.Printf   ( printf )
+import Data.Ratio    ( (%) )
+import qualified Data.Yaml as Yaml
+import qualified Network.HTTP.Conduit as HTTP
+import Network.HTTP.Types (hContentLength)
+import qualified Network.URI as URI
+import Options.Applicative
+import Path (parent, parseAbsFile, toFilePath)
+import Control.Concurrent hiding(yield)
+import qualified System.IO as System
+
+import System.Console.ANSI (clearLine, cursorUpLine)
+import System.FilePath.Posix (normalise, takeExtension, makeRelative, pathSeparator)
+import qualified System.Directory as System
+import qualified System.Environment as Environment
+import System.Process.Typed
+import qualified Data.Text as Text
+import Control.Monad.State.Layered
+import Control.Monad.Raise
+import qualified Data.List as List
+import           Data.Map  (Map)
+import qualified Data.Map  as Map
+import qualified Data.Text as Text
+-- default (Text.Text)
+
+
+type FilePath = Text
+type URIPath  = Text
+
+(</>) :: FilePath -> FilePath -> FilePath
+l </> r = l <> convert pathSeparator <> r
+
+
+
+lensJSONOptions :: JSON.Options
+lensJSONOptions = JSON.defaultOptions { JSON.fieldLabelModifier = List.dropWhile (== '_')
+                                      , JSON.unwrapUnaryRecords = True
+                                      }
+
+lensJSONParse      :: (Generic a, JSON.GFromJSON   JSON.Zero (Rep a)) => JSON.Value -> JSON.Parser a
+lensJSONToEncoding :: (Generic a, JSON.GToEncoding JSON.Zero (Rep a)) => a -> JSON.Encoding
+lensJSONToJSON     :: (Generic a, JSON.GToJSON     JSON.Zero (Rep a)) => a -> JSON.Value
+lensJSONParse      = JSON.genericParseJSON  lensJSONOptions
+lensJSONToEncoding = JSON.genericToEncoding lensJSONOptions
+lensJSONToJSON     = JSON.genericToJSON     lensJSONOptions
+
+
+class EncodeShow a where
+    encodeShow :: a -> Text
+
+
+----------------------------
+-- === Terminal Utils === --
+----------------------------
+
+askQuestion :: MonadIO m => (Text -> Either Text a) -> Maybe Text -> Text -> m a
+askQuestion validator defAns question = do
+    let defAnsSfx    = maybe "" (\s -> "[" <> s <> "]") defAns
+        questionLine = question <> defAnsSfx <> ": "
+    putStrLn $ convert questionLine
+    resp <- liftIO $ convert <$> getLine
+    let resp' = maybe resp (\a -> if resp == "" then a else resp) defAns
+    case validator resp' of
+        Left e -> do
+            putStrLn $ "Wrong answer:" <> convert e
+            askQuestion validator defAns question
+        Right a -> return a
+
+
+
+
+
+
+
+-------------------------------
+-- === Operating Systems === --
+-------------------------------
+
+-- === Definition === --
+
+data System = Linux
+            | MacOS
+            | Windows
+            deriving (Generic, Show, Eq, Ord)
+
+data SysArch = Arch32 | Arch64        deriving (Generic, Show, Eq, Ord)
+data SysDesc = SysDesc System SysArch deriving (Generic, Show, Eq, Ord)
+
+
+-- === System phantoms === --
+
+#ifdef mingw32_HOST_OS
+type CurrentSystem = 'Windows
+#elif linux_HOST_OS
+type CurrentSystem = 'Linux
+#elif darwin_HOST_OS
+type CurrentSystem = 'MacOS
+#else
+Running on unsupported system.
+#endif
+
+
+-- === Instances === --
+
+-- JSON
+instance ToJSON   System  where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   SysArch where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   SysDesc where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance FromJSON System  where parseJSON  = lensJSONParse
+instance FromJSON SysArch where parseJSON  = lensJSONParse
+instance FromJSON SysDesc where parseJSON  = lensJSONParse
+instance FromJSONKey SysDesc
+instance ToJSONKey   SysDesc where
+    toJSONKey = JSON.ToJSONKeyText f g
+        where f = encodeShow
+              g = JSON.text . encodeShow
+
+-- Show
+instance EncodeShow SysDesc where encodeShow (SysDesc s a) = encodeShow s <> encodeShow a
+instance EncodeShow System  where encodeShow = Text.toLower . convert . show
+instance EncodeShow SysArch where
+    encodeShow = \case
+        Arch32 -> "32"
+        Arch64 -> "64"
+
+
+------------------------
+-- === Versioning === --
+------------------------
+
+-- === Definition === --
+
+data VersionTag = Alpha
+                | Beta
+                | RC Word64
+                deriving (Generic, Show, Eq, Ord)
+
+data Version = Version { _major :: !Word64
+                       , _minor :: !Word64
+                       , _build :: !Word64
+                       , _tag   :: !(Maybe VersionTag)
+                       } deriving (Generic, Show, Eq, Ord)
+
+-- === Instances === --
+
+instance EncodeShow VersionTag where
+    encodeShow = \case
+        Alpha -> "alpha"
+        Beta  -> "beta"
+        RC i  -> "rc" <> convert (show i)
+
+instance EncodeShow Version where
+    encodeShow (Version major minor build tag) = intercalate "." (map (convert . show) [major, minor, build])
+                                              <> maybe "" (("." <>) . encodeShow) tag
+-- instance Read Version where
+--     readsPrec _ str = do
+--         let [major, minor,build, tag] = splitOn "." str
+--         return ((Version (read major) (read minor) (read build) (Text.pack tag)), str)
+
+
+makeLenses ''Version
+makeLenses ''VersionTag
+
+instance ToJSON   Version    where toEncoding = JSON.toEncoding . encodeShow; toJSON = JSON.toJSON . encodeShow
+instance ToJSON   VersionTag where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance FromJSON Version    where parseJSON  = lensJSONParse
+instance FromJSON VersionTag where parseJSON  = lensJSONParse
+instance FromJSONKey Version
+instance ToJSONKey   Version where
+    toJSONKey = JSON.ToJSONKeyText f g
+        where f = encodeShow
+              g = JSON.text . encodeShow
+
+
+
+------------------------
+-- === Repository === --
+------------------------
+
+-- === Definition === --
+
+data    Repo        = Repo        { _apps   :: Map Text Package, _libs    :: Map Text Package } deriving (Show, Generic, Eq)
+newtype Package     = Package     { _pkgMap :: PkgMap                                         } deriving (Show, Generic, Eq)
+data    PackageDesc = PackageDesc { _deps   :: [PackageDep]    , _path    :: URIPath          } deriving (Show, Generic, Eq)
+data    PackageDep  = PackageDep  { _name   :: Text            , _version :: Version          } deriving (Show, Generic, Eq)
+type PkgMap = Map Version (Map SysDesc PackageDesc)
+
+
+-- === Instances === --
+
+-- Monoids
+instance Mempty    Repo where mempty = Repo mempty mempty
+instance Semigroup Repo where Repo a l <> Repo a' l' = Repo (a <> a') (l <> l')
+
+-- JSON
+instance ToJSON   Repo        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   Package     where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   PackageDesc where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   PackageDep  where toEncoding = JSON.toEncoding . encodeShow; toJSON = JSON.toJSON . encodeShow
+instance FromJSON Repo        where parseJSON  = lensJSONParse
+instance FromJSON Package     where parseJSON  = lensJSONParse
+instance FromJSON PackageDesc where parseJSON  = lensJSONParse
+instance FromJSON PackageDep  where parseJSON  = lensJSONParse
+
+-- Lenses
+makeLenses ''Repo
+makeLenses ''Package
+makeLenses ''PackageDesc
+makeLenses ''PackageDep
+
+-- Show
+instance EncodeShow PackageDep where
+    encodeShow (PackageDep n v) = n <> "-" <> encodeShow v
+
+
+
+
+
+----------------------------
+-- === Configurations === --
+----------------------------
+
+class Monad m => MonadDefaultConfig cfg (system :: System) m where
+    defaultConfig :: m cfg
+
+defaultConfigFor :: forall system cfg m. MonadDefaultConfig cfg system m => m cfg
+defaultConfigFor = defaultConfig @cfg @system
+
+currentSysDefaultConfig :: MonadDefaultConfig cfg CurrentSystem m => m cfg
+currentSysDefaultConfig = defaultConfigFor @CurrentSystem
+
+
+
+--------------------------
+-- === GlobalConfig === --
+--------------------------
+
+-- === Definition === --
+
+data GlobalConfig = GlobalConfig { _localTempPath :: FilePath
+                                 , _repoConfigURL :: URIPath
+                                 }
+makeLenses ''GlobalConfig
+
+
+-- === Utils === --
+
+getTmpPath :: MonadGetter GlobalConfig m => m FilePath
+getTmpPath = view localTempPath <$> get @GlobalConfig
+
+getDownloadPath :: MonadGetter GlobalConfig m => m FilePath
+getDownloadPath = getTmpPath
+
+
+-- === Instances === --
+instance {-# OVERLAPPABLE #-} MonadIO m => MonadDefaultConfig GlobalConfig sys m where
+    defaultConfig = GlobalConfig <$> (convert <$> liftIO System.getTemporaryDirectory)
+                                 <*> pure "https://luna-lang.org/releases/config.yaml"
+
+
+
+--------------------------------
+-- === InstallationConfig === --
+--------------------------------
+
+-- === Definition === --
+
+data InstallConfig = InstallConfig { _execName        :: Text
+                                   , _defaultConfPath :: FilePath
+                                   , _defaultBinPath  :: FilePath
+                                   , _localName       :: Text
+                                   }
+makeLenses ''InstallConfig
+
+-- === Instances === --
+
+instance {-# OVERLAPPABLE #-} Monad m => MonadDefaultConfig InstallConfig sys m where
+    defaultConfig = return $ InstallConfig
+        { _execName        = "luna-studio"
+        , _defaultConfPath = "~/.luna"
+        , _defaultBinPath  = "~/.luna-bin"
+        , _localName       = "local"
+        }
+
+instance Monad m => MonadDefaultConfig InstallConfig 'MacOS m where
+    defaultConfig = reconfig <$> defaultConfigFor @Linux where
+        reconfig cfg = cfg & execName       .~ "LunaStudio"
+                           & defaultBinPath .~ "~/Applications"
+
+
+instance Monad m => MonadDefaultConfig InstallConfig 'Windows m where
+    defaultConfig = reconfig <$> defaultConfigFor @Linux where
+        reconfig cfg = cfg & execName       .~ "LunaStudio"
+                           & defaultBinPath .~ "C:\\ProgramFiles"
+
+
+
+
+
+
+--
+--
+-- failIfNothing :: Text.Text -> Maybe a -> a
+-- failIfNothing err = \case
+--     Nothing -> error $ Text.unpack err --printErr err >> closeApp
+--     Just a  -> a
+--
+
+-- mkRelativePath :: MonadIO m => [Text.Text] -> m FilePath
+-- mkRelativePath args = do
+--     let strArgs = Text.unpack <$> args
+--         folded = foldl (\acc x -> acc </> x) "" strArgs
+--         a = normalise $ folded
+--     return a
+
+data DownloadError = DownloadError deriving (Show)
+instance Exception DownloadError
+
+downloadError :: SomeException
+downloadError = toException DownloadError
+
+
+takeFileNameFromURL :: URIPath -> Maybe Text
+takeFileNameFromURL url = convert <$> name where
+    name = maybeTail . URI.pathSegments =<< URI.parseURI (convert url)
+
+
+downloadFromURL :: (MonadIO m, MonadGetter GlobalConfig m, MonadException SomeException m) => URIPath -> m FilePath
+downloadFromURL address = tryJust downloadError =<< go where
+    go = withJust (takeFileNameFromURL address) $ \name -> do
+        path <- (</> name) <$> getDownloadPath
+        liftIO $ ByteStringL.writeFile (convert path) =<< HTTP.simpleHttp (convert address)
+        return (Just path)
+
+
+
+
+type MonadInstall m = (MonadStates '[GlobalConfig, InstallConfig] m, MonadIO m, MonadException SomeException m)
+
+downloadAndReadConf :: MonadInstall m => m Repo
+downloadAndReadConf = do
+    liftIO $ System.getTemporaryDirectory >>= System.setCurrentDirectory
+    downloadedConfig <- downloadFromURL . view repoConfigURL =<< get @GlobalConfig
+    tryRight' =<< liftIO (Yaml.decodeFileEither $ convert downloadedConfig)
+
+installAppImage :: MonadInstall m => m ()
+installAppImage = do
+    conf <- downloadAndReadConf
+    -- let appsNames = Map.keys $ conf ^. apps
+    -- -- pytnaie co chcesz instalowac
+    -- let chosenApp = undefined :: Text
+    -- -- pytanie ktora wersja
+    -- let chosenVersion = undefined :: Version
+    --
+    --   allLunaIds = map Main.id lunaVersions
+    --   lastLunaId = maximum allLunaIds
+    -- absDefault       <- mkPathWithHome [defaultInstallFolderName]
+    -- location         <- askQuestion (Text.pack "Where to install Luna-Studio?") (Text.pack absDefault) -- defaultBinPath
+    --
+    -- let address = mapM (getAddress versionToinstall) lunaVersions -- dla konkretnej wersji
+    --   justAddressesList = failIfNothing "cannot read URI" address
+    --   justAddress = failIfNothing "cannot read URI" $ listToMaybe justAddressesList
+    -- --installation
+    -- locWithVersion <- mkPathWithHome [location, (Text.pack $ show versionToinstall)]
+    -- createDirectory locWithVersion
+    -- setCurrentDirectory locWithVersion
+    -- downloadWithProgressBar justAddress
+    -- let name = fromMaybe "cannot read URI" $ takeFileName justAddress
+    -- appimage <- mkRelativePath [(Text.pack locWithVersion), name]
+    -- makeExecutable appimage
+    -- appimageToLunaStudio <- mkRelativePath [location, studioName]
+    -- binPath <- mkPathWithHome [".local/bin", studioName]
+    -- createFileLink appimage appimageToLunaStudio
+    -- createFileLink appimageToLunaStudio binPath
+    -- checkShell
+    return ()
+
+
+    -- handleAll :: Monad m => (SomeException -> m a) -> ExceptT' m a -> m a
+
+main :: IO ()
+main = do
+    -- gc <- currentSysDefaultConfig
+    -- ic <- currentSysDefaultConfig
+    -- handleAll (\_ -> undefined) $ flip (evalStateT @GlobalConfig)  gc
+    --                             $ flip (evalStateT @InstallConfig) ic
+    --                             $ installAppImage
+    -- print "dziala"
+    let repo :: Repo
+        repo = mempty & apps . at "luna-studio" .~ Just (Package $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+    print $ JSON.encode $ repo
+    putStrLn $ convert $ Yaml.encode $ repo
+
+-- data    Repo        = Repo        { _apps   :: Map Text Package, _libs    :: Map Text Package } deriving (Show, Generic, Eq)
+-- newtype Package     = Package     { _pkgMap :: PkgMap                                         } deriving (Show, Generic, Eq)
+-- data    PackageDesc = PackageDesc { _deps   :: [PackageDep]    , _path    :: Path             } deriving (Show, Generic, Eq)
+-- data    PackageDep  = PackageDep  { _name   :: Text            , _version :: Version          } deriving (Show, Generic, Eq)
+-- type PkgMap = Map Version (Map SysDesc PackageDesc)
+
+
+--
+--
+--
+--
+-- studioName, defaultInstallFolderName, localPath, atomHome, globalConfigUri, lunaStudioAtomPackageName, runExe :: Text.Text
+--
+-- -- PACZKOWANIE
+-- localPath = "luna-studio-package"
+-- globalConfigUri = "https://luna-lang.org/releases/config.yaml"
+-- lunaStudioAtomPackageName = "luna-studio" -- name of package in luna.yaml
+-- runExe = "run"
+-- studioFolder = "atom"
+-- --MacOS--
+-- binaryLocation = "Contents/MacOS"
+-- resources = "Contents/Resources"
+-- frameworks = "Contents/Frameworks"
+-- appName = "LunaStudio.app"
+--
+-- --windows--
+-- -- binsLocation = "C:\\ProgramFiles"
+-- batLocation = "luna\\services"
+-- unzipscript = "C:\\Users\\vm\\project\\j_unzip.vbs"
+-- pathtounzip = "C:\\Users\\vm\\Downloads\\atom_windows.zip"
+-- unzipVBAUri = "https://luna-lang.org/releases/j_unzip.vba"
+--
+--
+-- -- defaultInstallFolderName = ".luna-studio"
+-- -- atomHome = "luna-atom" -- -> localName
+-- lunaStudioPackage = "luna"
+--
+-- -- TODO[na koniec]: zrobic lensy
+
+
+
+
+--
+-- -- === Utils === --
+--
+-- scriptDir :: MonadIO m => m FilePath
+-- scriptDir = liftIO $ do
+--   localExePath <- Environment.getExecutablePath
+--   path         <- parseAbsFile localExePath
+--   return $ toFilePath (parent path)
+--
+--
+-- -----------------------------
+-- -- === Path operations === --
+-- -----------------------------
+--
+-- copyDir ::  MonadIO m => FilePath -> FilePath -> m ()
+-- copyDir src dst = liftIO $  do
+--   whenM (not <$> doesDirectoryExist src) $
+--     throw (userError "source does not exist")
+--   whenM (doesFileOrDirectoryExist dst) $
+--     throw (userError "destination already exists")
+--
+--   createDirectoryIfMissing True dst
+--   content <- getDirectoryContents src
+--   let xs = filter (`notElem` [".", ".."]) content
+--   forM_ xs $ \name -> do
+--     let srcPath = src </> name
+--     let dstPath = dst </> name
+--     isDirectory <- doesDirectoryExist srcPath
+--     if isDirectory
+--       then copyDir srcPath dstPath
+--       else copyFile srcPath dstPath
+--
+--   where
+--     doesFileOrDirectoryExist x = orM [doesDirectoryExist x, doesFileExist x]
+--     orM xs = or <$> sequence xs
+--     whenM s r = s >>= flip when r
+--
+--
+-- mkPathWithHome :: MonadIO m => [Text.Text] -> m FilePath
+-- mkPathWithHome args = liftIO $ do
+--     homeDir  <- getHomeDirectory
+--     mkRelativePath $ (Text.pack homeDir) : args
+--
+-- mkRelativePath :: MonadIO m => [Text.Text] -> m FilePath
+-- mkRelativePath args = do
+--     let strArgs = Text.unpack <$> args
+--         folded = foldl (\acc x -> acc </> x) "" strArgs
+--         a = normalise $ folded
+--     return a
+--
+--
+--   ---------------------------------------------------
+--   -- === Luna studio package preparation utils === --
+--   ---------------------------------------------------
+--
+--
+
+--
+
+--
+-- unpackTarGzUnix :: MonadIO m => FilePath -> FilePath -> m ()
+-- unpackTarGzUnix name path =  runProcess_ $ shell ("cd "++path++ "; tar xf " ++ name ++ " --strip 1")
+--
+-- unpackZipUnix ::  MonadIO m => FilePath -> FilePath -> m ()
+-- unpackZipUnix name path =  runProcess_ $ shell ("cd "++path++ "; unzip " ++ name)
+--
+-- preparePathRPM :: MonadIO m => Text.Text -> m FilePath
+-- preparePathRPM name = mkPathWithHome $ [localPath] ++ (Text.pack <$> ["usr", "share"]) ++ [studioName, name]
+--
+--
+-- copyPackage :: MonadIO m => Package -> FilePath -> m ()
+-- copyPackage (Package name version path) dstPath= liftIO $ do
+--     case path of
+--         Main.URI address -> do
+--             downloaded <- downloadFromURL address
+--             createDirectoryIfMissing True dstPath
+--             if (takeExtension downloaded == ".gz")
+--                 then unpackTarGzUnix downloaded dstPath
+--                 else if (takeExtension downloaded == ".rpm")
+--                     then unpackRPM downloaded dstPath
+--                     else if (takeExtension downloaded == ".zip")
+--                         then unpackZipUnix downloaded dstPath
+--                         else error "Cannot unpack"
+--         LocalPath filepath -> do
+--             if (takeExtension filepath == ".gz")  then unpackTarGzUnix filepath dstPath else copyDir filepath dstPath
+--
+--
+-- copyBin :: MonadIO m => Package -> FilePath -> m ()
+-- copyBin (Package name version path) dstDir = liftIO $ do
+--     if name == "luna"
+--         then do
+--             case path of
+--                 LocalPath filepath -> do
+--                     sourceFile <- mkRelativePath [(Text.pack filepath), runExe]
+--                     dstFile <- mkPathWithHome [(Text.pack dstDir), studioName]
+--                     createDirectoryIfMissing True dstDir
+--                     copyFile sourceFile dstFile
+--                 Main.URI address -> do return ()
+--         else return ()
+--
+-- copyBinRPM :: MonadIO m => Package -> m ()
+-- copyBinRPM (Package name version path) = liftIO $ do
+--     dstDir <- mkPathWithHome $ [localPath] ++ (Text.pack <$> ["usr", "bin"])
+--     copyBin (Package name version path) dstDir
+--
+-- ---------------------------------
+-- -- === Package preparation === --
+-- ---------------------------------
+--
+-- unpackRPM :: MonadIO m => FilePath -> FilePath -> m () -- just for atom rpm unpacking
+-- unpackRPM name path = do
+--   runProcess_ $ shell ("rpm2cpio " ++ name ++ " | cpio -idmv")
+--   runProcess_ $ shell ("mv usr/share/atom/* " ++ path)
+--
+--
+--
+--
+-- copyPackageForRPM :: MonadIO m => Package -> m ()
+-- copyPackageForRPM (Package name version path) = liftIO $ do
+--     localPath <- preparePathRPM name
+--     copyPackage (Package name version path) localPath
+--
+--
+--
+-- mkPackageToRPM :: MonadIO m => FilePath -> m ()
+-- mkPackageToRPM yamlFile = liftIO $ do
+--     content <- BS.readFile yamlFile
+--     let parsedContent = Yaml.decode content :: Maybe LunaVersion
+--         LunaVersion lunaID system pkgs = failIfNothing "Could not parse yaml file." parsedContent
+--     mapM copyPackageForRPM pkgs
+--     home            <- getHomeDirectory
+--     lunaStudioRun   <- mkRelativePath [(Text.pack home), localPath ,(Text.pack "usr"),(Text.pack "share"), studioName, lunaStudioPackage, runExe]
+--     lunaStudioPosix <- mkRelativePath [(Text.pack home), localPath ,(Text.pack "usr"),(Text.pack "share"), studioName, runPosix]
+--
+--     copyFile lunaStudioRun lunaStudioPosix
+--     -- runProcess_ $ shell ("mv /home/sylwia/luna-studio-package/usr/share/luna-studio/luna/run /home/sylwia/luna-studio-package/usr/share/luna-studio/luna-studio")
+--     lunaAtomAbs    <- mkPathWithHome [localPath, "usr", "share", studioName, atomHome]
+--     lunaStudioAtom <- mkPathWithHome [lunaAtomAbs, atomHome, "packages", lunaStudioAtomPackageName]
+--     createDirectoryIfMissing True lunaStudioAtom
+--     studioDir <- mkPathWithHome [localPath, "usr", "share", studioName, lunaStudioPackage,studioFolder]
+--     copyDir studioDir lunaAtomAbs
+--     localAbsolute <- mkPathWithHome [localPath]
+--     -- runProcess_ $ shell ("mv /home/sylwia/luna-studio-package/usr/share/luna-studio/luna/atom/* /home/sylwia/luna-studio-package/usr/share/luna-studio/luna-atom/packages/luna-studio/")
+--     runProcess_ $ setWorkingDir lunaStudioAtom (setEnv [("ATOM_HOME", lunaAtomAbs)] $ shell ("apm install ."))
+--     runProcess_ $ setWorkingDir home $ shell ("fpm -s dir -t rpm -n 'luna-studio' -v 1.0 -C " ++ localAbsolute ++ " --depends lsb-core-noarch --depends 'libXss.so.1()(64bit)' --depends 'rpmlib(PayloadFilesHavePrefix) <= 4.0-1' --depends 'rpmlib(CompressedFileNames) <= 3.0.4-1' --depends 'libzmq.so.5()(64bit)'")
+--
+--
+--
+--
+-- lunaStudioDirectory :: MonadIO m => m FilePath
+-- lunaStudioDirectory = mkPathWithHome [defaultInstallFolderName]
+--
+-- ------ ProgressBar -----------------
+-- -----------------------------------
+--
+-- -- === Definition === --
+--
+-- data ProgressBar = ProgressBar { barWidth  :: Int --total progress bar width
+--                                , completed :: Int --Amount of work completed
+--                                , totalWork :: Int --total amount of work
+--                                }
+--
+--
+-- --------------------------------
+-- ------ ProgressBarUtils --------
+-- --------------------------------
+--
+-- progressBar :: MonadIO m => ProgressBar -> m ()
+-- progressBar (ProgressBar width todo done) = liftIO $ do
+--
+--     putStrLn $ printf "[%s%s%s]" (genericReplicate completed '=') (if remaining /= 0 && completed /= 0 then ">" else "") (genericReplicate (remaining - if completed /= 0 then 1 else 0) '.')
+--     cursorUpLine 1
+--     clearLine
+--     where
+--         fraction :: Rational
+--         fraction | done /= 0  = (fromIntegral todo) % (fromIntegral done)
+--                  | otherwise = 0 % 1
+--
+--         effectiveWidth = max 0 $ width - usedSpace
+--         usedSpace = 2
+--
+--         numCompletedChars :: Rational
+--         numCompletedChars = fraction * ((fromIntegral effectiveWidth) % 1)
+--
+--         completed, remaining :: Int
+--         completed = min effectiveWidth $ floor numCompletedChars
+--         remaining = effectiveWidth - completed
+--
+--
+--
+-- updateProgress :: MonadIO m => ProgressBar -> ConduitM BS.ByteString BS.ByteString m ()
+-- updateProgress (ProgressBar w completed pgTotal) = await >>= maybe (return ()) (\chunk -> do
+--     let len = BS.length chunk
+--         pg = ProgressBar w (completed+len) pgTotal
+--     liftIO $ progressBar pg
+--     yield chunk
+--     updateProgress pg)
+--
+-- downloadWithProgressBar :: MonadIO m => Text.Text -> m ()
+-- downloadWithProgressBar address = liftIO $ withManager $ \manager -> do
+--     -- Start the request
+--     req <- parseUrl $ Text.unpack address
+--     res <- http req manager
+--     -- Get the Content-Length and initialize the progress bar
+--     let Just cl = lookup hContentLength (responseHeaders res)
+--         pgTotal = read (unpack cl)
+--         pg      = ProgressBar 50 0 pgTotal
+--     -- Consume the response updating the progress bar
+--     responseBody res $=+ updateProgress pg $$+- sinkNull
+--     liftIO $ putStrLn "Download completed!"
+--
+--
+-- ---------------------------
+-- ---InstallerHelpers--------
+-- ---------------------------
+--
+--
+
+
+--
+-- findVersion :: MonadIO m => Text.Text -> Version -> [Version] -> Version -> m Version
+-- findVersion question ans prompt defAns
+--     | show ans == ""    = return defAns
+--     | ans `elem` prompt = return ans
+--     | otherwise         = do
+--         liftIO $ putStrLn "This version is not available"
+--         liftIO $ chooseVersion question prompt defAns
+--
+-- chooseVersion :: MonadIO m => Text.Text -> [Version] -> Version -> m Version
+-- chooseVersion question prompt defAns = do
+--     let questionToAsk = Text.concat $ [question] ++ (Text.pack <$> ([" [" ++ (show defAns) ++ "] " ++ "available versions: "] ++ [(show prompt)]))
+--     liftIO $ print questionToAsk
+--     ans <- liftIO $ getLine
+--     findVersion question (read ans) prompt defAns
+--
+-- getPackagePath :: Text.Text -> Package -> Text.Text
+-- getPackagePath nameToCheck (Package name version path) = do
+--     case name of
+--         nameToCheck -> case path of
+--             Main.URI address -> address
+--
+-- getAddress :: Version -> LunaVersion -> Maybe Text.Text
+-- getAddress versionId (LunaVersion lId system pkgs) =
+--     if versionId == lId
+--         then do
+--             let paths = map (getPackagePath studioName) pkgs
+--             listToMaybe paths
+--         else Nothing
+--
+-- checkShell :: MonadIO m => m ()
+-- checkShell = liftIO $ do
+--     (exitCode, out, err) <- readProcess (shell "help")
+--     exportPaths $ getShellType $ show out
+--
+-- check :: Eq a => [a] -> [a] -> Bool
+-- check l s = check' l s True where
+--     check' _ [] h          = True
+--     check' [] _ h          = False
+--     check' (x:xs) (y:ys) h = (y == x && check' xs ys False) || (h && check' xs (y:ys) h)
+--
+-- getShellType :: String -> String
+-- getShellType help = head $ splitOn "," help
+--
+--
+-- exportPaths :: MonadIO m => String -> m ()
+-- exportPaths shellType
+--     | check shellType "bash" = do
+--         bashrcLocation      <- mkPathWithHome [".bashrc"]
+--         bashrcCheck         <- liftIO $ doesPathExist bashrcLocation
+--         bashProfileLocation <- mkPathWithHome [".bash_profile"]
+--         bashProfileCheck    <- liftIO $ doesPathExist bashProfileLocation
+--         profileLocation     <- mkPathWithHome [".profile"]
+--         profileCheck        <- liftIO $ doesPathExist profileLocation
+--         let export = "export PATH=~/.local/bin:$PATH"
+--         if  bashrcCheck
+--             then liftIO $ appendFile bashrcLocation export
+--             else if bashProfileCheck
+--                 then liftIO $ appendFile bashProfileLocation export
+--                 else if profileCheck
+--                     then liftIO $ appendFile profileLocation export
+--                     else liftIO $ putStrLn "Unrecognized shell. Please add ~/.local/bin to your exports."
+--     | check shellType "zsh" = liftIO $ do
+--         zshrcLocation <- mkPathWithHome [".zshrc"]
+--         let export = "path+=~/.local/bin"
+--         liftIO $ appendFile zshrcLocation export
+--     | check shellType "fish" = liftIO $ do
+--         fishrcLocation <- mkPathWithHome [".config", "fish", "config.fish"]
+--         let export = "set -gx PATH $PATH ~/.local/bin"
+--         liftIO $ appendFile fishrcLocation export
+--     | otherwise = liftIO $ putStrLn "Unrecognized shell. Please add ~/.local/bin to your exports."
+--
+--
+-- makeExecutable :: MonadIO m => FilePath -> m ()
+-- makeExecutable file = liftIO $ do
+--     p <- getPermissions file
+--     setPermissions file (p {writable = True})
+--
+
+--
+--
+--
+-- ---------------------------------------
+-- -------------MacOS---------------------
+-- ---------------------------------------
+--
+-- mkPackageMacOS :: MonadIO m => FilePath -> m()
+-- mkPackageMacOS yamlFile = liftIO $ do
+--     content <- BS.readFile yamlFile
+--     let parsedContent = Yaml.decode content :: Maybe LunaVersion
+--         LunaVersion lunaID system pkgs = failIfNothing "Could not parse yaml file." parsedContent
+--         version        <- show(lunaID)
+--         binPath        <- mkPathWithHome [appName, binaryLocation]
+--         resourcesPath  <- mkPathWithHome [appName, resources, version]
+--         frameworksPath <- mkPathWithHome [appName, frameworks, version]
+--         createDirectory binPath
+--         createDirectory resourcesPath
+--         createDirectory frameworksPath
+--         for packages if package atom or zmq copyPackage LunaStudio.app/Contents/Frameworks/v else createDirectory LunaStudio.app/Contents/Resources/v
+--
+--         copyBin LunaStudio.app/Contents/MacOS/LunaStudio -- sprobowac run odpala resources/current zawsze a lunaatom path z uwzglednieniem wersji jest na podstawie pliku w resources z wersja
+--
+--         link each to current (frameworks and resources)
+--         podmienic jeszcze ikonke z atoma na lune i nazwe?
+--
+-- ---------------------------------------
+-- -------------Windows-------------------
+-- ---------------------------------------
+--
+--
+-- mkPathWithHomeWindows :: MonadIO m => [Text.Text] -> m FilePath
+-- mkPathWithHomeWindows args = liftIO $ do
+--     homeDir  <- getHomeDirectory
+--     mkRelativePathWindows $ (Text.pack homeDir) : args
+--
+-- mkRelativePathWindows :: MonadIO m => [Text.Text] -> m FilePath
+-- mkRelativePathWindows args = do
+--     let strArgs = Text.unpack <$> args
+--         folded = foldl (\acc x -> acc Win.</> x) "" strArgs
+--         a = normalise $ folded
+--     return a
+--
+-- -- mkPackageWin :: MonadIO m => m ()
+-- -- mkPackageWin = do
+-- --     content <- BS.readFile yamlFile
+-- --     let parsedContent = Yaml.decode content :: Maybe LunaVersion
+-- --         LunaVersion lunaID system pkgs = failIfNothing "Could not parse yaml file." parsedContent
+--         --
+--
+--
+-- installWin :: MonadIO m => m ()
+-- installWin = liftIO $ do
+--     tmp <- getTemporaryDirectory
+--     setCurrentDirectory tmp
+--     downoladConfig <- downloadFromURL globalConfigUri
+--     downloadUnzipScript <- downloadFromURL unzipVBAUri
+--
+--     content <- BS.readFile downoladConfig
+--     let parsedContent = Yaml.decode content :: Maybe [LunaVersion]
+--         lunaVersions = failIfNothing "Could not parse yaml file." parsedContent
+--         allLunaIds = map Main.id lunaVersions
+--         lastLunaId = maximum allLunaIds
+--     absDefault       <- mkPathWithHomeWindows [defaultInstallFolderName]
+--     let location         = binsLocation
+--     versionToinstall <- chooseVersion (Text.pack "Which version of Luna-Studio you want to install?")   allLunaIds lastLunaId
+--
+--     let address = mapM (getAddress versionToinstall) lunaVersions
+--         justAddressesList = failIfNothing "cannot read URI" address
+--         justAddress = failIfNothing "cannot read URI" $ listToMaybe justAddressesList
+--     locWithVersion <- mkRelativePathWindows [location, (Text.pack $ show versionToinstall)]
+--     createDirectory locWithVersion
+--     setCurrentDirectory locWithVersion
+--     runProcess_ $ shell ("cscript //B " ++ downloadUnzipScript ++ " " ++ (Text.unpack justAddress))
+--     batAbs <- mkRelativePathWindows [(Text.pack locWithVersion), batLocation]
+--     runProcess_ $ setWorkingDir batAbs $ shell "installAll"
+--
+--
+--
+--
+--
+--
+-- data Opts = Opts
+--     { optGlobalFlag :: !Bool
+--     , optCommand    :: !Command
+--     }
+--
+-- data Command = Install | MakeRPM String | Update
+--
+--
+-- main :: IO ()
+-- main = do
+--     opts <- execParser optsParser
+--     case optCommand opts of
+--       Install  -> installAppImage
+--       MakeRPM config -> mkPackageToRPM config
+--       Update -> putStrLn "powinno sciagac nowy config z luna-lang org albo czegos takiego"
+--   where
+--       optsParser =
+--           info
+--               (helper <*> versionOption <*> programOptions)
+--               (fullDesc <> progDesc "LunaStudio manager" <>
+--                header
+--                    "manager for LunaStudio for makeing and instaling packages")
+--       versionOption = infoOption "0.0" (long "version" <> help "Show version")
+--       programOptions =
+--         Opts <$> switch (long "global-flag" <> help "Set a global flag") <*>
+--         hsubparser (installCommand <> mkpkgCommand <> updateCommand)
+--       installCommand =
+--         command
+--           "install"
+--           (info (pure Install) (progDesc "Install Luna-Studio"))
+--       mkpkgCommand =
+--         command
+--           "make-rpm"
+--           (info mkpkgOptions (progDesc "Make RPM"))
+--       mkpkgOptions =
+--         MakeRPM <$>
+--         strArgument (metavar "CONFIG" <> help "Name of config file")
+--       updateCommand =
+--         command
+--           "update"
+--           (info (pure Update) (progDesc "update luna"))

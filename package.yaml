@@ -1,0 +1,91 @@
+name:               manager
+version:            0.1.0.0
+author:             New Byte Order <contact@newbyteorder.com>
+maintainer:         New Byte Order <contact@newbyteorder.com>
+
+dependencies:
+  - prologue
+  - ansi-terminal
+  - ascii-progress
+  - io-streams
+  - path
+  - network
+  - conduit
+  - base
+  - directory
+  - exceptions
+  - aeson
+  - yaml
+  - text
+  - typed-process
+  - http-conduit
+  - http-types
+  - filepath
+  - network-uri
+  - bytestring
+  - optparse-applicative
+  - split
+  - lens
+  - dependent-state
+  - containers
+
+  - lens-utils
+  - constraints
+  - transformers
+  - mtl
+
+
+default-extensions:
+    - AllowAmbiguousTypes
+    - ApplicativeDo
+    - Arrows
+    - BangPatterns
+    - BinaryLiterals
+    - ConstraintKinds
+    - DataKinds
+    - DefaultSignatures
+    - DeriveDataTypeable
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - DoAndIfThenElse
+    - DuplicateRecordFields
+    - EmptyDataDecls
+    - FlexibleContexts
+    - FlexibleInstances
+    - FunctionalDependencies
+    - GeneralizedNewtypeDeriving
+    - InstanceSigs
+    - LambdaCase
+    - MonadComprehensions
+#    - MonadFailDesugaring
+    - MultiWayIf
+    - NamedWildCards
+    - NegativeLiterals
+    - NoImplicitPrelude
+    - NumDecimals
+    - OverloadedLabels
+    - PackageImports
+    - QuasiQuotes
+    - RankNTypes
+    - RecursiveDo
+    - ScopedTypeVariables
+    - StandaloneDeriving
+    - TemplateHaskell
+    - TupleSections
+    - TypeApplications
+    - TypeFamilies
+    - TypeFamilyDependencies
+    - TypeOperators
+    - ViewPatterns
+
+    - LiberalTypeSynonyms
+    - RelaxedPolyRec
+
+executables:
+  manager:
+    main:             Main.hs
+
+    source-dirs:
+        - src

@@ -1,0 +1,41 @@
+ghc-options:
+  '*': -threaded -fconstraint-solver-iterations=100
+local-bin-path:
+  ../executables
+
+packages:
+  - location: ./manager
+  - location: ./run
+
+  - extra-dep: true
+    location: {commit: 2441e26d64f5a428a8b5c1c25cdcfec1e6452a71, git: 'https://github.com/luna/prologue.git'}
+  - extra-dep: true
+    location: {commit: cc7226cd9ae335bac8cfc19b8cc57dd335dead96, git: 'https://github.com/luna/container.git'}
+  - extra-dep: true
+    location: {commit: 2371dec86a94f2e50ad8bdb8cad4e9afa2a9291a, git: 'https://github.com/luna/convert.git'}
+  - extra-dep: true
+    location: {commit: 62aebd5ecb6ea873ce8db4cc230d156126cd82ee, git: 'https://github.com/luna/data-layer.git'}
+  - extra-dep: true
+    location: {commit: dad02796ecbb504f4b6e41f4a4ef7faa6dda3c5d, git: 'https://github.com/luna/functor-utils.git'}
+  - extra-dep: true
+    location: {commit: 5dc5b731a4313e44d55677ed6b9f38456feb2d56, git: 'https://github.com/luna/impossible.git'}
+  - extra-dep: true
+    location: {commit: 4af8e1021a8127b05d98920e387150fa4f0aa2e4, git: 'https://github.com/luna/lens-utils.git'}
+  - extra-dep: true
+    location: {commit: bea2f83f9112f2e9420d000456e94e3a436357a0, git: 'https://github.com/luna/typelevel.git'}
+  - extra-dep: true
+    location: {commit: fb0e46aacaa7060046f88d4c5a5f708fd443c8ae, git: 'https://github.com/luna/data-construction.git'}
+  - extra-dep: true
+    location: {commit: c20f35c8e2f25fd84df385e8646b125d9fca8ac4, git: 'https://github.com/luna/data-repr.git'}
+  - extra-dep: true
+    location: {commit: 0f86d4dff7192db7b4f4001f427126a889ff311f, git: 'https://github.com/luna/data-rtuple.git'}
+  - extra-dep: true
+    location: {commit: adb894846d34ceaa005961bd8fe676023cf1b036, git: 'https://github.com/luna/data-prop.git'}
+  - extra-dep: true
+    location: {commit: ffd97a6ec0eab065cebf06663a37362c1e13a05b, git: 'https://github.com/luna/monoid'}
+  - extra-dep: true
+    location: {commit: dfbf550970c7a99684a07b2188e22c61e693cdfd, git: 'https://github.com/luna/dependent-state.git'}
+
+resolver: lts-8.16
+
+extra-deps: [directory-1.3.1.1, cond-0.4.1.1, aeson-1.2.1.0]
