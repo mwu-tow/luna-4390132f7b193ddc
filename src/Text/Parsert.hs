@@ -360,13 +360,12 @@ type family Result (m :: * -> *) :: * where
 -- === Utils === --
 
 data ResultSource
-type MonadResultParser  t m = (MonadResultRegister m, MonadResultBuilder t m (Result m), TryInfer ResultSource m t)
-type MonadResultParser' t m = (MonadResultRegister m, MonadResultBuilder t m (Result m), t ~ Infer ResultSource m)
+type MonadResultParser  t m = (MonadResultRegister m, MonadResultBuilder t m (Result m), t ~ Infer ResultSource m)
+type MonadResultParser' t m = (MonadResultRegister m, MonadResultBuilder t m (Result m), TryInfer ResultSource m t)
 
-addResult :: MonadResultParser t m => t -> m ()
-addResult = buildResult >=> registerResult
-
+addResult  :: MonadResultParser  t m => t -> m ()
 addResult' :: MonadResultParser' t m => t -> m ()
+addResult  = buildResult >=> registerResult
 addResult' = buildResult >=> registerResult
 
 runResultRegister  :: forall res m a . Monad m => ResultRegister res m a -> m (a, [res])
