@@ -1,11 +1,8 @@
 ghc-options:
-  '*': -threaded -fconstraint-solver-iterations=100
-local-bin-path:
-  ../executables
+  '*': -threaded
 
 packages:
-  - location: ./manager
-  - location: ./run
+  - location: .
 
   - extra-dep: true
     location: {commit: 2441e26d64f5a428a8b5c1c25cdcfec1e6452a71, git: 'https://github.com/luna/prologue.git'}

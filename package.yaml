@@ -1,4 +1,4 @@
-name:               manager
+name:               luna-manager
 version:            0.1.0.0
 author:             New Byte Order <contact@newbyteorder.com>
 maintainer:         New Byte Order <contact@newbyteorder.com>
@@ -59,13 +59,13 @@ default-extensions:
     - InstanceSigs
     - LambdaCase
     - MonadComprehensions
-#    - MonadFailDesugaring
     - MultiWayIf
     - NamedWildCards
     - NegativeLiterals
     - NoImplicitPrelude
     - NumDecimals
     - OverloadedLabels
+    - OverloadedStrings
     - PackageImports
     - QuasiQuotes
     - RankNTypes
@@ -84,8 +84,7 @@ default-extensions:
     - RelaxedPolyRec
 
 executables:
-  manager:
-    main:             Main.hs
-
+  luna-manager:
+    main: Main.hs
     source-dirs:
         - src
