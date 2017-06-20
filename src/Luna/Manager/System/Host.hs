@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# LANGUAGE TypeInType #-}
 
@@ -133,3 +134,13 @@ defHostConfig = defaultHostConfigFor @CurrentHost @CurrentArch
 
 evalDefHostConfig :: forall s m a. MonadHostConfig' s m => StateT s m a -> m a
 evalDefHostConfig p = evalStateT @s p =<< defHostConfig
+
+
+-- === Multiple configs evaluator ===
+
+class MultiConfigRunner (cfgs :: [*]) m where
+    evalDefHostConfigs :: forall a. StatesT cfgs m a -> m a
+
+instance (MultiConfigRunner ss m, MonadHostConfig' s (StatesT ss m))
+      => MultiConfigRunner (s ': ss) m where evalDefHostConfigs = evalDefHostConfigs @ss . evalDefHostConfig
+instance MultiConfigRunner '[]       m where evalDefHostConfigs = id
