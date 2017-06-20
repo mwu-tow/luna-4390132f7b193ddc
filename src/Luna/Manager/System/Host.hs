@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 
+{-# LANGUAGE TypeInType #-}
+
 module Luna.Manager.System.Host where
 
 import Prologue
@@ -20,7 +22,7 @@ import qualified Data.Text           as Text
 -- === Definition === --
 
 data System = Linux
-            | MacOS
+            | Darwin
             | Windows
             deriving (Generic, Show, Read, Eq, Ord)
 
@@ -37,8 +39,8 @@ currentHost :: System
 type CurrentHost = 'Linux
 currentHost      =  Linux
 #elif darwin_HOST_OS
-type CurrentHost = 'MacOS
-currentHost      =  MacOS
+type CurrentHost = 'Darwin
+currentHost      =  Darwin
 #elif mingw32_HOST_OS
 type CurrentHost = 'Windows
 currentHost      =  Windows
@@ -66,6 +68,16 @@ Running on unsupported system architecture.
 
 currentSysDesc :: SysDesc
 currentSysDesc = SysDesc currentHost currentArch
+
+-- Refactor and remove pragma
+class Known (t :: k) where fromType :: k
+
+instance Known 'Linux   where fromType = Linux
+instance Known 'Darwin  where fromType = Darwin
+instance Known 'Windows where fromType = Windows
+
+instance Known 'X32     where fromType = X32
+instance Known 'X64     where fromType = X64
 
 
 -- === Instances === --

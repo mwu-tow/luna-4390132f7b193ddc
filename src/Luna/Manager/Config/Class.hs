@@ -11,18 +11,18 @@ import Control.Monad.State.Layered
 
 -- === Definition === --
 
-type MonadDefaultConfig' cfg = MonadDefaultConfig cfg CurrentHost
-class Monad m => MonadDefaultConfig cfg (system :: System) m where
+class Monad m => MonadSystemConfig cfg (system :: System) (arch :: SysArch) m where
     defaultConfig :: m cfg
 
 
 -- === Utils === --
 
-defaultConfigFor :: forall system cfg m. MonadDefaultConfig cfg system m => m cfg
-defaultConfigFor = defaultConfig @cfg @system
+defaultConfigFor :: forall system arch cfg m. MonadSystemConfig cfg system arch m => m cfg
+defaultConfigFor = defaultConfig @cfg @system @arch
 
-currentSysDefaultConfig :: MonadDefaultConfig' cfg m => m cfg
-currentSysDefaultConfig = defaultConfigFor @CurrentHost
+type MonadSystemConfig' cfg = MonadSystemConfig cfg CurrentHost CurrentArch
+defSystemConfig :: MonadSystemConfig' cfg m => m cfg
+defSystemConfig = defaultConfigFor @CurrentHost @CurrentArch
 
-evalDefConfigState :: forall s m a. MonadDefaultConfig' s m => StateT s m a -> m a
-evalDefConfigState p = evalStateT @s p =<< currentSysDefaultConfig
+evalDefSystemConfig :: forall s m a. MonadSystemConfig' s m => StateT s m a -> m a
+evalDefSystemConfig p = evalStateT @s p =<< defSystemConfig

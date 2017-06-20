@@ -34,7 +34,7 @@ makeLenses ''InstallConfig
 
 -- === Instances === --
 
-instance {-# OVERLAPPABLE #-} Monad m => MonadDefaultConfig InstallConfig sys m where
+instance {-# OVERLAPPABLE #-} Monad m => MonadSystemConfig InstallConfig sys arch m where
     defaultConfig = return $ InstallConfig
         { _execName        = "luna-studio"
         , _defaultConfPath = "~/.luna"
@@ -42,12 +42,12 @@ instance {-# OVERLAPPABLE #-} Monad m => MonadDefaultConfig InstallConfig sys m 
         , _localName       = "local"
         }
 
-instance Monad m => MonadDefaultConfig InstallConfig 'MacOS m where
+instance Monad m => MonadSystemConfig InstallConfig 'Darwin arch m where
     defaultConfig = reconfig <$> defaultConfigFor @Linux where
         reconfig cfg = cfg & execName       .~ "LunaStudio"
                            & defaultBinPath .~ "~/Applications"
 
-instance Monad m => MonadDefaultConfig InstallConfig 'Windows m where
+instance Monad m => MonadSystemConfig InstallConfig 'Windows arch m where
     defaultConfig = reconfig <$> defaultConfigFor @Linux where
         reconfig cfg = cfg & execName       .~ "LunaStudio"
                            & defaultBinPath .~ "C:\\ProgramFiles"
@@ -188,12 +188,6 @@ runInstaller opts = do
 
 
 
-    -- print appPkgDesc
-    -- -- pytnaie co chcesz instalowac
-    -- let chosenApp = undefined :: Text
-    -- -- pytanie ktora wersja
-    -- let chosenVersion = undefined :: Version
-    --
     --   allLunaIds = map Main.id lunaVersions
     --   lastLunaId = maximum allLunaIds
     -- absDefault       <- mkPathWithHome [defaultInstallFolderName]

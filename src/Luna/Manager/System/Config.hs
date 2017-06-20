@@ -39,5 +39,5 @@ setTmpCwd = liftIO . System.setCurrentDirectory . convert =<< getTmpPath
 
 
 -- === Instances === --
-instance {-# OVERLAPPABLE #-} MonadIO m => MonadDefaultConfig SystemConfig sys m where
+instance {-# OVERLAPPABLE #-} MonadIO m => MonadSystemConfig SystemConfig sys arch m where
     defaultConfig = SystemConfig <$> (convert <$> liftIO System.getTemporaryDirectory)

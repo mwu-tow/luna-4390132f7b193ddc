@@ -100,9 +100,9 @@ handleTopLvlError e = do
 main :: IO ()
 main = do
     handleAll handleTopLvlError
-        $ evalDefConfigState @SystemConfig
-        $ evalDefConfigState @InstallConfig
-        $ evalDefConfigState @RepoConfig
+        $ evalDefSystemConfig @SystemConfig
+        $ evalDefSystemConfig @InstallConfig
+        $ evalDefSystemConfig @RepoConfig
         $ runInstaller def
         -- $ runInstaller (def & selectedComponent .~ Just "xstudio")
 
