@@ -60,12 +60,13 @@ instance Monad m => MonadDefaultConfig InstallConfig 'Windows m where
 
 -- === Options === --
 
-data InstallOpts = InstallOpts { _selectedComponent :: Maybe Text
-                               , _selectedVersion   :: Maybe Text
+data InstallOpts = InstallOpts { _selectedComponent        :: Maybe Text
+                               , _selectedVersion          :: Maybe Text
+                               , _selectedInstallationPath :: Maybe Text
                                } deriving (Show)
 makeLenses ''InstallOpts
 
-instance Default InstallOpts where def = InstallOpts def def
+instance Default InstallOpts where def = InstallOpts def def def
 
 
 -- === Errors === --
