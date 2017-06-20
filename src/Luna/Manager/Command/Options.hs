@@ -1,11 +1,12 @@
 module Luna.Manager.Command.Options where
 
 import Prologue
-import Options.Applicative as Opts
-import Data.Text (Text)
 
+import Data.Text (Text)
+import Options.Applicative as Opts
 import Control.Monad.State.Layered
 
+import qualified Luna.Manager.System.Info as Info
 
 
 ------------------------------
@@ -18,7 +19,6 @@ data Options = Options
     { _batchMode :: Bool
     , _command   :: Command
     } deriving (Show)
-
 
 data Command = Install       InstallOpts
              | MakePackage   MakePackageOpts
@@ -64,8 +64,7 @@ evalOptionsParserT m = evalStateT m =<< parseOptions
 
 parseOptions :: MonadIO m => m Options
 parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser where
-    synopsis           = "Luna Manager provides install / uninstall / update and maintain utilities over all Luna related ecosystem components."
-    optsParser         = info (helper <*> programOpts) (fullDesc <> header "Luna ecosystem manager" <> progDesc synopsis)
+    optsParser         = info (helper <*> programOpts) (fullDesc <> header ("Luna ecosystem manager (" <> Info.version <> ")") <> progDesc Info.synopsis)
     installCmd         = Opts.command "install"        . info installOpts       $ progDesc "Install components"
     updateCmd          = Opts.command "update"         . info (pure Update)     $ progDesc "Update components"
     switchVersionCmd   = Opts.command "switch-version" . info switchVersionOpts $ progDesc "Switch installed component version"

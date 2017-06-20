@@ -1,5 +1,5 @@
 name:               luna-manager
-version:            0.1.0.0
+version:            "0.1"
 author:             New Byte Order <contact@newbyteorder.com>
 maintainer:         New Byte Order <contact@newbyteorder.com>
 
@@ -30,7 +30,7 @@ dependencies:
   - containers
   - resourcet
   - optparse-applicative
-  
+
   - lens-utils
   - constraints
   - transformers
@@ -87,6 +87,6 @@ default-extensions:
 
 executables:
   luna-manager:
-    main: Main.hs
-    source-dirs:
-        - src
+    main:          Main.hs
+    source-dirs:   src
+    other-modules: Paths_luna_manager
