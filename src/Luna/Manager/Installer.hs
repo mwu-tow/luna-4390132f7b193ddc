@@ -86,7 +86,11 @@ type MonadInstall m = (MonadStates '[SystemConfig, InstallConfig, RepoConfig] m,
 hardcodedRepo :: Repo
 hardcodedRepo = Repo defapps deflibs "studio" where
     deflibs = mempty
-    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     ])
+
                      & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
                      & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
 
@@ -111,10 +115,11 @@ runInstaller opts = do
     putStrLn . convert $ "Installing package '" <> appName <> "'"
 
     let appDescs    = Map.assocs $ appPkg ^. versions
-        help        = Just $ "Available versions:\n" <> listItems (showPretty . fst <$> appDescs)
-        validator t = maybe (Left $ "Unknown version '" <> t <> "' selected.") (Right . (t,)) $ Map.lookup (undefined) (appPkg ^. versions)
+        vss         = sort $ fst <$> appDescs
+        help        = Just $ "Available versions:\n" <> listItems (showPretty <$> vss)
+        validator t = maybe (Left $ "Unknown version '" <> t <> "' selected.") id $ sequence $ fmap (t,) . flip Map.lookup (appPkg ^. versions) <$> readPretty t
         question    = "Select version to be installed"
-        defResp     = Nothing -- Just $ repo ^. defaultVersion
+        defResp     = showPretty <$> maybeLast vss
     (version, sysMap) <- askOrUse (opts ^. selectedVersion) validator help defResp question
 
 
