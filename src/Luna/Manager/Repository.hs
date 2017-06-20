@@ -26,18 +26,14 @@ import qualified Data.Aeson.Encoding as JSON
 
 -- === Definition === --
 
-data    Repo        = Repo        { _apps   :: Map Text Package, _libs    :: Map Text Package } deriving (Show, Generic, Eq)
-newtype Package     = Package     { _pkgMap :: PkgMap                                         } deriving (Show, Generic, Eq)
-data    PackageDesc = PackageDesc { _deps   :: [PackageDep]    , _path    :: URIPath          } deriving (Show, Generic, Eq)
-data    PackageDep  = PackageDep  { _name   :: Text            , _version :: Version          } deriving (Show, Generic, Eq)
-type PkgMap = Map Version (Map SysDesc PackageDesc)
+data Repo        = Repo        { _apps     :: Map Text Package , _libs     :: Map Text Package, _defaultApp :: Text } deriving (Show, Generic, Eq)
+data Package     = Package     { _synopsis :: Text             , _versions :: VersionMap                            } deriving (Show, Generic, Eq)
+data PackageDesc = PackageDesc { _deps     :: [PackageDep]     , _path     :: URIPath                               } deriving (Show, Generic, Eq)
+data PackageDep  = PackageDep  { _name     :: Text             , _version  :: Version                               } deriving (Show, Generic, Eq)
+type VersionMap = Map Version (Map SysDesc PackageDesc)
 
 
 -- === Instances === --
-
--- Monoids
-instance Mempty    Repo where mempty = Repo mempty mempty
-instance Semigroup Repo where Repo a l <> Repo a' l' = Repo (a <> a') (l <> l')
 
 -- JSON
 instance ToJSON   Repo        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
@@ -61,6 +57,7 @@ instance EncodeShow PackageDep where
 
 
 
+
 -----------------------------------
 -- === Repository management === --
 -----------------------------------
@@ -77,8 +74,8 @@ makeLenses ''RepoConfig
 
 type MonadRepo m = (MonadStates '[RepoConfig, SystemConfig] m, MonadNetwork m)
 
-getRepoConf :: MonadRepo m => m Repo
-getRepoConf = do
+getRepo :: MonadRepo m => m Repo
+getRepo = do
     cfg <- get @RepoConfig
     case cfg ^. cachedRepo of
         Just r  -> return r

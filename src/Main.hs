@@ -93,15 +93,22 @@ import Luna.Manager.Network
 
     -- handleAll :: Monad m => (SomeException -> m a) -> ExceptT' m a -> m a
 
+handleTopLvlError :: MonadIO m => SomeException -> m ()
+handleTopLvlError e = do
+    putStrLn "Error occured, exiting now."
+    putStrLn ""
+    print e
+
 main :: IO ()
 main = do
-    handleAll (print) $ evalDefConfigState @SystemConfig
-                      $ evalDefConfigState @InstallConfig
-                      $ evalDefConfigState @RepoConfig
-                      $ runInstaller
-    print "dziala"
+    handleAll handleTopLvlError
+        $ evalDefConfigState @SystemConfig
+        $ evalDefConfigState @InstallConfig
+        $ evalDefConfigState @RepoConfig
+        -- $ runInstaller def
+        $ runInstaller (def & selectedComponent .~ Just "xstudio")
 
-    putStrLn $ convert $ Yaml.encode $ harcodedRepo
+    putStrLn $ convert $ Yaml.encode $ hardcodedRepo
 
 -- data    Repo        = Repo        { _apps   :: Map Text Package, _libs    :: Map Text Package } deriving (Show, Generic, Eq)
 -- newtype Package     = Package     { _pkgMap :: PkgMap                                         } deriving (Show, Generic, Eq)
