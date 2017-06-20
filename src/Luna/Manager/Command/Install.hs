@@ -1,15 +1,15 @@
-module Luna.Manager.Installer where
+module Luna.Manager.Command.Install where
 
 import Prologue hiding (txt)
 
 import Luna.Manager.System.Host
 import Luna.Manager.System.Env
-import Luna.Manager.Repository
-import Luna.Manager.Version
+import Luna.Manager.Component.Repository
+import Luna.Manager.Component.Version
 import Luna.Manager.Network
-import Luna.Manager.Pretty
-import           Luna.Manager.Cmd (InstallOpts)
-import qualified Luna.Manager.Cmd as Opts
+import Luna.Manager.Component.Pretty
+import           Luna.Manager.Command.Options (InstallOpts)
+import qualified Luna.Manager.Command.Options as Opts
 
 import Control.Lens.Aeson
 import Control.Monad.Raise

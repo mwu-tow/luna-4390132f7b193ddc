@@ -5,18 +5,17 @@ import Prologue hiding (FilePath)
 import Control.Monad.Raise
 import Luna.Manager.System.Host
 import Luna.Manager.System.Env
-import Luna.Manager.Version
-import Luna.Manager.Installer
-import Luna.Manager.Repository hiding (synopsis)
-import Luna.Manager.Shell
+import Luna.Manager.Component.Version
+import Luna.Manager.Command.Install
+import Luna.Manager.Component.Repository
 import Luna.Manager.System.Path
 import Luna.Manager.Network
-import Luna.Manager.Cmd
+import Luna.Manager.Command.Options
 
 -- FIXME: remove imports below before release:
 import qualified Data.Yaml as Yaml
 
-import Luna.Manager.Cmd ()
+import Luna.Manager.Command.Options ()
 
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()

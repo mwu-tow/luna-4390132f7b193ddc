@@ -1,4 +1,4 @@
-module Luna.Manager.Cmd where
+module Luna.Manager.Command.Options where
 
 import Prologue
 import Options.Applicative as Opts

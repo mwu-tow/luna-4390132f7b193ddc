@@ -1,12 +1,12 @@
-module Luna.Manager.Repository where
+module Luna.Manager.Component.Repository where
 
 import Prologue
 
-import Luna.Manager.Version
+import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
 import Luna.Manager.System.Path
 import Luna.Manager.System.Env
-import Luna.Manager.Pretty
+import Luna.Manager.Component.Pretty
 import Luna.Manager.Network
 
 import Control.Lens.Aeson

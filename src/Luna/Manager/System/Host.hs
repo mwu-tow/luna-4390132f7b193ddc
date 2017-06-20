@@ -5,7 +5,7 @@
 module Luna.Manager.System.Host where
 
 import Prologue
-import Luna.Manager.Pretty
+import Luna.Manager.Component.Pretty
 import Control.Lens.Aeson
 import Control.Monad.State.Layered
 
