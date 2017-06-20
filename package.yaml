@@ -29,7 +29,8 @@ dependencies:
   - dependent-state
   - containers
   - resourcet
-
+  - optparse-applicative
+  
   - lens-utils
   - constraints
   - transformers

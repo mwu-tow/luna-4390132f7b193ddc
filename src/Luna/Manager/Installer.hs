@@ -8,6 +8,8 @@ import Luna.Manager.Repository
 import Luna.Manager.Version
 import Luna.Manager.Network
 import Luna.Manager.Pretty
+import           Luna.Manager.Cmd (InstallOpts)
+import qualified Luna.Manager.Cmd as Opts
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -59,13 +61,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
 
 -- === Options === --
 
-data InstallOpts = InstallOpts { _selectedComponent        :: Maybe Text
-                               , _selectedVersion          :: Maybe Text
-                               , _selectedInstallationPath :: Maybe Text
-                               } deriving (Show)
-makeLenses ''InstallOpts
 
-instance Default InstallOpts where def = InstallOpts def def def
 
 
 -- === Utils === --
@@ -173,14 +169,14 @@ runInstaller opts = do
     let repo = hardcodedRepo
     -- repo <- getRepo -- FIXME[WD]: this should be enabled instead of line above
 
-    (appName, appPkg) <- askOrUse (opts ^. selectedComponent)
+    (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
         $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. apps))
         & help   .~ choiceHelp "components" (Map.keys $ repo ^. apps)
         & defArg .~ Just (repo ^. defaultApp)
 
     let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
         vss  = sort . Map.keys $ vmap
-    (appVersion, appPkgDesc) <- askOrUse (opts ^. selectedComponent)
+    (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedComponent)
         $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)
         & help   .~ choiceHelp (appName <> " versions") vss
         & defArg .~ fmap showPretty (maybeLast vss)

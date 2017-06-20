@@ -1,54 +1,83 @@
 module Luna.Manager.Cmd where
 
-import Prologue hiding  (switch)
-import Options.Applicative
+import Prologue
+import Options.Applicative as Opts
 import Data.Text (Text)
 
-import Luna.Manager.Installer (InstallOpts, InstallOpts(..))
-
-data Opts = Opts
-    { optFlag    :: !Bool
-    , optCommand :: !Command
-    }
+import Control.Monad.State.Layered
 
 
-data Command = Install InstallOpts
-             | MakePackage String
+
+------------------------------
+-- === Command options  === --
+------------------------------
+
+-- === Definition === --
+
+data Options = Options
+    { _batchMode :: Bool
+    , _command   :: Command
+    } deriving (Show)
+
+
+data Command = Install       InstallOpts
+             | MakePackage   MakePackageOpts
+             | SwitchVersion SwitchVersionOpts
              | Update
-             | SwitchVersion String
              | Info
+             deriving (Show)
+
+data InstallOpts = InstallOpts
+    { _selectedComponent        :: Maybe Text
+    , _selectedVersion          :: Maybe Text
+    , _selectedInstallationPath :: Maybe Text
+    } deriving (Show)
+
+data MakePackageOpts = MakePackageOpts
+    { _cfgPath :: Text
+    } deriving (Show)
+
+data SwitchVersionOpts = SwitchVersionOpts
+    { _targetVersion :: Text
+    } deriving (Show)
+
+makeLenses ''Options
+makeLenses ''InstallOpts
+makeLenses ''MakePackageOpts
+makeLenses ''SwitchVersionOpts
+
+
+-- === Instances === --
+
+instance Default InstallOpts where def = InstallOpts def def def
 
 
 
-possibleInstallOptions :: Parser InstallOpts
-possibleInstallOptions = InstallOpts
-           <$> (fmap convert $ optional $ strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
-           <*> (fmap convert $ optional $ strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )
-           <*> (fmap convert $ optional $ strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Installation path"   )
+------------------------------
+-- === Argument parsing === --
+------------------------------
 
+-- === Parsers === --
 
-managerMenu :: MonadIO m => m ()
-managerMenu = do
-    opts <- liftIO $ execParser optsParser
-    case optCommand opts of
-        Install installOpts   -> putStrLn "installation function" --installAppImage
-        MakePackage   config  -> putStrLn "make package command" -- mkPackageToRPM config
-        Update                -> putStrLn "powinno sciagac nowy config z luna-lang org albo czegos takiego"
-        SwitchVersion version -> putStrLn "zmienia versję z aktualnej na inną"
-        Info                  -> putStrLn "show actually used version"
-    where
-        optsParser =
-            info
-                (helper <*> programOptions)
-                (fullDesc <> progDesc "LunaStudio manager" <> header "manager for LunaStudio for making and installing packages")
-        programOptions =
-            Opts <$> switch (long "batch" <> help "Use default values if no argument added") <*>
-            hsubparser (installCommand <> mkpkgCommand <> updateCommand <> switchVersionCommand <> infoCommand)
-        installCommand       = command "install"        . info installOptions       $ progDesc "Install Luna component"
-        mkpkgCommand         = command "make-package"   . info mkpkgOptions         $ progDesc "Make Luna package"
-        updateCommand        = command "update"         . info (pure Update)        $ progDesc "Update Luna components"
-        switchVersionCommand = command "switch-version" . info switchVersionOptions $ progDesc "Switch version of Luna components"
-        infoCommand          = command "info"           . info (pure Info)          $ progDesc "Shows Info"
-        mkpkgOptions         = MakePackage   <$> strArgument (metavar "CONFIG"  <> help "Name of config file")
-        switchVersionOptions = SwitchVersion <$> strArgument (metavar "VERSION" <> help "version to switch to")
-        installOptions       = Install       <$> possibleInstallOptions
+evalOptionsParserT :: MonadIO m => StateT Options m a -> m a
+evalOptionsParserT m = evalStateT m =<< parseOptions
+
+parseOptions :: MonadIO m => m Options
+parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser where
+    synopsis           = "Luna Manager provides install / uninstall / update and maintain utilities over all Luna related ecosystem components."
+    optsParser         = info (helper <*> programOpts) (fullDesc <> header "Luna ecosystem manager" <> progDesc synopsis)
+    installCmd         = Opts.command "install"        . info installOpts       $ progDesc "Install components"
+    updateCmd          = Opts.command "update"         . info (pure Update)     $ progDesc "Update components"
+    switchVersionCmd   = Opts.command "switch-version" . info switchVersionOpts $ progDesc "Switch installed component version"
+    mkpkgCmd           = Opts.command "make-package"   . info mkpkgOpts         $ progDesc "Prepare installation package"
+    infoCmd            = Opts.command "info"           . info (pure Info)       $ progDesc "Shows environment information"
+    commands           = mconcat [installCmd, mkpkgCmd, updateCmd, switchVersionCmd, infoCmd]
+    programOpts        = Options           <$> Opts.switch (long "batch" <> help "Do not run interactive mode") <*> hsubparser commands
+    mkpkgOpts          = MakePackage       <$> mkpkgOpts'
+    mkpkgOpts'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
+    switchVersionOpts  = SwitchVersion     <$> switchVersionOpts'
+    switchVersionOpts' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
+    installOpts        = Install           <$> installOpts'
+    installOpts'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
+                                           <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )
+                                           <*> (optional . strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Installation path"   )
