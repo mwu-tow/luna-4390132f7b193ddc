@@ -8,15 +8,31 @@ import Luna.Manager.Component.Repository
 import Luna.Manager.Component.Version
 import Luna.Manager.Network
 import Luna.Manager.Component.Pretty
+import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
-import System.IO (hFlush, stdout)
 
 import qualified Data.Map as Map
+
+
+-- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+-- FIXME: Remove it as fast as we upload config yaml to the server
+hardcodedRepo :: Repo
+hardcodedRepo = Repo defapps deflibs "studio" where
+    deflibs = mempty
+    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     ])
+
+                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+
+
 
 
 ---------------------------------
@@ -59,110 +75,9 @@ instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
 -- === Installer === --
 -----------------------
 
--- === Options === --
-
-
-
-
--- === Utils === --
-
-type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
-
-hardcodedRepo :: Repo
-hardcodedRepo = Repo defapps deflibs "studio" where
-    deflibs = mempty
-    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     ])
-
-                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
-                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
-
-
-listItem :: Text -> Text
-listItem n = "  • " <> n
-
-listItems :: [Text] -> Text
-listItems = intercalate "\n" . fmap listItem
-
-
-
------------------------
--- === Questions === --
------------------------
-
--- === Definition === --
-
-type ArgReader a = Text -> Either Text a
-data Question  a = Question { _txt    :: Text
-                            , _reader :: ArgReader a
-                            , _help   :: Maybe Text
-                            , _defArg :: Maybe Text
-                            }
-
-makeLenses ''Question
-
-
--- === Errors === --
-
-data InvalidArgError = InvalidArgError deriving (Show)
-instance Exception InvalidArgError where
-    displayException _ = "Invalid argument provided."
-
-invalidArgError :: SomeException
-invalidArgError = toException InvalidArgError
-
-
--- === Utils === --
-
-question :: Text -> ArgReader a -> Question a
-question t r = Question t r mempty mempty
-
-choiceValidator  :: Text -> Text -> Maybe (Either Text a) -> Either Text a
-choiceValidator' :: Text -> Text -> Maybe a               -> Either Text a
-choiceValidator  s t = maybe (Left $ "Unknown " <> s <> " '" <> t <> "' selected.") id
-choiceValidator' s t = choiceValidator s t . fmap Right
-
-choiceHelp :: Pretty a => Text -> [a] -> Maybe Text
-choiceHelp s ts = Just $ "Available " <> s <> ":\n" <> listItems (showPretty <$> ts)
-
-
 -- === Running === --
 
-askOrUse :: (MonadIO m, MonadException SomeException m) => Maybe Text -> Question a -> m a
-askOrUse mdef q = case mdef of
-    Nothing -> ask q
-    Just s  -> validate (q ^. reader) (raise invalidArgError) s
-
-ask :: MonadIO m => Question a -> m a
-ask q  = validate (q ^. reader) (ask q) =<< askRaw q
-
-askRaw :: MonadIO m => Question a -> m Text
-askRaw q = do
-    let defAns       = maybe "" (\s -> " [" <> s <> "]") (q ^. defArg)
-        questionLine = q ^. txt <> defAns <> ": "
-        printHeader  = do
-            putStrLn ""
-            mapM (putStrLn . convert) (q ^. help)
-        goQuestion   = do
-            resp <- askLine
-            if resp /= "" then return resp
-                else maybe goQuestion return (q ^. defArg)
-        askLine      = do
-            putStr $ convert questionLine
-            liftIO $ hFlush stdout
-            liftIO $ convert <$> getLine
-    printHeader
-    goQuestion
-
-validate :: MonadIO m => ArgReader a -> m a -> Text -> m a
-validate reader f resp = case reader resp of
-    Left  e -> putStrLn ("Error: " <> convert e) >> f
-    Right a -> return a
-
-
-
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do

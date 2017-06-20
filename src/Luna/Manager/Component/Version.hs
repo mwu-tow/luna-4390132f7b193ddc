@@ -47,9 +47,10 @@ instance Pretty Version where
     showPretty (Version major minor build tag) = intercalate "." (map (convert . show) [major, minor, build])
                                               <> maybe "" (("." <>) . showPretty) tag
     readPretty t = case Text.splitOn "." t of
-        [major, minor, build, tag] -> mapLeft (const "Conversion error") $ Version <$> tryReads major <*> tryReads minor <*> tryReads build <*> (Just <$> mapLeft convert (readPretty tag))
-        [major, minor, build]      -> mapLeft (const "Conversion error") $ Version <$> tryReads major <*> tryReads minor <*> tryReads build <*> pure Nothing
-        _                          -> Left "Incorrect version format"
+        [ma, mi, b, t] -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> (Just <$> mapLeft convert (readPretty t))
+        [ma, mi, b]    -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> pure Nothing
+        _              -> Left "Incorrect version format"
+        where cerr = mapLeft (const "Conversion error")
 
 makeLenses ''Version
 makeLenses ''VersionTag
