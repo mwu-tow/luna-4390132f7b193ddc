@@ -30,6 +30,7 @@ dependencies:
   - containers
   - resourcet
   - optparse-applicative
+  - typelevel
 
   - lens-utils
   - constraints

@@ -1,14 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# LANGUAGE TypeInType #-}
-
 module Luna.Manager.System.Host where
 
 import Prologue
 import Luna.Manager.Component.Pretty
 import Control.Lens.Aeson
 import Control.Monad.State.Layered
+import Type.Known
 
 import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
 import qualified Data.Aeson          as JSON
@@ -71,9 +70,6 @@ Running on unsupported system architecture.
 currentSysDesc :: SysDesc
 currentSysDesc = SysDesc currentHost currentArch
 
--- Refactor and remove pragma
-class Known (t :: k) where fromType :: k
-
 instance Known 'Linux   where fromType = Linux
 instance Known 'Darwin  where fromType = Darwin
 instance Known 'Windows where fromType = Windows
@@ -111,6 +107,7 @@ instance Pretty System  where
 instance Pretty SysArch where
     showPretty = Text.toLower . convert . show
     readPretty = mapLeft (const "Conversion error") . tryReads . Text.toTitle
+
 
 
 -------------------------------------------

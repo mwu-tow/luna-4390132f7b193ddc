@@ -17,7 +17,7 @@ packages:
 - extra-dep: true
   location: {commit: 3bd224d169262af9f473e9b1bd691fd12caec8e2, git: 'https://github.com/luna/lens-utils.git'}
 - extra-dep: true
-  location: {commit: bea2f83f9112f2e9420d000456e94e3a436357a0, git: 'https://github.com/luna/typelevel.git'}
+  location: {commit: d5c2a68df9b34b8370c98a84f8bcaf311869daa9, git: 'https://github.com/luna/typelevel.git'}
 - extra-dep: true
   location: {commit: fb0e46aacaa7060046f88d4c5a5f708fd443c8ae, git: 'https://github.com/luna/data-construction.git'}
 - extra-dep: true
