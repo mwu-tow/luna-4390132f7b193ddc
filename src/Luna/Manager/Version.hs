@@ -1,7 +1,7 @@
 module Luna.Manager.Version where
 
 import Prologue
-import Luna.Manager.Config.Aeson
+import Control.Lens.Aeson
 import Luna.Manager.Pretty
 
 import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey)

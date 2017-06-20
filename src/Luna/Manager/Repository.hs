@@ -5,12 +5,11 @@ import Prologue
 import Luna.Manager.Version
 import Luna.Manager.System.Host
 import Luna.Manager.System.Path
-import Luna.Manager.System.Config
-import Luna.Manager.Config.Class
-import Luna.Manager.Config.Aeson
+import Luna.Manager.System.Env
 import Luna.Manager.Pretty
 import Luna.Manager.Network
 
+import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Data.Map                      (Map)
@@ -75,7 +74,7 @@ makeLenses ''RepoConfig
 
 -- === Utils === --
 
-type MonadRepo m = (MonadStates '[RepoConfig, SystemConfig] m, MonadNetwork m)
+type MonadRepo m = (MonadStates '[RepoConfig, EnvConfig] m, MonadNetwork m)
 
 getRepo :: MonadRepo m => m Repo
 getRepo = do
@@ -92,7 +91,7 @@ getRepo = do
 
 -- === Instances === --
 
-instance {-# OVERLAPPABLE #-} MonadIO m => MonadSystemConfig RepoConfig sys arch m where
-    defaultConfig = return $ RepoConfig { _repoPath   = "https://luna-lang.org/releases/config.yaml"
-                                        , _cachedRepo = Nothing
-                                        }
+instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig RepoConfig sys arch m where
+    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://luna-lang.org/releases/config.yaml"
+                                            , _cachedRepo = Nothing
+                                            }

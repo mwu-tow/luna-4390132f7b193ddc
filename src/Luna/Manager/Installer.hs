@@ -2,15 +2,14 @@ module Luna.Manager.Installer where
 
 import Prologue hiding (txt)
 
-import Luna.Manager.Config.Class
 import Luna.Manager.System.Host
-import Luna.Manager.System.Config
+import Luna.Manager.System.Env
 import Luna.Manager.Repository
 import Luna.Manager.Version
 import Luna.Manager.Network
-import Luna.Manager.Config.Aeson
 import Luna.Manager.Pretty
 
+import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 import System.IO (hFlush, stdout)
@@ -34,21 +33,21 @@ makeLenses ''InstallConfig
 
 -- === Instances === --
 
-instance {-# OVERLAPPABLE #-} Monad m => MonadSystemConfig InstallConfig sys arch m where
-    defaultConfig = return $ InstallConfig
+instance {-# OVERLAPPABLE #-} Monad m => MonadHostConfig InstallConfig sys arch m where
+    defaultHostConfig = return $ InstallConfig
         { _execName        = "luna-studio"
         , _defaultConfPath = "~/.luna"
         , _defaultBinPath  = "~/.luna-bin"
         , _localName       = "local"
         }
 
-instance Monad m => MonadSystemConfig InstallConfig 'Darwin arch m where
-    defaultConfig = reconfig <$> defaultConfigFor @Linux where
+instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
+    defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & execName       .~ "LunaStudio"
                            & defaultBinPath .~ "~/Applications"
 
-instance Monad m => MonadSystemConfig InstallConfig 'Windows arch m where
-    defaultConfig = reconfig <$> defaultConfigFor @Linux where
+instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
+    defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & execName       .~ "LunaStudio"
                            & defaultBinPath .~ "C:\\ProgramFiles"
 
@@ -71,7 +70,7 @@ instance Default InstallOpts where def = InstallOpts def def def
 
 -- === Utils === --
 
-type MonadInstall m = (MonadStates '[SystemConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
 
 hardcodedRepo :: Repo
 hardcodedRepo = Repo defapps deflibs "studio" where

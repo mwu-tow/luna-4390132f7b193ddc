@@ -15,7 +15,7 @@ packages:
 - extra-dep: true
   location: {commit: 5dc5b731a4313e44d55677ed6b9f38456feb2d56, git: 'https://github.com/luna/impossible.git'}
 - extra-dep: true
-  location: {commit: 4af8e1021a8127b05d98920e387150fa4f0aa2e4, git: 'https://github.com/luna/lens-utils.git'}
+  location: {commit: 3bd224d169262af9f473e9b1bd691fd12caec8e2, git: 'https://github.com/luna/lens-utils.git'}
 - extra-dep: true
   location: {commit: bea2f83f9112f2e9420d000456e94e3a436357a0, git: 'https://github.com/luna/typelevel.git'}
 - extra-dep: true

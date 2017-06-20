@@ -3,7 +3,7 @@ module Luna.Manager.Network where
 import Prologue hiding (FilePath)
 
 import Luna.Manager.System.Path
-import Luna.Manager.System.Config
+import Luna.Manager.System.Env
 
 import Control.Monad.Raise
 import Control.Monad.State.Layered
@@ -29,7 +29,7 @@ takeFileNameFromURL :: URIPath -> Maybe Text
 takeFileNameFromURL url = convert <$> name where
     name = maybeLast . URI.pathSegments =<< URI.parseURI (convert url)
 
-type MonadNetwork m = (MonadIO m, MonadGetter SystemConfig m, MonadException SomeException m)
+type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m)
 
 downloadFromURL :: MonadNetwork m => URIPath -> m FilePath
 downloadFromURL address = tryJust downloadError =<< go where

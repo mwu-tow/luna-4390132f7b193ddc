@@ -5,8 +5,9 @@
 module Luna.Manager.System.Host where
 
 import Prologue
-import Luna.Manager.Config.Aeson
 import Luna.Manager.Pretty
+import Control.Lens.Aeson
+import Control.Monad.State.Layered
 
 import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
 import qualified Data.Aeson          as JSON
@@ -15,9 +16,9 @@ import qualified Data.Aeson.Encoding as JSON
 import qualified Data.Text           as Text
 
 
--------------------------------
--- === Operating Systems === --
--------------------------------
+-------------------
+-- === Hosts === --
+-------------------
 
 -- === Definition === --
 
@@ -109,3 +110,26 @@ instance Pretty System  where
 instance Pretty SysArch where
     showPretty = Text.toLower . convert . show
     readPretty = mapLeft (const "Conversion error") . tryReads . Text.toTitle
+
+
+-------------------------------------------
+-- === Host dependend configurations === --
+-------------------------------------------
+
+-- === Definition === --
+
+class Monad m => MonadHostConfig cfg (system :: System) (arch :: SysArch) m where
+    defaultHostConfig :: m cfg
+
+
+-- === Utils === --
+
+defaultHostConfigFor :: forall system arch cfg m. MonadHostConfig cfg system arch m => m cfg
+defaultHostConfigFor = defaultHostConfig @cfg @system @arch
+
+type MonadHostConfig' cfg = MonadHostConfig cfg CurrentHost CurrentArch
+defHostConfig :: MonadHostConfig' cfg m => m cfg
+defHostConfig = defaultHostConfigFor @CurrentHost @CurrentArch
+
+evalDefHostConfig :: forall s m a. MonadHostConfig' s m => StateT s m a -> m a
+evalDefHostConfig p = evalStateT @s p =<< defHostConfig
