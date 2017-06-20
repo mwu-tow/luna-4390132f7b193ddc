@@ -89,61 +89,19 @@ import Luna.Manager.Network
 
 
 
-type MonadInstall m = (MonadStates '[SystemConfig, InstallConfig] m, MonadIO m, MonadException SomeException m)
-
-downloadAndReadConf :: MonadInstall m => m Repo
-downloadAndReadConf = do
-    liftIO $ System.getTemporaryDirectory >>= System.setCurrentDirectory
-    downloadedConfig <- downloadFromURL . view repoConfigURL =<< get @SystemConfig
-    tryRight' =<< liftIO (Yaml.decodeFileEither $ convert downloadedConfig)
-
-installAppImage :: MonadInstall m => m ()
-installAppImage = do
-    conf <- downloadAndReadConf
-    -- let appsNames = Map.keys $ conf ^. apps
-    -- -- pytnaie co chcesz instalowac
-    -- let chosenApp = undefined :: Text
-    -- -- pytanie ktora wersja
-    -- let chosenVersion = undefined :: Version
-    --
-    --   allLunaIds = map Main.id lunaVersions
-    --   lastLunaId = maximum allLunaIds
-    -- absDefault       <- mkPathWithHome [defaultInstallFolderName]
-    -- location         <- askQuestion (Text.pack "Where to install Luna-Studio?") (Text.pack absDefault) -- defaultBinPath
-    --
-    -- let address = mapM (getAddress versionToinstall) lunaVersions -- dla konkretnej wersji
-    --   justAddressesList = failIfNothing "cannot read URI" address
-    --   justAddress = failIfNothing "cannot read URI" $ listToMaybe justAddressesList
-    -- --installation
-    -- locWithVersion <- mkPathWithHome [location, (Text.pack $ show versionToinstall)]
-    -- createDirectory locWithVersion
-    -- setCurrentDirectory locWithVersion
-    -- downloadWithProgressBar justAddress
-    -- let name = fromMaybe "cannot read URI" $ takeFileName justAddress
-    -- appimage <- mkRelativePath [(Text.pack locWithVersion), name]
-    -- makeExecutable appimage
-    -- appimageToLunaStudio <- mkRelativePath [location, studioName]
-    -- binPath <- mkPathWithHome [".local/bin", studioName]
-    -- createFileLink appimage appimageToLunaStudio
-    -- createFileLink appimageToLunaStudio binPath
-    -- checkShell
-    return ()
 
 
     -- handleAll :: Monad m => (SomeException -> m a) -> ExceptT' m a -> m a
 
 main :: IO ()
 main = do
-    -- gc <- currentSysDefaultConfig
-    -- ic <- currentSysDefaultConfig
-    -- handleAll (\_ -> undefined) $ flip (evalStateT @SystemConfig)  gc
-    --                             $ flip (evalStateT @InstallConfig) ic
-    --                             $ installAppImage
-    -- print "dziala"
-    let repo :: Repo
-        repo = mempty & apps . at "luna-studio" .~ Just (Package $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
-    print $ JSON.encode $ repo
-    putStrLn $ convert $ Yaml.encode $ repo
+    handleAll (print) $ evalDefConfigState @SystemConfig
+                      $ evalDefConfigState @InstallConfig
+                      $ evalDefConfigState @RepoConfig
+                      $ runInstaller
+    print "dziala"
+
+    putStrLn $ convert $ Yaml.encode $ harcodedRepo
 
 -- data    Repo        = Repo        { _apps   :: Map Text Package, _libs    :: Map Text Package } deriving (Show, Generic, Eq)
 -- newtype Package     = Package     { _pkgMap :: PkgMap                                         } deriving (Show, Generic, Eq)

@@ -28,6 +28,7 @@ dependencies:
   - lens
   - dependent-state
   - containers
+  - resourcet
 
   - lens-utils
   - constraints

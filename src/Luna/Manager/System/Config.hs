@@ -27,6 +27,9 @@ getTmpPath, getDownloadPath :: MonadGetter SystemConfig m => m FilePath
 getTmpPath      = view localTempPath <$> get @SystemConfig
 getDownloadPath = getTmpPath
 
+setTmpCwd :: (MonadGetter SystemConfig m, MonadIO m) => m ()
+setTmpCwd = liftIO . System.setCurrentDirectory . convert =<< getTmpPath
+
 
 -- === Instances === --
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadDefaultConfig SystemConfig sys m where

@@ -5,11 +5,16 @@ import Prologue
 import Luna.Manager.Version
 import Luna.Manager.System.Host
 import Luna.Manager.System.Path
+import Luna.Manager.System.Config
 import Luna.Manager.Config.Class
 import Luna.Manager.Config.Aeson
+import Luna.Manager.Network
 
+import Control.Monad.Raise
+import Control.Monad.State.Layered
 import Data.Map                      (Map)
 import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+import qualified Data.Yaml           as Yaml
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
@@ -66,6 +71,23 @@ data RepoConfig = RepoConfig { _repoPath   :: URIPath
                              , _cachedRepo :: Maybe Repo
                              }
 makeLenses ''RepoConfig
+
+
+-- === Utils === --
+
+type MonadRepo m = (MonadStates '[RepoConfig, SystemConfig] m, MonadNetwork m)
+
+getRepoConf :: MonadRepo m => m Repo
+getRepoConf = do
+    cfg <- get @RepoConfig
+    case cfg ^. cachedRepo of
+        Just r  -> return r
+        Nothing -> do
+            setTmpCwd
+            downloadedConfig <- downloadFromURL . view repoPath =<< get @RepoConfig
+            repo <- tryRight' =<< liftIO (Yaml.decodeFileEither $ convert downloadedConfig)
+            put @RepoConfig $ cfg & cachedRepo .~ Just repo
+            return repo
 
 
 -- === Instances === --

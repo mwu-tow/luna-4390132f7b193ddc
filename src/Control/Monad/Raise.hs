@@ -77,5 +77,5 @@ tryRight f = \case
     Right r -> return r
     Left  l -> raise $ f l
 
-tryRight' :: (MonadException SomeException m, Exception l) => Either l r -> m r
+tryRight' :: forall l m r. (MonadException SomeException m, Exception l) => Either l r -> m r
 tryRight' = tryRight toException
