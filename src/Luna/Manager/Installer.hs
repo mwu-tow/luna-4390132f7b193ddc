@@ -8,6 +8,8 @@ import Luna.Manager.System.Config
 import Luna.Manager.Repository
 import Luna.Manager.Version
 import Luna.Manager.Network
+import Luna.Manager.Config.Aeson
+import Luna.Manager.Pretty
 
 import Control.Monad.Raise
 import Control.Monad.State.Layered
@@ -59,7 +61,7 @@ instance Monad m => MonadDefaultConfig InstallConfig 'Windows m where
 -- === Options === --
 
 data InstallOpts = InstallOpts { _selectedComponent :: Maybe Text
-                               , _selectedVersion   :: Maybe Version
+                               , _selectedVersion   :: Maybe Text
                                } deriving (Show)
 makeLenses ''InstallOpts
 
@@ -68,11 +70,12 @@ instance Default InstallOpts where def = InstallOpts def def
 
 -- === Errors === --
 
-data InstallError = InstallError deriving (Show)
-instance Exception InstallError
+data InvalidOptionError = InvalidOptionError deriving (Show)
+instance Exception InvalidOptionError where
+    displayException _ = "Invalid option provided."
 
-installError :: SomeException
-installError = toException InstallError
+invalidOptionError :: SomeException
+invalidOptionError = toException InvalidOptionError
 
 
 -- === Utils === --
@@ -87,22 +90,33 @@ hardcodedRepo = Repo defapps deflibs "studio" where
                      & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
 
 
-componentDesc :: Text -> Text -> Text
-componentDesc n s = "  • " <> n <> " " <> s
+listItem :: Text -> Text
+listItem n = "  • " <> n
+
+listItems :: [Text] -> Text
+listItems = intercalate "\n" . fmap listItem
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
     let repo = hardcodedRepo
-    -- repo <- getRepo -- FIXME[WD]: this should work instead of line above
+    -- repo <- getRepo -- FIXME[WD]: this should be enabled instead of line above
 
     let appDescs    = Map.assocs $ repo ^. apps
-        appNames    = fst <$> appDescs
-        help        = Just $ "Available components:\n" <> intercalate "\n" (uncurry componentDesc . fmap (view synopsis) <$> appDescs)
-        validator s = boolValidator (`elem` appNames) ("Unknown component '" <> s <> "' selected.") s
+        help        = Just $ "Available components:\n" <> listItems (uncurry (<>) . fmap (view synopsis) <$> appDescs)
+        validator t = maybe (Left $ "Unknown component '" <> t <> "' selected.") (Right . (t,)) $ Map.lookup t (repo ^. apps)
         question    = "Select component to be installed"
         defResp     = Just $ repo ^. defaultApp
-    askOrUse (opts ^. selectedComponent) validator help defResp question
-    print appNames
+    (appName, appPkg) <- askOrUse (opts ^. selectedComponent) validator help defResp question
+    putStrLn . convert $ "Installing package '" <> appName <> "'"
+
+    let appDescs    = Map.assocs $ appPkg ^. versions
+        help        = Just $ "Available versions:\n" <> listItems (showPretty . fst <$> appDescs)
+        validator t = maybe (Left $ "Unknown version '" <> t <> "' selected.") (Right . (t,)) $ Map.lookup (undefined) (appPkg ^. versions)
+        question    = "Select version to be installed"
+        defResp     = Nothing -- Just $ repo ^. defaultVersion
+    (version, sysMap) <- askOrUse (opts ^. selectedVersion) validator help defResp question
+
+
     -- -- pytnaie co chcesz instalowac
     -- let chosenApp = undefined :: Text
     -- -- pytanie ktora wersja
@@ -131,39 +145,36 @@ runInstaller opts = do
     -- checkShell
     return ()
 
-askOrUse :: (MonadIO m, ValueReader a, MonadException SomeException m) => Maybe a -> (a -> Either Text a) -> Maybe Text -> Maybe Text -> Text -> m a
-askOrUse mdef v help defResp question = case mdef of
-    Nothing -> ask v help defResp question
-    Just s  -> validate v (raise installError) s
+askOrUse :: (MonadIO m, MonadException SomeException m) => Maybe Text -> (Text -> Either Text a) -> Maybe Text -> Maybe Text -> Text -> m a
+askOrUse mdef validator help defResp question = case mdef of
+    Nothing -> ask validator help defResp question
+    Just s  -> validate validator (raise invalidOptionError) s
 
-ask :: (MonadIO m, ValueReader a) => (a -> Either Text a) -> Maybe Text -> Maybe Text -> Text -> m a
-ask v help defResp question = readAndValidate v (ask v help defResp question) =<< askRaw help defResp question
+ask :: MonadIO m => (Text -> Either Text a) -> Maybe Text -> Maybe Text -> Text -> m a
+ask validator help defResp question = validate validator (ask validator help defResp question) =<< askRaw help defResp question
 
 askRaw :: MonadIO m => Maybe Text -> Maybe Text -> Text -> m Text
 askRaw help defResp question = do
     let defRespSfx   = maybe "" (\s -> " [" <> s <> "]") defResp
         questionLine = question <> defRespSfx <> ": "
-    putStrLn ""
-    mapM (putStrLn . convert) help
-    putStr $ convert questionLine
-    liftIO $ hFlush stdout
-    resp <- liftIO $ convert <$> getLine
-    return $ maybe resp (\a -> if resp == "" then a else resp) defResp
+        printHeader  = do
+            putStrLn ""
+            mapM (putStrLn . convert) help
+        goQuestion   = do
+            resp <- askLine
+            if resp /= "" then return resp
+                else maybe goQuestion return defResp
+        askLine      = do
+            putStr $ convert questionLine
+            liftIO $ hFlush stdout
+            liftIO $ convert <$> getLine
+    printHeader
+    goQuestion
 
-readAndValidate :: (MonadIO m, ValueReader a) => (a -> Either Text a) -> m a -> Text -> m a
-readAndValidate v f resp = case readValue resp of
+validate :: MonadIO m => (Text -> Either Text a) -> m a -> Text -> m a
+validate validator f resp = case validator resp of
     Left  e -> putStrLn ("Error: " <> convert e) >> f
-    Right a -> validate v f a
-
-validate :: (MonadIO m, ValueReader a) => (a -> Either Text a) -> m a -> a -> m a
-validate v f resp = case v resp of
-        Right t -> return t
-        Left  e -> putStrLn ("Error: " <> convert e) >> f
-
+    Right a -> return a
 
 boolValidator :: (Text -> Bool) -> Text -> (Text -> Either Text Text)
 boolValidator f e t = if f t then Right t else Left e
-
-
-class    ValueReader a    where readValue :: Text -> Either Text a
-instance ValueReader Text where readValue = Right

@@ -2,10 +2,14 @@ module Luna.Manager.Version where
 
 import Prologue
 import Luna.Manager.Config.Aeson
+import Luna.Manager.Pretty
+
 import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
+import qualified Data.Text           as Text
+
 
 ------------------------
 -- === Versioning === --
@@ -24,28 +28,38 @@ data Version = Version { _major :: !Word64
                        , _tag   :: !(Maybe VersionTag)
                        } deriving (Generic, Show, Eq, Ord)
 
+
 -- === Instances === --
 
-instance EncodeShow VersionTag where
-    encodeShow = \case
+instance Pretty VersionTag where
+    showPretty = \case
         Alpha -> "alpha"
         Beta  -> "beta"
         RC i  -> "rc" <> convert (show i)
+    readPretty = \case
+        "alpha" -> Right Alpha
+        "beta"  -> Right Beta
+        s       -> case Text.take 2 s of
+            "rc" -> RC <$> mapLeft (const "Conversion error") (tryReads @String $ Text.drop 2 s)
+            _    -> Left "Incorrect version tag format"
 
-instance EncodeShow Version where
-    encodeShow (Version major minor build tag) = intercalate "." (map (convert . show) [major, minor, build])
-                                              <> maybe "" (("." <>) . encodeShow) tag
-
+instance Pretty Version where
+    showPretty (Version major minor build tag) = intercalate "." (map (convert . show) [major, minor, build])
+                                              <> maybe "" (("." <>) . showPretty) tag
+    readPretty t = case Text.splitOn "." t of
+        [major, minor, build, tag] -> mapLeft (const "Conversion error") $ Version <$> tryReads major <*> tryReads minor <*> tryReads build <*> (Just <$> mapLeft convert (readPretty tag))
+        [major, minor, build]      -> mapLeft (const "Conversion error") $ Version <$> tryReads major <*> tryReads minor <*> tryReads build <*> pure Nothing
+        _                          -> Left "Incorrect version format"
 
 makeLenses ''Version
 makeLenses ''VersionTag
 
-instance ToJSON   Version    where toEncoding = JSON.toEncoding . encodeShow; toJSON = JSON.toJSON . encodeShow
+instance ToJSON   Version    where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
 instance ToJSON   VersionTag where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance FromJSON Version    where parseJSON  = lensJSONParse
 instance FromJSON VersionTag where parseJSON  = lensJSONParse
 instance FromJSONKey Version
 instance ToJSONKey   Version where
     toJSONKey = JSON.ToJSONKeyText f g
-        where f = encodeShow
-              g = JSON.text . encodeShow
+        where f = showPretty
+              g = JSON.text . showPretty

@@ -8,12 +8,14 @@ import Luna.Manager.System.Path
 import Luna.Manager.System.Config
 import Luna.Manager.Config.Class
 import Luna.Manager.Config.Aeson
+import Luna.Manager.Pretty
 import Luna.Manager.Network
 
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Data.Map                      (Map)
 import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+import qualified Data.Text           as Text
 import qualified Data.Yaml           as Yaml
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
@@ -39,7 +41,7 @@ type VersionMap = Map Version (Map SysDesc PackageDesc)
 instance ToJSON   Repo        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Package     where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance ToJSON   PackageDep  where toEncoding = JSON.toEncoding . encodeShow; toJSON = JSON.toJSON . encodeShow
+instance ToJSON   PackageDep  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
 instance FromJSON Repo        where parseJSON  = lensJSONParse
 instance FromJSON Package     where parseJSON  = lensJSONParse
 instance FromJSON PackageDesc where parseJSON  = lensJSONParse
@@ -52,9 +54,10 @@ makeLenses ''PackageDesc
 makeLenses ''PackageDep
 
 -- Show
-instance EncodeShow PackageDep where
-    encodeShow (PackageDep n v) = n <> "-" <> encodeShow v
-
+instance Pretty PackageDep where
+    showPretty (PackageDep n v) = n <> "-" <> showPretty v
+    readPretty t = mapLeft (const "Conversion error") $ PackageDep s <$> readPretty ss where
+        (s,ss) = Text.breakOnEnd "-" t
 
 
 

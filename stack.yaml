@@ -3,7 +3,7 @@ ghc-options: {'*': -threaded}
 packages:
 - {location: .}
 - extra-dep: true
-  location: {commit: 0596fbb1dcfe0eb75607f289cb978e2a40fbf721, git: 'https://github.com/luna/prologue.git'}
+  location: {commit: 5f480583c177a256c895369b0765b5c1f8a5e0a6, git: 'https://github.com/luna/prologue.git'}
 - extra-dep: true
   location: {commit: 4d4914483e7f207c94fcadf8f7f2736367165451, git: 'https://github.com/luna/container.git'}
 - extra-dep: true

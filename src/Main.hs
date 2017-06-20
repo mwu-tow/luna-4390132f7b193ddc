@@ -95,9 +95,7 @@ import Luna.Manager.Network
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()
 handleTopLvlError e = do
-    putStrLn "Error occured, exiting now."
-    putStrLn ""
-    print e
+    putStrLn $ "Fatal: " <> displayException e
 
 main :: IO ()
 main = do
@@ -105,8 +103,8 @@ main = do
         $ evalDefConfigState @SystemConfig
         $ evalDefConfigState @InstallConfig
         $ evalDefConfigState @RepoConfig
-        -- $ runInstaller def
-        $ runInstaller (def & selectedComponent .~ Just "xstudio")
+        $ runInstaller def
+        -- $ runInstaller (def & selectedComponent .~ Just "xstudio")
 
     putStrLn $ convert $ Yaml.encode $ hardcodedRepo
 

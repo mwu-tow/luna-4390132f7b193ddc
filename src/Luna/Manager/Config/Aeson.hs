@@ -14,9 +14,6 @@ import GHC.Generics (Rep)
 -- === JSON / Yaml conversion utils === --
 ------------------------------------------
 
-class EncodeShow a where
-    encodeShow :: a -> Text
-
 lensJSONOptions :: JSON.Options
 lensJSONOptions = JSON.defaultOptions { JSON.fieldLabelModifier = List.dropWhile (== '_')
                                       , JSON.unwrapUnaryRecords = True
