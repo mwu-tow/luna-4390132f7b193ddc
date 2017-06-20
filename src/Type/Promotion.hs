@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PolyKinds #-}
 
-module Type.Promotion where
+module Type.Promotion {-# DEPRECATED "Use Type.Known instead" #-} where
 
 import Prelude
 
