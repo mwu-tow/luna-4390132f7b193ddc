@@ -1,18 +1,16 @@
 module Luna.Manager.Cmd where
 
-import Prologue
+import Prologue hiding  (switch)
 import Options.Applicative
 import Data.Text (Text)
 
 import Luna.Manager.Installer (InstallOpts, InstallOpts(..))
 
 data Opts = Opts
-    { optCommand :: !Command
+    { optFlag    :: !Bool
+    , optCommand :: !Command
     }
 
--- data InstallOptions = InstallOptions { a :: Maybe String
---                                      , b :: Maybe String
---                                      , c :: Maybe String}
 
 data Command = Install InstallOpts
              | MakePackage String
@@ -44,7 +42,8 @@ managerMenu = do
                 (helper <*> programOptions)
                 (fullDesc <> progDesc "LunaStudio manager" <> header "manager for LunaStudio for making and installing packages")
         programOptions =
-            Opts <$> hsubparser (installCommand <> mkpkgCommand <> updateCommand <> switchVersionCommand <> infoCommand)
+            Opts <$> switch (long "batch" <> help "Use default values if no argument added") <*>
+            hsubparser (installCommand <> mkpkgCommand <> updateCommand <> switchVersionCommand <> infoCommand)
         installCommand       = command "install"        . info installOptions       $ progDesc "Install Luna component"
         mkpkgCommand         = command "make-package"   . info mkpkgOptions         $ progDesc "Make Luna package"
         updateCommand        = command "update"         . info (pure Update)        $ progDesc "Update Luna components"
