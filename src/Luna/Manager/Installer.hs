@@ -1,6 +1,6 @@
 module Luna.Manager.Installer where
 
-import Prologue
+import Prologue hiding (txt)
 
 import Luna.Manager.Config.Class
 import Luna.Manager.System.Host
@@ -69,16 +69,6 @@ makeLenses ''InstallOpts
 instance Default InstallOpts where def = InstallOpts def def def
 
 
--- === Errors === --
-
-data InvalidOptionError = InvalidOptionError deriving (Show)
-instance Exception InvalidOptionError where
-    displayException _ = "Invalid option provided."
-
-invalidOptionError :: SomeException
-invalidOptionError = toException InvalidOptionError
-
-
 -- === Utils === --
 
 type MonadInstall m = (MonadStates '[SystemConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
@@ -86,13 +76,13 @@ type MonadInstall m = (MonadStates '[SystemConfig, InstallConfig, RepoConfig] m,
 hardcodedRepo :: Repo
 hardcodedRepo = Repo defapps deflibs "studio" where
     deflibs = mempty
-    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
                                                                                      ])
 
-                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
-                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux Arch64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
 
 
 listItem :: Text -> Text
@@ -101,28 +91,104 @@ listItem n = "  • " <> n
 listItems :: [Text] -> Text
 listItems = intercalate "\n" . fmap listItem
 
+
+
+-----------------------
+-- === Questions === --
+-----------------------
+
+-- === Definition === --
+
+type ArgReader a = Text -> Either Text a
+data Question  a = Question { _txt    :: Text
+                            , _reader :: ArgReader a
+                            , _help   :: Maybe Text
+                            , _defArg :: Maybe Text
+                            }
+
+makeLenses ''Question
+
+
+-- === Errors === --
+
+data InvalidArgError = InvalidArgError deriving (Show)
+instance Exception InvalidArgError where
+    displayException _ = "Invalid argument provided."
+
+invalidArgError :: SomeException
+invalidArgError = toException InvalidArgError
+
+
+-- === Utils === --
+
+question :: Text -> ArgReader a -> Question a
+question t r = Question t r mempty mempty
+
+choiceValidator  :: Text -> Text -> Maybe (Either Text a) -> Either Text a
+choiceValidator' :: Text -> Text -> Maybe a               -> Either Text a
+choiceValidator  s t = maybe (Left $ "Unknown " <> s <> " '" <> t <> "' selected.") id
+choiceValidator' s t = choiceValidator s t . fmap Right
+
+choiceHelp :: Pretty a => Text -> [a] -> Maybe Text
+choiceHelp s ts = Just $ "Available " <> s <> ":\n" <> listItems (showPretty <$> ts)
+
+
+-- === Running === --
+
+askOrUse :: (MonadIO m, MonadException SomeException m) => Maybe Text -> Question a -> m a
+askOrUse mdef q = case mdef of
+    Nothing -> ask q
+    Just s  -> validate (q ^. reader) (raise invalidArgError) s
+
+ask :: MonadIO m => Question a -> m a
+ask q  = validate (q ^. reader) (ask q) =<< askRaw q
+
+askRaw :: MonadIO m => Question a -> m Text
+askRaw q = do
+    let defAns       = maybe "" (\s -> " [" <> s <> "]") (q ^. defArg)
+        questionLine = q ^. txt <> defAns <> ": "
+        printHeader  = do
+            putStrLn ""
+            mapM (putStrLn . convert) (q ^. help)
+        goQuestion   = do
+            resp <- askLine
+            if resp /= "" then return resp
+                else maybe goQuestion return (q ^. defArg)
+        askLine      = do
+            putStr $ convert questionLine
+            liftIO $ hFlush stdout
+            liftIO $ convert <$> getLine
+    printHeader
+    goQuestion
+
+validate :: MonadIO m => ArgReader a -> m a -> Text -> m a
+validate reader f resp = case reader resp of
+    Left  e -> putStrLn ("Error: " <> convert e) >> f
+    Right a -> return a
+
+
+
+
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
     let repo = hardcodedRepo
     -- repo <- getRepo -- FIXME[WD]: this should be enabled instead of line above
 
-    let appDescs    = Map.assocs $ repo ^. apps
-        help        = Just $ "Available components:\n" <> listItems (uncurry (<>) . fmap (view synopsis) <$> appDescs)
-        validator t = maybe (Left $ "Unknown component '" <> t <> "' selected.") (Right . (t,)) $ Map.lookup t (repo ^. apps)
-        question    = "Select component to be installed"
-        defResp     = Just $ repo ^. defaultApp
-    (appName, appPkg) <- askOrUse (opts ^. selectedComponent) validator help defResp question
-    putStrLn . convert $ "Installing package '" <> appName <> "'"
+    (appName, appPkg) <- askOrUse (opts ^. selectedComponent)
+        $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. apps))
+        & help   .~ choiceHelp "components" (Map.keys $ repo ^. apps)
+        & defArg .~ Just (repo ^. defaultApp)
 
-    let appDescs    = Map.assocs $ appPkg ^. versions
-        vss         = sort $ fst <$> appDescs
-        help        = Just $ "Available versions:\n" <> listItems (showPretty <$> vss)
-        validator t = maybe (Left $ "Unknown version '" <> t <> "' selected.") id $ sequence $ fmap (t,) . flip Map.lookup (appPkg ^. versions) <$> readPretty t
-        question    = "Select version to be installed"
-        defResp     = showPretty <$> maybeLast vss
-    (version, sysMap) <- askOrUse (opts ^. selectedVersion) validator help defResp question
+    let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
+        vss  = sort . Map.keys $ vmap
+    (appVersion, appPkgDesc) <- askOrUse (opts ^. selectedComponent)
+        $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)
+        & help   .~ choiceHelp (appName <> " versions") vss
+        & defArg .~ fmap showPretty (maybeLast vss)
 
 
+
+    -- print appPkgDesc
     -- -- pytnaie co chcesz instalowac
     -- let chosenApp = undefined :: Text
     -- -- pytanie ktora wersja
@@ -150,37 +216,3 @@ runInstaller opts = do
     -- createFileLink appimageToLunaStudio binPath
     -- checkShell
     return ()
-
-askOrUse :: (MonadIO m, MonadException SomeException m) => Maybe Text -> (Text -> Either Text a) -> Maybe Text -> Maybe Text -> Text -> m a
-askOrUse mdef validator help defResp question = case mdef of
-    Nothing -> ask validator help defResp question
-    Just s  -> validate validator (raise invalidOptionError) s
-
-ask :: MonadIO m => (Text -> Either Text a) -> Maybe Text -> Maybe Text -> Text -> m a
-ask validator help defResp question = validate validator (ask validator help defResp question) =<< askRaw help defResp question
-
-askRaw :: MonadIO m => Maybe Text -> Maybe Text -> Text -> m Text
-askRaw help defResp question = do
-    let defRespSfx   = maybe "" (\s -> " [" <> s <> "]") defResp
-        questionLine = question <> defRespSfx <> ": "
-        printHeader  = do
-            putStrLn ""
-            mapM (putStrLn . convert) help
-        goQuestion   = do
-            resp <- askLine
-            if resp /= "" then return resp
-                else maybe goQuestion return defResp
-        askLine      = do
-            putStr $ convert questionLine
-            liftIO $ hFlush stdout
-            liftIO $ convert <$> getLine
-    printHeader
-    goQuestion
-
-validate :: MonadIO m => (Text -> Either Text a) -> m a -> Text -> m a
-validate validator f resp = case validator resp of
-    Left  e -> putStrLn ("Error: " <> convert e) >> f
-    Right a -> return a
-
-boolValidator :: (Text -> Bool) -> Text -> (Text -> Either Text Text)
-boolValidator f e t = if f t then Right t else Left e

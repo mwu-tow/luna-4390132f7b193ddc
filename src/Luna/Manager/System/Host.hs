@@ -24,21 +24,48 @@ data System = Linux
             | Windows
             deriving (Generic, Show, Read, Eq, Ord)
 
-data SysArch = Arch32 | Arch64        deriving (Generic, Show, Eq, Ord)
+data SysArch = X32 | X64              deriving (Generic, Show, Read, Eq, Ord)
 data SysDesc = SysDesc System SysArch deriving (Generic, Show, Eq, Ord)
 
 
--- === System phantoms === --
+-- === System discovery === --
 
-#ifdef mingw32_HOST_OS
-type CurrentHost = 'Windows
-#elif linux_HOST_OS
+currentHost :: System
+
+
+#ifdef linux_HOST_OS
 type CurrentHost = 'Linux
+currentHost      =  Linux
 #elif darwin_HOST_OS
 type CurrentHost = 'MacOS
+currentHost      =  MacOS
+#elif mingw32_HOST_OS
+type CurrentHost = 'Windows
+currentHost      =  Windows
 #else
 Running on unsupported system.
 #endif
+
+
+-- === Arch discovery === --
+
+currentArch :: SysArch
+
+#ifdef i386_HOST_ARCH
+type CurrentArch = 'X32
+currentArch      =  X32
+#elif x86_64_HOST_ARCH
+type CurrentArch = 'X64
+currentArch      =  X64
+#else
+Running on unsupported system architecture.
+#endif
+
+
+-- === Utils === --
+
+currentSysDesc :: SysDesc
+currentSysDesc = SysDesc currentHost currentArch
 
 
 -- === Instances === --
@@ -68,8 +95,5 @@ instance Pretty System  where
     readPretty = mapLeft (const "Conversion error") . tryReads . Text.toTitle
 
 instance Pretty SysArch where
-    showPretty = \case Arch32 -> "32"
-                       Arch64 -> "64"
-    readPretty = \case "32" -> Right Arch32
-                       "64" -> Right Arch64
-                       _    -> Left "Unsupported system architecture"
+    showPretty = Text.toLower . convert . show
+    readPretty = mapLeft (const "Conversion error") . tryReads . Text.toTitle

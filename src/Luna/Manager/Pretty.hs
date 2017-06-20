@@ -13,3 +13,7 @@ class Pretty a where
     readPretty t = case reads (convert t) of
         [(a,[])]    -> Right a
         ((_,s):_) -> Left . convert $ "Read error. Remaining part: '" <> s <> "'"
+
+instance Pretty Text where
+    showPretty = id
+    readPretty = Right
