@@ -1,6 +1,6 @@
 module Luna.Manager.Command.Install where
 
-import Prologue hiding (txt)
+import Prologue hiding (txt, FilePath)
 
 import Luna.Manager.System.Host
 import Luna.Manager.System.Env
@@ -11,6 +11,8 @@ import Luna.Manager.Component.Pretty
 import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
+import Luna.Manager.System.Path
+
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -108,10 +110,14 @@ runInstaller opts = do
     let (unresolvedLibs, libsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
-
+    installConfig <- get @InstallConfig
+    appPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
+        $ question "Select installation path" plainTextReader
+        & help .~ choiceHelp "path" [installConfig ^. defaultBinPath]
+        & defArg .~ Just (installConfig ^. defaultBinPath)
     print $ "TODO: Ask about install path"
     print $ "TODO: Install the app (with progress bar): "  <> appName
-    print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall
+    print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     print $ "TODO: Add new exports to bashRC if not already present"
     print $ "TODO: IMPORTANT: be sure that installation of manager updates the manager in-place"
     -- TODO: powinnismy zrobic funckje "installPackage" i przemapowac ja przez app i libsToInstall

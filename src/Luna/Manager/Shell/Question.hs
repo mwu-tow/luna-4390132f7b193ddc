@@ -53,12 +53,14 @@ question t r = Question t r mempty mempty
 
 choiceValidator  :: Text -> Text -> Maybe (Either Text a) -> Either Text a
 choiceValidator' :: Text -> Text -> Maybe a               -> Either Text a
-choiceValidator  s t = fromMaybe (Left $ "Unknown " <> s <> " '" <> t <> "' selected.") 
+choiceValidator  s t = fromMaybe (Left $ "Unknown " <> s <> " '" <> t <> "' selected.")
 choiceValidator' s t = choiceValidator s t . fmap Right
 
 choiceHelp :: Pretty a => Text -> [a] -> Maybe Text
 choiceHelp s ts = Just $ "Available " <> s <> ":\n" <> listItems (showPretty <$> ts)
 
+plainTextReader :: ArgReader Text
+plainTextReader = Right
 
 -- === Running === --
 
