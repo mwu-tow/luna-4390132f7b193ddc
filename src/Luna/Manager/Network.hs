@@ -4,6 +4,7 @@ import Prologue hiding (FilePath)
 
 import Luna.Manager.System.Path
 import Luna.Manager.System.Env
+import Luna.Manager.Shell.ProgressBar
 
 import Control.Monad.Raise
 import Control.Monad.State.Layered
@@ -12,6 +13,14 @@ import           Network.HTTP.Conduit       (httpLbs)
 import qualified Network.URI                as URI
 import qualified Data.ByteString.Lazy.Char8 as ByteStringL
 import qualified Control.Exception.Base     as Exception
+
+import Control.Monad.Trans.Resource (runResourceT)
+
+import Data.Conduit (($$+-),($=+))
+import Data.Conduit.List (sinkNull)
+import Network.HTTP.Types (hContentLength)
+import qualified Data.ByteString.Char8 as ByteStringChar (unpack)
+import qualified Data.Text as Text
 
 
 -- === Errors === --
@@ -45,3 +54,18 @@ downloadFromURL address = tryJust downloadError =<< go where
 
 newHTTPManager :: MonadIO m => m HTTP.Manager
 newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.managerResponseTimeout = HTTP.responseTimeoutMicro 5000000}
+
+downloadWithProgressBar :: (MonadIO m, MonadException SomeException m) => Text.Text -> m ()
+downloadWithProgressBar address = do
+    req <- tryRight' $ HTTP.parseRequest (convert address)
+    manager <- newHTTPManager
+    tryRight' @SomeException <=< liftIO . Exception.try . runResourceT $ do
+    -- Start the request
+        res <- HTTP.http req manager
+        -- Get the Content-Length and initialize the progress bar
+        let Just cl = lookup hContentLength (HTTP.responseHeaders res)
+            pgTotal = read (ByteStringChar.unpack cl)
+            pg      = ProgressBar 50 0 pgTotal
+        -- Consume the response updating the progress bar
+        HTTP.responseBody res $=+ updateProgress pg $$+- sinkNull
+        putStrLn "Download completed!"
