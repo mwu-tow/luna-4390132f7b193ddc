@@ -2,7 +2,7 @@
 
 module Control.Monad.Raise where
 
--- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME 
+-- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 -- FIXME [WD]: refactor the whole file out before the release
 
 import Prelude
@@ -37,19 +37,19 @@ type family MonadExceptions es m :: Constraint where
 -- === Utils === --
 
 handle :: Monad m => (e -> m a) -> ExceptT e m a -> m a
-handle f = join . fmap (either f return) . runExceptT ; {-# INLINE handle #-}
+handle f = join . fmap (either f return) . runExceptT 
 
 handleAll :: Monad m => (SomeException -> m a) -> ExceptT' m a -> m a
-handleAll = handle ; {-# INLINE handleAll #-}
+handleAll = handle 
 
 rethrow :: (MonadThrow m, Exception e) => ExceptT e m a -> m a
-rethrow = handle throwM ; {-# INLINE rethrow #-}
+rethrow = handle throwM 
 
 rethrowAll :: MonadThrow m => ExceptT' m a -> m a
-rethrowAll = rethrow ; {-# INLINE rethrowAll #-}
+rethrowAll = rethrow 
 
 tryAll :: ExceptT' m a -> m (Either SomeException a)
-tryAll = runExceptT ; {-# INLINE tryAll #-}
+tryAll = runExceptT 
 
 
 -- === Throws === --
@@ -63,17 +63,17 @@ type instance Throws e m = MonadException  e m
 
 -- Default MonadException instances
 instance {-# OVERLAPPABLE #-} (Monad m, Monad (t m), MonadTrans t, MonadException e m)
-                                                     => MonadException e (t                     m) where raise = lift . raise         ; {-# INLINE raise #-}
-instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT e             m) where raise = throwE               ; {-# INLINE raise #-}
-instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT SomeException m) where raise = throwE . toException ; {-# INLINE raise #-}
-instance                      (Monad m)              => MonadException SomeException (ExceptT SomeException m) where raise = throwE  ; {-# INLINE raise #-}
+                                                     => MonadException e (t                     m) where raise = lift . raise         
+instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT e             m) where raise = throwE               
+instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT SomeException m) where raise = throwE . toException 
+instance                      (Monad m)              => MonadException SomeException (ExceptT SomeException m) where raise = throwE  
 
 
 
 -- === Utils === --
 
 tryJust :: MonadException e m => e -> Maybe a -> m a
-tryJust e = maybe (raise e) return ; {-# INLINE tryJust #-}
+tryJust e = maybe (raise e) return 
 
 tryRight :: MonadException e m => (l -> e) -> Either l r -> m r
 tryRight f = \case

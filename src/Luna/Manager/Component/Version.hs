@@ -19,7 +19,7 @@ import qualified Data.Text           as Text
 
 data VersionTag = Alpha
                 | Beta
-                | RC Word64
+                | RC !Word64
                 deriving (Generic, Show, Eq, Ord)
 
 data Version = Version { _major :: !Word64
@@ -27,6 +27,9 @@ data Version = Version { _major :: !Word64
                        , _build :: !Word64
                        , _tag   :: !(Maybe VersionTag)
                        } deriving (Generic, Show, Eq, Ord)
+
+makeLenses ''Version
+makeLenses ''VersionTag
 
 
 -- === Instances === --
@@ -52,13 +55,11 @@ instance Pretty Version where
         _              -> Left "Incorrect version format"
         where cerr = mapLeft (const "Conversion error")
 
-makeLenses ''Version
-makeLenses ''VersionTag
-
-instance ToJSON   Version    where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
-instance ToJSON   VersionTag where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance FromJSON Version    where parseJSON  = lensJSONParse
-instance FromJSON VersionTag where parseJSON  = lensJSONParse
+-- JSON
+instance ToJSON      Version    where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
+instance ToJSON      VersionTag where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance FromJSON    Version    where parseJSON  = lensJSONParse
+instance FromJSON    VersionTag where parseJSON  = lensJSONParse
 instance FromJSONKey Version
 instance ToJSONKey   Version where
     toJSONKey = JSON.ToJSONKeyText f g

@@ -51,7 +51,7 @@ makeLenses ''InstallConfig
 
 -- === Instances === --
 
-instance {-# OVERLAPPABLE #-} Monad m => MonadHostConfig InstallConfig sys arch m where
+instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
     defaultHostConfig = return $ InstallConfig
         { _execName        = "luna-studio"
         , _defaultConfPath = "~/.luna"
@@ -108,8 +108,12 @@ runInstaller opts = do
     let (unresolvedLibs, libsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
-    print $ "TODO: Install the app: "  <> appName
-    print $ "TODO: Install the libs: " <> show libsToInstall
+
+    print $ "TODO: Ask about install path"
+    print $ "TODO: Install the app (with progress bar): "  <> appName
+    print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall
+    print $ "TODO: Add new exports to bashRC if not already present"
+    print $ "TODO: IMPORTANT: be sure that installation of manager updates the manager in-place"
     -- TODO: powinnismy zrobic funckje "installPackage" i przemapowac ja przez app i libsToInstall
     --       i to powinien byc koniec "instalacji" - potem jeszcze dopisywanie do shelli sciezek etc
 

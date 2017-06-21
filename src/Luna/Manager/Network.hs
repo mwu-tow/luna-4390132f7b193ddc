@@ -34,7 +34,7 @@ type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeEx
 downloadFromURL :: MonadNetwork m => URIPath -> m FilePath
 downloadFromURL address = tryJust downloadError =<< go where
     go = withJust (takeFileNameFromURL address) $ \name -> do
-        putStrLn $ "Downloading Luna repository configuration file (" <> convert address <> ")"
+        putStrLn $ "Downloading repository configuration file (" <> convert address <> ")"
         dest    <- (</> name) <$> getDownloadPath
         manager <- newHTTPManager
         request <- tryRight' $ HTTP.parseRequest (convert address)

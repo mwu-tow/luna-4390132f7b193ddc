@@ -12,9 +12,9 @@ import Luna.Manager.Network
 import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
-import qualified Data.Map                      as Map
 import Data.Map                      (Map)
 import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+import qualified Data.Map            as Map
 import qualified Data.Text           as Text
 import qualified Data.Yaml           as Yaml
 import qualified Data.Aeson          as JSON
@@ -25,6 +25,9 @@ import qualified Data.Aeson.Encoding as JSON
 ------------------------
 -- === Repository === --
 ------------------------
+-- FIXME: Features for luna-manager 1.1:
+--        - We should also keep sha of every package to be sure we downloaded valid one.
+--        - We should keep sha of whole yaml and keep it separate on server, so yamls could be cached locally and we can check if they are up to date with VERY low bandwich
 
 -- === Definition === --
 
@@ -67,13 +70,13 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
 -- === Instances === --
 
 -- JSON
-instance ToJSON   Repo        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance ToJSON   Package     where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance ToJSON   PackageDesc where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   Repo           where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   Package        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON   PackageDesc    where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageHeader  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
-instance FromJSON Repo        where parseJSON  = lensJSONParse
-instance FromJSON Package     where parseJSON  = lensJSONParse
-instance FromJSON PackageDesc where parseJSON  = lensJSONParse
+instance FromJSON Repo           where parseJSON  = lensJSONParse
+instance FromJSON Package        where parseJSON  = lensJSONParse
+instance FromJSON PackageDesc    where parseJSON  = lensJSONParse
 instance FromJSON PackageHeader  where parseJSON  = lensJSONParse
 
 -- Show
