@@ -113,9 +113,8 @@ runInstaller opts = do
     installConfig <- get @InstallConfig
     appPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question "Select installation path" plainTextReader
-        & help .~ choiceHelp "path" [installConfig ^. defaultBinPath]
         & defArg .~ Just (installConfig ^. defaultBinPath)
-    print $ "TODO: Ask about install path"
+        
     print $ "TODO: Install the app (with progress bar): "  <> appName
     print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     print $ "TODO: Add new exports to bashRC if not already present"
