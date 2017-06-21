@@ -4,7 +4,7 @@ import Prologue hiding (txt)
 
 import Luna.Manager.System.Host
 import Luna.Manager.System.Env
-import Luna.Manager.Component.Repository
+import Luna.Manager.Component.Repository as Repo
 import Luna.Manager.Component.Version
 import Luna.Manager.Network
 import Luna.Manager.Component.Pretty
@@ -23,14 +23,14 @@ import qualified Data.Map as Map
 -- FIXME: Remove it as fast as we upload config yaml to the server
 hardcodedRepo :: Repo
 hardcodedRepo = Repo defapps deflibs "studio" where
-    deflibs = mempty
-    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
-                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )
+    deflibs = mempty & at "lib1"     .~ Just (Package "lib1 synopsis"     $ fromList [ (Version 1 0 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc mempty "path")] )])
+    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
                                                                                      ])
 
-                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
-                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageDep "bar" (Version 1 0 0 (Just $ RC 5))] $ "foo")] )])
+                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
+                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
 
 
 
@@ -75,6 +75,15 @@ instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
 -- === Installer === --
 -----------------------
 
+-- === Errors === --
+
+newtype UnresolvedDepsError = UnresolvedDepsError [PackageHeader] deriving (Show)
+makeLenses ''UnresolvedDepsError
+
+instance Exception UnresolvedDepsError where
+    displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
+
+
 -- === Running === --
 
 type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
@@ -91,11 +100,18 @@ runInstaller opts = do
 
     let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
         vss  = sort . Map.keys $ vmap
-    (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedComponent)
+    (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedVersion)
         $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)
         & help   .~ choiceHelp (appName <> " versions") vss
         & defArg .~ fmap showPretty (maybeLast vss)
 
+    let (unresolvedLibs, libsToInstall) = Repo.resolve repo appPkgDesc
+    when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
+
+    print $ "TODO: Install the app: "  <> appName
+    print $ "TODO: Install the libs: " <> show libsToInstall
+    -- TODO: powinnismy zrobic funckje "installPackage" i przemapowac ja przez app i libsToInstall
+    --       i to powinien byc koniec "instalacji" - potem jeszcze dopisywanie do shelli sciezek etc
 
 
     --   allLunaIds = map Main.id lunaVersions

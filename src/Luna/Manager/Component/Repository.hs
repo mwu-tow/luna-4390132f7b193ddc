@@ -12,6 +12,7 @@ import Luna.Manager.Network
 import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
+import qualified Data.Map                      as Map
 import Data.Map                      (Map)
 import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
 import qualified Data.Text           as Text
@@ -27,11 +28,40 @@ import qualified Data.Aeson.Encoding as JSON
 
 -- === Definition === --
 
-data Repo        = Repo        { _apps     :: Map Text Package , _libs     :: Map Text Package, _defaultApp :: Text } deriving (Show, Generic, Eq)
-data Package     = Package     { _synopsis :: Text             , _versions :: VersionMap                            } deriving (Show, Generic, Eq)
-data PackageDesc = PackageDesc { _deps     :: [PackageDep]     , _path     :: URIPath                               } deriving (Show, Generic, Eq)
-data PackageDep  = PackageDep  { _name     :: Text             , _version  :: Version                               } deriving (Show, Generic, Eq)
-type VersionMap = Map Version (Map SysDesc PackageDesc)
+-- Core
+data Repo          = Repo          { _apps     :: Map Text Package , _libs     :: Map Text Package, _defaultApp :: Text } deriving (Show, Generic, Eq)
+data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap                            } deriving (Show, Generic, Eq)
+data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: URIPath                               } deriving (Show, Generic, Eq)
+data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                               } deriving (Show, Generic, Eq)
+type VersionMap    = Map Version (Map SysDesc PackageDesc)
+
+-- Helpers
+data ResolvedPackage = ResolvedPackage { _header :: PackageHeader, _desc :: PackageDesc } deriving (Show, Generic, Eq)
+
+makeLenses ''Repo
+makeLenses ''Package
+makeLenses ''PackageDesc
+makeLenses ''PackageHeader
+makeLenses ''ResolvedPackage
+
+-- === Utils === --
+
+lookupPackage :: Repo -> PackageHeader -> Maybe ResolvedPackage
+lookupPackage repo h = ResolvedPackage h <$> repo ^? libs . ix (h ^. name) . versions . ix (h ^. version) . ix currentSysDesc
+
+resolveSingleLevel :: Repo -> PackageDesc -> ([PackageHeader], [ResolvedPackage])
+resolveSingleLevel repo desc = partitionEithers $ zipWith combine directSubDeps directSubPkgs where
+    directSubDeps  = desc ^. deps
+    directSubPkgs  = lookupPackage repo <$> directSubDeps
+    combine h      = maybe (Left h) Right
+
+resolve :: Repo -> PackageDesc -> ([PackageHeader], [ResolvedPackage])
+resolve repo pkg = (errs <> subErrs, oks <> subOks) where
+    (errs, oks) = resolveSingleLevel repo pkg
+    subDescs    = view desc <$> oks
+    subRes      = resolve repo <$> subDescs
+    subErrs     = concat $ fst <$> subRes
+    subOks      = concat $ snd <$> subRes
 
 
 -- === Instances === --
@@ -40,22 +70,16 @@ type VersionMap = Map Version (Map SysDesc PackageDesc)
 instance ToJSON   Repo        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Package     where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance ToJSON   PackageDep  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
+instance ToJSON   PackageHeader  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
 instance FromJSON Repo        where parseJSON  = lensJSONParse
 instance FromJSON Package     where parseJSON  = lensJSONParse
 instance FromJSON PackageDesc where parseJSON  = lensJSONParse
-instance FromJSON PackageDep  where parseJSON  = lensJSONParse
-
--- Lenses
-makeLenses ''Repo
-makeLenses ''Package
-makeLenses ''PackageDesc
-makeLenses ''PackageDep
+instance FromJSON PackageHeader  where parseJSON  = lensJSONParse
 
 -- Show
-instance Pretty PackageDep where
-    showPretty (PackageDep n v) = n <> "-" <> showPretty v
-    readPretty t = mapLeft (const "Conversion error") $ PackageDep s <$> readPretty ss where
+instance Pretty PackageHeader where
+    showPretty (PackageHeader n v) = n <> "-" <> showPretty v
+    readPretty t = mapLeft (const "Conversion error") $ PackageHeader s <$> readPretty ss where
         (s,ss) = Text.breakOnEnd "-" t
 
 

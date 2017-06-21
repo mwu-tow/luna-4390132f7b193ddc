@@ -2,6 +2,9 @@
 
 module Control.Monad.Raise where
 
+-- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME 
+-- FIXME [WD]: refactor the whole file out before the release
+
 import Prelude
 import Data.Kind
 
@@ -79,3 +82,6 @@ tryRight f = \case
 
 tryRight' :: forall l m r. (MonadException SomeException m, Exception l) => Either l r -> m r
 tryRight' = tryRight toException
+
+raise' :: (MonadException SomeException m, Exception e) => forall a. e -> m a
+raise' = raise . toException
