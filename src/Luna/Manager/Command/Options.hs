@@ -16,8 +16,12 @@ import qualified Luna.Manager.System.Info as Info
 -- === Definition === --
 
 data Options = Options
+    { _globals :: GlobalOpts
+    , _command :: Command
+    } deriving (Show)
+
+data GlobalOpts = GlobalOpts
     { _batchMode :: Bool
-    , _command   :: Command
     } deriving (Show)
 
 data Command = Install       InstallOpts
@@ -64,19 +68,24 @@ evalOptionsParserT m = evalStateT m =<< parseOptions
 
 parseOptions :: MonadIO m => m Options
 parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser where
-    optsParser         = info (helper <*> programOpts) (fullDesc <> header ("Luna ecosystem manager (" <> Info.version <> ")") <> progDesc Info.synopsis)
-    installCmd         = Opts.command "install"        . info installOpts       $ progDesc "Install components"
-    updateCmd          = Opts.command "update"         . info (pure Update)     $ progDesc "Update components"
-    switchVersionCmd   = Opts.command "switch-version" . info switchVersionOpts $ progDesc "Switch installed component version"
-    mkpkgCmd           = Opts.command "make-package"   . info mkpkgOpts         $ progDesc "Prepare installation package"
-    infoCmd            = Opts.command "info"           . info (pure Info)       $ progDesc "Shows environment information"
-    commands           = mconcat [installCmd, mkpkgCmd, updateCmd, switchVersionCmd, infoCmd]
-    programOpts        = Options           <$> Opts.switch (long "batch" <> help "Do not run interactive mode") <*> hsubparser commands
-    mkpkgOpts          = MakePackage       <$> mkpkgOpts'
-    mkpkgOpts'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
-    switchVersionOpts  = SwitchVersion     <$> switchVersionOpts'
-    switchVersionOpts' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
-    installOpts        = Install           <$> installOpts'
-    installOpts'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
+    commands           = mconcat [cmdInstall, cmdMkpkg, cmdUpdate, cmdSwitchVersion, cmdInfo]
+    optsParser         = info (helper <*> optsProgram) (fullDesc <> header ("Luna ecosystem manager (" <> Info.version <> ")") <> progDesc Info.synopsis)
+
+    -- Commands
+    cmdInstall         = Opts.command "install"        . info optsInstall       $ progDesc "Install components"
+    cmdUpdate          = Opts.command "update"         . info (pure Update)     $ progDesc "Update components"
+    cmdSwitchVersion   = Opts.command "switch-version" . info optsSwitchVersion $ progDesc "Switch installed component version"
+    cmdMkpkg           = Opts.command "make-package"   . info optsMkpkg         $ progDesc "Prepare installation package"
+    cmdInfo            = Opts.command "info"           . info (pure Info)       $ progDesc "Shows environment information"
+
+    -- Options
+    optsProgram        = Options           <$> optsGlobal <*> hsubparser commands
+    optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch" <> help "Do not run interactive mode")
+    optsMkpkg          = MakePackage       <$> optsMkpkg'
+    optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
+    optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
+    optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
+    optsInstall        = Install           <$> optsInstall'
+    optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
                                            <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )
                                            <*> (optional . strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Installation path"   )
