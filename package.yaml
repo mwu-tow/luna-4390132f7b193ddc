@@ -36,6 +36,7 @@ dependencies:
   - constraints
   - transformers
   - mtl
+  - shelly
 
 
 default-extensions:
