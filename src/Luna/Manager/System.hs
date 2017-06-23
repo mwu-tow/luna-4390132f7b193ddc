@@ -44,12 +44,12 @@ checkBash = do
 checkZsh :: MonadIO m => m  (Maybe Shell)
 checkZsh = do
     sys <- checkIfNotEmpty "$SHELL -c 'echo $ZSH_VERSION'"
-    if sys then return $ Just Bash else return Nothing
+    if sys then return $ Just Zsh else return Nothing
 
 checkShell :: MonadIO m => m Shell
 checkShell = do
-    bash <- liftIO checkBash
-    zsh  <- liftIO checkZsh
+    bash <- checkBash
+    zsh  <- checkZsh
     return $ fromMaybe Unknown $ bash <|> zsh
 
 runControlCheck :: MonadIO m => FilePath -> m (Maybe FilePath)
