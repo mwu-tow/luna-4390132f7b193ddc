@@ -20,6 +20,7 @@ import Control.Monad.State.Layered
 
 import qualified Data.Map as Map
 
+import qualified Data.Yaml as Yaml
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 -- FIXME: Remove it as fast as we upload config yaml to the server
@@ -33,7 +34,6 @@ hardcodedRepo = Repo defapps deflibs "studio" where
 
                      & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
                      & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
-
 
 
 
@@ -114,7 +114,7 @@ runInstaller opts = do
     appPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question "Select installation path" plainTextReader
         & defArg .~ Just (installConfig ^. defaultBinPath)
-        
+
     print $ "TODO: Install the app (with progress bar): "  <> appName
     print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     print $ "TODO: Add new exports to bashRC if not already present"

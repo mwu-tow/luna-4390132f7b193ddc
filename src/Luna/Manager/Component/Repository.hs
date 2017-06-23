@@ -73,7 +73,7 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
 instance ToJSON   Repo           where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Package        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc    where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance ToJSON   PackageHeader  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
+instance ToJSON   PackageHeader  where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON -- JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
 instance FromJSON Repo           where parseJSON  = lensJSONParse
 instance FromJSON Package        where parseJSON  = lensJSONParse
 instance FromJSON PackageDesc    where parseJSON  = lensJSONParse

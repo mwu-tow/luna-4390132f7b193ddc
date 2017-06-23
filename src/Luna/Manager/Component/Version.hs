@@ -4,7 +4,7 @@ import Prologue
 import Control.Lens.Aeson
 import Luna.Manager.Component.Pretty
 
-import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON)
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
@@ -56,12 +56,12 @@ instance Pretty Version where
         where cerr = mapLeft (const "Conversion error")
 
 -- JSON
-instance ToJSON      Version    where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
-instance ToJSON      VersionTag where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance FromJSON    Version    where parseJSON  = lensJSONParse
-instance FromJSON    VersionTag where parseJSON  = lensJSONParse
-instance FromJSONKey Version
-instance ToJSONKey   Version where
+instance ToJSON      Version    where toEncoding  = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
+instance ToJSON      VersionTag where toEncoding  = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance FromJSON    Version    where parseJSON   = either (fail . convert) return . readPretty <=< parseJSON
+instance FromJSON    VersionTag where parseJSON   = lensJSONParse
+instance FromJSONKey Version    where fromJSONKey = JSON.FromJSONKeyTextParser $ either (fail . convert) return . readPretty
+instance ToJSONKey   Version    where
     toJSONKey = JSON.ToJSONKeyText f g
         where f = showPretty
               g = JSON.text . showPretty
