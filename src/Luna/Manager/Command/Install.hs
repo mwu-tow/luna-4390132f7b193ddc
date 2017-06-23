@@ -57,7 +57,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
     defaultHostConfig = return $ InstallConfig
         { _execName        = "luna-studio"
         , _defaultConfPath = "~/.luna"
-        , _defaultBinPath  = "~/.luna-bin"
+        , _defaultBinPath  = ".luna-bin" --TODO jak tylko bedzie poprawne expandowanie tyldy to przywrócic stara wersje
         , _localName       = "local"
         }
 
@@ -117,17 +117,19 @@ runInstaller opts = do
 
     print $ "TODO: Install the app (with progress bar): "  <> appName
 
+    -- let pkgPath = "http://10.62.1.34:8000/luna-studio.AppImage"
     let pkgPath = appPkgDesc ^. path
 
     case currentHost of
         Linux   -> do
-            let installPath = appPath </> appName </> appVersion
+            --TODO expand '~' 
+            home <- getHomePath
+            let installPath = home </> appPath </> appName </> appVersion
             createDirIfMissingTrue installPath
             appimage <- downloadWithProgressBar pkgPath installPath
             makeExecutable appimage
             exec <- view execName <$> get @InstallConfig
-            home <- getHomePath
-            let currentAppimage = appPath </> exec
+            let currentAppimage = home </> appPath </> exec
                 localBin = home </> ".local/bin" </> exec
             createSymLink appimage currentAppimage
             createSymLink currentAppimage localBin
