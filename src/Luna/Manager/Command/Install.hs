@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-
+import Luna.Manager.System (makeExecutable)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -114,8 +114,27 @@ runInstaller opts = do
     appPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question "Select installation path" plainTextReader
         & defArg .~ Just (installConfig ^. defaultBinPath)
-        
+
     print $ "TODO: Install the app (with progress bar): "  <> appName
+
+    let pkgPath = appPkgDesc ^. path
+
+    case currentHost of
+        Linux   -> do
+            let installPath = appPath </> appName </> appVersion
+            createDirIfMissingTrue installPath
+            appimage <- downloadWithProgressBar pkgPath installPath
+            makeExecutable appimage
+            exec <- view execName <$> get @InstallConfig
+            home <- getHomePath
+            let currentAppimage = appPath </> exec
+                localBin = home </> ".local/bin" </> exec
+            createSymLink appimage currentAppimage
+            createSymLink currentAppimage localBin
+        Darwin  ->return ()
+        Windows ->return ()
+
+
     print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     print $ "TODO: Add new exports to bashRC if not already present"
     print $ "TODO: IMPORTANT: be sure that installation of manager updates the manager in-place"
@@ -145,3 +164,18 @@ runInstaller opts = do
     -- createFileLink appimageToLunaStudio binPath
     -- checkShell
     return ()
+
+-- installPackageLinux :: MonadInstall m => Text -> Text -> Text -> m ()
+-- installPackageLinux appPath appName appVersion = do
+--     let fullLocation = appPath </> appName </> appVersion -- pełna ścieżka dla naszego
+--     createDir fullLocation
+--     -- setCurrentDir fullLocation
+--     pkgPath <- view path <$> get @PackageDesc
+--     downloadWithProgressBar pkgPath
+--     appimage <- takeFileNameFromURL pkgPath
+--     makeExecutable $ fullLocation </> appimage
+--     let appimageToBinName = appPath </> execName
+--         home = getHomePath
+--         binPath = home </> (convert ".local/bin") </> execName
+--     -- createSymLink appimage appimageToBinName
+--     createSymLink appimageToBinName binPath

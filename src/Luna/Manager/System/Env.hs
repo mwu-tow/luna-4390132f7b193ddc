@@ -35,6 +35,14 @@ getDownloadPath = getTmpPath
 setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
 setTmpCwd = liftIO . System.setCurrentDirectory . convert =<< getTmpPath
 
+createDir :: MonadIO m => FilePath -> m ()
+createDir path = liftIO $ System.createDirectory $ convert path
+
+createSymLink :: MonadIO m => FilePath -> FilePath -> m ()
+createSymLink src dst = liftIO $ System.createFileLink (convert src) (convert dst)
+
+createDirIfMissingTrue :: MonadIO m => FilePath-> m ()
+createDirIfMissingTrue path = liftIO $ System.createDirectoryIfMissing True $ convert path
 
 -- === Instances === --
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m where
