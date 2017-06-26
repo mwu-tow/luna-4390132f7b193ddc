@@ -2,10 +2,10 @@
 
 module Luna.Manager.System.Env where
 
-import Prologue hiding (FilePath)
+import Prologue hiding (FilePath, fromText, toText)
 
 import Luna.Manager.System.Host
-import Luna.Manager.System.Path
+import Filesystem.Path.CurrentOS
 import Control.Monad.State.Layered
 import qualified System.Directory as System
 
@@ -26,24 +26,30 @@ makeLenses ''EnvConfig
 getHomePath :: MonadIO m => m FilePath
 getHomePath = do
     home <- liftIO $ System.getHomeDirectory
-    return $ convert home
+    return $ fromText $ convert home
+
+getCurrentPath :: MonadIO m => m FilePath
+getCurrentPath = do
+    current <- liftIO $ System.getCurrentDirectory
+    return $ fromText $ convert current
 
 getTmpPath, getDownloadPath :: MonadGetter EnvConfig m => m FilePath
 getTmpPath      = view localTempPath <$> get @EnvConfig
 getDownloadPath = getTmpPath
 
+
 setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
-setTmpCwd = liftIO . System.setCurrentDirectory . convert =<< getTmpPath
+setTmpCwd = liftIO . System.setCurrentDirectory . encodeString =<< getTmpPath
 
 createDir :: MonadIO m => FilePath -> m ()
-createDir path = liftIO $ System.createDirectory $ convert path
+createDir path = liftIO $ System.createDirectory $ encodeString path
 
 createSymLink :: MonadIO m => FilePath -> FilePath -> m ()
-createSymLink src dst = liftIO $ System.createFileLink (convert src) (convert dst)
+createSymLink src dst = liftIO $ System.createFileLink (encodeString src) (encodeString dst)
 
 createDirIfMissingTrue :: MonadIO m => FilePath-> m ()
-createDirIfMissingTrue path = liftIO $ System.createDirectoryIfMissing True $ convert path
+createDirIfMissingTrue path = liftIO $ System.createDirectoryIfMissing True $ encodeString path
 
 -- === Instances === --
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m where
-    defaultHostConfig = EnvConfig <$> (convert <$> liftIO System.getTemporaryDirectory)
+    defaultHostConfig = EnvConfig <$> (decodeString <$> liftIO System.getTemporaryDirectory)

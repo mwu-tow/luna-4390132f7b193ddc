@@ -1,13 +1,14 @@
 module Luna.Manager.Network where
 
-import Prologue hiding (FilePath)
+import Prologue hiding (FilePath, fromText)
 
-import Luna.Manager.System.Path
 import Luna.Manager.System.Env
 import Luna.Manager.Shell.ProgressBar
+import Luna.Manager.System.Path
 
 import Control.Monad.Raise
 import Control.Monad.State.Layered
+import Filesystem.Path.CurrentOS
 import qualified Network.HTTP.Conduit       as HTTP
 import           Network.HTTP.Conduit       (httpLbs)
 import qualified Network.URI                as URI
@@ -45,11 +46,11 @@ downloadFromURL :: MonadNetwork m => URIPath -> m FilePath
 downloadFromURL address = tryJust downloadError =<< go where
     go = withJust (takeFileNameFromURL address) $ \name -> do
         putStrLn $ "Downloading repository configuration file (" <> convert address <> ")"
-        dest    <- (</> name) <$> getDownloadPath
+        dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
         request <- tryRight' $ HTTP.parseRequest (convert address)
         resp    <- tryRight' @SomeException =<< liftIO (Exception.try $ httpLbs request manager)
-        liftIO $ ByteStringL.writeFile (convert dest) $ HTTP.responseBody resp
+        liftIO $ ByteStringL.writeFile (encodeString dest) $ HTTP.responseBody resp
         return (Just dest)
 
 
@@ -63,13 +64,13 @@ downloadWithProgressBar address dstPath = do
     tryRight' @SomeException <=< liftIO . Exception.try . runResourceT $ do
     -- Start the request
         withJust (takeFileNameFromURL address) $ \name -> do
-            let dstFile = dstPath </> name
+            let dstFile = dstPath </> (fromText name)
             res <- HTTP.http req manager
             -- Get the Content-Length and initialize the progress bar
             let Just cl = lookup hContentLength (HTTP.responseHeaders res)
                 pgTotal = read (ByteStringChar.unpack cl)
                 pg      = ProgressBar 50 0 pgTotal
             -- Consume the response updating the progress bar
-            HTTP.responseBody res $=+ updateProgress pg $$+- sinkFile (convert dstFile)
+            HTTP.responseBody res $=+ updateProgress pg $$+- sinkFile (encodeString dstFile)
             putStrLn "Download completed!"
             return dstFile

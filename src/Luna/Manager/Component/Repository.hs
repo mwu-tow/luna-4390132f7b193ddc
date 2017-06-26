@@ -20,7 +20,7 @@ import qualified Data.Yaml           as Yaml
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
-
+import Filesystem.Path.CurrentOS (encodeString)
 
 ------------------------
 -- === Repository === --
@@ -111,7 +111,7 @@ getRepo = do
         Nothing -> do
             setTmpCwd
             downloadedConfig <- downloadFromURL . view repoPath =<< get @RepoConfig
-            repo <- tryRight' =<< liftIO (Yaml.decodeFileEither $ convert downloadedConfig)
+            repo <- tryRight' =<< liftIO (Yaml.decodeFileEither $ encodeString downloadedConfig)
             put @RepoConfig $ cfg & cachedRepo .~ Just repo
             return repo
 
@@ -119,6 +119,6 @@ getRepo = do
 -- === Instances === --
 
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig RepoConfig sys arch m where
-    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://luna-lang.org/releases/config.yaml"
+    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://s3-us-west-2.amazonaws.com/packages-luna/config.yaml"
                                             , _cachedRepo = Nothing
                                             }

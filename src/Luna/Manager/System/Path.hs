@@ -1,13 +1,27 @@
 module Luna.Manager.System.Path where
 
-import Prologue hiding (FilePath)
-import System.FilePath.Posix (pathSeparator)
+import Prologue hiding (FilePath, null)
 
+import Luna.Manager.System.Env
 
-type FilePath = Text
+import qualified Filesystem.Path as Path
+import Filesystem.Path (FilePath, null)
+import Filesystem.Path.CurrentOS (fromText, encodeString)
+import Control.Monad.Raise
+
 type URIPath  = Text
 
---TODO : expandowanie ~, . i .. w ściezkach
-
-(</>) :: FilePath -> FilePath -> FilePath
-l </> r = l <> convert pathSeparator <> r
+expand :: MonadIO m => FilePath -> m FilePath
+expand path = do
+    if null path
+        then return path
+        else do
+            let dirs = Path.splitDirectories path
+                fstEl = head dirs
+            home <- getHomePath
+            current <- getCurrentPath
+            case encodeString fstEl of
+                "~/"      -> return $ Path.concat $ home : (tail dirs)
+                "./"      -> return $ Path.concat $ current : (tail dirs)
+                "../"     -> return $ Path.concat $ (Path.parent current) : (tail dirs)
+                otherwise -> return path

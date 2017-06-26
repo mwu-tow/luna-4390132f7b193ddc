@@ -1,6 +1,6 @@
 module Luna.Manager.Command.Install where
 
-import Prologue hiding (txt, FilePath)
+import Prologue hiding (txt, FilePath, toText, fromText)
 
 import Luna.Manager.System.Host
 import Luna.Manager.System.Env
@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable)
+import Luna.Manager.System (makeExecutable, exportPath, checkShell)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -22,19 +22,8 @@ import qualified Data.Map as Map
 
 import qualified Data.Yaml as Yaml
 
--- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
--- FIXME: Remove it as fast as we upload config yaml to the server
-hardcodedRepo :: Repo
-hardcodedRepo = Repo defapps deflibs "studio" where
-    deflibs = mempty & at "lib1"     .~ Just (Package "lib1 synopsis"     $ fromList [ (Version 1 0 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc mempty "path")] )])
-    defapps = mempty & at "studio"   .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
-                                                                                     , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
-                                                                                     , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
-                                                                                     ])
-
-                     & at "compiler" .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
-                     & at "manager"  .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
-
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText)
+import Shelly.Lifted (toTextIgnore)
 
 
 ---------------------------------
@@ -57,7 +46,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
     defaultHostConfig = return $ InstallConfig
         { _execName        = "luna-studio"
         , _defaultConfPath = "~/.luna"
-        , _defaultBinPath  = ".luna-bin" --TODO jak tylko bedzie poprawne expandowanie tyldy to przywrócic stara wersje
+        , _defaultBinPath  = "~/.luna-bin" --TODO jak tylko bedzie poprawne expandowanie tyldy to przywrócic stara wersje
         , _localName       = "local"
         }
 
@@ -92,8 +81,7 @@ type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, Mo
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
-    let repo = hardcodedRepo
-    -- repo <- getRepo -- FIXME[WD]: this should be enabled instead of line above
+    repo <- getRepo
 
     (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
         $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. apps))
@@ -113,26 +101,29 @@ runInstaller opts = do
     installConfig <- get @InstallConfig
     appPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question "Select installation path" plainTextReader
-        & defArg .~ Just (installConfig ^. defaultBinPath)
+        & defArg .~ Just (toTextIgnore (installConfig ^. defaultBinPath)) --TODO uzyć toText i złapać tryRight'
 
     print $ "TODO: Install the app (with progress bar): "  <> appName
 
-    -- let pkgPath = "http://10.62.1.34:8000/luna-studio.AppImage"
     let pkgPath = appPkgDesc ^. path
 
     case currentHost of
         Linux   -> do
-            --TODO expand '~' 
+            --TODO expand '~'
             home <- getHomePath
-            let installPath = home </> appPath </> appName </> appVersion
+            installPath <- expand $ (fromText appPath) </> (fromText appName) </> (fromText appVersion)
             createDirIfMissingTrue installPath
             appimage <- downloadWithProgressBar pkgPath installPath
             makeExecutable appimage
             exec <- view execName <$> get @InstallConfig
-            let currentAppimage = home </> appPath </> exec
-                localBin = home </> ".local/bin" </> exec
+            currentAppimage <- expand $ (fromText appPath) </> (fromText exec)
+            let localBinDir = home </> ".local/bin"
+                localBin = home </> ".local/bin" </> (fromText exec)
+            createDirIfMissingTrue localBinDir
             createSymLink appimage currentAppimage
             createSymLink currentAppimage localBin
+            shell <- checkShell
+            exportPath localBinDir shell
         Darwin  ->return ()
         Windows ->return ()
 

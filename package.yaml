@@ -38,6 +38,7 @@ dependencies:
   - mtl
   - shelly
   - conduit-extra
+  - system-filepath
 
 
 default-extensions:

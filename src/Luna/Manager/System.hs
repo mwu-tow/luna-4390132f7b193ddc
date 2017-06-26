@@ -2,8 +2,8 @@
 
 module Luna.Manager.System where
 
-import Prologue hiding (FilePath,null, filter, appendFile)
-import System.Directory (writable, setPermissions, getPermissions, doesPathExist, getHomeDirectory)
+import Prologue hiding (FilePath,null, filter, appendFile, toText)
+import System.Directory (executable, setPermissions, getPermissions, doesPathExist, getHomeDirectory)
 import System.Process.Typed
 import Data.List.Split (splitOn)
 import Data.ByteString.Lazy (null)
@@ -11,11 +11,11 @@ import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 (filter)
 import Data.Text.IO (appendFile)
 import qualified Data.Text  as Text
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText)
 
 import Data.Maybe (listToMaybe)
 import Control.Monad.Raise
 import Luna.Manager.System.Env
-import Luna.Manager.System.Path (FilePath,  (</>))
 
 data Shell = Bash | Zsh | Unknown deriving (Show)
 
@@ -56,30 +56,48 @@ runControlCheck :: MonadIO m => FilePath -> m (Maybe FilePath)
 runControlCheck file = do
     home <- getHomePath
     let location = home </> file
-    pathCheck <- liftIO $ doesPathExist $ convert location
+    pathCheck <- liftIO $ doesPathExist $ encodeString location
     return $ if pathCheck then Just location else Nothing
+
+data BashConfigNotFoundError = BashConfigNotFoundError deriving (Show)
+instance Exception BashConfigNotFoundError where
+    displayException _ = "Bash config not found"
+
+bashConfigNotFoundError :: SomeException
+bashConfigNotFoundError = toException BashConfigNotFoundError
+
+data UnrecognizedShellError = UnrecognizedShellError deriving (Show)
+instance Exception UnrecognizedShellError where
+    displayException _ = "Unrecognized shell. Please add ~/.local/bin to your exports."
+
+unrecognizedShellError :: SomeException
+unrecognizedShellError = toException UnrecognizedShellError
 
 
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
-exportPath :: (MonadException Text m, MonadIO m) => FilePath -> Shell -> m ()
-exportPath pathToExport shellType =
+exportPath :: (MonadException SomeException m, MonadIO m) => FilePath -> Shell -> m ()
+exportPath pathToExport shellType = do
+    let pathToExportText = convert $ encodeString pathToExport --tryRight' <<= toText pathToExport
     case shellType of
         Bash    -> do
             filesAvailable <- mapM runControlCheck [".bashrc", ".bash_profile", ".profile"]
             let justFiles = catMaybes $ filesAvailable
-                exportToAppend = Text.concat ["export PATH=", pathToExport, ":$PATH"]
-            file <- maybe (raise ("Bash config not found" :: Text)) return (listToMaybe justFiles)
-            liftIO $ appendFile (convert file) exportToAppend
+                exportToAppend = Text.concat ["export PATH=", pathToExportText, ":$PATH"]
+            file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
+            liftIO $ appendFile (encodeString file) exportToAppend
         Zsh     -> do
             filesAvailable <- mapM runControlCheck [".zshrc", ".zprofile"]
             let justFiles = catMaybes $ filesAvailable
-                exportToAppend = Text.concat ["path+=", pathToExport]
-            file <- maybe (raise ("Bash config not found" :: Text)) return (listToMaybe justFiles)
-            liftIO $ appendFile (convert file) exportToAppend
-        Unknown -> raise ("Unrecognized shell. Please add ~/.local/bin to your exports." :: Text)
+                exportToAppend = Text.concat ["path+=", pathToExportText]
+            file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
+            liftIO $ appendFile (encodeString file) exportToAppend
+        Unknown -> raise' (unrecognizedShellError)
 
 
 makeExecutable :: MonadIO m => FilePath -> m ()
 makeExecutable file = liftIO $ do
-    p <- getPermissions $ convert file
-    setPermissions (convert file) (p {writable = True})
+    p <- getPermissions $ encodeString file
+    print p
+    setPermissions (encodeString file) (p {executable = True})
+    q <- getPermissions $ encodeString file
+    print q
