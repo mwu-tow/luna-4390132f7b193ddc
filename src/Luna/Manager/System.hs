@@ -97,7 +97,4 @@ exportPath pathToExport shellType = do
 makeExecutable :: MonadIO m => FilePath -> m ()
 makeExecutable file = liftIO $ do
     p <- getPermissions $ encodeString file
-    print p
     setPermissions (encodeString file) (p {executable = True})
-    q <- getPermissions $ encodeString file
-    print q

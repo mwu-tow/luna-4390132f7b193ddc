@@ -16,3 +16,6 @@ unpackTarGzUnix :: Shelly.MonadSh m => FilePath -> FilePath -> m ()
 unpackTarGzUnix file dst = do
     Shelly.cd (Shelly.fromText dst)
     Shelly.cmd  "tar" "-xf" file "--strip=1"
+
+-- unzipFileWindows :: Shelly.MonadSh m => FilePath -> FilePath -> m ()
+-- unzipFileWindows

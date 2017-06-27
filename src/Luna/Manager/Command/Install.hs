@@ -106,13 +106,11 @@ runInstaller opts = do
     print $ "TODO: Install the app (with progress bar): "  <> appName
 
     let pkgPath = appPkgDesc ^. path
-
+    home <- getHomePath
+    installPath <- expand $ (fromText appPath) </> (fromText appName) </> (fromText appVersion)
+    createDirIfMissingTrue installPath
     case currentHost of
         Linux   -> do
-            --TODO expand '~'
-            home <- getHomePath
-            installPath <- expand $ (fromText appPath) </> (fromText appName) </> (fromText appVersion)
-            createDirIfMissingTrue installPath
             appimage <- downloadWithProgressBar pkgPath installPath
             makeExecutable appimage
             exec <- view execName <$> get @InstallConfig
@@ -124,8 +122,12 @@ runInstaller opts = do
             createSymLink currentAppimage localBin
             shell <- checkShell
             exportPath localBinDir shell
-        Darwin  ->return ()
-        Windows ->return ()
+        Darwin  -> return ()
+        Windows -> do
+            tmp <- getTmpPath
+            zippedPackage <- downloadWithProgressBar pkgPath tmp
+            print zippedPackage
+            return ()
 
 
     print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
