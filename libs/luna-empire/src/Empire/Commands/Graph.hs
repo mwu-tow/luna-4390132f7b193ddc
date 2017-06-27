@@ -519,28 +519,29 @@ renamePort loc portRef newName = withGraph loc $ runASTOp $ do
     GraphBuilder.buildInputSidebar nodeId
 
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
-setNodeExpression loc@(GraphLocation file _) nodeId expression = do
+setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
+    let expression = Text.strip expr'
     node <- withTC loc False $ do
         oldExpr   <- runASTOp $ ASTRead.getASTTarget nodeId
         parsedRef <- view _1 <$> ASTParse.runReparser expression oldExpr
-        oldRange  <- runASTOp $ do
-            oldPointer    <- ASTRead.getASTRef nodeId
-            Just oldBegin <- Code.getOffsetRelativeToFile oldPointer
-            oldLen        <- IR.getLayer @SpanLength oldPointer
+        (oldBeg, oldEnd) <- runASTOp $ do
+            oldBegin  <- Code.getASTTargetBeginning nodeId
+            oldTarget <- ASTRead.getASTTarget nodeId
+            oldLen    <- IR.getLayer @SpanLength oldTarget
+            Code.propagateLengths parsedRef
             ASTModify.rewireNode nodeId parsedRef
             return (oldBegin, oldBegin + oldLen)
         runAliasAnalysis
-        (node, code)  <- runASTOp $ do
-            expr      <- ASTRead.getASTPointer nodeId
+        node <- runASTOp $ do
+            expr      <- ASTRead.getASTTarget nodeId
             marked    <- ASTRead.getASTRef nodeId
             item      <- prepareChild Map.empty marked parsedRef
             Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
+            let len = fromIntegral $ Text.length expression
+            Code.applyDiff oldBeg oldEnd expression
+            Code.gossipUsesChangedBy (len - (oldEnd - oldBeg)) expr
             node <- GraphBuilder.buildNode nodeId
-            code <- printMarkedExpression marked
-            IR.putLayer @SpanLength marked (fromIntegral $ Text.length code)
-            Code.applyDiff (fst oldRange) (snd oldRange) code
-            Code.gossipUsesChanged expr
-            return (node, code)
+            return node
         return node
     resendCode loc
     return node

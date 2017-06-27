@@ -164,7 +164,7 @@ buildNode nid = do
     canEnter  <- ASTRead.isLambda ref
     inports   <- buildInPorts nid ref
     outports  <- buildOutPorts root
-    code      <- fromMaybe expr <$> getNodeCode nid
+    code      <- getNodeCode nid
     return $ API.ExpressionNode nid expr name code inports outports meta canEnter
 
 buildNodeTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
@@ -187,15 +187,10 @@ getUniName root = do
 getNodeName :: ASTOp m => NodeId -> m (Maybe Text)
 getNodeName nid = ASTRead.getASTPointer nid >>= getUniName
 
-getNodeCode :: ASTOp m => NodeId -> m (Maybe Text)
+getNodeCode :: ASTOp m => NodeId -> m Text
 getNodeCode nid = do
     ref <- ASTRead.getASTTarget nid
-    beg <- Code.getAnyBeginningOf ref
-    len <- IR.getLayer @SpanLength ref
-    case beg of
-        Just b -> Just <$> Code.getAt b (b + len)
-        _      -> return Nothing
-
+    Code.getCodeOf ref
 
 getDefault :: ASTOp m => NodeRef -> m (Maybe PortDefault)
 getDefault arg = match arg $ \case
@@ -204,7 +199,7 @@ getDefault arg = match arg $ \case
         IR.Cons "True"  _ -> return $ Just $ Constant $ BoolValue True
         IR.Cons "False" _ -> return $ Just $ Constant $ BoolValue False
         IR.Blank          -> return $ Nothing
-        _                 -> Just . Expression <$> Print.printExpression arg
+        _                 -> Just . Expression . Text.unpack <$> Print.printFullExpression arg
 
 getInPortDefault :: ASTOp m => NodeRef -> Int -> m (Maybe PortDefault)
 getInPortDefault ref pos = do
@@ -223,9 +218,9 @@ getPortState node = do
             case name of
                 "False" -> return . WithDefault . Constant . BoolValue $ False
                 "True"  -> return . WithDefault . Constant . BoolValue $ True
-                _       -> WithDefault . Expression <$> Print.printExpression node
+                _       -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
         Blank -> return NotConnected
-        _     -> WithDefault . Expression <$> Print.printExpression node
+        _     -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
 
 extractArgTypes :: ASTOp m => NodeRef -> m [TypeRep]
 extractArgTypes node = do

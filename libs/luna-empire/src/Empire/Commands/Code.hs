@@ -176,6 +176,13 @@ getAllBeginningsOf ref = do
 getAnyBeginningOf :: ASTOp m => NodeRef -> m (Maybe Delta)
 getAnyBeginningOf ref = listToMaybe <$> getAllBeginningsOf ref
 
+getCodeOf :: ASTOp m => NodeRef -> m Text
+getCodeOf ref = do
+    Just beg <- getAnyBeginningOf ref
+    len <- IR.getLayer @SpanLength ref
+    getAt beg (beg + len)
+
+
 replaceAllUses :: ASTOp m => NodeRef -> Text -> m ()
 replaceAllUses ref new = do
     len         <- IR.getLayer @SpanLength ref

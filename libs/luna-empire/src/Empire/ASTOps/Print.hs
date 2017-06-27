@@ -1,13 +1,7 @@
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Empire.ASTOps.Print (
-    getTypeRep
-  , printExpression
-  , printName
-  , printCurrentFunction
-  , printNodeTarget
-  ) where
+module Empire.ASTOps.Print where
 
 import           Control.Monad                  (forM, (<=<))
 import           Data.Char                      (isAlpha)
@@ -72,6 +66,9 @@ instance ASTOpReq m => Compactible t CompactStyle m where
 
 printExpression :: ASTOp m => NodeRef -> m String
 printExpression = fmap convert . CodeGen.subpass CompactStyle . IR.unsafeGeneralize
+
+printFullExpression :: ASTOp m => NodeRef -> m Text
+printFullExpression = CodeGen.subpass SimpleStyle . IR.unsafeGeneralize
 
 printName :: ASTOp m => NodeRef -> m String
 printName = fmap convert . CodeGen.subpass SimpleStyle . IR.unsafeGeneralize

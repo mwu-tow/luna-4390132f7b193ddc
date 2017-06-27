@@ -82,9 +82,10 @@ spec = around withChannels $ parallel $ do
             res <- evalEmp env $ do
                 Graph.addNode top u1 "foo = a: a" def
             withResult res $ \node -> do
-                node ^. Node.name `shouldBe` Just "foo"
-                node ^. Node.expression `shouldBe` "a: a"
-                node ^. Node.canEnter `shouldBe` True
+                node ^. Node.name       `shouldBe` Just "foo"
+                node ^. Node.code       `shouldBe` "a: a"
+                node ^. Node.expression `shouldBe` "Ⓕ"
+                node ^. Node.canEnter   `shouldBe` True
         it "returns connections for deeply nested uses of node" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
@@ -312,7 +313,7 @@ spec = around withChannels $ parallel $ do
                 Graph.getNodes loc'
             withResult res $ \nodes -> do
                 nodes `shouldSatisfy` ((== 1) . length)
-                head nodes `shouldSatisfy` (\a -> a ^. Node.expression == "a + b")
+                head nodes `shouldSatisfy` (\a -> a ^. Node.expression == "• + •")
         it "places connections between + node and output" $ \env -> do
           u1 <- mkUUID
           res <- evalEmp env $ do
@@ -380,7 +381,7 @@ spec = around withChannels $ parallel $ do
                 let nodes = graph ^. Graph.nodes
                     Just four = find (\n -> n ^. Node.nodeId == u1) nodes
                 four ^. Node.name `shouldBe` Just "node5"
-                expression `shouldBe` "id node5"
+                expression `shouldBe` "id •"
                 let connections = graph ^. Graph.connections
                 connections `shouldMatchList` [(outPortRef u1 [], inPortRef u2 [Port.Arg 0])]
         it "changes node expression" $ \env -> do
@@ -402,7 +403,8 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes top
                 return (node, nodes)
             withResult res $ \(node, nodes) -> do
-                node ^. Node.expression `shouldBe` "a: a"
+                node ^. Node.expression `shouldBe` "Ⓕ"
+                node ^. Node.code       `shouldBe` "a: a"
                 node ^. Node.nodeId     `shouldBe` u1
                 node ^. Node.canEnter   `shouldBe` True
                 nodes `shouldSatisfy` ((== 1) . length)
@@ -423,7 +425,7 @@ spec = around withChannels $ parallel $ do
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                 let [node] = nodes
-                node ^. Node.expression `shouldBe` "a + b"
+                node ^. Node.expression `shouldBe` "• + •"
                 connections `shouldSatisfy` ((== 3) . length)
         it "changes expression to anonymous node" $ \env -> do
             let code = [r|def main:
