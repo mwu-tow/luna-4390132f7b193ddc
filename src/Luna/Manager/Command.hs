@@ -10,7 +10,7 @@ import Luna.Manager.System.Host
 import Luna.Manager.System.Env
 import qualified Luna.Manager.Command.Install as Install
 import           Luna.Manager.Command.Install (InstallConfig)
-
+import Shelly.Lifted (MonadSh)
 
 chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m) => m ()
 chooseCommand = do

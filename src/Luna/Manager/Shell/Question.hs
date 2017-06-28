@@ -13,7 +13,7 @@ import System.IO (hFlush, stdout)
 -- FIXME: We should prbably refactor it out in some time
 
 listItem :: Text -> Text
-listItem n = "  • " <> n
+listItem n = "  - " <> n
 
 listItems :: [Text] -> Text
 listItems = intercalate "\n" . fmap listItem

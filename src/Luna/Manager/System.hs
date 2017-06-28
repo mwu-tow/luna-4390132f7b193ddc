@@ -2,7 +2,7 @@
 
 module Luna.Manager.System where
 
-import Prologue hiding (FilePath,null, filter, appendFile, toText)
+import Prologue hiding (FilePath,null, filter, appendFile, toText, fromText)
 import System.Directory (executable, setPermissions, getPermissions, doesPathExist, getHomeDirectory)
 import System.Process.Typed
 import Data.List.Split (splitOn)
@@ -16,6 +16,9 @@ import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText)
 import Data.Maybe (listToMaybe)
 import Control.Monad.Raise
 import Luna.Manager.System.Env
+
+import qualified Shelly.Lifted as Shelly
+import Shelly.Lifted (MonadSh)
 
 data Shell = Bash | Zsh | Unknown deriving (Show)
 
@@ -98,3 +101,10 @@ makeExecutable :: MonadIO m => FilePath -> m ()
 makeExecutable file = liftIO $ do
     p <- getPermissions $ encodeString file
     setPermissions (encodeString file) (p {executable = True})
+
+
+runServicesWindows :: MonadSh m => FilePath -> m ()
+runServicesWindows path = do
+  Shelly.cd path
+  let installPath = path </> (Shelly.fromText "installAll.bat")
+  Shelly.cmd installPath
