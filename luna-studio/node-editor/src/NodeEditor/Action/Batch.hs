@@ -6,6 +6,7 @@ import           LunaStudio.Data.NodeMeta            (NodeMeta)
 import           LunaStudio.Data.PortDefault         (PortDefault)
 import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), OutPortRef (OutPortRef),
                                                       dstNodeLoc, nodeLoc)
+import           LunaStudio.Data.Position            (Position)
 import           NodeEditor.Action.Command           (Command)
 import           NodeEditor.Action.UUID              (registerRequest)
 import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
@@ -71,6 +72,10 @@ collapseToFunction :: [NodeLoc] -> Command State ()
 collapseToFunction []  = return ()
 collapseToFunction nls = withWorkspace $ BatchCmd.collapseToFunction nls
 
+copy :: [NodeLoc] -> Command State ()
+copy []  = return ()
+copy nls = withWorkspace $ BatchCmd.copy nls
+
 getSubgraph :: NodeLoc -> Command State ()
 getSubgraph nl = withWorkspace (BatchCmd.getSubgraph nl)
 
@@ -97,6 +102,9 @@ renameNode = withWorkspace .:  BatchCmd.renameNode
 
 renamePort :: OutPortRef -> Text -> Command State ()
 renamePort = withWorkspace .: BatchCmd.renamePort
+
+paste :: Position -> String -> Command State ()
+paste = withWorkspace .: BatchCmd.paste
 
 searchNodes :: Command State ()
 searchNodes = withWorkspace BatchCmd.searchNodes

@@ -27,6 +27,7 @@ handlers = Map.fromList [ handle AddConnectionResponse
                         , handle AddSubgraphResponse
                         , handle AutolayoutNodesResponse
                         , handle CollaborationUpdate
+                        , handle CopyResponse
                         , handle DumpGraphVizResponse
                         , handle EmpireStarted
                         , handle GetProgramResponse
@@ -35,6 +36,7 @@ handlers = Map.fromList [ handle AddConnectionResponse
                         , handle MovePortResponse
                         , handle NodeResultUpdate
                         , handle NodeTypecheckerUpdate
+                        , handle PasteResponse
                         , handle ProjectCreated
                         , handle ProjectCreatedUpdate
                         , handle ProjectExported

@@ -19,6 +19,7 @@ import           LunaStudio.API.Graph.AddSubgraph           as AddSubgraph
 import           LunaStudio.API.Graph.AutolayoutNodes       as AutolayoutNodes
 import           LunaStudio.API.Graph.CollaborationUpdate   as CollaborationUpdate
 import           LunaStudio.API.Graph.CollapseToFunction    as CollapseToFunction
+import           LunaStudio.API.Graph.Copy                  as Copy
 import           LunaStudio.API.Graph.DumpGraphViz          as DumpGraphViz
 import           LunaStudio.API.Graph.GetProgram            as GetProgram
 import           LunaStudio.API.Graph.GetSubgraphs          as GetSubgraphs
@@ -26,6 +27,7 @@ import           LunaStudio.API.Graph.MonadsUpdate          as MonadsUpdate
 import           LunaStudio.API.Graph.MovePort              as MovePort
 import           LunaStudio.API.Graph.NodeResultUpdate      as NodeResultUpdate
 import           LunaStudio.API.Graph.NodeTypecheckerUpdate as NodeTypecheckerUpdate
+import           LunaStudio.API.Graph.Paste                 as Paste
 import           LunaStudio.API.Graph.Redo                  as Redo
 import           LunaStudio.API.Graph.RemoveConnection      as RemoveConnection
 import           LunaStudio.API.Graph.RemoveNodes           as RemoveNodes
@@ -132,6 +134,8 @@ instance ToJSON CollaborationUpdate.Update
 instance ToJSON CollapseToFunction.Inverse
 instance ToJSON CollapseToFunction.Request
 instance ToJSON Connection.Connection
+instance ToJSON Copy.Request
+instance ToJSON Copy.Result
 instance ToJSON CreateLibrary.Request
 instance ToJSON CreateLibrary.Result
 instance ToJSON CreateLibrary.Update
@@ -185,6 +189,7 @@ instance ToJSON OpenProject.Request
 instance ToJSON OpenProject.Result
 instance ToJSON OpenProject.Update
 instance ToJSON payload => ToJSON (Response.Status payload)
+instance ToJSON Paste.Request
 instance ToJSON PEnvelope.Envelope
 instance ToJSON PLibrary.Library
 instance ToJSON Point
