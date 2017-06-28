@@ -7,7 +7,7 @@
     var popupOptionsSmall      = {autoPan: false, maxWidth: 200, maxHeight: 150};
     var hoverPopupOptionsBig   = {closeButton: false, autoPan: false, maxWidth: 400, maxHeight: 400};
     var popupOptionsBig        = {autoPan: false, maxWidth: 400, maxHeight: 400};
-    var mapOptions = { center: [0,0], zoom: 0.2, minZoom: 0.2, closePopupOnClick: false, maxBounds: [[-90, -180], [90.0, 180]],  maxBoundsViscosity: 1.0};
+    var mapOptions = { center: [0,0], zoom: 0.2, minZoom: 0.2, closePopupOnClick: false, maxBounds: [[-90, -Infinity], [90.0, Infinity]],  maxBoundsViscosity: 1.0};
 
     window.addEventListener("resize", function () {
         if (document.body.clientHeight < 500 && document.body.clientWidth < 500) {
@@ -37,6 +37,30 @@
             hoverPopupOptions = hoverPopupOptionsBig;
             popupOptions = popupOptionsBig;
         }
+        map.on('move', function(e) {
+            bounds  = map.getBounds();
+            westLng = bounds.getWest();
+            eastLng = bounds.getEast();
+            markers.eachLayer(function (layer) {
+                markerLat = layer.getLatLng().lat;
+                markerLng = layer.getLatLng().lng;
+                if (markerLng < westLng) {
+                    while (markerLng < westLng) markerLng += 360;
+                    if (markerLng - eastLng < westLng - (markerLng - 360)) {
+                        layer.setLatLng(L.latLng(markerLat, markerLng));
+                    } else {
+                        layer.setLatLng(L.latLng(markerLat, markerLng - 360));
+                    }
+                } else if (markerLng > eastLng) {
+                    while (markerLng > eastLng) markerLng -= 360;
+                    if (westLng - markerLng < markerLng + 360 - eastLng) {
+                        layer.setLatLng(L.latLng(markerLat, markerLng));
+                    } else {
+                        layer.setLatLng(L.latLng(markerLat, markerLng + 360));
+                    }
+                }
+            });
+        });
     });
 
     window.addEventListener("message", function (evt) {
