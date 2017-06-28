@@ -13,7 +13,7 @@ GHCJS_CODE_BE_THERE
 
 return { start     : function() { run();}
        , lex       : function(data) { return atomCallbackTextEditor.lex(data); }
-       , pushDiff  : function(data) { atomCallbackTextEditor.pushDiff(data); }
+       , pushDiff  : function(data) { data.uri = globalRegistry.activeLocation; atomCallbackTextEditor.pushDiff(data); }
        , bufferListener  : function(callback) { atomCallbackTextEditor.bufferListener(callback); }
        , statusListener  : function(callback) { atomCallbackTextEditor.statusListener(callback); }
        , codeListener  : function(callback) { atomCallbackTextEditor.codeListener(callback); }

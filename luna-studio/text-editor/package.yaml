@@ -17,6 +17,7 @@ default-extensions:
   - FlexibleContexts
   - FlexibleInstances
   - GeneralizedNewtypeDeriving
+  - LambdaCase
   - MultiParamTypeClasses
   - NoImplicitPrelude
   - ScopedTypeVariables

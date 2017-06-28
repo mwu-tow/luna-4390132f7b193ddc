@@ -11,14 +11,17 @@ module JS.Atom
 
 
 import           Common.Prelude
-import qualified Data.Text                 as Text
+import           Control.Monad.Trans.Maybe     (MaybeT (MaybeT), runMaybeT)
+import           Data.Aeson                    (Result (Success), fromJSON)
+import qualified Data.Text                     as Text
 import           GHCJS.Foreign.Callback
-import           GHCJS.Marshal.Pure        (PFromJSVal (pFromJSVal), PToJSVal (pToJSVal))
-import           LunaStudio.Data.Point     (Point (Point))
-import qualified LunaStudio.Data.Point     as Point
-import           TextEditor.Event.Internal (InternalEvent, InternalEvent (..))
-import           TextEditor.Event.Text     (TextEvent (TextEvent))
-import qualified TextEditor.Event.Text     as TextEvent
+import           GHCJS.Marshal.Pure            (PFromJSVal (pFromJSVal), PToJSVal (pToJSVal))
+import           LunaStudio.Data.GraphLocation (GraphLocation)
+import           LunaStudio.Data.Point         (Point (Point))
+import qualified LunaStudio.Data.Point         as Point
+import           TextEditor.Event.Internal     (InternalEvent, InternalEvent (..))
+import           TextEditor.Event.Text         (TextEvent (TextEvent))
+import qualified TextEditor.Event.Text         as TextEvent
 
 
 foreign import javascript safe "atomCallbackTextEditor.pushCode($1, $2, $3, $4)"
@@ -61,25 +64,33 @@ instance PFromJSVal Point where
 instance PToJSVal Point where
     pToJSVal point = mkPoint (point ^. Point.column) (point ^. Point.row)
 
-jsvalToText :: JSVal -> TextEvent
-jsvalToText jsval = result where
-    filepath = pFromJSVal $ getPath jsval
-    start    = pFromJSVal $ getStart jsval
-    end      = pFromJSVal $ getEnd jsval
-    text     = pFromJSVal $ getText jsval
-    cursor   = pFromJSVal $ getCursor jsval
-    result   = TextEvent filepath start end text $ Just cursor
+instance FromJSVal GraphLocation where
+    fromJSVal jsval = fromJSVal jsval >>= \case
+        Just jsonValue -> case fromJSON jsonValue of
+            Success r -> return $ Just r
+            _         -> return Nothing
+        _ -> return Nothing
 
-jsvalToInternalEvent :: JSVal -> InternalEvent
-jsvalToInternalEvent jsval = result where
-    event = read $ pFromJSVal $ getEvent jsval
-    filepath = pFromJSVal $ getPath jsval
-    -- maybeSelections = GHCJSInternal.fromJSVal $ getSelections jsval
-    result = InternalEvent event filepath Nothing
+instance FromJSVal TextEvent where
+    fromJSVal jsval = runMaybeT $ do
+        location <- MaybeT $ fromJSVal $ getPath jsval
+        let start    = pFromJSVal $ getStart jsval
+            end      = pFromJSVal $ getEnd jsval
+            text     = pFromJSVal $ getText jsval
+            cursor   = pFromJSVal $ getCursor jsval
+            result   = TextEvent location start end text $ Just cursor
+        return result
+
+instance PFromJSVal InternalEvent where
+    pFromJSVal jsval = result where
+        event = read $ pFromJSVal $ getEvent jsval
+        filepath = pFromJSVal $ getPath jsval
+        -- maybeSelections = GHCJSInternal.fromJSVal $ getSelections jsval
+        result = InternalEvent event filepath Nothing
 
 subscribeDiff :: (TextEvent -> IO ()) -> IO (IO ())
 subscribeDiff callback = do
-    wrappedCallback <- syncCallback1 ContinueAsync $ callback . jsvalToText
+    wrappedCallback <- syncCallback1 ContinueAsync $ \js -> withJustM_ (fromJSVal js) callback
     subscribeDiff' wrappedCallback
     return $ unsubscribeDiff' wrappedCallback >> releaseCallback wrappedCallback
 
@@ -93,6 +104,6 @@ pushCode = do
 
 subscribeEventListenerInternal :: (InternalEvent -> IO ()) -> IO (IO ())
 subscribeEventListenerInternal callback = do
-    wrappedCallback <- syncCallback1 ContinueAsync $ callback . jsvalToInternalEvent
+    wrappedCallback <- syncCallback1 ContinueAsync $ callback . pFromJSVal
     subscribeEventListenerInternal' wrappedCallback
     return $ unsubscribeEventListenerInternal' wrappedCallback >> releaseCallback wrappedCallback

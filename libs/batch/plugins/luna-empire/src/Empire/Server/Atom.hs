@@ -18,15 +18,13 @@ import qualified LunaStudio.API.Atom.IsSaved    as IsSaved
 import qualified LunaStudio.API.Atom.OpenFile   as OpenFile
 import qualified LunaStudio.API.Atom.SaveFile   as SaveFile
 import qualified LunaStudio.API.Atom.SetProject as SetProject
-import qualified LunaStudio.API.Atom.Substitute as Substitute
 import           LunaStudio.API.Request         (Request (..))
 import qualified LunaStudio.API.Response        as Response
 
 import qualified Empire.Commands.Graph          as Graph
-import qualified Empire.Commands.Library        as Library
 import           Empire.Data.AST                (SomeASTException)
-import qualified Empire.Data.Library            as Library
 import qualified Empire.Data.Graph              as Graph
+import qualified Empire.Data.Library            as Library
 import qualified Empire.Empire                  as Empire
 import           Empire.Server.Server           (errorMessage, replyFail, replyOk)
 import qualified System.Log.MLogger             as Logger
@@ -52,8 +50,8 @@ handleOpenFile req@(Request _ _ (OpenFile.Request path)) = do
 
 handleSaveFile :: Request SaveFile.Request -> StateT Env BusT ()
 handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
-    source <- preuse (Env.empireEnv . Empire.activeFiles . at inPath . traverse . Library.body . Graph.code)
-    case source of
+    maySource <- preuse (Env.empireEnv . Empire.activeFiles . at inPath . traverse . Library.body . Graph.code)
+    case maySource of
         Nothing     -> logger Logger.error $ errorMessage <> inPath <> " is not open"
         Just source -> do
             path <- Path.parseAbsFile inPath

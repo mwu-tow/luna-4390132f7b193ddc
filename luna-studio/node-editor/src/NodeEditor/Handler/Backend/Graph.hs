@@ -273,10 +273,10 @@ handle (Event.Batch ev) = Just $ case ev of
         success         = applyResultPreventingExpressionNodesPorts location
 
     SubstituteResponse response -> handleResponse response success doNothing where
-        requestId = response ^. Response.requestId
-        request   = response ^. Response.request
-        location  = GraphLocation (request ^. Substitute.filePath) def
-        success   = applyResult location
+        requestId       = response ^. Response.requestId
+        request         = response ^. Response.request
+        location        = request ^. Substitute.location
+        success         = applyResult location
 
     TypeCheckResponse response -> handleResponse response doNothing doNothing
 

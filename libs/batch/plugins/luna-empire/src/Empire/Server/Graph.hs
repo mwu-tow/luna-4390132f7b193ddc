@@ -394,12 +394,6 @@ handleTypecheck req@(Request _ _ request) = do
         Right (_, newEmpireEnv) -> Env.empireEnv .= newEmpireEnv
     return ()
 
--- FIXME[MM]: it's wrong but it works
-instance G.GraphRequest Substitute.Request where
-    location = lens getter setter where
-        getter (Substitute.Request file _ _ _ _) = GraphLocation.GraphLocation file (Breadcrumb [])
-        setter (Substitute.Request _    s e n c) (GraphLocation.GraphLocation file _) = Substitute.Request file s e n c
-
 instance G.GraphRequest GetBuffer.Request where
     location = lens getter setter where
         getter (GetBuffer.Request file _) = GraphLocation.GraphLocation file (Breadcrumb [])
@@ -407,8 +401,8 @@ instance G.GraphRequest GetBuffer.Request where
 
 handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
-    action req@(Substitute.Request file start end newText cursor) = do
-        let location = req ^. G.location
+    action req@(Substitute.Request location start end newText cursor) = do
+        let file = location ^. GraphLocation.filePath
         withDefaultResult location $ do
             Graph.substituteCodeFromPoints file start end newText cursor
             -- code  <- Graph.getCode location

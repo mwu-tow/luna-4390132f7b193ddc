@@ -2,17 +2,18 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Atom.Substitute where
 
-import           Data.Binary                  (Binary)
-import qualified LunaStudio.API.Graph.Request as G
-import           LunaStudio.API.Graph.Result  (Result)
-import qualified LunaStudio.API.Request       as R
-import qualified LunaStudio.API.Response      as Response
-import qualified LunaStudio.API.Topic         as T
-import           LunaStudio.Data.Point        (Point)
+import           Data.Binary                   (Binary)
+import qualified LunaStudio.API.Graph.Request  as G
+import           LunaStudio.API.Graph.Result   (Result)
+import qualified LunaStudio.API.Request        as R
+import qualified LunaStudio.API.Response       as Response
+import qualified LunaStudio.API.Topic          as T
+import           LunaStudio.Data.GraphLocation (GraphLocation)
+import           LunaStudio.Data.Point         (Point)
 import           Prologue
 
 
-data Request = Request { _filePath :: FilePath
+data Request = Request { _location :: GraphLocation
                        , _start    :: Point
                        , _end      :: Point
                        , _newText  :: Text
@@ -30,7 +31,7 @@ makeLenses ''Request
 makeLenses ''Update
 instance Binary Request
 instance Binary Update
--- instance G.GraphRequest Request where location = location
+instance G.GraphRequest Request where location = location
 
 
 type Response = Response.Response Request () Result
