@@ -1,0 +1,65 @@
+name: luna-empire
+version: "0.1"
+author: New Byte Order <contact@newbyteorder.com>
+maintainer: New Byte Order <contact@newbyteorder.com>
+build-type: Simple
+
+library:
+    source-dirs: src
+
+tests:
+    spec:
+        main: Spec.hs
+        source-dirs: test
+        ghc-options: -Wno-unused-do-bind -threaded -with-rtsopts=-N4
+        dependencies:
+            - luna-empire
+            - hspec
+            - QuickCheck
+            - reflection
+            - raw-strings-qq
+
+ghc-options: -Wall
+
+dependencies:
+    - aeson
+    - aeson-pretty
+    - base
+    - bytestring
+    - containers
+    - convert
+    - data-default
+    - dependent-state
+    - exceptions
+    - filepath
+    - lens
+    - luna-core
+    - luna-passes
+    - luna-syntax-text-parser
+    - luna-syntax-text-lexer
+    - luna-studio-common
+    - luna-stdlib
+    - luna-project
+    - m-logger
+    - megaparsec
+    - mtl
+    - open-browser
+    - prologue
+    - safe
+    - split
+    - stm
+    - text
+    - text-processing
+    - transformers
+    - typelevel
+    - uuid
+    - vector-text
+    - visualization-api
+
+default-extensions:
+    - FlexibleContexts
+    - FlexibleInstances
+    - MultiParamTypeClasses
+    - NoImplicitPrelude
+    - TemplateHaskell
+    - TypeFamilies

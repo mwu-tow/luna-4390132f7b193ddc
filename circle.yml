@@ -1,0 +1,31 @@
+machine:
+    python:
+        version: 3.5.1
+    node:
+        version: 6.9.4
+
+dependencies:
+    pre:
+        - sudo apt-get update && sudo apt-get install openssh-client libzmq3-dev supervisor
+        - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.4.0/stack-1.4.0-linux-x86_64.tar.gz | tar zx -C /tmp
+        - sudo mv /tmp/stack-1.4.0-linux-x86_64/stack /usr/bin
+    override:
+        - stack build --stack-yaml=build/backend/stack.yaml --only-dependencies --install-ghc --test --fast -j1
+        - stack build --stack-yaml=luna-studio/stack.yaml --only-dependencies --install-ghc --fast -j1
+
+    cache_directories:
+        - "~/.stack"
+        - "~/.ghcjs"
+        - "build/backend/.stack-work"
+        - "luna-studio/node-editor/.stack-work"
+        - "luna-studio/text-editor/.stack-work"
+
+compile:
+    override:
+        - stack build --stack-yaml build/backend/stack.yaml --copy-bins --fast --no-run-tests --no-run-benchmarks -j1
+        - stack build --stack-yaml luna-studio/stack.yaml --fast
+        - cd luna-studio/script && npm install -g less && python atom_prepare.py
+        - cd luna-studio && tar -cvf frontend.zip atom && mv frontend.zip $CIRCLE_ARTIFACTS
+test:
+    override:
+        - stack build --stack-yaml build/backend/stack.yaml --fast --test

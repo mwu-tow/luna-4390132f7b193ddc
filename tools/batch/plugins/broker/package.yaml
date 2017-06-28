@@ -1,0 +1,29 @@
+name:           zmq-bus-broker
+version:        0.0.1
+author:         New Byte Order <contact@newbyteorder.com>
+
+default-extensions:
+    - NoImplicitPrelude
+    
+ghc-options:
+    - -Wall
+    - -O2
+    - -threaded
+
+dependencies:
+    - base
+    - bytestring
+    - containers
+    - zmq-bus
+    - zmq-rpc
+    - m-logger
+    - zmq-bus-config
+    - prologue
+    - transformers
+    - protocol-buffers
+    - zeromq4-haskell >=0.4
+
+executables:
+  broker:
+    main: Main.hs
+    source-dirs: src

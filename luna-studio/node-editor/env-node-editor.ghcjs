@@ -1,0 +1,19 @@
+var app              = require('./app'),
+    init             = require('./init'),
+    common           = require('./common'),
+    config           = require('./config');
+    atomCallback = require('./atom-callback')();
+
+var run = function(maybe_url, maybe_mountPoint, websocket) {
+  var arg_url   = function() { return maybe_url; };
+  var arg_mount = function() { return maybe_mountPoint; };
+
+GHCJS_CODE_BE_THERE
+
+};
+
+return { start     : function(url, mount) { run(url, mount);}
+       , pushEvent : function(data) { atomCallback.pushEvent(data); }
+       , notificationListener : function(callback) {atomCallback.notificationListener(callback);}
+       , connector(otherGlobal) { atomCallback.connector(otherGlobal); }
+       }

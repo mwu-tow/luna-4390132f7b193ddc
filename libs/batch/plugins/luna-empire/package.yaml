@@ -1,0 +1,47 @@
+name:               batch-lib-luna-empire
+version:            0.1.0.0
+author:             New Byte Order <contact@newbyteorder.com>
+maintainer:         New Byte Order <contact@newbyteorder.com>
+
+dependencies:
+  - base
+  - binary
+  - bytestring
+  - containers
+  - directory
+  - either
+  - ekg
+  - errors
+  - exceptions
+  - filemanip
+  - filepath
+  - groom
+  - luna-empire
+  - luna-studio-common
+  - m-logger
+  - mtl
+  - optparse-applicative
+  - path
+  - pretty-show
+  - prologue
+  - split
+  - stm
+  - temporary
+  - text
+  - time
+  - transformers
+  - uuid
+  - uuid-types
+  - zeromq4-haskell >= 0.4
+  - zmq-bus
+  - zmq-bus-config
+
+default-extensions:
+  - NoImplicitPrelude
+  - TemplateHaskell
+
+library:
+    source-dirs: src
+    ghc-options: -Wall -O2 -threaded
+    other-modules:
+      - Paths_batch_lib_luna_empire

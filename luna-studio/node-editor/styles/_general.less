@@ -1,0 +1,164 @@
+@import '_variables';
+
+/////////////////////////////
+//          resets         //
+/////////////////////////////
+
+* { border: none; margin: 0; padding: 0; }
+img { display: block; }
+a { text-decoration: none; }
+
+// Tweak for using events on SVG elements
+svg * { pointer-events: all; }
+
+// "Turn off overscrolling in Chrome"
+html { overflow: hidden; height: 100%; }
+body { height: 100%; overflow: auto; }
+
+/////////////////////////////
+//        utilities        //
+/////////////////////////////
+
+.luna-hide {
+    display: none !important;
+}
+
+/////////////////////////////
+//       basic styles      //
+/////////////////////////////
+
+body,
+atom-workspace .luna-studio {
+    font:                   12px/15px @fontDefault;
+    background:             @colorBackground;
+    font-weight:            300;
+    font-variant-ligatures: contextual;
+}
+
+[data-type="LunaStudioTab"] {
+    &.active {
+        background: @colorBackground !important;
+        height:     auto !important;
+        .title {
+            background: none !important;
+            border:     0 !important;
+        }
+    }
+    .close-icon {
+        display: none;
+    }
+}
+
+.luna-studio {
+    width: 100%;
+    height: 100%;
+}
+
+.luna-background-text {
+    width:           100%;
+    height:          100%;
+    justify-content: center;
+    display:         flex;
+    align-items:     center;
+    font-size:       1.4em;
+    text-align:      center;
+    line-height:     1.3;
+    opacity:         0.2;
+    font-family:     'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+}
+
+/////////////////////////////
+//          layout         //
+/////////////////////////////
+
+.luna-main {
+    display:     flex;
+    align-items: stretch;
+    width:       100%;
+    top:         0;
+    bottom:      0;
+    position:    absolute;
+    overflow:    hidden;
+}
+
+.luna-breadcrumbs {
+    font-size:     10px;
+    position:      absolute;
+    top:           8px;
+    left:          6px;
+    flex:          none;
+    line-height:   16px;
+    padding:       0 8px;
+    background:    @colorBreadcrumbs;
+    border-radius: 100px;
+}
+
+.luna-breadcrumbs__item {
+    float:   left;
+    padding: 4px;
+    cursor:  pointer;
+    color:   @colorBreadcrumbsText;
+    &:not(:last-child) {
+        color: @colorBreadcrumbsTextInactive;
+        &::after {
+            cursor:      default;
+            content:     ">";
+            color:       #444;
+            margin-left: 8px;
+            position:    relative;
+            top:         1px;
+        }
+    }
+}
+
+.luna-graph-editor {
+    flex:     2 auto;
+    position: relative;
+}
+
+.luna-graph {
+    background: @colorBackground;//#1a1a1a;
+    position:   relative;
+    flex:       none;
+    overflow:   inherit;
+    color:      @colorName;
+    width:      100%;
+    height:     100%;
+}
+
+.luna-svg-planes {
+    position: absolute;
+    width:    1px;
+    height:   1px;
+    overflow: inherit;
+}
+
+.luna-plane--nodes {
+    svg {
+        position: absolute;
+        top:      0;
+        left:     0;
+        overflow: inherit;
+        width:    1px;
+        height:   1px;
+    }
+}
+.luna-plane--canvas {
+    height: 100%;
+    width:  100%;
+}
+
+// common elements
+
+// ::-webkit-scrollbar {
+//     width: 4px;
+//     height: 4px;
+// }
+//
+// ::-webkit-scrollbar-thumb {
+//     background: #282828;
+//     border-radius: 4px;
+//     &:hover {
+//         background: #888;
+//     }
+// }

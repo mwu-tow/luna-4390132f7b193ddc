@@ -1,0 +1,44 @@
+name:               batch-plugin-luna-empire
+version:            0.1.0.0
+author:             New Byte Order <contact@newbyteorder.com>
+
+default-extensions:
+  - LambdaCase
+  - NoImplicitPrelude
+  - TemplateHaskell
+
+ghc-options: -Wall -O2 -threaded
+
+dependencies:
+  - base
+  - batch-lib-luna-empire
+  - binary
+  - m-logger
+  - optparse-applicative
+  - prologue
+  - prologue
+  - zmq-bus
+  - zmq-bus-config
+
+executables:
+  luna-empire:
+    source-dirs: src
+    main:        Main.hs
+    ghc-options: -Wall -O2 -threaded -with-rtsopts=-T
+
+  luna-empire-logger:
+    source-dirs: src
+    main:        LoggerMain.hs
+
+  luna-empire-invoker:
+    source-dirs: src
+    main:        Invoker.hs
+    dependencies:
+      - bytestring
+      - containers
+      - docopt
+      - luna-empire
+      - luna-studio-common
+      - m-logger
+      - text
+      - uuid

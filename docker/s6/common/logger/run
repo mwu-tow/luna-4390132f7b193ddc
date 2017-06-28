@@ -1,0 +1,3 @@
+#!/bin/sh
+export LUNAROOT=/etc/nodelab
+exec /usr/local/bin/nodelab/luna-empire-logger -v0  2>&1

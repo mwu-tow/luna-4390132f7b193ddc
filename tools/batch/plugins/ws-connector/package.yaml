@@ -1,0 +1,28 @@
+name:                ws-connector
+version:             0.1.0.0
+synopsis:            ws-connector
+license:             AllRightsReserved
+author:              New Byte Order
+maintainer:          contact@nodelab.io
+
+default-extensions:
+  - NoImplicitPrelude
+
+executables:
+  ws-connector:
+    source-dirs: src
+    ghc-options:    -Wall -O2 -threaded
+    main: Main.hs
+
+dependencies:
+  - base
+  - bytestring
+  - either
+  - lib-ws-connector
+  - m-logger
+  - mtl
+  - prologue
+  - zeromq4-haskell
+  - optparse-applicative
+  - zmq-bus
+  - zmq-bus-config

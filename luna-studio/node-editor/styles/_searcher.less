@@ -1,0 +1,131 @@
+/////////////////////////////
+//         searcher        //
+/////////////////////////////
+
+@searcherWidth:      460px;
+@searcherLineHeight: 24px;
+
+.luna-node__name,
+.luna-node__expression {
+    min-height: 16px;
+}
+
+.luna-searcher {
+    z-index:  100000000;
+    position: absolute;
+}
+
+.luna-searcher__body {
+    width: 0;
+}
+
+.luna-searcher--node ~ .luna-node--selected {
+    .luna-node__expression {
+        display: none;
+    }
+}
+
+.luna-searcher--node-name {
+    &+.luna-ctrl-icon {
+        display: none;
+    }
+    .luna-searcher__input {
+        padding-bottom: 16px;
+        margin-bottom:  16px;
+    }
+}
+
+.luna-searcher__preview {
+    display: none;
+}
+
+.luna-searcher__input,
+.luna-node__name--input {
+    background:    transparent;
+    border-radius: @borderRadius;
+    color:         #fff;
+    font-family:   @fontDefault;
+    font-size:     12px;
+    font-weight:   300;
+    height:        24px;
+    line-height:   24px;
+    overflow:      inherit;
+    text-align:    center;
+    &:focus {
+        outline: 0;
+    }
+}
+.luna-searcher__input {
+    transform: translate(-50%,-4px);
+    width:     448px;
+    padding:   0 6px 2px;
+}
+.luna-node__expression {
+    .luna-searcher__input {
+        background: @colorBackgroundCode;
+    }
+}
+
+.luna-searcher__results {
+    bottom:         30px;
+    display:        flex;
+    flex-direction: column-reverse;
+    position:       absolute;
+    left:          -@searcherWidth/2;
+    width:          @searcherWidth;
+    text-align:     center;
+    border-radius:  4px;
+    overflow:       hidden;
+    padding:        0;
+    background:     @colorSearcherResultsBackground;
+    max-height:     @searcherLineHeight*10;
+    transform:      translateY(-2px);
+}
+
+.luna-searcher__results__item {
+    line-height: @searcherLineHeight;
+}
+.luna-searcher__results__item--selected {
+    background: @colorSearcherResultsSelected;
+    color: #9ab;
+    .luna-searcher__hl {
+        color: #fff;
+        opacity: 1;
+    }
+}
+.luna-searcher__results__item::before {
+    position: absolute;
+    left:     4px;
+    opacity:  .5;
+}
+.luna-searcher__results__item:nth-of-type(1)::before { content: "⌘1" }
+.luna-searcher__results__item:nth-of-type(2)::before { content: "⌘2" }
+.luna-searcher__results__item:nth-of-type(3)::before { content: "⌘3" }
+.luna-searcher__results__item:nth-of-type(4)::before { content: "⌘4" }
+.luna-searcher__results__item:nth-of-type(5)::before { content: "⌘5" }
+.luna-searcher__results__item:nth-of-type(6)::before { content: "⌘6" }
+.luna-searcher__results__item:nth-of-type(7)::before { content: "⌘7" }
+.luna-searcher__results__item:nth-of-type(8)::before { content: "⌘8" }
+.luna-searcher__results__item:nth-of-type(9)::before { content: "⌘9" }
+.luna-searcher__results__item:nth-of-type(10)::before { content: "⌘0" }
+
+.luna-searcher__pre,
+.luna-searcher__pre + span {
+    height:     @searcherLineHeight;
+    display:    block;
+    text-align: left;
+    width:      50%;
+    float:      left;
+}
+.luna-searcher__pre {
+    opacity: .5;
+    text-align: right;
+}
+.luna-searcher__pre + span::before {
+    content: ".";
+    opacity: 0;
+}
+.luna-searcher__hl {
+    color: #dff;
+    opacity: 0.7;
+}

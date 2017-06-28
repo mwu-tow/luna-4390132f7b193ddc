@@ -1,0 +1,27 @@
+{
+  "name": "luna-studio",
+  "main": "./lib/main",
+  "version": "1.0.0",
+  "description": "Luna Studio in Atom.",
+  "repository": "...",
+  "license": "AllRightsReserved",
+  "engines": {
+    "atom": ">0.170.0"
+  },
+  "deserializers": {
+      "LunaEditorTab":
+"deserializeLunaEditorTab",
+      "LunaStudioTab":
+"deserializeLunaStudioTab"
+  },
+  "dependencies": {
+    "atom-space-pen-views": "^2.0.3",
+    "sub-atom": "1.0.x",
+    "jquery": "*",
+    "react" : "*",
+    "react-dom" : "*",
+    "resize-observer-polyfill": "1.3.2",
+    "underscore" : "*",
+    "first-mate" : "*"
+  }
+}

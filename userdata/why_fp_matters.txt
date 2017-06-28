@@ -1,0 +1,34 @@
+As software becomes more and more complex, it is more and more
+important to structure it well. Well-structured software is easy to write
+and to debug, and provides a collection of modules that can be reused
+to reduce future programming costs. In this paper we show that two features
+of functional languages in particular, higher-order functions and lazy
+evaluation, can contribute significantly to modularity. As examples, we
+manipulate lists and trees, program several numerical algorithms, and implement
+the alpha-beta heuristic (an algorithm from Artificial Intelligence
+used in game-playing programs). We conclude that since modularity is the
+key to successful programming, functional programming offers important
+advantages for software development.
+We shall argue in the remainder of this paper that functional languages provide
+two new, very important kinds of glue. We shall give some examples of
+programs that can be modularized in new ways and can thereby be simplified.
+This is the key to functional programming’s power — it allows improved modularization.
+It is also the goal for which functional programmers must strive
+— smaller and simpler and more general modules, glued together with the new
+glues we shall describe.
+In this paper, we’ve argued that modularity is the key to successful programming.
+Languages that aim to improve productivity must support modular programming
+well. But new scope rules and mechanisms for separate compilation
+are not enough — modularity means more than modules. Our ability to decompose
+a problem into parts depends directly on our ability to glue solutions
+together. To support modular programming, a language must provide good
+glue. Functional programming languages provide two new kinds of glue —
+higher-order functions and lazy evaluation. Using these glues one can modularize
+programs in new and useful ways, and we’ve shown several examples of this.
+Smaller and more general modules can be reused more widely, easing subsequent
+programming. This explains why functional programs are so much smaller and
+easier to write than conventional ones. It also provides a target for functional
+programmers to aim at. If any part of a program is messy or complicated, the
+programmer should attempt to modularize it and to generalize the parts. He or
+she should expect to use higher-order functions and lazy evaluation as the tools
+for doing this.

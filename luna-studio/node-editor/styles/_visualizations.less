@@ -1,0 +1,82 @@
+.luna-node__results {
+    color:          @colorTextMinor;
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    font-size:      10rem;
+    line-height:    16rem;
+}
+
+.luna-node__short-value {
+    white-space:   nowrap;
+    max-width:     200rem;
+    text-overflow: ellipsis;
+    overflow:      hidden;
+    margin-bottom: 16rem;
+    margin-top:   -5rem;
+}
+
+.luna-visualization-container {
+    position:   relative;
+    width:      300px;
+    background: @colorBackground;
+}
+.luna-visualization-cover {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    opacity: 0;
+}
+
+
+.luna-visualization {
+    .luna-node-translate {
+        position: absolute;
+        top:      32rem;
+    }
+}
+
+.luna-graph--has-visualization-active {
+    background: darken(@colorBackground, 1.5%);
+    .luna-plane {
+        > *:not(.luna-visualization--active) {
+            opacity: 0.38;
+        }
+    }
+}
+.luna-visualization--active {
+    .luna-visualization-container {
+        background:    @colorBackground;
+        border-radius: @borderRadiusPx;
+    }
+    .luna-visualization-cover {
+        display: none;
+    }
+}
+
+// zoom
+
+.luna-visualization--fullscreen {
+    position: absolute;
+    width:    100%;
+    height:   100%;
+    z-index:  999999;
+    .luna-node-translate {
+        transform:       translate(0,0) !important;
+        top:             0 !important;
+        width:           100%;
+        height:          100%;
+        background:      red;
+        display:         flex;
+        justify-content: center;
+        align-content:   center;
+    }
+    .luna-visualization-container {
+        width: 100%;
+    }
+    .luna-visualization-iframe {
+        width:    100%;
+        height:   100%;
+        position: absolute;
+    }
+}

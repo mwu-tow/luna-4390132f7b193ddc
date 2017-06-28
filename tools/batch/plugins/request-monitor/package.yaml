@@ -1,0 +1,34 @@
+name:               request-monitor
+version:            0.1.0.0
+author:             Nodelab <contact@nodelab.io>
+
+default-extensions:
+  - LambdaCase
+  - NoImplicitPrelude
+  - TemplateHaskell
+
+ghc-options: -Wall -O2 -threaded
+
+dependencies:
+  - base
+  - batch-lib-request-monitor
+  - binary
+  - bytestring
+  - containers
+  - docopt
+  - luna-empire
+  - luna-studio-common
+  - m-logger
+  - optparse-applicative
+  - prologue
+  - prologue
+  - text
+  - uuid
+  - zmq-bus
+  - zmq-bus-config
+
+executables:
+  request-monitor:
+    source-dirs: src
+    main:        Main.hs
+    ghc-options: -Wall -O2 -threaded

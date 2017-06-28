@@ -1,0 +1,59 @@
+name:                text-editor
+version:             0.1.0.0
+synopsis:            Luna code editor backend
+homepage:            www.luna-lang.org
+license:             AllRightsReserved
+author:              New Byte Order <contact@newbyteorder.com>
+maintainer:          New Byte Order <contact@newbyteorder.com>
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - FlexibleContexts
+  - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - ScopedTypeVariables
+  - TemplateHaskell
+
+ghc-options:
+    -Wall -O2
+
+#
+# ACHTUNG! Zmieniasz tu - zmien w interactive
+#
+dependencies:
+  - "base >= 4.9 && < 4.10"
+  - aeson
+  - binary
+  - bytestring
+  - common
+  - containers
+  - datetime
+  - ghcjs-base
+  - ghcjs-prim
+  - lens
+  - luna-studio-common
+  - luna-syntax-text-lexer
+  - mtl
+  - prologue
+  - random
+  - scope-searcher
+  - text
+  - text-processing
+  - time
+  - transformers
+  - uuid-types
+
+
+
+executables:
+  text-editor:
+    main:             Main.hs
+    source-dirs:      src

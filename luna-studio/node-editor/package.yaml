@@ -1,0 +1,78 @@
+name:                node-editor
+version:             0.1.0.0
+synopsis:            Luna node editor
+homepage:            www.luna-lang.org
+license:             AllRightsReserved
+author:              New Byte Order <contact@newbyteorder.com>
+maintainer:          New Byte Order <contact@newbyteorder.com>
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - FlexibleContexts
+  - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - ViewPatterns
+
+ghc-options:
+    -Wall -O2
+
+#
+# ACHTUNG! Zmieniasz tu - zmien w interactive
+#
+dependencies:
+  - "base >= 4.9 && < 4.10"
+  - aeson
+  - base64-bytestring
+  - binary
+  - bytestring
+  - common
+  - containers
+  - convert
+  - data-default
+  - datetime
+  - deepseq
+  - extra
+  - ghcjs-base
+  - ghcjs-dom
+  - ghcjs-prim
+  - hashable
+  - lens
+  - luna-syntax-text-lexer
+  - luna-studio-common
+  - matrix
+  - mtl
+  - placeholders
+  - prologue
+  - random
+  - react-flux
+  - scientific
+  - scope-searcher
+  - split
+  - text
+  - text-processing
+  - time
+  - transformers
+  - unordered-containers
+  - uuid-types
+  - vector
+  - visualization-api
+
+executables:
+  node-editor:
+    main:             Main.hs
+    source-dirs:      src

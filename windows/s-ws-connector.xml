@@ -1,0 +1,20 @@
+
+<configuration>
+  <id>s-ws-connector</id>
+  <name>Luna WebSocket Connector Service</name>
+  <description>WebSocket connector for Luna bus</description>
+  <executable>%BASE%\..\dist\bin\ws-connector.exe</executable>
+
+  <onfailure action="restart" delay="1 sec"/>
+  <onfailure action="restart" delay="1 sec"/>
+  <onfailure action="restart" delay="1 sec"/>
+  <onfailure action="restart" delay="10 sec"/>
+
+  <resetfailure>1 hour</resetfailure>
+
+  <env name="LUNAROOT" value="%BASE%\..\env" />
+
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll">
+  </log>
+</configuration>
