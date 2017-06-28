@@ -19,21 +19,23 @@
             display: flex;
         }
     }
-    * {
-        box-sizing: content-box;
-    }
+    * { box-sizing: content-box; }
 }
 
 .luna-node__text {
-    color:          lightslategrey;
+    align-items:    center;
     bottom:         36rem !important;
-    position:       absolute;
+    color:          lightslategrey;
+    cursor:         default;
     display:        flex;
     flex-direction: column;
-    align-items:    center;
-    width:          0;
+    left:          -20px;
+    margin-bottom: -36px;
+    min-width:      40px;
+    padding-bottom: 36px;
+    position:       absolute;
     white-space:    nowrap;
-    cursor:         default;
+    width:          0;
 }
 
 .luna-node__name {
@@ -44,26 +46,20 @@
     display:        flex;
     align-items:    center;
     flex-direction: column;
-    padding-top:    6px;
-    padding-bottom: 16px;
-    margin-bottom: -16px;
-
+    height: 24px;
+    line-height: 24px;
     &::selection {
         background: none;
     }
-    div { // TODO: add class
-        padding-bottom: 16px;
-        margin-bottom: -16px;
-    }
-    .luna-searcher__results { // TODO: why this element is here?
-        display: none;
-    }
+
+    .luna-searcher__results { display: none; }
+
     .luna-ctrl-icon {
         opacity:   0;
         position:  absolute;
         width:     24px;
         height:    16px;
-        transform: translate(0, 6px);
+        transform: translate(0, 0);
         fill:      @colorTextMinor;
         left:      auto;
     }

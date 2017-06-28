@@ -44,38 +44,34 @@ searcher =  React.defineView name $ \(ref, s) -> do
     div_
         [ "key"       $= name
         , "className" $= className
+        , onMouseDown   $ \e _ -> [stopPropagation e]
+        , onMouseUp     $ \e _ -> [stopPropagation e]
+        , onClick       $ \e _ -> [stopPropagation e]
+        , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $ do
+        input_ (
+            [ "key"         $= "searchInput"
+            , "className"   $= Style.prefix "searcher__input"
+            , "id"          $= searcherId
+            , onKeyDown     $ handleKeyDown ref
+            , onKeyUp       $ \_ k -> dispatch ref $ UI.SearcherEvent $ KeyUp k
+            , onChange      $ \e -> let val = target e "value"
+                                        ss  = target e "selectionStart"
+                                        se  = target e "selectionEnd"
+                                    in dispatch ref $ UI.SearcherEvent $ InputChanged val ss se
+            ] ++ mayCustomInput )
         div_
-            [ "key"         $= "searcherBody"
-            , "className"   $= Style.prefix "searcher__body"
-            , onMouseDown   $ \e _ -> [stopPropagation e]
-            , onMouseUp     $ \e _ -> [stopPropagation e]
-            , onClick       $ \e _ -> [stopPropagation e]
-            , onDoubleClick $ \e _ -> [stopPropagation e]
+            [ "key"       $= "searcherResults"
+            , "className" $= Style.prefix "searcher__results"
             ] $ do
-            input_ (
-                [ "key"         $= "searchInput"
-                , "className"   $= Style.prefix "searcher__input"
-                , "id"          $= searcherId
-                , onKeyDown     $ handleKeyDown ref
-                , onKeyUp       $ \_ k -> dispatch ref $ UI.SearcherEvent $ KeyUp k
-                , onChange      $ \e -> let val = target e "value"
-                                            ss  = target e "selectionStart"
-                                            se  = target e "selectionEnd"
-                                        in dispatch ref $ UI.SearcherEvent $ InputChanged val ss se
-                ] ++ mayCustomInput )
-            div_
-                [ "key"       $= "searcherResults"
-                , "className" $= Style.prefix "searcher__results"
-                ] $ do
-                -- TODO [LJK, PM]: Refactor this piece of code:
-                let selected = s ^. Searcher.selected
-                case s ^. Searcher.mode of
-                    Searcher.Command    results -> results_ ref selected results
-                    Searcher.Node   _ _ results -> results_ ref selected results
-                    Searcher.NodeName _ results -> results_ ref selected results
-                    Searcher.PortName _ results -> results_ ref selected results
-        -- div_
+            -- TODO [LJK, PM]: Refactor this piece of code:
+            let selected = s ^. Searcher.selected
+            case s ^. Searcher.mode of
+                Searcher.Command    results -> results_ ref selected results
+                Searcher.Node   _ _ results -> results_ ref selected results
+                Searcher.NodeName _ results -> results_ ref selected results
+                Searcher.PortName _ results -> results_ ref selected results
+    -- div_
         --     [ "key"       $= "searcherPreview"
         --     , "className" $= Style.prefix "searcher__preview"
         --     ] $ withJust nodePreview $ nodeBody_ ref . (Node.position .~ nodePos)

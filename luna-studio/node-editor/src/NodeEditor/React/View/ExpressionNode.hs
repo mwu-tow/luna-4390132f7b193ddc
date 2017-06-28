@@ -75,7 +75,9 @@ nodeName_ ref nl nodeName isVisualization mayS = do
         ([ "className" $= Style.prefixFromList ["node__name", "noselect"]
         , "key" $= "nodeName"
         ] ++ handlers) $ do
-        div_ $ do
+        div_
+            [ "className" $= Style.prefix "node__name--positioner"
+            ] $ do
             nameElement
             svg_
                 [ "key"       $= "ctrlSwitch"
@@ -135,8 +137,8 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
                 [ "className" $= Style.prefixFromList [ "node-translate","node__text", "noselect" ]
                 , "key"       $= "nodeText"
                 ] $ do
-                nodeExpression_ ref nodeLoc expression maySearcher
                 nodeName_ ref nodeLoc (n ^. Node.name) isVisualization maySearcher
+                nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_  ref n
             when showValue $ nodeValue_ n
             nodePorts_ ref n
