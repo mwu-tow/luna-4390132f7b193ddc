@@ -8,7 +8,7 @@ import           LunaStudio.Data.NodeLoc                    (NodeLoc)
 import           LunaStudio.Data.NodeMeta                   (displayResult)
 import           LunaStudio.Data.NodeValue                  (VisualizerName)
 import           LunaStudio.Data.TypeRep                    (toConstructorRep)
-import           NodeEditor.Action.Basic                    (setNodeMeta)
+import           NodeEditor.Action.Basic                    (selectNode, setNodeMeta)
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, checkAction, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
@@ -36,6 +36,7 @@ instance Action (Command State) VisualizationActive where
         let nl    = action ^. visualizationActiveNodeLoc
             visId = action ^. visualizationActiveVisualizationId
         beginActionWithKey visualizationActiveAction action
+        selectNode nl
         modifyNodeEditor $ nodeVisualizations . ix nl . visualizations . ix visId . visualizationMode .=
             action ^. visualizationActiveSelectedMode
     continue     = continueActionWithKey visualizationActiveAction

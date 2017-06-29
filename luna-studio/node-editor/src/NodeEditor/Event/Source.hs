@@ -26,10 +26,10 @@ import qualified WebSocket                         as WebSocket
 data AddHandler a = AddHandler ((a -> IO ()) -> IO (IO ()))
 
 atomHandler :: AddHandler Event
-atomHandler = AddHandler $ \h ->
-    Atom.onEvent $ \ev -> case ev of
-        Atom {} -> h ev
-        _       -> whenM UI.isFocusInApp $ h ev
+atomHandler = AddHandler Atom.onEvent
+    -- Atom.onEvent $ \ev -> case ev of
+    --     Atom {} -> h ev
+    --     _       -> whenM UI.isFocusInApp $ h ev
 
 sceneResizeHandler :: AddHandler Event
 sceneResizeHandler = AddHandler $ \h ->

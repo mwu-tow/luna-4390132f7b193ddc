@@ -3,7 +3,7 @@ fs   = require 'fs'
 
 visBasePath = path.join __dirname, 'visualizers'
 
-listVisualizers = (path) -> fs.readdirSync path
+listVisualizers = (visPath) -> (fs.readdirSync visPath).filter((p) -> fs.existsSync(path.join(visPath, p, "config.js")))
 
 resolveVis = (p, name) ->
     normalizeVis p, name, require(path.join p, name, "config.js")
