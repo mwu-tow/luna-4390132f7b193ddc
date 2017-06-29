@@ -27,7 +27,7 @@ import           Empire.Data.Graph               (ast, breadcrumbHierarchy)
 import qualified Empire.Data.Library             as Library (body)
 import qualified Empire.Data.Library             as Library (body)
 import           Empire.Empire                   (InterpreterEnv (..))
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..))
+import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem(Definition))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
 import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
@@ -61,7 +61,8 @@ spec = around withChannels $ parallel $ do
                 n1Level  <- Graph.getGraph (top |> u1)
                 return (topLevel, n1Level)
             withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _) -> do
-                [u1] `shouldMatchList` topLevel
+                length topLevel `shouldBe` 2
+                topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
                 o            `shouldSatisfy` isJust
                 n1LevelNodes `shouldSatisfy` null
@@ -73,7 +74,8 @@ spec = around withChannels $ parallel $ do
                 n1Level <- Graph.getGraph (top |> u1)
                 return (topLevel, n1Level)
             withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _) -> do
-                [u1] `shouldMatchList` topLevel
+                length topLevel `shouldBe` 2
+                topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
                 o            `shouldSatisfy` isJust
                 n1LevelNodes `shouldSatisfy` null
@@ -292,18 +294,6 @@ spec = around withChannels $ parallel $ do
                     {-outputPorts n1 `shouldMatchList` [-}
                           {-Port.Port (Port.OutPortId Port.All) "Output" (TLam (TVar "a") (TVar "a")) (Port.WithDefault (Expression "in: in"))-}
                         {-]-}
-        it "adds lambda nodeid to node mapping" $ \env -> do
-            u1 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "a: b: a + b" def
-                Graph.withGraph (top |> u1) $ use $ breadcrumbHierarchy . BH.children
-            withResult res $ \(toList -> mapping) -> do
-                liftIO $ print mapping
-                -- let isLambdaNode n = case n ^. BH.self of
-                --         AnonymousNode _ -> True
-                --         _               -> False
-                --     lambdaNodes = filter isLambdaNode mapping
-                -- lambdaNodes `shouldSatisfy` (not . null)
         it "puts + inside plus lambda" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -334,7 +324,7 @@ spec = around withChannels $ parallel $ do
                 uncurry (connectToInput loc') referenceConnection
                 Graph.removeNodes top [u1]
                 Graph.withGraph top $ (,,) <$> use (breadcrumbHierarchy .  BH.children) <*> runASTOp exprs <*> runASTOp links
-            withResult res $ \(mapping, edges, nodes) -> do
+            withResult res $ \(mapping, nodes, edges) -> do
                 mapping `shouldSatisfy` Map.null
                 edges   `shouldSatisfy` null
                 nodes   `shouldSatisfy` null
@@ -362,8 +352,8 @@ spec = around withChannels $ parallel $ do
             res <- evalEmp env $ do
                 Graph.addNode top u1 "foo" def
                 Graph.renameNode top u1 "bar"
-                Graph.getNodes top
-            withResult res $ \nodes -> head nodes ^. Node.name `shouldBe` Just "bar"
+                Graph.withGraph top $ runASTOp $ GraphBuilder.buildNode u1
+            withResult res $ \node -> node ^. Node.name `shouldBe` Just "bar"
         it "retains connection after node rename" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
@@ -393,7 +383,7 @@ spec = around withChannels $ parallel $ do
             withResult res $ \(node, nodes) -> do
                 node ^. Node.expression `shouldBe` "456"
                 node ^. Node.nodeId     `shouldBe` u1
-                nodes `shouldSatisfy` ((== 1) . length)
+                nodes `shouldSatisfy` ((== 2) . length)
         it "changes expression to lambda" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -405,7 +395,7 @@ spec = around withChannels $ parallel $ do
                 node ^. Node.expression `shouldBe` "a: a"
                 node ^. Node.nodeId     `shouldBe` u1
                 node ^. Node.canEnter   `shouldBe` True
-                nodes `shouldSatisfy` ((== 1) . length)
+                nodes `shouldSatisfy` ((== 2) . length)
         it "does not allow to change expression to assignment" $ \env -> do
             u1 <- mkUUID
             let res = evalEmp env $ do
@@ -431,13 +421,15 @@ spec = around withChannels $ parallel $ do
     «1»print 3.1414
 |]
             res <- evalEmp env $ do
-                createLibrary Nothing "TestPath" code
+                createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Just nodeId <- Graph.withGraph loc $ do
-                    Graph.loadCode code
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just nodeId <- Graph.withGraph loc' $ do
                     runASTOp $ Graph.getNodeIdForMarker 0
-                Graph.setNodeExpression loc nodeId "print 3.141"
-                Graph.withGraph loc $ runASTOp $ GraphBuilder.buildNode nodeId
+                Graph.setNodeExpression loc' nodeId "print 3.141"
+                Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildNode nodeId
             withResult res $ \node -> do
                 node ^. Node.expression `shouldBe` "print 3.141"
     describe "dumpAccessors" $ do
@@ -488,8 +480,9 @@ spec = around withChannels $ parallel $ do
             u1 <- mkUUID
             res <- evalEmp env $ do
                 Graph.addNode top u1 "a: b: a + b" def
-                Graph.getNodes top
-            withResult res $ \[plus] -> do
+                nodes <- Graph.getNodes top
+                return $ find (\node -> node ^. Node.nodeId == u1) nodes
+            withResult res $ \(Just plus) -> do
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
                       Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «1»a + b")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
@@ -499,8 +492,9 @@ spec = around withChannels $ parallel $ do
             u1 <- mkUUID
             res <- evalEmp env $ do
                 Graph.addNode top u1 "succ" def
-                Graph.getNodes top
-            withResult res $ \[succ'] -> do
+                nodes <- Graph.getNodes top
+                return $ find (\node -> node ^. Node.expression == "succ") nodes
+            withResult res $ \(Just succ') -> do
                 (succ' ^.. Node.inPorts . traverse) `shouldMatchList` [
                       Port.Port []           "base" TStar (Port.WithDefault $ Expression "succ")
                     , Port.Port [Port.Self]  "self" TStar Port.NotConnected

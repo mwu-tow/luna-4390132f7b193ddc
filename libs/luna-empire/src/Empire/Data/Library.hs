@@ -1,17 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Empire.Data.Library where
 
+import           Data.Map                       (Map)
 import           Data.Text                      (Text)
 import qualified LunaStudio.Data.Graph          as API (Graph)
 import qualified LunaStudio.Data.Library        as API
+import qualified LunaStudio.Data.Node           as API (NodeId)
 import qualified LunaStudio.API.Persistence.Library as Persistence
-import           Empire.Data.Graph              (Graph, defaultGraph)
+import           Empire.Data.Graph              (Graph, ClsGraph, defaultGraph)
 import           Empire.Prelude
 
 
 data Library = Library { _name    :: Maybe String
                        , _path    :: FilePath --TODO use smarter type
-                       , _body    :: Graph
+                       , _body    :: ClsGraph
                        } deriving (Show)
 
 makeLenses ''Library

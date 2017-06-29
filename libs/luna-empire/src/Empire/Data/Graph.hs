@@ -1,22 +1,31 @@
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Empire.Data.Graph (
     Graph(..)
   , ast
-  , unit
-  , code
   , breadcrumbHierarchy
   , lastNameId
   , codeMarkers
   , defaultGraph
-  , defaultAST
+  , ClsGraph(..)
+  , clsAst
+  , clsClass
+  , clsCode
+  , clsCodeMarkers
+  , clsFuns
+  , clsParseError
+  , defaultClsGraph
+  , HasCode(..)
+  , emptyAST
+  , emptyClsAST
   , withVis
-  , AST
-  , ASTState(..)
+  , AST(..)
   , ir
   , pmState
   , parseError
@@ -29,11 +38,15 @@ import           Control.Monad.State               (MonadState(..), StateT, eval
 import           Data.Map                          (Map)
 import           Empire.Data.AST                   (NodeRef, SomeASTException)
 import           Empire.Data.Layers                (attachEmpireLayers)
+import           LunaStudio.Data.Node              (NodeId)
 
 import           Control.Monad.Raise                    (MonadException(..))
 import qualified Control.Monad.State.Dependent          as DepState
+import qualified Luna.Builtin.Data.Function             as Function
 import           Luna.IR                                (IR, IRBuilder, AnyExpr, evalIRBuilder', evalPassManager',
                                                          attachLayer, snapshot, runRegs, Cache)
+import qualified Luna.IR                                as IR
+import qualified OCI.Pass.Class                         as Pass
 import qualified OCI.Pass.Manager                       as Pass (RefState)
 import qualified OCI.Pass.Manager                       as PassManager (PassManager, State)
 import           Luna.Syntax.Text.Parser.Errors         (Invalids)
@@ -55,27 +68,39 @@ import           Web.Browser                (openBrowser)
 import           Luna.Pass.Data.ExprMapping
 
 
-data Graph = Graph { _ast                   :: AST
-                   , _unit                  :: NodeRef
+data Graph = Graph { _ast                   :: AST Graph
                    , _breadcrumbHierarchy   :: BParent
                    , _lastNameId            :: Integer
                    , _codeMarkers           :: Map Luna.MarkerId NodeRef
-                   , _code                  :: Text
+                   , _graphCode             :: Text
                    , _parseError            :: Maybe SomeASTException
                    } deriving Show
 
+data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
+                         , _clsClass       :: NodeRef
+                         , _clsCodeMarkers :: Map Luna.MarkerId NodeRef
+                         , _clsCode        :: Text
+                         , _clsParseError  :: Maybe SomeASTException
+                         , _clsFuns        :: Map NodeId (String, Graph)
+                         } deriving Show
+
+
 defaultGraph :: IO Graph
 defaultGraph = do
-    ast' <- defaultAST
-    return $ Graph ast' $notImplemented def 0 def def def
+    ast' <- emptyAST
+    return $ Graph ast' def 0 def def def
 
-type AST      = ASTState
-data ASTState = ASTState { _ir      :: IR
-                         , _pmState :: Pass.RefState (PassManager.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT Graph IO))))))
-                         }
+defaultClsGraph :: IO ClsGraph
+defaultClsGraph = do
+    (ast, cls) <- defaultClsAST
+    return $ ClsGraph ast cls def def def def
 
-instance Show ASTState where
-    show _ = "AST"
+data AST g = AST { _ir      :: IR
+               , _pmState :: Pass.RefState (PassManager.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))))
+               }
+
+instance Show (AST g) where
+   show _ = "AST"
 
 instance MonadState s m => MonadState s (DepState.StateT b m) where
     get = lift   get
@@ -102,9 +127,23 @@ withVis m = do
         if isJust showVis then void $ liftIO $ openBrowser $ "http://localhost:8000?cfg=" <> cfg else return ()
     return p
 
-defaultAST :: IO AST
-defaultAST = mdo
-    let g = Graph ast $notImplemented def 0 def def def
+data InitPass
+type instance IR.Abstract   InitPass = InitPass
+type instance Pass.Inputs     IR.Net   InitPass = '[IR.AnyExpr, IR.AnyExprLink]
+type instance Pass.Inputs     IR.Layer InitPass = '[IR.AnyExpr IR.// IR.Model, IR.AnyExprLink IR.// IR.Model, IR.AnyExpr IR.// IR.Succs, IR.AnyExpr IR.// IR.Type]
+type instance Pass.Inputs     IR.Attr  InitPass = '[]
+type instance Pass.Inputs     IR.Event InitPass = '[]
+
+type instance Pass.Outputs    IR.Net   InitPass = '[IR.AnyExpr, IR.AnyExprLink]
+type instance Pass.Outputs    IR.Layer InitPass = '[IR.AnyExpr IR.// IR.Model, IR.AnyExprLink IR.// IR.Model, IR.AnyExpr IR.// IR.Succs, IR.AnyExpr IR.// IR.Type]
+type instance Pass.Outputs    IR.Attr  InitPass = '[]
+type instance Pass.Outputs    IR.Event InitPass = '[IR.New IR.// IR.AnyExpr, IR.New IR.// IR.AnyExprLink]
+
+type instance Pass.Preserves        InitPass = '[]
+
+emptyAST :: IO (AST Graph)
+emptyAST = mdo
+    let g = Graph ast def 0 def def def
     ast <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -113,9 +152,49 @@ defaultAST = mdo
         initExprMapping
         st   <- snapshot
         pass <- DepState.get @PassManager.State
-        return $ ASTState st pass
+        return $ AST st pass
     return ast
 
+emptyClsAST :: IO (AST ClsGraph)
+emptyClsAST = mdo
+    let g = ClsGraph ast $notImplemented def def def def
+    ast <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
+        runRegs
+        CodeSpan.init
+        attachLayer 5 (getTypeDesc @CodeSpan.CodeSpan) (getTypeDesc @AnyExpr)
+        attachEmpireLayers
+        initExprMapping
+        st   <- snapshot
+        pass <- DepState.get @PassManager.State
+        return $ AST st pass
+    return ast
+
+defaultClsAST :: IO (AST ClsGraph, IR.SomeExpr)
+defaultClsAST = mdo
+    let g = ClsGraph ast $notImplemented def def def def
+    (ast, cls) <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
+        runRegs
+        CodeSpan.init
+        attachLayer 5 (getTypeDesc @CodeSpan.CodeSpan) (getTypeDesc @AnyExpr)
+        attachEmpireLayers
+        initExprMapping
+        cls <- Pass.eval' @InitPass $ do
+            klass <- IR.clsASG' (stringToName "A") [] [] []
+            return klass
+        st   <- snapshot
+        pass <- DepState.get @PassManager.State
+        return (AST st pass, cls)
+    return (ast, cls)
 
 makeLenses ''Graph
-makeLenses ''ASTState
+makeLenses ''ClsGraph
+makeLenses ''AST
+
+class HasCode g where
+    code :: Lens' g Text
+
+instance HasCode Graph where
+    code = graphCode
+
+instance HasCode ClsGraph where
+    code = clsCode

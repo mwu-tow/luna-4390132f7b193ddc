@@ -6,7 +6,7 @@
 module EmpireUtils (
       runEmp
     , evalEmp
-    , runEmp'
+    -- , runEmp'
     , runEmpire
     , graphIDs
     , extractGraph
@@ -31,18 +31,19 @@ import qualified Data.Map                      as Map
 import           Data.Reflection               (Given (..), give)
 import           Data.UUID                     (UUID, nil)
 import           Data.UUID.V4                  (nextRandom)
-import           LunaStudio.Data.Breadcrumb    (Breadcrumb(..), BreadcrumbItem(Lambda, Arg))
+import           LunaStudio.Data.Breadcrumb    (Breadcrumb(..), BreadcrumbItem(Definition, Lambda, Arg))
 import           LunaStudio.Data.Connection    (Connection)
 import           LunaStudio.Data.GraphLocation (GraphLocation(..))
 import           LunaStudio.Data.Port          (Port)
 import qualified LunaStudio.Data.Port          as Port
+import qualified LunaStudio.Data.Node          as Node
 import           LunaStudio.Data.NodeLoc       (NodeLoc(..))
 import           LunaStudio.Data.PortRef       (AnyPortRef(InPortRef'), InPortRef(..), OutPortRef(..))
 import           LunaStudio.Data.Node          (ExpressionNode, NodeId, nodeId)
-import qualified Empire.Commands.Graph         as Graph (connect, getNodes)
+import qualified Empire.Commands.Graph         as Graph (connect, getNodes, loadCode)
 import           Empire.Commands.Library       (createLibrary, listLibraries, withLibrary)
 import           Empire.Data.AST               ()
-import           Empire.Data.Graph             (AST, ASTState (..), Graph)
+import           Empire.Data.Graph             (AST (..), Graph)
 import qualified Empire.Data.Library           as Library (body, path)
 import           Empire.Empire                 (CommunicationEnv (..), Empire, Env, Error, InterpreterEnv (..), runEmpire)
 import           Luna.IR                       (AnyExpr, Link')
@@ -53,20 +54,22 @@ import           Test.Hspec                    (expectationFailure)
 
 runEmp :: CommunicationEnv -> (Given GraphLocation => Empire a) -> IO (a, Env)
 runEmp env act = runEmpire env def $ do
-    _ <- createLibrary (Just "TestFile") "TestFile" "def main:\n"
+    _ <- createLibrary (Just "TestFile") "TestFile"
     let toLoc = GraphLocation "TestFile"
-    give (toLoc $ Breadcrumb []) act
+    Graph.loadCode (toLoc (Breadcrumb [])) "def main:\n    None"
+    [node] <- Graph.getNodes (toLoc (Breadcrumb []))
+    give (toLoc $ Breadcrumb [Definition (node ^. Node.nodeId)]) act
 
 evalEmp :: CommunicationEnv -> (Given GraphLocation => Empire a) -> IO a
 evalEmp env act = fst <$> runEmp env act
 
-runEmp' :: CommunicationEnv -> Env -> Graph ->
-              (Given GraphLocation => Empire a) -> IO (a, Env)
-runEmp' env st newGraph act = runEmpire env st $ do
-    lib <- head <$> listLibraries
-    withLibrary (lib ^. Library.path) $ Library.body .= newGraph
-    let toLoc = GraphLocation (lib ^. Library.path)
-    give (toLoc $ Breadcrumb []) act
+-- runEmp' :: CommunicationEnv -> Env -> Graph ->
+--               (Given GraphLocation => Empire a) -> IO (a, Env)
+-- runEmp' env st newGraph act = runEmpire env st $ do
+--     lib <- head <$> listLibraries
+--     withLibrary (lib ^. Library.path) $ Library.body .= newGraph
+--     let toLoc = GraphLocation (lib ^. Library.path)
+--     give (toLoc $ Breadcrumb []) act
 
 graphIDs :: GraphLocation -> Empire [NodeId]
 graphIDs loc = do

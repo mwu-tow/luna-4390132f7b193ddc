@@ -19,14 +19,15 @@ type NodeId = UUID
 
 data Node = ExpressionNode' ExpressionNode | InputSidebar' InputSidebar | OutputSidebar' OutputSidebar deriving (Eq, Generic, NFData, Show, Typeable)
 
-data ExpressionNode = ExpressionNode { _exprNodeId :: NodeId
-                                     , _expression :: Text
-                                     , _name       :: Maybe Text
-                                     , _code       :: Text
-                                     , _inPorts    :: InPortTree  InPort
-                                     , _outPorts   :: OutPortTree OutPort
-                                     , _nodeMeta   :: NodeMeta
-                                     , _canEnter   :: Bool
+data ExpressionNode = ExpressionNode { _exprNodeId   :: NodeId
+                                     , _expression   :: Text
+                                     , _isDefinition :: Bool
+                                     , _name         :: Maybe Text
+                                     , _code         :: Text
+                                     , _inPorts      :: InPortTree  InPort
+                                     , _outPorts     :: OutPortTree OutPort
+                                     , _nodeMeta     :: NodeMeta
+                                     , _canEnter     :: Bool
                                      } deriving (Eq, Generic, NFData, Show, Typeable)
 
 data InputSidebar = InputSidebar { _inputNodeId    :: NodeId
@@ -80,6 +81,7 @@ instance HasNodeId Node where
 mkExprNode :: NodeId -> Text -> Position -> ExpressionNode
 mkExprNode nid expr pos = ExpressionNode nid
                                          expr
+                                         False
                                          def
                                          def
                                          (Port.LabeledTree (Port.InPorts (Just $ Port.LabeledTree def $ Port.Port [Port.Self] (Text.pack "") TStar Port.NotConnected) def) (Port.Port [] (Text.pack "") TStar Port.NotConnected))

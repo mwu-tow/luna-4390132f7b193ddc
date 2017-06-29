@@ -9,8 +9,9 @@ import           LunaStudio.Data.Node (NodeId)
 import           Prologue             hiding (Monoid, mappend, mempty, (<>))
 
 
-data BreadcrumbItem = Lambda { _nodeId :: NodeId }
-                    | Arg    { _nodeId :: NodeId, _arg :: Int }
+data BreadcrumbItem = Definition { _nodeId  :: NodeId }
+                    | Lambda     { _nodeId  :: NodeId }
+                    | Arg        { _nodeId  :: NodeId, _arg :: Int }
                     deriving (Eq, Generic, NFData, Ord, Show)
 
 data Named a = Named { _name       :: Text

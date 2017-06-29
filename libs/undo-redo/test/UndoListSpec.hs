@@ -59,7 +59,7 @@ generateGraphLocation = do
 generateNode :: IO Node.ExpressionNode
 generateNode = do
     nodeId <- UUID.nextRandom
-    return $ Node.ExpressionNode nodeId "3" (Just "3") (Just "3") (LabeledTree def (Port [] "whole" TStar NotConnected)) (LabeledTree def (Port [] "" TStar NotConnected)) def False
+    return $ Node.ExpressionNode nodeId "3" False (Just "3") "3" (LabeledTree def (Port [] "whole" TStar NotConnected)) (LabeledTree def (Port [] "" TStar NotConnected)) def False
 
 emptyResult :: Result.Result
 emptyResult = Result.Result def def $ Graph.Graph def def def def def

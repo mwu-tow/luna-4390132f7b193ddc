@@ -9,7 +9,7 @@ module Empire.ASTOps.Deconstruct (
 
 import           Empire.Prelude
 
-import           Empire.ASTOp       (ASTOp, match)
+import           Empire.ASTOp       (GraphOp, match)
 import qualified Empire.ASTOps.Read as Read
 import           Empire.Data.AST    (NodeRef, NotAppException (..))
 
@@ -17,7 +17,7 @@ import qualified Luna.IR            as IR
 import           Luna.IR.Term.Uni
 
 
-deconstructApp :: ASTOp m => NodeRef -> m (NodeRef, [NodeRef])
+deconstructApp :: GraphOp m => NodeRef -> m (NodeRef, [NodeRef])
 deconstructApp app' = match app' $ \case
     Grouped g -> deconstructApp =<< IR.source g
     App a _   -> do
@@ -26,7 +26,7 @@ deconstructApp app' = match app' $ \case
         return (target, unpackedArgs)
     _ -> throwM $ NotAppException app'
 
-extractFun :: ASTOp m => NodeRef -> m NodeRef
+extractFun :: GraphOp m => NodeRef -> m NodeRef
 extractFun app = match app $ \case
     App a _ -> do
         extractFun =<< IR.source a
@@ -34,7 +34,7 @@ extractFun app = match app $ \case
 
 data ExtractFilter = FApp | FLam
 
-extractArguments :: ASTOp m => NodeRef -> m [NodeRef]
+extractArguments :: GraphOp m => NodeRef -> m [NodeRef]
 extractArguments expr = match expr $ \case
     App{}       -> reverse <$> extractArguments' FApp expr
     Lam{}       -> extractArguments' FLam expr
@@ -42,10 +42,10 @@ extractArguments expr = match expr $ \case
     Grouped g   -> IR.source g >>= extractArguments
     _           -> return []
 
-extractAppArguments :: ASTOp m => NodeRef -> m [NodeRef]
+extractAppArguments :: GraphOp m => NodeRef -> m [NodeRef]
 extractAppArguments = extractArguments' FApp
 
-extractArguments' :: ASTOp m => ExtractFilter -> NodeRef -> m [NodeRef]
+extractArguments' :: GraphOp m => ExtractFilter -> NodeRef -> m [NodeRef]
 extractArguments' FApp expr = match expr $ \case
     App a b -> do
         nextApp <- IR.source a
@@ -63,10 +63,10 @@ extractArguments' FLam expr = match expr $ \case
     Grouped g -> IR.source g >>= extractArguments' FLam
     _       -> return []
 
-dumpAccessors :: ASTOp m => NodeRef -> m (Maybe NodeRef, [String])
+dumpAccessors :: GraphOp m => NodeRef -> m (Maybe NodeRef, [String])
 dumpAccessors = dumpAccessors' True
 
-dumpAccessors' :: ASTOp m => Bool -> NodeRef -> m (Maybe NodeRef, [String])
+dumpAccessors' :: GraphOp m => Bool -> NodeRef -> m (Maybe NodeRef, [String])
 dumpAccessors' firstApp node = do
     match node $ \case
         Var n -> do

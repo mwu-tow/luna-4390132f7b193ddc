@@ -16,7 +16,7 @@ import           Empire.Prelude
 
 import           LunaStudio.Data.Node               (NodeId)
 import qualified LunaStudio.Data.Port               as Port
-import           Empire.ASTOp                       (ASTOp, match)
+import           Empire.ASTOp                       (GraphOp, match)
 import qualified Empire.ASTOps.Builder              as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct          as ASTDeconstruct
 import qualified Empire.ASTOps.Read                 as ASTRead
@@ -31,7 +31,7 @@ import qualified Luna.IR as IR
 
 
 
-addLambdaArg :: ASTOp m => Int -> NodeRef -> m ()
+addLambdaArg :: GraphOp m => Int -> NodeRef -> m ()
 addLambdaArg position lambda = match lambda $ \case
     Lam _arg _body -> do
         out'  <- ASTRead.getFirstNonLambdaRef lambda
@@ -45,7 +45,7 @@ allWords :: [String]
 allWords = drop 1 $ allWords' where
     allWords' = fmap reverse $ "" : (flip (:) <$> allWords' <*> ['a' .. 'z'])
 
-getArgNames :: ASTOp m => NodeRef -> m [String]
+getArgNames :: GraphOp m => NodeRef -> m [String]
 getArgNames ref = match ref $ \case
     Grouped g   -> IR.source g >>= getArgNames
     Lam a body -> do
@@ -53,7 +53,7 @@ getArgNames ref = match ref $ \case
         (argNames ++) <$> (getArgNames =<< IR.source body)
     _ -> return []
 
-replaceWithLam :: ASTOp m => Maybe EdgeRef -> String -> NodeRef -> m ()
+replaceWithLam :: GraphOp m => Maybe EdgeRef -> String -> NodeRef -> m ()
 replaceWithLam parent name lam = do
     tmpBlank <- IR.blank
     binder   <- IR.var $ stringToName name
@@ -64,7 +64,7 @@ replaceWithLam parent name lam = do
     IR.replace lam tmpBlank
     return ()
 
-addLambdaArg' :: ASTOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()
+addLambdaArg' :: GraphOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()
 addLambdaArg' 0   name parent lam = replaceWithLam parent name lam
 addLambdaArg' pos name parent lam = match lam $ \case
     Lam _ b -> addLambdaArg' (pos - 1) name (Just b) =<< IR.source b
@@ -77,7 +77,7 @@ instance Exception CannotRemovePortException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-removeLambdaArg :: ASTOp m => Port.OutPortId -> NodeRef -> m NodeRef
+removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m NodeRef
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
     Grouped g      -> IR.source g >>= removeLambdaArg p >>= fmap IR.generalize . IR.grouped
@@ -96,7 +96,7 @@ shiftPosition from to lst = uncurry (insertAt to) $ getAndRemove from lst where
     getAndRemove 0 (x : xs) = (x, xs)
     getAndRemove i (x : xs) = let (r, rs) = getAndRemove (i - 1) xs in (r, x : rs)
 
-moveLambdaArg :: ASTOp m => Port.OutPortId -> Int -> NodeRef -> m NodeRef
+moveLambdaArg :: GraphOp m => Port.OutPortId -> Int -> NodeRef -> m NodeRef
 moveLambdaArg [] _ _ = throwM $ CannotRemovePortException
 moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ \case
     Grouped g -> IR.source g >>= moveLambdaArg p newPosition >>= fmap IR.generalize . IR.grouped
@@ -107,7 +107,7 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
         ASTBuilder.lams newArgs out
     _ -> throwM $ NotLambdaException lambda
 
-renameLambdaArg :: ASTOp m => Port.OutPortId -> String -> NodeRef -> m ()
+renameLambdaArg :: GraphOp m => Port.OutPortId -> String -> NodeRef -> m ()
 renameLambdaArg [] _ _ = throwM CannotRemovePortException
 renameLambdaArg p@(Port.Projection port : []) newName lam = match lam $ \case
     Grouped g -> IR.source g >>= renameLambdaArg p newName
@@ -117,7 +117,7 @@ renameLambdaArg p@(Port.Projection port : []) newName lam = match lam $ \case
         renameVar arg newName
     _ -> throwM $ NotLambdaException lam
 
-redirectLambdaOutput :: ASTOp m => NodeRef -> NodeRef -> m NodeRef
+redirectLambdaOutput :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
 redirectLambdaOutput lambda newOutputRef = do
     match lambda $ \case
         Grouped g   -> IR.source g >>= flip redirectLambdaOutput newOutputRef >>= fmap IR.generalize . IR.grouped
@@ -126,7 +126,7 @@ redirectLambdaOutput lambda newOutputRef = do
             ASTBuilder.lams args' newOutputRef
         _ -> throwM $ NotLambdaException lambda
 
-setLambdaOutputToBlank :: ASTOp m => NodeRef -> m NodeRef
+setLambdaOutputToBlank :: GraphOp m => NodeRef -> m NodeRef
 setLambdaOutputToBlank lambda = do
     match lambda $ \case
         Grouped g   -> IR.source g >>= setLambdaOutputToBlank >>= fmap IR.generalize . IR.grouped
@@ -136,21 +136,21 @@ setLambdaOutputToBlank lambda = do
             ASTBuilder.lams args' blank
         _ -> throwM $ NotLambdaException lambda
 
-replaceTargetNode :: ASTOp m => NodeRef -> NodeRef -> m ()
+replaceTargetNode :: GraphOp m => NodeRef -> NodeRef -> m ()
 replaceTargetNode matchNode newTarget = do
     match matchNode $ \case
         Unify _l r -> do
             IR.replaceSource newTarget r
         _ -> throwM $ NotUnifyException matchNode
 
-replaceVarNode :: ASTOp m => NodeRef -> NodeRef -> m ()
+replaceVarNode :: GraphOp m => NodeRef -> NodeRef -> m ()
 replaceVarNode matchNode newVar = do
     match matchNode $ \case
         Unify l _r -> do
             IR.replaceSource newVar l
         _ -> throwM $ NotUnifyException matchNode
 
-rewireNode :: ASTOp m => NodeId -> NodeRef -> m ()
+rewireNode :: GraphOp m => NodeId -> NodeRef -> m ()
 rewireNode nodeId newTarget = do
     ref <- ASTRead.getASTPointer nodeId
     match ref $ \case
@@ -162,21 +162,21 @@ rewireNode nodeId newTarget = do
             pointer <- ASTRead.getASTPointer nodeId
             IR.replace newTarget pointer
 
-rewireNodeName :: ASTOp m => NodeId -> NodeRef -> m ()
+rewireNodeName :: GraphOp m => NodeId -> NodeRef -> m ()
 rewireNodeName nodeId newVar = do
     matchNode <- ASTRead.getASTPointer nodeId
     oldVar    <- ASTRead.getASTVar  nodeId
     replaceVarNode matchNode newVar
     ASTRemove.removeSubtree oldVar
 
-rewireCurrentNode :: ASTOp m => NodeRef -> m ()
+rewireCurrentNode :: GraphOp m => NodeRef -> m ()
 rewireCurrentNode newTarget = do
     Just matchNode <- ASTRead.getCurrentASTPointer
     Just oldTarget <- ASTRead.getCurrentASTTarget
     replaceTargetNode matchNode newTarget
     ASTRemove.removeSubtree oldTarget
 
-renameVar :: ASTOp m => NodeRef -> String -> m ()
+renameVar :: GraphOp m => NodeRef -> String -> m ()
 renameVar vref name = do
     var <- IR.narrowTerm @IR.Var vref
     mapM_ (flip IR.modifyExprTerm $ IR.name .~ (stringToName name)) var

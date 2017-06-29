@@ -139,4 +139,4 @@ createDefaultProject = do
   let path = lunaroot </> "projects" </> defaultLibraryPath
   logger Logger.info $ "Creating file " ++ path
   liftIO $ touch path
-  void $ createLibrary (Just defaultLibraryName) (fromString path) ""
+  void $ createLibrary (Just defaultLibraryName) (fromString path)

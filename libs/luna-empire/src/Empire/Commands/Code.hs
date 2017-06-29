@@ -19,7 +19,7 @@ import           Empire.Data.Graph       as Graph
 import           Empire.Empire           (Command, Empire)
 
 import           Empire.Data.AST         (NodeRef, EdgeRef)
-import           Empire.ASTOp            (ASTOp, runASTOp)
+import           Empire.ASTOp            (GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
 import qualified Luna.IR                 as IR
 import           Data.Text.Position      (Delta)
@@ -63,7 +63,7 @@ viewDeltasToReal (convertVia @String -> code) (b, e) = if b == e then (bAf, bAf)
     lexerStream = Lexer.runLexer @Text code
 
 -- TODO: switch to Deltas exclusively
-applyDiff :: (MonadState Graph m, Integral a) => a -> a -> Text -> m Text
+applyDiff :: (MonadState state m, Integral a, Graph.HasCode state) => a -> a -> Text -> m Text
 applyDiff (fromIntegral -> start) (fromIntegral -> end) code = do
     currentCode <- use Graph.code
     let len            = end - start
@@ -87,15 +87,7 @@ getAt (fromIntegral -> from) (fromIntegral -> to) = do
     code <- use Graph.code
     return $ Text.take (to - from) $ Text.drop from code
 
-substituteLine :: Int -> Text -> Command Graph Text
-substituteLine index newLine = do
-    currentCode <- use Graph.code
-    let codeLines = Text.lines currentCode
-        newCode   = Text.unlines $ codeLines & ix index .~ newLine
-    Graph.code .= newCode
-    return newCode
-
-getASTTargetBeginning :: ASTOp m => NodeId -> m Delta
+getASTTargetBeginning :: GraphOp m => NodeId -> m Delta
 getASTTargetBeginning id = do
     ref      <- ASTRead.getASTRef id
     Just beg <- getOffsetRelativeToFile ref
@@ -109,21 +101,13 @@ getASTTargetBeginning id = do
                     return $ boff + roff + beg
                 _ -> return $ beg + boff
 
-
-removeLine :: Int -> Command Graph Text
-removeLine index = do
-    currentCode <- use Graph.code
-    let codeLines = Text.lines currentCode
-        newCode   = Text.unlines $ take index codeLines ++ drop (index + 1) codeLines
-    Graph.code .= newCode
-    return newCode
-
-isOperatorVar :: ASTOp m => NodeRef -> m Bool
+isOperatorVar :: GraphOp m => NodeRef -> m Bool
 isOperatorVar expr = IR.matchExpr expr $ \case
     IR.Var n -> return $ isOperator n
     _        -> return False
 
-getOffsetRelativeToTarget :: ASTOp m => EdgeRef -> m Delta
+-- TODO: handle infixes
+getOffsetRelativeToTarget :: GraphOp m => EdgeRef -> m Delta
 getOffsetRelativeToTarget edge = do
     ref  <- IR.readTarget edge
     let fallback = do
@@ -148,7 +132,7 @@ getOffsetRelativeToTarget edge = do
         _ -> fallback
 
 
-getOwnOffsetLength :: ASTOp m => NodeRef -> m (Maybe Delta)
+getOwnOffsetLength :: GraphOp m => NodeRef -> m (Maybe Delta)
 getOwnOffsetLength ref = do
     succs <- toList <$> IR.getLayer @IR.Succs ref
     case succs of
@@ -156,14 +140,14 @@ getOwnOffsetLength ref = do
         [s] -> Just <$> IR.getLayer @SpanOffset s
         _   -> return Nothing
 
-getOffsetRelativeToFile :: ASTOp m => NodeRef -> m (Maybe Delta)
+getOffsetRelativeToFile :: GraphOp m => NodeRef -> m (Maybe Delta)
 getOffsetRelativeToFile ref = do
     begs <- getAllBeginningsOf ref
     case begs of
         [s] -> return $ Just s
         _   -> return Nothing
 
-getAllBeginningsOf :: ASTOp m => NodeRef -> m [Delta]
+getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
 getAllBeginningsOf ref = do
     succs <- toList <$> IR.getLayer @IR.Succs ref
     case succs of
@@ -173,10 +157,10 @@ getAllBeginningsOf ref = do
             begs <- getAllBeginningsOf =<< IR.readTarget s
             return $ (off <>) <$> begs
 
-getAnyBeginningOf :: ASTOp m => NodeRef -> m (Maybe Delta)
+getAnyBeginningOf :: GraphOp m => NodeRef -> m (Maybe Delta)
 getAnyBeginningOf ref = listToMaybe <$> getAllBeginningsOf ref
 
-replaceAllUses :: ASTOp m => NodeRef -> Text -> m ()
+replaceAllUses :: GraphOp m => NodeRef -> Text -> m ()
 replaceAllUses ref new = do
     len         <- IR.getLayer @SpanLength ref
     occurrences <- getAllBeginningsOf ref
@@ -184,21 +168,21 @@ replaceAllUses ref new = do
     forM_ fromFileEnd $ \beg -> applyDiff beg (beg + len) new
     gossipLengthsChangedBy (fromIntegral (Text.length new) - len) ref
 
-computeLength :: ASTOp m => NodeRef -> m Delta
+computeLength :: GraphOp m => NodeRef -> m Delta
 computeLength ref = do
     ins  <- IR.inputs ref
     offs <- mapM (IR.getLayer @SpanOffset) ins
     lens <- mapM (IR.getLayer @SpanLength <=< IR.source) ins
     return $ mconcat offs <> mconcat lens
 
-recomputeLength :: ASTOp m => NodeRef -> m ()
+recomputeLength :: GraphOp m => NodeRef -> m ()
 recomputeLength ref = IR.putLayer @SpanLength ref =<< computeLength ref
 
 -- TODO: read from upper AST
 globalFileBlockStart :: Delta
 globalFileBlockStart = 14
 
-getCurrentBlockBeginning :: ASTOp m => m Delta
+getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do
     currentTgt <- ASTRead.getCurrentASTTarget
     body       <- preuse $ Graph.breadcrumbHierarchy . BH.body
@@ -211,7 +195,7 @@ getCurrentBlockBeginning = do
             off           <- getFirstNonLambdaOffset tgt
             return $ defBegin <> off
 
-getFirstNonLambdaOffset :: ASTOp m => NodeRef -> m Delta
+getFirstNonLambdaOffset :: GraphOp m => NodeRef -> m Delta
 getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
     IR.Lam i o -> do
         ioff  <- IR.getLayer @SpanOffset i
@@ -221,7 +205,7 @@ getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
         return $ ioff + ooff + ilen + recur
     _ -> return 0
 
-getCurrentBlockEnd :: ASTOp m => m Delta
+getCurrentBlockEnd :: GraphOp m => m Delta
 getCurrentBlockEnd = do
     body       <- preuse $ Graph.breadcrumbHierarchy . BH.body
     case body of
@@ -231,52 +215,44 @@ getCurrentBlockEnd = do
             beg <- getCurrentBlockBeginning
             return $ len + beg
 
-addLineAfter :: Int -> Text -> Command Graph Text
-addLineAfter ((+1) -> index) line = do
-    currentCode <- use Graph.code
-    let codeLines = Text.lines currentCode
-        newCode   = Text.unlines $ take index codeLines ++ [line] ++ drop index codeLines
-    Graph.code .= newCode
-    return newCode
-
 defaultIndentationLength :: Delta
 defaultIndentationLength = 4
 
-getCurrentIndentationLength :: ASTOp m => m Delta
+getCurrentIndentationLength :: GraphOp m => m Delta
 getCurrentIndentationLength = do
       o <- getCurrentBlockBeginning
       c <- use Graph.code
       return $ fromIntegral $ Text.length $ Text.takeWhileEnd (/= '\n') $ Text.take (fromIntegral o) c
 
-propagateLengths :: ASTOp m => NodeRef -> m ()
+propagateLengths :: GraphOp m => NodeRef -> m ()
 propagateLengths node = do
     LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) $ IR.getLayer @CodeSpan node
     IR.putLayer @SpanLength node len
     mapM_ propagateOffsets =<< IR.inputs node
 
-propagateOffsets :: ASTOp m => EdgeRef -> m ()
+propagateOffsets :: GraphOp m => EdgeRef -> m ()
 propagateOffsets edge = do
     LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) . IR.getLayer @CodeSpan =<< IR.readSource edge
     IR.putLayer @SpanOffset edge off
     propagateLengths =<< IR.readSource edge
 
-gossipUsesChanged :: ASTOp m => NodeRef -> m ()
+gossipUsesChanged :: GraphOp m => NodeRef -> m ()
 gossipUsesChanged ref = mapM_ gossipLengthsChanged =<< mapM IR.readTarget =<< (Set.toList <$> IR.getLayer @IR.Succs ref)
 
-gossipUsesChangedBy :: ASTOp m => Delta -> NodeRef -> m ()
+gossipUsesChangedBy :: GraphOp m => Delta -> NodeRef -> m ()
 gossipUsesChangedBy delta ref = mapM_ (gossipLengthsChangedBy delta) =<< mapM IR.readTarget =<< (Set.toList <$> IR.getLayer @IR.Succs ref)
 
-addToLength :: ASTOp m => NodeRef -> Delta -> m ()
+addToLength :: GraphOp m => NodeRef -> Delta -> m ()
 addToLength ref delta = IR.modifyLayer_ @SpanLength ref (+ delta)
 
-gossipLengthsChangedBy :: ASTOp m => Delta -> NodeRef -> m ()
+gossipLengthsChangedBy :: GraphOp m => Delta -> NodeRef -> m ()
 gossipLengthsChangedBy delta ref = do
     addToLength ref delta
     succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
     succNodes <- mapM IR.readTarget succs
     mapM_ (gossipLengthsChangedBy delta) succNodes
 
-gossipLengthsChanged :: ASTOp m => NodeRef -> m ()
+gossipLengthsChanged :: GraphOp m => NodeRef -> m ()
 gossipLengthsChanged ref = do
     recomputeLength ref
     succs     <- Set.toList <$> IR.getLayer @IR.Succs ref

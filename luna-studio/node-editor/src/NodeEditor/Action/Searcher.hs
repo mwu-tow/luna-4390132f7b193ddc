@@ -155,7 +155,7 @@ accept scheduleEvent action = whenM (updateInputWithSelectedHint action) $
         let inputText = searcher ^. Searcher.inputText
         case searcher ^. Searcher.mode of
             Searcher.Command                                           _ -> execCommand action scheduleEvent $ convert inputText
-            Searcher.Node     nl (Searcher.NodeModeInfo _ (Just nn) _) _ -> createNode (nl ^. NodeLoc.path) (nn ^. Searcher.position) inputText >> close action
+            Searcher.Node     nl (Searcher.NodeModeInfo _ (Just nn) _) _ -> createNode (nl ^. NodeLoc.path) (nn ^. Searcher.position) inputText False >> close action
             Searcher.Node     nl _                                     _ -> setNodeExpression nl inputText >> close action
             Searcher.NodeName nl                                       _ -> renameNode nl inputText >> close action
             Searcher.PortName portRef                                  _ -> renamePort portRef inputText >> close action

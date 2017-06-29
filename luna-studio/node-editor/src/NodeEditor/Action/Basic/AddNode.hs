@@ -25,8 +25,8 @@ import           NodeEditor.React.Model.Port        (Mode (Invisible), ensureVis
 import           NodeEditor.State.Global            (State)
 
 
-createNode :: NodePath -> Position -> Text -> Command State ()
-createNode parentPath nodePos expr = do
+createNode :: NodePath -> Position -> Text -> Bool -> Command State ()
+createNode parentPath nodePos expr isDefinition = do
     selected <- getSelectedNodes
     nid      <- getUUID
     let snappedPos  = snap nodePos
@@ -36,7 +36,7 @@ createNode parentPath nodePos expr = do
                       else Nothing
         defInPorts  = LabeledTree def $ Port [Arg 0] (Text.pack "") TStar NotConnected
         defOutPorts = LabeledTree def $ Port []      (Text.pack "") TStar NotConnected
-        empireNode  = Empire.ExpressionNode nid expr def def defInPorts defOutPorts nodeMeta False
+        empireNode  = Empire.ExpressionNode nid expr isDefinition def def defInPorts defOutPorts nodeMeta False
         node        = convert (parentPath, empireNode)
         nl          = NodeLoc parentPath nid
     localAddExpressionNode node

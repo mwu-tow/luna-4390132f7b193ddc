@@ -12,6 +12,8 @@ module Empire.Commands.GraphBuilder (
   , buildNodes
   , buildEdgeNodes
   , buildGraph
+  , buildClassGraph
+  , buildClassNode
   , buildInputSidebar
   , buildInputSidebarTypecheckUpdate
   , buildOutputSidebarTypecheckUpdate
@@ -57,7 +59,7 @@ import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (.
 import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), dstNodeId, srcNodeId)
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar))
 
-import           Empire.ASTOp                    (ASTOp, match, runASTOp)
+import           Empire.ASTOp                    (ClassOp, GraphOp, match, runASTOp)
 import qualified Empire.ASTOps.Deconstruct       as ASTDeconstruct
 import qualified Empire.ASTOps.Print             as Print
 import qualified Empire.ASTOps.Read              as ASTRead
@@ -74,11 +76,17 @@ import qualified Luna.IR.Term.Literal            as Lit
 import           Luna.IR.Term.Uni
 import qualified OCI.IR.Combinators              as IR
 
-decodeBreadcrumbs :: Breadcrumb BreadcrumbItem -> Command Graph (Breadcrumb (Named BreadcrumbItem))
-decodeBreadcrumbs bs@(Breadcrumb items) = runASTOp $ do
+isDefinition :: BreadcrumbItem -> Bool
+isDefinition def | Breadcrumb.Definition{} <- def = True
+                 | otherwise                      = False
+
+decodeBreadcrumbs :: Map.Map NodeId String -> Breadcrumb BreadcrumbItem -> Command Graph (Breadcrumb (Named BreadcrumbItem))
+decodeBreadcrumbs definitionsIDs bs@(Breadcrumb items) = runASTOp $ do
     bh    <- use Graph.breadcrumbHierarchy
-    names <- forM (BH.getBreadcrumbItems bh bs) $ \child -> getUniName $ child ^. BH.self
-    return $ Breadcrumb $ fmap (\(n, i) -> Named (fromMaybe "" n) i) $ zip names items
+    let funs = map (fmap Text.pack . flip Map.lookup definitionsIDs . view Breadcrumb.nodeId) $ takeWhile isDefinition items
+        children = dropWhile isDefinition items
+    names <- forM (BH.getBreadcrumbItems bh (Breadcrumb children)) $ \child -> getUniName $ child ^. BH.self
+    return $ Breadcrumb $ fmap (\(n, i) -> Named (fromMaybe "" n) i) $ zip (funs ++ names) items
 
 data CannotEnterNodeException = CannotEnterNodeException NodeId
     deriving Show
@@ -86,27 +94,38 @@ instance Exception CannotEnterNodeException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-buildGraph :: ASTOp m => m API.Graph
+buildGraph :: GraphOp m => m API.Graph
 buildGraph = do
     connections <- buildConnections
     nodes       <- buildNodes
     edges       <- buildEdgeNodes
     API.Graph nodes connections (fst <$> edges) (snd <$> edges) <$> buildMonads
 
-buildNodes :: ASTOp m => m [API.ExpressionNode]
+buildClassGraph :: ClassOp m => m API.Graph
+buildClassGraph = do
+    funs <- use Graph.clsFuns
+
+    let nodes' = map (\(uuid, (name,_)) -> buildClassNode uuid name) $ Map.assocs funs
+    return $ API.Graph nodes' [] Nothing Nothing []
+
+buildClassNode :: NodeId -> String -> API.ExpressionNode
+buildClassNode uuid name =
+    API.ExpressionNode uuid "" True (Just $ convert name) "" (LabeledTree (InPorts Nothing []) (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) def True
+
+buildNodes :: GraphOp m => m [API.ExpressionNode]
 buildNodes = do
     allNodeIds <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
     nodes      <- mapM buildNode allNodeIds
     return nodes
 
-buildMonads :: ASTOp m => m [MonadPath]
+buildMonads :: GraphOp m => m [MonadPath]
 buildMonads = do
     allNodeIds <- getNodeIdSequence
     ioPath     <- filterM doesIO allNodeIds
     let ioMonad = MonadPath (TCons "IO" []) ioPath
     return [ioMonad]
 
-doesIO :: ASTOp m => NodeId -> m Bool
+doesIO :: GraphOp m => NodeId -> m Bool
 doesIO node = do
     ref <- ASTRead.getASTPointer node
     tp  <- IR.getLayer @TypeLayer ref >>= IR.source
@@ -114,20 +133,20 @@ doesIO node = do
         Monadic _ m -> hasIO =<< IR.source m
         _           -> return False
 
-hasIO :: ASTOp m => NodeRef -> m Bool
+hasIO :: GraphOp m => NodeRef -> m Bool
 hasIO ref = IR.matchExpr ref $ \case
     Cons n _  -> return $ n == "IO"
     Unify l r -> (||) <$> (hasIO =<< IR.source l) <*> (hasIO =<< IR.source r)
     _         -> return False
 
-getNodeSeq :: ASTOp m => m (Maybe NodeRef)
+getNodeSeq :: GraphOp m => m (Maybe NodeRef)
 getNodeSeq = do
     lref    <- ASTRead.getCurrentASTTarget
     case lref of
         Just l -> ASTRead.getLambdaBodyRef l
         _      -> preuse $ Graph.breadcrumbHierarchy . BH.body
 
-getNodeIdSequence :: ASTOp m => m [NodeId]
+getNodeIdSequence :: GraphOp m => m [NodeId]
 getNodeIdSequence = do
     bodySeq    <- getNodeSeq
     nodeSeq    <- case bodySeq of
@@ -135,14 +154,14 @@ getNodeIdSequence = do
         _      -> return []
     catMaybes <$> mapM (getMarkedExpr >=> ASTRead.safeGetVarNodeId) nodeSeq
 
-getMarkedExpr :: ASTOp m => NodeRef -> m NodeRef
+getMarkedExpr :: GraphOp m => NodeRef -> m NodeRef
 getMarkedExpr ref = match ref $ \case
     IR.Marked _m expr -> IR.source expr
     _                 -> return ref
 
 type EdgeNodes = (API.InputSidebar, API.OutputSidebar)
 
-buildEdgeNodes :: ASTOp m => m (Maybe EdgeNodes)
+buildEdgeNodes :: GraphOp m => m (Maybe EdgeNodes)
 buildEdgeNodes = getEdgePortMapping >>= \p -> case p of
     Just (inputPort, outputPort) -> do
         inputEdge  <- buildInputSidebar  inputPort
@@ -150,10 +169,10 @@ buildEdgeNodes = getEdgePortMapping >>= \p -> case p of
         return $ Just (inputEdge, outputEdge)
     _ -> return Nothing
 
-getEdgePortMapping :: (MonadIO m, ASTOp m) => m (Maybe (NodeId, NodeId))
+getEdgePortMapping :: (MonadIO m, GraphOp m) => m (Maybe (NodeId, NodeId))
 getEdgePortMapping = preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
 
-buildNode :: ASTOp m => NodeId -> m API.ExpressionNode
+buildNode :: GraphOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
     root      <- GraphUtils.getASTPointer nid
     ref       <- GraphUtils.getASTTarget  nid
@@ -165,9 +184,9 @@ buildNode nid = do
     inports   <- buildInPorts nid ref
     outports  <- buildOutPorts root
     code      <- fromMaybe expr <$> getNodeCode nid
-    return $ API.ExpressionNode nid expr name code inports outports meta canEnter
+    return $ API.ExpressionNode nid expr False name code inports outports meta canEnter
 
-buildNodeTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
+buildNodeTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildNodeTypecheckUpdate nid = do
   root     <- GraphUtils.getASTPointer nid
   ref      <- GraphUtils.getASTTarget  nid
@@ -175,7 +194,7 @@ buildNodeTypecheckUpdate nid = do
   outPorts <- buildOutPorts root
   return $ API.ExpressionUpdate nid inPorts outPorts
 
-getUniName :: ASTOp m => NodeRef -> m (Maybe Text)
+getUniName :: GraphOp m => NodeRef -> m (Maybe Text)
 getUniName root = do
     root'  <- getMarkedExpr root
     match' <- ASTRead.isMatch root'
@@ -184,10 +203,10 @@ getUniName root = do
         Just . Text.pack <$> Print.printName vnode
     else return Nothing
 
-getNodeName :: ASTOp m => NodeId -> m (Maybe Text)
+getNodeName :: GraphOp m => NodeId -> m (Maybe Text)
 getNodeName nid = ASTRead.getASTPointer nid >>= getUniName
 
-getNodeCode :: ASTOp m => NodeId -> m (Maybe Text)
+getNodeCode :: GraphOp m => NodeId -> m (Maybe Text)
 getNodeCode nid = do
     ref <- ASTRead.getASTTarget nid
     beg <- Code.getAnyBeginningOf ref
@@ -197,7 +216,7 @@ getNodeCode nid = do
         _      -> return Nothing
 
 
-getDefault :: ASTOp m => NodeRef -> m (Maybe PortDefault)
+getDefault :: GraphOp m => NodeRef -> m (Maybe PortDefault)
 getDefault arg = match arg $ \case
         IR.String s       -> return $ Just $ Constant $ StringValue $ s
         IR.Number i       -> return $ Just $ Constant $ if Lit.isInteger i then IntValue $ Lit.toInt i else DoubleValue $ Lit.toDouble i
@@ -206,13 +225,13 @@ getDefault arg = match arg $ \case
         IR.Blank          -> return $ Nothing
         _                 -> Just . Expression <$> Print.printExpression arg
 
-getInPortDefault :: ASTOp m => NodeRef -> Int -> m (Maybe PortDefault)
+getInPortDefault :: GraphOp m => NodeRef -> Int -> m (Maybe PortDefault)
 getInPortDefault ref pos = do
     (_, args)  <- ASTDeconstruct.deconstructApp ref
     let argRef = args ^? ix pos
     join <$> mapM getDefault argRef
 
-getPortState :: ASTOp m => NodeRef -> m PortState
+getPortState :: GraphOp m => NodeRef -> m PortState
 getPortState node = do
     isConnected <- ASTRead.isGraphNode node
     if isConnected then return Connected else match node $ \case
@@ -227,20 +246,20 @@ getPortState node = do
         Blank -> return NotConnected
         _     -> WithDefault . Expression <$> Print.printExpression node
 
-extractArgTypes :: ASTOp m => NodeRef -> m [TypeRep]
+extractArgTypes :: GraphOp m => NodeRef -> m [TypeRep]
 extractArgTypes node = do
     match node $ \case
         Monadic s _ -> extractArgTypes =<< IR.source s
         Lam arg out -> (:) <$> (Print.getTypeRep =<< IR.source arg) <*> (extractArgTypes =<< IR.source out)
         _           -> return []
 
-safeGetVarName :: ASTOp m => NodeRef -> m (Maybe String)
+safeGetVarName :: GraphOp m => NodeRef -> m (Maybe String)
 safeGetVarName node = do
     name <- (Just <$> ASTRead.getVarName node) `catch`
         (\(e :: ASTRead.NoNameException) -> return Nothing)
     return name
 
-extractArgNames :: ASTOp m => NodeRef -> m [Maybe String]
+extractArgNames :: GraphOp m => NodeRef -> m [Maybe String]
 extractArgNames node = do
     match node $ \case
         Grouped g -> IR.source g >>= extractArgNames
@@ -258,7 +277,7 @@ extractArgNames node = do
             return $ map Just names
         _ -> return []
 
-extractAppArgNames :: ASTOp m => NodeRef -> m [Maybe String]
+extractAppArgNames :: GraphOp m => NodeRef -> m [Maybe String]
 extractAppArgNames node = go [] node
     where
         go vars node = match node $ \case
@@ -271,20 +290,20 @@ extractAppArgNames node = go [] node
             Acc{}   -> return vars
             _       -> return []
 
-insideThisNode :: ASTOp m => NodeRef -> m Bool
+insideThisNode :: GraphOp m => NodeRef -> m Bool
 insideThisNode node = do
     curr <- ASTRead.getCurrentASTTarget
     return $ case curr of
         Just n -> n == node
         _      -> False
 
-getPortsNames :: ASTOp m => NodeRef -> m [String]
+getPortsNames :: GraphOp m => NodeRef -> m [String]
 getPortsNames node = do
     names <- extractArgNames node
     let backupNames = map (\i -> "arg" ++ show i) [(0::Int)..]
     forM (zip names backupNames) $ \(name, backup) -> return $ maybe backup id name
 
-extractAppliedPorts :: ASTOp m => Bool -> Bool -> [NodeRef] -> NodeRef -> m [Maybe (TypeRep, PortState)]
+extractAppliedPorts :: GraphOp m => Bool -> Bool -> [NodeRef] -> NodeRef -> m [Maybe (TypeRep, PortState)]
 extractAppliedPorts seenApp seenLam bound node = IR.matchExpr node $ \case
     Lam i o -> do
         inp   <- IR.source i
@@ -318,14 +337,14 @@ mergePortInfo []             (t : ts) = (t, NotConnected) : mergePortInfo [] ts
 mergePortInfo (Nothing : as) (t : ts) = (t, NotConnected) : mergePortInfo as ts
 mergePortInfo (Just a  : as) ts       = a : mergePortInfo as ts
 
-extractPortInfo :: ASTOp m => NodeRef -> m [(TypeRep, PortState)]
+extractPortInfo :: GraphOp m => NodeRef -> m [(TypeRep, PortState)]
 extractPortInfo n = do
     applied  <- reverse <$> extractAppliedPorts False False [] n
     tp       <- IR.getLayer @TypeLayer n >>= IR.source
     fromType <- extractArgTypes tp
     return $ mergePortInfo applied fromType
 
-buildArgPorts :: ASTOp m => NodeRef -> m [InPort]
+buildArgPorts :: GraphOp m => NodeRef -> m [InPort]
 buildArgPorts ref = do
     typed <- extractPortInfo ref
     names <- getPortsNames ref
@@ -336,7 +355,7 @@ buildArgPorts ref = do
                           portsTypes
     return $ zipWith ($) psCons (fmap snd typed ++ repeat NotConnected)
 
-buildSelfPort' :: ASTOp m => Bool -> NodeRef -> m (Maybe InPort)
+buildSelfPort' :: GraphOp m => Bool -> NodeRef -> m (Maybe InPort)
 buildSelfPort' seenAcc node = do
     let buildActualSelf = do
             tpRep     <- followTypeRep node
@@ -351,22 +370,22 @@ buildSelfPort' seenAcc node = do
         (Var _)    -> if seenAcc then buildActualSelf else return potentialSelf
         _          -> if seenAcc then buildActualSelf else return Nothing
 
-buildSelfPort :: ASTOp m => NodeRef -> m (Maybe InPort)
+buildSelfPort :: GraphOp m => NodeRef -> m (Maybe InPort)
 buildSelfPort = buildSelfPort' False
 
-buildWholePort :: ASTOp m => NodeId -> NodeRef -> m InPort
+buildWholePort :: GraphOp m => NodeId -> NodeRef -> m InPort
 buildWholePort nid ref = do
     tp    <- followTypeRep ref
     pid   <- ASTRead.getNodeId ref
     state <- if pid == Just nid then return NotConnected else getPortState ref
     return $ Port [] "base" tp state
 
-followTypeRep :: ASTOp m => NodeRef -> m TypeRep
+followTypeRep :: GraphOp m => NodeRef -> m TypeRep
 followTypeRep ref = do
     tp <- IR.source =<< IR.getLayer @TypeLayer ref
     Print.getTypeRep tp
 
-buildInPorts :: ASTOp m => NodeId -> NodeRef -> m (InPortTree InPort)
+buildInPorts :: GraphOp m => NodeId -> NodeRef -> m (InPortTree InPort)
 buildInPorts nid ref = do
     selfPort <- buildSelfPort ref
     argPorts <- buildArgPorts ref
@@ -374,12 +393,12 @@ buildInPorts nid ref = do
     return $ LabeledTree (InPorts (LabeledTree def <$> selfPort) (LabeledTree def <$> argPorts)) whole
 
 
-buildDummyOutPort :: ASTOp m => NodeRef -> m (OutPortTree OutPort)
+buildDummyOutPort :: GraphOp m => NodeRef -> m (OutPortTree OutPort)
 buildDummyOutPort ref = do
     tp <- followTypeRep ref
     return $ LabeledTree (Port.OutPorts []) (Port [] "Output" tp NotConnected)
 
-buildOutPortTree :: ASTOp m => OutPortId -> NodeRef -> m (OutPortTree OutPort)
+buildOutPortTree :: GraphOp m => OutPortId -> NodeRef -> m (OutPortTree OutPort)
 buildOutPortTree portId ref' = do
     ref   <- ASTRead.cutThroughGroups ref'
     name  <- Print.printName ref
@@ -390,13 +409,13 @@ buildOutPortTree portId ref' = do
         _         -> return []
     return $ LabeledTree (OutPorts children) wholePort
 
-buildOutPorts :: ASTOp m => NodeRef -> m (OutPortTree OutPort)
+buildOutPorts :: GraphOp m => NodeRef -> m (OutPortTree OutPort)
 buildOutPorts ref = match ref $ \case
     Unify l r -> buildOutPortTree [] =<< IR.source l
     _         -> buildDummyOutPort ref
 
 
-buildConnections :: ASTOp m => m [(OutPortRef, InPortRef)]
+buildConnections :: GraphOp m => m [(OutPortRef, InPortRef)]
 buildConnections = do
     allNodes       <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
     edges          <- getEdgePortMapping
@@ -404,25 +423,25 @@ buildConnections = do
     outputEdgeConn <- forM (snd <$> edges) getOutputSidebarInputs
     return $ (maybeToList $ join outputEdgeConn) ++ concat connections
 
-buildInputSidebarTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
+buildInputSidebarTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildInputSidebarTypecheckUpdate nid = do
     API.InputSidebar nid ps <- buildInputSidebar nid
     return $ API.InputSidebarUpdate nid ps
 
 
-buildInputSidebar :: ASTOp m => NodeId -> m API.InputSidebar
+buildInputSidebar :: GraphOp m => NodeId -> m API.InputSidebar
 buildInputSidebar nid = do
     Just ref <- ASTRead.getCurrentASTTarget
     args     <- ASTDeconstruct.extractArguments ref
     argTrees <- zipWithM buildOutPortTree (pure . Projection <$> [0..]) args
     return $ API.InputSidebar nid argTrees
 
-buildOutputSidebarTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
+buildOutputSidebarTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildOutputSidebarTypecheckUpdate nid = do
     API.OutputSidebar nid m <- buildOutputSidebar nid
     return $ API.OutputSidebarUpdate nid m
 
-buildOutputSidebar :: ASTOp m => NodeId -> m API.OutputSidebar
+buildOutputSidebar :: GraphOp m => NodeId -> m API.OutputSidebar
 buildOutputSidebar nid = do
     Just ref <- ASTRead.getCurrentASTTarget
     out      <- ASTRead.getLambdaOutputRef ref
@@ -430,24 +449,24 @@ buildOutputSidebar nid = do
     state    <- getPortState  out
     return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing [])  $ Port [] "output" tp state
 
-getOutputSidebarInputs :: ASTOp m => NodeId -> m (Maybe (OutPortRef, InPortRef))
+getOutputSidebarInputs :: GraphOp m => NodeId -> m (Maybe (OutPortRef, InPortRef))
 getOutputSidebarInputs outputEdge = do
     Just ref <- ASTRead.getCurrentASTTarget
     out      <- ASTRead.getLambdaOutputRef ref
     wholeIn  <- resolveInput out
     return $ (, InPortRef (NodeLoc def outputEdge) []) <$> wholeIn
 
-nodeConnectedToOutput :: ASTOp m => m (Maybe NodeId)
+nodeConnectedToOutput :: GraphOp m => m (Maybe NodeId)
 nodeConnectedToOutput = do
     edges  <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
     fmap join $ forM edges $ \(i, o) -> do
         connection <- getOutputSidebarInputs o
         return $ (view $ _1 . srcNodeId) <$> connection
 
-resolveInput :: ASTOp m => NodeRef -> m (Maybe OutPortRef)
+resolveInput :: GraphOp m => NodeRef -> m (Maybe OutPortRef)
 resolveInput = IR.getLayer @Marker
 
-deepResolveInputs :: ASTOp m => NodeId -> NodeRef -> InPortRef -> m [(OutPortRef, InPortRef)]
+deepResolveInputs :: GraphOp m => NodeId -> NodeRef -> InPortRef -> m [(OutPortRef, InPortRef)]
 deepResolveInputs nid ref portRef@(InPortRef loc id) = do
     portResolution  <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
     let currentPortConn = (, portRef) <$> portResolution
@@ -455,7 +474,7 @@ deepResolveInputs nid ref portRef@(InPortRef loc id) = do
     argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id ++ [Arg i]))
     return $ currentPortConn ++ concat argsConns
 
-getNodeInputs :: ASTOp m => NodeId -> m [(OutPortRef, InPortRef)]
+getNodeInputs :: GraphOp m => NodeId -> m [(OutPortRef, InPortRef)]
 getNodeInputs nid = do
     let loc = NodeLoc def nid
     ref      <- ASTRead.getASTTarget   nid
