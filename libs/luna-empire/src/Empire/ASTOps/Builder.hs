@@ -76,49 +76,76 @@ replaceEdgeSource edge beg newSrc = do
     IR.deleteSubtree oldSrc
     Code.gossipLengthsChangedBy (fromIntegral (Text.length newCode) - oldLen) =<< IR.readTarget edge
 
-countArgs :: ASTOp m => NodeRef -> m Int
-countArgs expr = IR.matchExpr expr $ \case
-    App f _ -> (+ 1) <$> (countArgs =<< IR.source f)
-    _       -> return 0
+countArguments :: ASTOp m => NodeRef -> m Int
+countArguments expr = IR.matchExpr expr $ \case
+    App          f _ -> (+ 1) <$> (countArguments =<< IR.source f)
+    LeftSection  f _ -> return 2
+    RightSection f _ -> return 1
+    _                -> return 0
 
-ensureArgsCount :: ASTOp m => EdgeRef -> Delta -> Int -> m ()
-ensureArgsCount e beg num = do
-    argCount <- countArgs =<< IR.source e
-    padArgs e beg (num - argCount)
+getArgumentOf :: ASTOp m => NodeRef -> Delta -> m (EdgeRef, Delta)
+getArgumentOf fun beg = IR.matchExpr fun $ \case
+    App f a -> do
+        off <- Code.getOffsetRelativeToTarget a
+        return (a, beg + off)
+    LeftSection f a -> do
+        off <- Code.getOffsetRelativeToTarget a
+        return (a, beg + off)
+    RightSection f a -> do
+        off <- Code.getOffsetRelativeToTarget a
+        return (a, beg + off)
+    f -> error $ show f
+
+getOrCreateArgument :: ASTOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
+getOrCreateArgument currentFun codeBegin currentArgument neededArgument
+    | currentArgument <=  neededArgument = do
+        padArgs currentFun codeBegin (neededArgument - currentArgument)
+        flip getArgumentOf codeBegin =<< IR.source currentFun
+    | otherwise = do
+        fun <- IR.source currentFun
+        IR.matchExpr fun $ \case
+            App f a -> do
+                foff <- Code.getOffsetRelativeToTarget f
+                getOrCreateArgument f (codeBegin + foff) (pred currentArgument) neededArgument
+            LeftSection f a -> do
+                foff <- Code.getOffsetRelativeToTarget f
+                padArgs f (codeBegin + foff) 1
+                newFun <- IR.source f
+                arg    <- IR.source a
+                ap     <- IR.app newFun arg
+                IR.putLayer @SpanLength newFun =<< IR.getLayer @SpanLength fun
+                [f', a'] <- IR.inputs ap
+                IR.putLayer @SpanOffset f' =<< IR.getLayer @SpanOffset f
+                IR.putLayer @SpanOffset a' =<< IR.getLayer @SpanOffset a
+                IR.replace ap fun
+                getOrCreateArgument currentFun codeBegin currentArgument neededArgument
 
 padArgs :: ASTOp m => EdgeRef -> Delta -> Int -> m ()
 padArgs e beg i | i <= 0    = return ()
                 | otherwise = do
     bl     <- IR.blank
-    rest   <- IR.source e
-    ap     <- IR.generalize <$> IR.app rest bl
+    fun    <- IR.source e
+    ap     <- IR.generalize <$> IR.app fun bl
     [f, a] <- IR.inputs ap
-    oldLen <- IR.getLayer @SpanLength rest
+    isOp   <- Code.isOperatorVar fun
+    funLen <- IR.getLayer @SpanLength fun
+    IR.putLayer @SpanLength ap (funLen + 2)
     IR.putLayer @SpanLength bl 1
-    IR.putLayer @SpanLength ap (oldLen + 2)
-    IR.putLayer @SpanOffset a  1
-    Code.applyDiff (beg + oldLen) (beg + oldLen) " _"
+    if isOp
+        then do
+            IR.putLayer @SpanOffset f  1
+            Code.insertAt beg "_ "
+        else do
+            IR.putLayer @SpanOffset a  1
+            Code.insertAt (beg + funLen) " _"
     IR.replaceSource ap e
     Code.gossipLengthsChangedBy 2 =<< IR.readTarget e
     padArgs e beg $ pred i
 
-getArgEdgeDroppedN :: ASTOp m => NodeRef -> Delta -> Int -> m (EdgeRef, Delta)
-getArgEdgeDroppedN ref beg i = matchExpr ref $ \case
-    App f a -> if i == 0
-        then do
-            off <- Code.getOffsetRelativeToTarget a
-            return (a, beg + off)
-        else do
-            off <- Code.getOffsetRelativeToTarget f
-            fun <- IR.source f
-            getArgEdgeDroppedN fun (off + beg) (pred i)
-
 applyFunction :: ASTOp m => EdgeRef -> Delta -> NodeRef -> Int -> m ()
 applyFunction funE beg arg pos = do
-    ensureArgsCount funE beg (pos + 1)
-    f           <- IR.source funE
-    count       <- countArgs f
-    (edge, beg) <- getArgEdgeDroppedN f beg (count - pos - 1)
+    argCount    <- countArguments =<< IR.source funE
+    (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) pos
     replaceEdgeSource edge beg arg
 
 

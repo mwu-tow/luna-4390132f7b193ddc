@@ -761,7 +761,7 @@ spec = around withChannels $ parallel $ do
                 Graph.connect loc (outPortRef a   []) (InPortRef' $ inPortRef dddd [Port.Arg 0])
                 Graph.connect loc (outPortRef bb  []) (InPortRef' $ inPortRef dddd [Port.Arg 1])
 
-        xit "properly applies operators" $ let
+        it "properly applies operators at first argument" $ let
             initialCode = [r|
                 def main:
                     «0»aa = foo
@@ -776,7 +776,53 @@ spec = around withChannels $ parallel $ do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
                 Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 0])
 
+        it "properly applies operators at both arguments" $ let
+            initialCode = [r|
+                def main:
+                    «0»aa  = foo
+                    «1»bar = foobar
+                    «2»c   = +
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»aa  = foo
+                    «1»bar = foobar
+                    «2»c   = aa + bar
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just aa, Just bar, Just c] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..2]
+                Graph.connect loc (outPortRef bar []) (InPortRef' $ inPortRef c [Port.Arg 1])
+                Graph.connect loc (outPortRef aa [])  (InPortRef' $ inPortRef c [Port.Arg 0])
 
+        it "properly applies operators at second argument only" $ let
+            initialCode = [r|
+                def main:
+                    «0»aa = foo
+                    «1»b  = +
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»aa = foo
+                    «1»b  = _ + aa
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
+                Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 1])
+
+        it "properly applies operators at the first argument when the second is already applied " $ let
+            initialCode = [r|
+                def main:
+                    «0»aa = foo
+                    «1»b  = + buzz
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»aa = foo
+                    «1»b  = aa + buzz
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
+                Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 0])
 
         xit "updates code after disconnecting lambda output" $ let
             expectedCode = [r|

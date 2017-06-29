@@ -135,16 +135,17 @@ getOffsetRelativeToTarget edge = do
                 return $ off <> len
             currentOff <- IR.getLayer @SpanOffset edge
             return $ currentOff <> foldl (<>) mempty lens
+    let whenOp f a | a == edge = IR.getLayer @SpanOffset a
+                   | otherwise = do
+                       alen <- IR.getLayer @SpanLength =<< IR.source a
+                       aoff <- IR.getLayer @SpanOffset a
+                       foff <- IR.getLayer @SpanOffset f
+                       return $ aoff <> alen <> foff
     IR.matchExpr ref $ \case
         IR.App f a -> do
             isOp <- isOperatorVar =<< IR.source f
-            if | isOp && a == edge -> IR.getLayer @SpanOffset a
-               | isOp && f == edge -> do
-                      alen <- IR.getLayer @SpanLength =<< IR.source a
-                      aoff <- IR.getLayer @SpanOffset a
-                      foff <- IR.getLayer @SpanOffset f
-                      return $ aoff <> alen <> foff
-               | otherwise -> fallback
+            if isOp then whenOp f a else fallback
+        IR.RightSection f a -> whenOp f a
         _ -> fallback
 
 
