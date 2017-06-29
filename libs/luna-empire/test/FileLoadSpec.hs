@@ -69,6 +69,20 @@ mainFile = [r|def main:
     «3»bar = foo 8 c
 |]
 
+testLuna = [r|def main:
+    «0»pi = 3.14
+    «1»foo = a: b:
+        «5»lala = 17.0
+        «12»buzz = x: y:
+            «9»x * y
+        «6»pi = 3.14
+        «7»n = buzz a lala
+        «8»m = buzz b pi
+        «11»m + n
+    «2»c = 4.0
+    «3»bar = foo 8.0 c
+|]
+
 atXPos = ($ def) . (NodeMeta.position . Position.x .~)
 
 specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
@@ -292,6 +306,15 @@ spec = around withChannels $ parallel $ do
             let positions = map (view (Node.nodeMeta . NodeMeta.position)) nodes
                 uniquePositions = Set.size $ Set.fromList positions
             uniquePositions `shouldBe` length nodes
+        it "retains node ids on code reload" $ \env -> do
+            nodes <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath" testLuna
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Just foo <- Graph.withGraph loc $ Graph.loadCode testLuna >> runASTOp (Graph.getNodeIdForMarker 1)
+                Graph.substituteCode "TestPath" 65 66 "5" (Just 66)
+                Graph.getNodes (loc |> foo)
+            let Just lala = find (\n -> n ^. Node.name == Just "lala") nodes
+            lala ^. Node.code `shouldBe` "15.0"
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
