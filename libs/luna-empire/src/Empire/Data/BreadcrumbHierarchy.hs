@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Empire.Data.BreadcrumbHierarchy where
 
@@ -113,6 +114,19 @@ instance HasRefs BChild where
 instance HasRefs BParent where
     refs f (ToplevelParent it) = ToplevelParent <$> refs f it
     refs f (LambdaParent   it) = LambdaParent   <$> refs f it
+
+class DescedantTraversable a where
+    traverseDescedants :: Traversal' a BChild
+
+instance {-# OVERLAPPABLE #-} HasChildren a => DescedantTraversable a where
+    traverseDescedants = children . traverse . traverseDescedants
+
+instance DescedantTraversable ExprItem where
+    traverseDescedants = portChildren . traverse . traverseDescedants
+
+instance DescedantTraversable BChild where
+    traverseDescedants f (ExprChild   it) = ExprChild   <$> traverseDescedants f it
+    traverseDescedants f (LambdaChild it) = LambdaChild <$> traverseDescedants f it
 
 getBreadcrumbItems :: BParent -> Breadcrumb BreadcrumbItem -> [BChild]
 getBreadcrumbItems b (Breadcrumb crumbs) = go crumbs b where
