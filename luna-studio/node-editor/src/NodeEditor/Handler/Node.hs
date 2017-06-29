@@ -49,7 +49,7 @@ handleCommand = \case
     Shortcut.RemoveSelectedNodes     -> removeSelectedNodes
     Shortcut.Cancel                  -> unselectAll
     Shortcut.ExpandSelectedNodes     -> toggleSelectedNodesMode $ Node.Expanded Node.Controls
-    Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor
+    -- Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor --TEMPORARILY DISABLED
     Shortcut.UnfoldSelectedNodes     -> toggleSelectedNodesUnfold
     Shortcut.AutolayoutSelectedNodes -> map (view Node.nodeLoc) <$> getSelectedNodes   >>= autolayoutNodes
     Shortcut.AutolayoutAllNodes      -> map (view Node.nodeLoc) <$> getExpressionNodes >>= autolayoutNodes
