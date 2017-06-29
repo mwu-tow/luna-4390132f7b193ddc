@@ -1,3 +1,12 @@
 def main:
-    «0»pi«1» = 3.1
-    
+    «0»pi = 3.14
+    «1»foo = a: b:
+        «5»lala = 17.0
+        «12»buzz = x: y:
+            «9»x * y
+        «6»pi = 3.14
+        «7»n = buzz a lala
+        «8»m = buzz b pi
+        «11»m + n
+    «2»c = 4.0
+    «3»bar = foo 8.0 c
