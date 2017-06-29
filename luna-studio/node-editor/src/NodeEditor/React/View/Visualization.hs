@@ -86,7 +86,9 @@ visualization = React.defineView viewName $ \(ref, nl, vis) -> do
             else [ onWheel $ \e _ _ -> [stopPropagation e, preventDefault e] ]
     div_
         [ "className" $= Style.prefixFromList [ "noselect", "visualization-container" ]
-        ] $ visualizationIframe_ visId visualizer vmode
+        ] $ do
+        div_ [ "className" $= Style.prefix "visualization-cover" ] mempty -- TODO: LJK: add events to the cover
+        visualizationIframe_ visId visualizer vmode
 
 visualizationIframe_ :: VisualizationId -> Visualizer -> VisualizationMode -> ReactElementM ViewEventHandler ()
 visualizationIframe_ visId v vmode = React.view visualizationIframe (visId, v, vmode) mempty
