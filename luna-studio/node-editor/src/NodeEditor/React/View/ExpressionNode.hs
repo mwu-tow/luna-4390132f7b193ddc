@@ -8,6 +8,7 @@ import qualified Data.Map.Lazy                                        as Map
 import           Data.Matrix                                          (Matrix)
 import           Data.Set                                             (Set)
 import qualified Data.Set                                             as Set
+import qualified Data.Text                                            as Text
 import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
 import           LunaStudio.Data.LabeledTree                          (LabeledTree (LabeledTree))
@@ -30,6 +31,7 @@ import qualified NodeEditor.React.Model.Port                          as Port
 import           NodeEditor.React.Model.Searcher                      (Searcher)
 import qualified NodeEditor.React.Model.Searcher                      as Searcher
 import           NodeEditor.React.Store                               (Ref, dispatch)
+import           NodeEditor.React.View.ColorizedExpression            (colorizedExpression_)
 import           NodeEditor.React.View.ExpressionNode.NodeValue       (nodeValue_)
 import           NodeEditor.React.View.ExpressionNode.Properties      (nodeProperties_)
 import           NodeEditor.React.View.Field                          (multilineField_)
@@ -65,8 +67,7 @@ handleMouseDown ref nodeLoc e m =
 
 nodeName_ :: Ref App -> NodeLoc -> Maybe Text -> Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 nodeName_ ref nl nodeName isVisualization mayS = do
-    let
-        regularHandlersAndElem = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditName nl)]
+    let regularHandlersAndElem = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditName nl)]
                                  , elemString . convert $ fromMaybe def nodeName )
         (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \s -> case s ^. Searcher.mode of
             Searcher.NodeName snl _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s)
@@ -92,18 +93,18 @@ nodeName_ ref nl nodeName isVisualization mayS = do
 
 nodeExpression_ :: Ref App -> NodeLoc -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 nodeExpression_ ref nl expr mayS = do
-    let isLong = if length (show (convert expr::String)) > 64 then True else False
+    let isLong = Text.length expr > 64
+
+        regularHandlersAndElem  = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditExpression nl)]
+                                  , colorizedExpression_ expr )
+        (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \s -> case s ^. Searcher.mode of
+            Searcher.Node snl _ _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s)
+            _                     -> regularHandlersAndElem
     div_
         (
         [ "className" $= Style.prefixFromList (["node__expression", "noselect"] ++ (if isLong then ["node__expression--long"] else []))
         , "key"       $= "nodeExpression" ] ++ handlers
-        ) nameElement where
-            regularHandlersAndElem  = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditExpression nl)]
-                                      , elemString $ convert expr )
-            (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \s -> case s ^. Searcher.mode of
-                Searcher.Node snl _ _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s)
-                _                     -> regularHandlersAndElem
-
+        ) nameElement
 
 node_ :: Ref App -> ExpressionNode -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
 node_ ref model s relatedNodesWithVis = React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, s, relatedNodesWithVis) mempty
