@@ -2,6 +2,7 @@
 module NodeEditor.React.View.ColorizedExpression where
 
 import           Common.Prelude
+import           Data.List.Split        (wordsBy)
 import           JS.Lexer               (lunaClass)
 import qualified Luna.Syntax.Text.Lexer as Lexer
 import           React.Flux
@@ -9,7 +10,7 @@ import           React.Flux
 
 colorizedExpression_ :: Text -> ReactElementM ViewEventHandler ()
 colorizedExpression_ expr = do
-    let classes t = map ("syntax--" ++) $ "source" : "luna" : mapMaybe lunaClass t
+    let classes t = map ("syntax--" ++) $ "source" : "luna" : concatMap (wordsBy (=='.')) (mapMaybe lunaClass t)
         tags token = [ (fromIntegral $ unwrap $ token ^. Lexer.guiSpan, classes $ Lexer.getTags token)
                      , (fromIntegral $ unwrap $ token ^. Lexer.guiOffset, [])
                      ]
