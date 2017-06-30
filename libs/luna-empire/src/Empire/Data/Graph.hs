@@ -15,6 +15,9 @@ module Empire.Data.Graph (
   , defaultGraph
   , defaultAST
   , withVis
+  , NodeIdCache(..)
+  , nodeIdMap
+  , portMappingMap
   , AST
   , ASTState(..)
   , ir
@@ -36,6 +39,7 @@ import           Luna.IR                                (IR, IRBuilder, AnyExpr,
                                                          attachLayer, snapshot, runRegs, Cache)
 import qualified OCI.Pass.Manager                       as Pass (RefState)
 import qualified OCI.Pass.Manager                       as PassManager (PassManager, State)
+import           LunaStudio.Data.Node                   (NodeId)
 import           Luna.Syntax.Text.Parser.Errors         (Invalids)
 import qualified Luna.Syntax.Text.Parser.Marker         as Luna
 import qualified Luna.Syntax.Text.Parser.Parser         as Parser
@@ -63,6 +67,10 @@ data Graph = Graph { _ast                   :: AST
                    , _code                  :: Text
                    , _parseError            :: Maybe SomeASTException
                    } deriving Show
+
+data NodeIdCache = NodeIdCache { _nodeIdMap      :: Map Word64 NodeId
+                               , _portMappingMap :: Map Word64 (NodeId, NodeId)
+                               }
 
 defaultGraph :: IO Graph
 defaultGraph = do
@@ -118,4 +126,5 @@ defaultAST = mdo
 
 
 makeLenses ''Graph
+makeLenses ''NodeIdCache
 makeLenses ''ASTState

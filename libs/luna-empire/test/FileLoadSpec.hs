@@ -63,7 +63,7 @@ mainCondensed = [r|def main:
 mainFile = [r|def main:
     «0»pi = 3.14
 
-    «1»foo = a: b: a + b
+    «1»foo = a: b: «4»a + b
 
     «2»c = 4
     «3»bar = foo 8 c
@@ -181,7 +181,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath" mainFile
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.withGraph loc $ Graph.loadCode mainFile
-                Graph.substituteCode "TestPath" 43 43 "3" (Just 44)
+                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
                 Graph.getGraph loc
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
@@ -307,14 +307,19 @@ spec = around withChannels $ parallel $ do
                 uniquePositions = Set.size $ Set.fromList positions
             uniquePositions `shouldBe` length nodes
         it "retains node ids on code reload" $ \env -> do
-            nodes <- evalEmp env $ do
+            (prev, new) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath" testLuna
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Just foo <- Graph.withGraph loc $ Graph.loadCode testLuna >> runASTOp (Graph.getNodeIdForMarker 1)
+                previousGraph <- Graph.getGraph (loc |> foo)
                 Graph.substituteCode "TestPath" 65 66 "5" (Just 66)
-                Graph.getNodes (loc |> foo)
-            let Just lala = find (\n -> n ^. Node.name == Just "lala") nodes
+                newGraph <- Graph.getGraph (loc |> foo)
+                return (previousGraph, newGraph)
+            let Just lala = find (\n -> n ^. Node.name == Just "lala") $ new ^. Graph.nodes
             lala ^. Node.code `shouldBe` "15.0"
+            prev ^. Graph.inputSidebar `shouldBe` new ^. Graph.inputSidebar
+            prev ^. Graph.outputSidebar `shouldBe` new ^. Graph.outputSidebar
+            prev ^. Graph.connections `shouldBe` new ^. Graph.connections
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
