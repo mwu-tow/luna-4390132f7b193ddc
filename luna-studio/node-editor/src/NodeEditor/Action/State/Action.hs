@@ -56,5 +56,5 @@ endAll = mapM_ end =<< use (actions . currentActions)
 endAllButVisualizationZoomed :: Command State ()
 endAllButVisualizationZoomed = mapM_ endAction =<< use (actions . currentActions) where
     endAction action = case fromSomeAction action of
-        Just (VisualizationActive _ _ FullScreen) -> return ()
-        _                                         -> end action
+        Just (VisualizationActive _ _ FullScreen _) -> return ()
+        _                                           -> end action

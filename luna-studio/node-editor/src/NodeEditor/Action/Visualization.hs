@@ -27,7 +27,7 @@ import           NodeEditor.React.Model.Visualization       (IdleVisualization (
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update),
                                                              VisualizationActive (VisualizationActive), visualizationActiveAction,
                                                              visualizationActiveNodeLoc, visualizationActiveSelectedMode,
-                                                             visualizationActiveVisualizationId)
+                                                             visualizationActiveTriggeredByVis, visualizationActiveVisualizationId)
 import           NodeEditor.State.Global                    (State)
 
 
@@ -48,15 +48,18 @@ instance Action (Command State) VisualizationActive where
         removeActionFromState visualizationActiveAction
 
 focusVisualization :: NodeLoc -> VisualizationId -> Command State ()
-focusVisualization nl visId = begin $ VisualizationActive nl visId Focused
+focusVisualization nl visId = begin $ VisualizationActive nl visId Focused False
 
-closeVisualization :: VisualizationActive -> Command State ()
-closeVisualization = end
+exitVisualizationMode :: VisualizationActive -> Command State ()
+exitVisualizationMode action = if action ^. visualizationActiveTriggeredByVis
+    then begin $ action & visualizationActiveSelectedMode   .~ Focused
+                        & visualizationActiveTriggeredByVis .~ False
+    else end action
 
 selectVisualizer :: NodeLoc -> VisualizationId -> VisualizerName -> Command State ()
 selectVisualizer nl visId visName = withJustM (getNodeVisualizations nl) $ \nodeVis ->
     withJust ((,) <$> Map.lookup visId (nodeVis ^. visualizations) <*> Map.lookup visName (nodeVis ^. visualizers)) $ \(prevVis, visPath) -> do
-        continue $ closeVisualization
+        continue (end :: VisualizationActive -> Command State ())
         let visualizer' = (visName, visPath)
         updateDefaultVisualizer nl $ Just visualizer'
         when (prevVis ^. runningVisualizer /= visualizer') $ getVisualizationsBackupMap >>= \visBackup ->
@@ -94,12 +97,12 @@ handleZoomVisualization :: Command State ()
 handleZoomVisualization = do
     mayMode <- view visualizationActiveSelectedMode `fmap2` checkAction visualizationActiveAction
     if mayMode == Just FullScreen
-        then continue closeVisualization
+        then continue exitVisualizationMode
         else enterVisualizationMode FullScreen
 
 exitPreviewMode :: VisualizationActive -> Command State ()
 exitPreviewMode action = when (Preview == action ^. visualizationActiveSelectedMode) $
-    closeVisualization action
+    exitVisualizationMode action
 
 enterVisualizationMode :: VisualizationMode -> Command State ()
 enterVisualizationMode visMode = do
@@ -108,7 +111,8 @@ enterVisualizationMode visMode = do
         [n] -> let nl = n ^. nodeLoc in
             fmap (nl,) . maybe def (listToMaybe . Map.keys . view visualizations) <$> getNodeVisualizations nl
         _   -> return Nothing
-    withJust visLoc $ \(nl, visId) -> begin $ VisualizationActive nl visId visMode
+    fromVis <- maybe False (\action -> action ^. visualizationActiveSelectedMode == Focused || action ^. visualizationActiveTriggeredByVis) <$> checkAction visualizationActiveAction
+    withJust visLoc $ \(nl, visId) -> begin $ VisualizationActive nl visId visMode fromVis
 
 toggleVisualizations :: NodeLoc -> Command State ()
 toggleVisualizations nl = do

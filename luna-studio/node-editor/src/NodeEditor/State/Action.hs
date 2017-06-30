@@ -112,6 +112,7 @@ data VisualizationActive = VisualizationActive
     { _visualizationActiveNodeLoc         :: NodeLoc
     , _visualizationActiveVisualizationId :: VisualizationId
     , _visualizationActiveSelectedMode    :: VisualizationMode
+    , _visualizationActiveTriggeredByVis  :: Bool
     } deriving (Eq, Show, Generic, Typeable)
 
 makeLenses ''VisualizationActive
