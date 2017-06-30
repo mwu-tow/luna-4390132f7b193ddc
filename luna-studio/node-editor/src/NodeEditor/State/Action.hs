@@ -190,3 +190,15 @@ actionsBlockingPortHighlight = Set.fromList [ multiSelectionAction
                                             , zoomDragAction
                                             , portDragAction
                                             ]
+
+actionsClosingOnMouseLeave :: Set ActionRep
+actionsClosingOnMouseLeave = Set.fromList [ nodeDragAction
+                                          , multiSelectionAction
+                                          , panDragAction
+                                          , zoomDragAction
+                                          , sliderDragAction
+                                          , penConnectAction
+                                          , penDisconnectAction
+                                          , portDragAction
+                                          , visualizationDragAction
+                                          ]

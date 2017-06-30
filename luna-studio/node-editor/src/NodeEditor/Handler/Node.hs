@@ -4,7 +4,7 @@ import           Common.Prelude
 import           Data.ScreenPosition                        (ScreenPosition)
 import           NodeEditor.Action.Basic                    (enterNode, localSetPortDefault, removeSelectedNodes, selectAll,
                                                              setNodeExpression, setPortDefault, toggleSelect, toggleSelectedNodesMode,
-                                                             toggleSelectedNodesUnfold, unselectAll)
+                                                             toggleSelectedNodesUnfold)
 import           NodeEditor.Action.Batch                    (autolayoutNodes)
 import           NodeEditor.Action.Command                  (Command)
 import qualified NodeEditor.Action.Node                     as Node
@@ -47,7 +47,6 @@ handleCommand :: Shortcut.Command -> Command State ()
 handleCommand = \case
     Shortcut.SelectAll               -> selectAll
     Shortcut.RemoveSelectedNodes     -> removeSelectedNodes
-    Shortcut.Cancel                  -> unselectAll
     Shortcut.ExpandSelectedNodes     -> toggleSelectedNodesMode $ Node.Expanded Node.Controls
     -- Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor --TEMPORARILY DISABLED
     Shortcut.UnfoldSelectedNodes     -> toggleSelectedNodesUnfold

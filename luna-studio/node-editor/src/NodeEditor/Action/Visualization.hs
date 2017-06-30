@@ -46,15 +46,15 @@ instance Action (Command State) VisualizationActive where
             visId = action ^. visualizationActiveVisualizationId
         modifyNodeEditor $ nodeVisualizations . ix nl . visualizations . ix visId . visualizationMode .= def
         removeActionFromState visualizationActiveAction
+        when (action ^. visualizationActiveTriggeredByVis) $ begin $ action & visualizationActiveSelectedMode   .~ Focused
+                                                                            & visualizationActiveTriggeredByVis .~ False
+
 
 focusVisualization :: NodeLoc -> VisualizationId -> Command State ()
 focusVisualization nl visId = begin $ VisualizationActive nl visId Focused False
 
 exitVisualizationMode :: VisualizationActive -> Command State ()
-exitVisualizationMode action = if action ^. visualizationActiveTriggeredByVis
-    then begin $ action & visualizationActiveSelectedMode   .~ Focused
-                        & visualizationActiveTriggeredByVis .~ False
-    else end action
+exitVisualizationMode = end
 
 selectVisualizer :: NodeLoc -> VisualizationId -> VisualizerName -> Command State ()
 selectVisualizer nl visId visName = withJustM (getNodeVisualizations nl) $ \nodeVis ->

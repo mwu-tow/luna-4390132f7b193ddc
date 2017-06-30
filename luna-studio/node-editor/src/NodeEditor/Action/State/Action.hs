@@ -2,6 +2,7 @@ module NodeEditor.Action.State.Action where
 
 import           Common.Prelude
 import qualified Data.Map                             as Map
+import           Data.Set                             (Set)
 import qualified Data.Set                             as Set
 import           NodeEditor.Action.Command            (Command)
 import           NodeEditor.React.Model.Visualization (VisualizationMode (FullScreen))
@@ -50,11 +51,10 @@ updateActionWithKey key action = actions . currentActions . at key ?= someAction
 removeActionFromState :: ActionRep -> Command State ()
 removeActionFromState key = actions . currentActions %= Map.delete key
 
-endAll :: Command State ()
-endAll = mapM_ end =<< use (actions . currentActions)
+endActions :: Set ActionRep -> Command State ()
+endActions reps = use (actions . currentActions) >>= mapM_ end . Map.filterWithKey (\k _ -> Set.member k reps)
 
-endAllButVisualizationZoomed :: Command State ()
-endAllButVisualizationZoomed = mapM_ endAction =<< use (actions . currentActions) where
-    endAction action = case fromSomeAction action of
-        Just (VisualizationActive _ _ FullScreen _) -> return ()
-        _                                           -> end action
+endAllActions :: Command State [ActionRep]
+endAllActions = use (actions . currentActions) >>= \actionsMap -> do
+    mapM_ end actionsMap
+    return $ Map.keys actionsMap
