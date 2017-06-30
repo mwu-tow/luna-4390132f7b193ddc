@@ -422,7 +422,7 @@ spec = around withChannels $ parallel $ do
                 Graph.setNodeExpression top u1 "5"
                 Graph.withGraph top $ use Graph.code
             code `shouldBe` "def main:\n    «0»node1 = 5\n"
-        xit "disconnect updates code at proper range" $ let
+        it "disconnect updates code at proper range" $ let
             expectedCode = [r|
                 def main:
                     «0»pi = 3.14
@@ -433,18 +433,18 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 [Just c, Just bar] <- Graph.withGraph loc $ runASTOp $ mapM (Graph.getNodeIdForMarker) [2,3]
                 Graph.disconnect loc (inPortRef bar [Port.Arg 1])
-        {-it "disconnect/connect updates code at proper range" $ let-}
-            {-expectedCode = [r|-}
-                {-def main:-}
-                    {-«0»pi = 3.14-}
-                    {-«1»foo = a: b: a + b-}
-                    {-«2»c = 4-}
-                    {-«3»bar = foo 8 pi-}
-                {-|]-}
-            {-in specifyCodeChange mainCondensed expectedCode $ \loc -> do-}
-                {-[Just pi, Just bar] <- Graph.withGraph loc $ runASTOp $ mapM (Graph.getNodeIdForMarker) [0,3]-}
-                {-Graph.disconnect loc (inPortRef bar [Port.Arg 1])-}
-                {-Graph.connect loc (outPortRef pi []) (InPortRef' $ inPortRef bar [Port.Arg 1])-}
+        it "disconnect/connect updates code at proper range" $ let
+            expectedCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 pi
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                [Just pi, Just bar] <- Graph.withGraph loc $ runASTOp $ mapM (Graph.getNodeIdForMarker) [0,3]
+                Graph.disconnect loc (inPortRef bar [Port.Arg 1])
+                Graph.connect loc (outPortRef pi []) (InPortRef' $ inPortRef bar [Port.Arg 1])
         it "adds one node to existing file via node editor" $ let
             expectedCode = [r|
                 def main:
