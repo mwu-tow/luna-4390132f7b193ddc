@@ -454,10 +454,10 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     «0»pi = 3.14
-                    «5»node1 = 4
                     «1»foo = a: b: «4»a + b
                     «2»c = 4
                     «3»bar = foo 8 c
+                    «5»node1 = 4
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \top -> do
                 u1 <- mkUUID
@@ -478,10 +478,10 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     «0»pi = 3.14
-                    «5»someNode = 123456789
                     «1»foo = a: b: «4»a + b
                     «2»c = 4
                     «3»bar = foo 8 c
+                    «5»someNode = 123456789
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -490,10 +490,10 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     «0»pi = 3.14
-                    «5»node1 = 1
                     «1»foo = a: b: «4»a + b
                     «2»c = 4
                     «3»bar = foo 8 c
+                    «5»node1 = 1
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -502,10 +502,10 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     «0»pi = 3.14
-                    «5»node1 = a:   b:   «6»a   *  b
                     «1»foo = a: b: «4»a + b
                     «2»c = 4
                     «3»bar = foo 8 c
+                    «5»node1 = a:   b:   «6»a   *  b
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -628,8 +628,8 @@ spec = around withChannels $ parallel $ do
                     «1»foo = a: b: «4»a + b
                     «2»c = 4
                     «3»bar = foo 8 c
-                    «6»node2 = add here
                     «5»node1 = (foo +  baz)
+                    «6»node2 = add here
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID

@@ -165,16 +165,20 @@ addNodeNoTC loc uuid input name meta = do
         return node
     return node
 
-distanceTo :: (Double, Double) -> (Double, Double) -> Double
-distanceTo (xRef, yRef) (xPoint, yPoint) = sqrt $ (xRef - xPoint) ** 2 + (yRef - yPoint) ** 2
+findPreviousSeq :: ASTOp m => NodeRef -> Set.Set NodeRef -> m (Maybe NodeRef)
+findPreviousSeq seq nodesToTheLeft = IR.matchExpr seq $ \case
+    IR.Seq l r -> do
+        l' <- IR.source l
+        r' <- IR.source r
+        if Set.member r' nodesToTheLeft then return (Just r') else findPreviousSeq l' nodesToTheLeft
+    _ -> return $ if Set.member seq nodesToTheLeft then Just seq else Nothing
 
-findPreviousNodeInSequence :: ASTOp m => NodeMeta -> [(NodeRef, NodeMeta)] -> m (Maybe NodeRef)
-findPreviousNodeInSequence meta nodes = do
+findPreviousNodeInSequence :: ASTOp m => NodeRef -> NodeMeta -> [(NodeRef, NodeMeta)] -> m (Maybe NodeRef)
+findPreviousNodeInSequence seq meta nodes = do
     let position           = Position.toTuple $ view NodeMeta.position meta
         nodesWithPositions = map (\(n, m) -> (n, Position.toTuple $ m ^. NodeMeta.position)) nodes
-        nodesToTheLeft     = filter (\(n, (x, y)) -> x < fst position || (x == fst position && y < snd position)) nodesWithPositions
-        nearestNode        = listToMaybe $ sortOn (\(n, p) -> distanceTo position p) nodesToTheLeft
-    return $ fmap fst nearestNode
+        nodesToTheLeft     = filter (\(n, (x, y)) -> x <= fst position) nodesWithPositions
+    findPreviousSeq seq (Set.fromList $ map fst nodesToTheLeft)
 
 findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
 findM p [] = return Nothing
@@ -230,7 +234,7 @@ putInSequence ref code meta = do
             nodes              <- AST.readSeq s
             nodesAndMetas      <- mapM (\n -> (n,) <$> AST.readMeta n) nodes
             let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
-            nearestNode        <- findPreviousNodeInSequence meta nodesWithMetas
+            nearestNode        <- findPreviousNodeInSequence s meta nodesWithMetas
             blockEnd           <- Code.getCurrentBlockEnd
             (newS, shouldUpdate) <- insertAfter s nearestNode ref blockEnd code
             when shouldUpdate (updateGraphSeq $ Just newS)
