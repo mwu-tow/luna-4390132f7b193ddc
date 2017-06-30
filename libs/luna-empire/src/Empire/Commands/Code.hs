@@ -149,14 +149,6 @@ getOffsetRelativeToTarget edge = do
         _ -> fallback
 
 
-getOwnOffsetLength :: ASTOp m => NodeRef -> m (Maybe Delta)
-getOwnOffsetLength ref = do
-    succs <- toList <$> IR.getLayer @IR.Succs ref
-    case succs of
-        []  -> return Nothing
-        [s] -> Just <$> IR.getLayer @SpanOffset s
-        _   -> return Nothing
-
 getOffsetRelativeToFile :: ASTOp m => NodeRef -> m (Maybe Delta)
 getOffsetRelativeToFile ref = do
     begs <- getAllBeginningsOf ref
