@@ -142,12 +142,41 @@ padArgs e beg i | i <= 0    = return ()
     Code.gossipLengthsChangedBy 2 =<< IR.readTarget e
     padArgs e beg $ pred i
 
+dropBlankArgumentsAtTailPosition :: ASTOp m => EdgeRef -> Delta -> m ()
+dropBlankArgumentsAtTailPosition e beg = do
+    head <- IR.source e
+    IR.matchExpr head $ \case
+        App f a -> do
+            arg <- IR.source a
+            isB <- ASTRead.isBlank arg
+            when isB $ do
+                fun  <- IR.source f
+                argOff    <- Code.getOffsetRelativeToTarget a
+                argOwnOff <- IR.getLayer @SpanOffset a
+                argLen    <- IR.getLayer @SpanLength arg
+                funOff    <- IR.getLayer @SpanOffset f
+                let toRemoveBegin  = beg + argOff - argOwnOff
+                    toRemoveLength = argOwnOff + argLen + funOff
+                Code.removeAt toRemoveBegin (toRemoveBegin + toRemoveLength)
+                Code.gossipUsesChangedBy (-toRemoveLength) head
+                IR.replaceSource fun e
+                IR.deleteSubtree head
+                dropBlankArgumentsAtTailPosition e beg
+        _ -> return ()
+
+
 applyFunction :: ASTOp m => EdgeRef -> Delta -> NodeRef -> Int -> m ()
 applyFunction funE beg arg pos = do
     argCount    <- countArguments =<< IR.source funE
     (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) pos
     replaceEdgeSource edge beg arg
 
+removeArgument :: ASTOp m => EdgeRef -> Delta -> Int -> m ()
+removeArgument funE beg pos = do
+    bl <- IR.generalize <$> IR.blank
+    IR.putLayer @SpanLength bl 1
+    applyFunction funE beg bl pos
+    dropBlankArgumentsAtTailPosition funE beg
 
 data SelfPortNotExistantException = SelfPortNotExistantException NodeRef
     deriving (Show)
@@ -182,6 +211,7 @@ getCurrentAccTarget = curry $ unfoldM $ \(edge, codeBeg) -> do
 getTgtCode :: ASTOp m => NodeRef -> m Text
 getTgtCode ref = IR.matchExpr ref $ \case
     Var n -> return $ convert n
+    Blank -> return "_"
     _     -> throwM $ SelfPortNotExistantException ref
 
 ensureHasSelf :: ASTOp m => EdgeRef -> Delta -> m ()

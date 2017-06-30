@@ -565,7 +565,7 @@ spec = around withChannels $ parallel $ do
                 Just id <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 let loc' = loc |> id
                 u1 <- mkUUID
-                Graph.addNode loc' u1 "a = 2 + 3 +    5" (atXPos 0)
+                Graph.addNode loc' u1 "x = 2 + 3 +    5" (atXPos 0)
                 u2 <- mkUUID
                 Graph.addNode loc' u2 "d = 8" (atXPos 10.0)
                 Graph.removeNodes loc' [u1]
@@ -740,6 +740,20 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
                 Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Arg 2])
+        it "disconnects an application port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz _ node1
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Arg 2]
         it "connects to application port multiple times" $ let
             initialCode = [r|
                 def main:
@@ -761,7 +775,7 @@ spec = around withChannels $ parallel $ do
                 Graph.connect loc (outPortRef a   []) (InPortRef' $ inPortRef dddd [Port.Arg 0])
                 Graph.connect loc (outPortRef bb  []) (InPortRef' $ inPortRef dddd [Port.Arg 1])
 
-        it "properly applies operators at first argument" $ let
+        it "applies operators at first argument" $ let
             initialCode = [r|
                 def main:
                     «0»aa = foo
@@ -776,7 +790,7 @@ spec = around withChannels $ parallel $ do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
                 Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 0])
 
-        it "properly applies operators at both arguments" $ let
+        it "applies operators at both arguments" $ let
             initialCode = [r|
                 def main:
                     «0»aa  = foo
@@ -794,7 +808,7 @@ spec = around withChannels $ parallel $ do
                 Graph.connect loc (outPortRef bar []) (InPortRef' $ inPortRef c [Port.Arg 1])
                 Graph.connect loc (outPortRef aa [])  (InPortRef' $ inPortRef c [Port.Arg 0])
 
-        it "properly applies operators at second argument only" $ let
+        it "applies operators at second argument only" $ let
             initialCode = [r|
                 def main:
                     «0»aa = foo
@@ -809,7 +823,7 @@ spec = around withChannels $ parallel $ do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
                 Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 1])
 
-        it "properly applies operators at the first argument when the second is already applied " $ let
+        it "applies operators at the first argument when the second is already applied " $ let
             initialCode = [r|
                 def main:
                     «0»aa = foo

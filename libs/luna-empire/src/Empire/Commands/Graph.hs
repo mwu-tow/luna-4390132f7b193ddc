@@ -987,9 +987,9 @@ unAcc nodeId = do
 
 unApp :: ASTOp m => NodeId -> Int -> m ()
 unApp nodeId pos = do
-    astNode <- GraphUtils.getASTTarget nodeId
-    newNodeRef <- ASTRemove.removeArg astNode pos
-    GraphUtils.rewireNode nodeId newNodeRef
+    dstAst <- ASTRead.getTargetEdge nodeId
+    beg    <- Code.getASTTargetBeginning nodeId
+    ASTBuilder.removeArgument dstAst beg pos
 
 makeAcc :: ASTOp m => NodeId -> NodeId -> OutPortId -> m ()
 makeAcc src dst outPort = do
