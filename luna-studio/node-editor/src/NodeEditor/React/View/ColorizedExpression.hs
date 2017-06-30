@@ -2,66 +2,14 @@
 module NodeEditor.React.View.ColorizedExpression where
 
 import           Common.Prelude
-import           Data.Map               (Map)
-import qualified Data.Map               as Map
+import           JS.Lexer               (lunaClass)
 import qualified Luna.Syntax.Text.Lexer as Lexer
 import           React.Flux
 
 
-lunaClasses :: Map String [Char]
-lunaClasses = Map.fromList [
-        -- "Layout"      ,
-        -- "BOF"         ,
-        -- "EOF"         ,
-        -- "EOL"         ,
-        -- "Terminator"  ,
-        -- "BlockStart"  ,
-        -- "Block"       ,
-        -- "Group"       ,
-          ("Marker"      , "marker")
-
-        --, ( "Ident"       ,)
-        , ("Var"         , "variable")
-        , ("Cons"        , "constant")
-        , ("Wildcard"    , "variable")
-
-        , ("Keyword"     , "keyword")
-        , ("KwAll"       , "keyword.control")
-        , ("KwCase"      , "keyword.control")
-        , ("KwClass"     , "meta.class")
-        , ("KwDef"       , "meta.class")
-        , ("KwImport"    , "meta.import")
-        , ("KwOf"        , "keyword.control")
-
-        , ("Operator"    , "keyword.operator")
-        , ("Modifier"    , "keyword.other.special-method")
-        , ("Accessor"    , "keyword.other.special-method")
-        --, ( "Assignment"  ,)
-        --, ( "TypeApp"     ,)
-        --, ( "Merge"       ,)
-        --, ( "Range"       ,)
-        --, ( "Anything"    ,)
-
-        , ("Literal"     , "constant")
-        , ("Number"      , "constant.numeric")
-        --, ( "Quote"       ,)
-        , ("Str"         , "string")
-        , ("StrEsc"      , "constant.character.escape")
-        , ("List"        , "storage")
-        , ("StrWrongEsc" , "invalid.illegal")
-
-        --, ( "Control"     ,)
-        , ("Disabled"    , "disabled")
-
-        , ("Comment"     , "comment")
-        --, ( "Doc"         ,)
-
-        --, ( "Unknown"     ,)
-        ]
-
 colorizedExpression_ :: Text -> ReactElementM ViewEventHandler ()
 colorizedExpression_ expr = do
-    let classes t = map ("syntax--" ++) $ "source" : "luna" : mapMaybe (flip Map.lookup lunaClasses) t
+    let classes t = map ("syntax--" ++) $ "source" : "luna" : mapMaybe lunaClass t
         tags token = [ (fromIntegral $ unwrap $ token ^. Lexer.guiSpan, classes $ Lexer.getTags token)
                      , (fromIntegral $ unwrap $ token ^. Lexer.guiOffset, [])
                      ]

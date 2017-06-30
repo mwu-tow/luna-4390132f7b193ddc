@@ -1,56 +1,5 @@
 {Grammar} = require "first-mate"
-
-# https://github.com/atom/template-syntax/blob/master/stylesheets/base.less
-lunaClasses = {
-
-        # Layout      :
-        # BOF         :
-        # EOF         :
-        # EOL         :
-        # Terminator  :
-        # BlockStart  :
-        # Block       :
-        # Group       :
-        Marker      : 'marker'
-
-        # Ident       :
-        Var         : 'variable'
-        Cons        : 'constant'
-        Wildcard    : 'variable'
-
-        Keyword     : 'keyword'
-        KwAll       : 'keyword.control'
-        KwCase      : 'keyword.control'
-        KwClass     : 'meta.class'
-        KwDef       : 'meta.class'
-        KwImport    : 'meta.import'
-        KwOf        : 'keyword.control'
-
-        Operator    : 'keyword.operator'
-        Modifier    : 'keyword.other.special-method'
-        Accessor    : 'keyword.other.special-method'
-        # Assignment  :
-        # TypeApp     :
-        # Merge       :
-        # Range       :
-        # Anything    :
-
-        Literal     : 'constant'
-        Number      : 'constant.numeric'
-        # Quote       :
-        Str         : 'string'
-        StrEsc      : 'constant.character.escape'
-        List        : 'storage'
-        StrWrongEsc : 'invalid.illegal'
-
-        # Control     :
-        Disabled    : 'disabled'
-
-        Comment     : 'comment'
-        # Doc         :
-
-        # Unknown     :
-    }
+{lunaClass} = require "./gen/lexer-classes"
 
 module.exports =
 class LunaSemanticGrammar extends Grammar
@@ -72,7 +21,7 @@ class LunaSemanticGrammar extends Grammar
         addToken = (text, lexerTags) ->
             scopes = outerScopeName
             for lexerTag in lexerTags
-                cls = lunaClasses[lexerTag]
+                cls = lunaClass(lexerTag)
                 if cls?
                     scopes += "." + cls
             tags.push outerRegistry.startIdForScope(scopes)
