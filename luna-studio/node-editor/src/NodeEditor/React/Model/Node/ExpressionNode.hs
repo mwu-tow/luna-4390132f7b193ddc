@@ -45,7 +45,6 @@ data ExpressionNode = ExpressionNode { _nodeLoc'                :: NodeLoc
                                      , _visualizationsEnabled   :: Bool
                                      , _code                    :: Text
                                      , _value                   :: Maybe Value
-                                     , _visualizers             :: Map VisualizerName VisualizerPath
                                      , _zPos                    :: Int
                                      , _isSelected              :: Bool
                                      , _mode                    :: Mode
@@ -98,7 +97,6 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- visualizationsEnabled -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
         {- code                  -} (n ^. Empire.code)
         {- value                 -} def
-        {- visualizers           -} def
         {- zPos                  -} def
         {- isSelected            -} False
         {- mode                  -} def
