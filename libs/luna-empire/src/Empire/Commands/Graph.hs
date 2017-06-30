@@ -581,7 +581,6 @@ connectCondTC :: Bool -> GraphLocation -> OutPortRef -> AnyPortRef -> Empire Con
 connectCondTC True  loc outPort anyPort = connect loc outPort anyPort
 connectCondTC False loc outPort anyPort = do
     connection <- withGraph loc $ connectNoTC loc outPort anyPort
-    updateNodeCode loc $ anyPort ^. PortRef.nodeId
     resendCode loc
     return connection
 
@@ -856,27 +855,6 @@ isInput nodeId = (== SidebarInput) <$> isSidebar nodeId
 
 isOutput :: ASTOp m => NodeId -> m Bool
 isOutput nodeId = (== SidebarOutput) <$> isSidebar nodeId
-
-updateNodeCode :: GraphLocation -> NodeId -> Empire ()
-updateNodeCode loc@(GraphLocation file _) nodeId = do
-    input <- withGraph loc $ runASTOp $ isInput nodeId
-    if input then return () else do
-        (ref, pointer) <- withGraph loc $ runASTOp $ do
-            output     <- isOutput nodeId
-            ref        <- if output then fromJust <$> ASTRead.getCurrentASTRef else ASTRead.getASTRef nodeId
-            pointer    <- if output then fromJust <$> ASTRead.getCurrentASTPointer else ASTRead.getASTPointer nodeId
-            return (ref, pointer)
-        (range, expression) <- withGraph (GraphLocation file (Breadcrumb [])) $ runASTOp $ do
-            range                <- readRange ref
-            expression           <- printMarkedExpression ref
-            LeftSpacedSpan (SpacedSpan off _) <- readCodeSpan ref
-            setCodeSpan ref (leftSpacedSpan off (fromIntegral $ Text.length expression))
-            return (range, expression)
-        withGraph (GraphLocation file (Breadcrumb [])) $ do
-            runASTOp $ do
-                oldSeq      <- preuse $ Graph.breadcrumbHierarchy . BH.body
-                forM_ oldSeq updateCodeSpan
-            void $ Code.applyDiff (fst range) (snd range + 1) $ Text.concat [expression, "\n"]
 
 previousOffset :: ASTOp m => NodeRef -> m Delta
 previousOffset ref = do
