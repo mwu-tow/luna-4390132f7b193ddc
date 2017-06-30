@@ -324,15 +324,11 @@ prepareChildWhenLambda nodeIdCache marked ref = do
 
 prepareLambdaChild :: ASTOp m => NodeIdCache -> NodeRef -> NodeRef -> m BH.LamItem
 prepareLambdaChild nodeIdCache marked ref = do
-    newPortMapping <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
-    index          <- IR.matchExpr marked $ \case
-        IR.Marked m _expr -> getMarker =<< IR.source m
-    let cachedPortMapping = nodeIdCache ^. portMappingMap . at index
-        portMapping = fromMaybe newPortMapping cachedPortMapping
-    lambdaBody     <- ASTRead.getFirstNonLambdaRef ref
+    portMapping <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
+    lambdaBody  <- ASTRead.getFirstNonLambdaRef ref
     ASTBuilder.attachNodeMarkersForArgs (fst portMapping) [] ref
-    children       <- lambdaChildren nodeIdCache lambdaBody
-    newBody        <- ASTRead.getFirstNonLambdaRef ref
+    children    <- lambdaChildren nodeIdCache lambdaBody
+    newBody     <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children newBody
 
 prepareExprChild :: ASTOp m => NodeIdCache -> NodeRef -> NodeRef -> m BH.BChild
@@ -737,11 +733,38 @@ substituteCode path start end code cursor = do
         Left e -> withGraph loc $ Graph.parseError ?= e
         _      -> return ()
 
-lamItemToMapping :: ASTOp m => BH.LamItem -> m (Word64, (NodeId, NodeId))
-lamItemToMapping (BH.LamItem portMapping marked _ _) = do
-    index <- IR.matchExpr marked $ \case
-        IR.Marked m _expr -> getMarker =<< IR.source m
-    return (index, portMapping)
+lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
+lamItemToMapping (idArg, BH.LamItem portMapping _ _ _) = (idArg, portMapping)
+
+restorePortMappings :: ASTOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> m ()
+restorePortMappings previousPortMappings = do
+    hierarchy <- use Graph.breadcrumbHierarchy
+
+    let goParent (BH.ToplevelParent topItem) = BH.ToplevelParent <$> goTopItem topItem
+        goParent (BH.LambdaParent         _) = $notImplemented
+
+        goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
+        goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (nodeId, Nothing) lamItem
+
+        goTopItem (BH.TopItem childNodes body) = do
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs childNodes
+            return $ BH.TopItem (Map.fromList updatedChildren) body
+
+        goLamItem idArg (BH.LamItem mapping marked children body) = do
+            let cache       = Map.lookup idArg previousPortMappings
+            updatedChildren <- forM cache $ \prev -> do
+                ref <- ASTRead.getTargetFromMarked marked
+                ASTBuilder.attachNodeMarkersForArgs (fst prev) [] ref
+                updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs children
+                return $ Map.fromList updatedChildren
+            return $ BH.LamItem (fromMaybe mapping cache) marked (fromMaybe children updatedChildren) body
+
+        goExprItem nodeId (BH.ExprItem children self) = do
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (nodeId, Just a) b) $ Map.assocs children
+            return $ BH.ExprItem (Map.fromList updatedChildren) self
+
+    newHierarchy <- goParent hierarchy
+    Graph.breadcrumbHierarchy .= newHierarchy
 
 reloadCode :: GraphLocation -> Text -> Command Graph ()
 reloadCode loc code = do
@@ -757,13 +780,14 @@ reloadCode loc code = do
     previousPortMappings <- runASTOp $ do
         hierarchy <- use Graph.breadcrumbHierarchy
         let lamItems = BH.getLamItems hierarchy
-        elems <- mapM lamItemToMapping lamItems
+            elems    = map lamItemToMapping lamItems
         return $ Map.fromList elems
     oldHierarchy <- use Graph.breadcrumbHierarchy
     Graph.breadcrumbHierarchy .= def
     loadCodeWithNodeIdCache (NodeIdCache previousNodeIds previousPortMappings) code
         `onException` (Graph.breadcrumbHierarchy .= oldHierarchy)
     runASTOp $ do
+        restorePortMappings previousPortMappings
         currentExprMap <- getExprMap
         forM_ oldMetas $ \(marker, oldMeta) -> do
             let expr = Map.lookup marker currentExprMap

@@ -161,17 +161,17 @@ replaceAt (Breadcrumb crumbs) par child = go crumbs par child where
 topLevelIDs :: BParent -> [NodeId]
 topLevelIDs = Map.keys . view children
 
-getLamItems :: BParent -> [LamItem]
+getLamItems :: BParent -> [((NodeId, Maybe Int), LamItem)]
 getLamItems hierarchy = goParent hierarchy
     where
         goParent (ToplevelParent topItem) = goTopItem topItem
-        goParent (LambdaParent   lamItem) = goLamItem lamItem
+        goParent (LambdaParent   lamItem) = $notImplemented
 
-        goBChild (ExprChild exprItem)  = goExprItem exprItem
-        goBChild (LambdaChild lamItem) = goLamItem  lamItem
+        goBChild nodeId (ExprChild exprItem)  = goExprItem nodeId exprItem
+        goBChild nodeId (LambdaChild lamItem) = goLamItem (nodeId, Nothing) lamItem
 
-        goTopItem (TopItem childNodes _) = concatMap goBChild $ Map.elems childNodes
+        goTopItem (TopItem childNodes _) = concatMap (\(a,b) -> goBChild a b) $ Map.assocs childNodes
 
-        goLamItem lamItem = [lamItem]
+        goLamItem idArg lamItem = (idArg, lamItem) : concatMap (\(a, b) -> goBChild a b) (Map.assocs $ lamItem ^. children)
 
-        goExprItem (ExprItem children _) = Map.elems children
+        goExprItem nodeId (ExprItem children _) = map (\(a,b) -> ((nodeId, Just a), b)) $ Map.assocs children

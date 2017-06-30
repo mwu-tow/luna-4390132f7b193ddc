@@ -69,7 +69,7 @@ data Graph = Graph { _ast                   :: AST
                    } deriving Show
 
 data NodeIdCache = NodeIdCache { _nodeIdMap      :: Map Word64 NodeId
-                               , _portMappingMap :: Map Word64 (NodeId, NodeId)
+                               , _portMappingMap :: Map (NodeId, Maybe Int) (NodeId, NodeId)
                                }
 
 defaultGraph :: IO Graph
