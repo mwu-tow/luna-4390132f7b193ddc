@@ -183,11 +183,17 @@ constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds 
     updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
         then newGraph ^. GraphAPI.outputSidebar else Nothing
 
-withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResult location action = do
+withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResult' getFinalGraph location action = do
     oldGraph <- Graph.getGraphNoTC location
     void action
-    constructResult oldGraph <$> Graph.getGraphNoTC location
+    constructResult oldGraph <$> getFinalGraph location
+
+withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResult = withDefaultResult' Graph.getGraphNoTC
+
+withDefaultResultTC :: GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResultTC = withDefaultResult' Graph.getGraph
 
 getNodeById :: GraphLocation -> NodeId -> Empire (Maybe Node.Node)
 getNodeById location nid = fmap listToMaybe $ getNodesByIds location [nid]
@@ -403,7 +409,7 @@ handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
     action req@(Substitute.Request location start end newText cursor) = do
         let file = location ^. GraphLocation.filePath
-        withDefaultResult location $ do
+        withDefaultResultTC location $ do
             Graph.substituteCodeFromPoints file start end newText cursor
             -- code  <- Graph.getCode location
             -- (graph, crumb) <- handle (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [])) $ do
