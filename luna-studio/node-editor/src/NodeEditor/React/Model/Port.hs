@@ -22,7 +22,6 @@ import           NodeEditor.React.Model.Constants (nodeRadius)
 
 type IsAlias = Bool
 type IsSelf  = Bool
-type HasSelf = Bool
 type IsOnly  = Bool
 
 data Mode = Normal

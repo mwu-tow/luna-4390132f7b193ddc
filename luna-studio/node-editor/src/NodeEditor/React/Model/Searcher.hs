@@ -3,7 +3,6 @@ module NodeEditor.React.Model.Searcher where
 import           Common.Prelude
 import qualified Data.Map.Lazy                              as Map
 import qualified Data.Text                                  as Text
-import qualified Data.Text.Span                             as Span
 import           Luna.Syntax.Text.Lexer                     (Bound (Begin, End), LexerGUIToken, Symbol (..))
 import qualified Luna.Syntax.Text.Lexer                     as Lexer
 import           LunaStudio.Data.Node                       (ExpressionNode)

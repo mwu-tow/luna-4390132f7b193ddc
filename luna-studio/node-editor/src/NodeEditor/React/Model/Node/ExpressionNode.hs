@@ -24,7 +24,7 @@ import           LunaStudio.Data.NodeLoc                  (NodeLoc (NodeLoc), No
 import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta (NodeMeta))
 import qualified LunaStudio.Data.NodeMeta                 as NodeMeta
-import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer, VisualizerName, VisualizerPath)
+import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer)
 import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.React.Model.IsNode            as X

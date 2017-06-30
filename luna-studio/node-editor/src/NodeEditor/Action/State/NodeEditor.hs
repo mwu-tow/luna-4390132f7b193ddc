@@ -19,8 +19,7 @@ import           LunaStudio.Data.MonadPath                   (MonadPath)
 import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
 import qualified LunaStudio.Data.NodeSearcher                as NS
-import           LunaStudio.Data.NodeValue                   (VisualizationId, VisualizationValue, Visualizer, VisualizerName,
-                                                              VisualizerPath, applyType)
+import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType)
 import           LunaStudio.Data.Port                        (_WithDefault)
 import           LunaStudio.Data.PortDefault                 (PortDefault)
 import           LunaStudio.Data.PortRef                     (AnyPortRef, InPortRef)

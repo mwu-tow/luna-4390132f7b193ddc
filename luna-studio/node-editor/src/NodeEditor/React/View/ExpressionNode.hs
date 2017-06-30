@@ -182,7 +182,6 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
     let nodeId             = n ^. Node.nodeId
         nodeLoc            = n ^. Node.nodeLoc
         nodePorts'         = Node.portsList n
-        visibleSelfPresent = any (\p -> (Port.isSelf $ p ^. Port.portId) && (not $ Port.isInvisible p)) $ Node.inPortsList n
         ports p =
             forM_ p $ \port -> port_ ref
                                      nodeLoc
@@ -193,7 +192,6 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                                          LabeledTree _ a -> case (a ^. Port.state) of
                                              Port.Connected -> True
                                              _              -> False )
-                                     visibleSelfPresent
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]

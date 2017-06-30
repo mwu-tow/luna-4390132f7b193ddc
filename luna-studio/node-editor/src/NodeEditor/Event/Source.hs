@@ -15,9 +15,8 @@ import           GHCJS.Prim                        (fromJSString)
 import qualified Common.Batch.Connector.Connection as BatchConnection
 import qualified JS.Atom                           as Atom
 import qualified JS.Scene                          as Scene
-import qualified JS.UI                             as UI
 import qualified NodeEditor.Event.Connection       as Connection
-import           NodeEditor.Event.Event            (Event (Atom, Connection, UI))
+import           NodeEditor.Event.Event            (Event (Connection, UI))
 import           NodeEditor.Event.UI               (UIEvent (AppEvent))
 import qualified NodeEditor.React.Event.App        as App
 import qualified WebSocket                         as WebSocket
@@ -27,9 +26,6 @@ data AddHandler a = AddHandler ((a -> IO ()) -> IO (IO ()))
 
 atomHandler :: AddHandler Event
 atomHandler = AddHandler Atom.onEvent
-    -- Atom.onEvent $ \ev -> case ev of
-    --     Atom {} -> h ev
-    --     _       -> whenM UI.isFocusInApp $ h ev
 
 sceneResizeHandler :: AddHandler Event
 sceneResizeHandler = AddHandler $ \h ->

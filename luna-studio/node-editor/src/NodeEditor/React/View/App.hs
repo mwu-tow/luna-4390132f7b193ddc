@@ -7,17 +7,14 @@ import qualified React.Flux                             as React
 
 import           Common.Prelude                         hiding (on)
 import           Data.Timestamp                         (Timestamp (Timestamp))
-import qualified JS.Clipboard                           as Clipboard
 import           JS.Scene                               (appId)
 import qualified JS.UI                                  as UI
-import           NodeEditor.Event.Event                 (Event (Shortcut))
 import           NodeEditor.Event.Preprocessor.Shortcut (isEventHandled)
-import qualified NodeEditor.Event.Shortcut              as Shortcut
 import qualified NodeEditor.Event.UI                    as UI
 import qualified NodeEditor.React.Event.App             as App
 import           NodeEditor.React.Model.App             (App)
 import qualified NodeEditor.React.Model.App             as App
-import           NodeEditor.React.Store                 (Ref, dispatch, dispatch', dt)
+import           NodeEditor.React.Store                 (Ref, dispatch, dt)
 import           NodeEditor.React.View.Breadcrumbs      (breadcrumbs_)
 import           NodeEditor.React.View.NodeEditor       (nodeEditor_)
 import qualified NodeEditor.React.View.Style            as Style

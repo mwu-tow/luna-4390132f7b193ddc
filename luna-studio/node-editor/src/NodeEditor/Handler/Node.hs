@@ -39,7 +39,7 @@ handle (UI (NodeEvent (Node.SetExpression             nl expr))) = Just $ setNod
 handle (UI (NodeEvent (Node.PortEditString            portRef portDef)))    = Just $ void $ localSetPortDefault portRef portDef
 handle (UI (NodeEvent (Node.PortApplyString      kevt portRef portDef)))    = Just $ when (Keys.withoutMods kevt Keys.enter) $ setPortDefault portRef portDef
 handle (UI (NodeEvent (Node.PortSetPortDefault        portRef portDef)))    = Just $ setPortDefault portRef portDef
-handle (UI (NodeEvent (Node.PortInitSlider       mevt portRef sliderInit))) = Just $ PortControl.startMoveSlider portRef sliderInit
+handle (UI (NodeEvent (Node.PortInitSlider       _    portRef sliderInit))) = Just $ PortControl.startMoveSlider portRef sliderInit
 handle _ = Nothing
 
 

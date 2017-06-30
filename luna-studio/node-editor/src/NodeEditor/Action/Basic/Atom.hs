@@ -7,7 +7,7 @@ import           NodeEditor.Action.Batch                (searchNodes)
 import           NodeEditor.Action.Camera.Persistence   (saveCamera)
 import           NodeEditor.Action.Command              (Command)
 import           NodeEditor.Action.State.NodeEditor     (resetGraph)
-import           NodeEditor.Batch.Workspace             (currentLocation, nodeSearcherData)
+import           NodeEditor.Batch.Workspace             (currentLocation)
 import qualified NodeEditor.Batch.Workspace             as Workspace
 import           NodeEditor.State.Global                (State, workspace)
 

@@ -7,7 +7,6 @@ module NodeEditor.Action.Camera.Persistence
 import           Common.Prelude
 import           Control.Monad.Trans.Maybe           (MaybeT (MaybeT), runMaybeT)
 import qualified JS.LocalStorage                     as JS
-import           LunaStudio.Data.GraphLocation       (filePath)
 import           NodeEditor.Action.Basic.CenterGraph (centerGraph)
 import           NodeEditor.Action.Command           (Command)
 import           NodeEditor.Action.State.NodeEditor  (modifyNodeEditor)

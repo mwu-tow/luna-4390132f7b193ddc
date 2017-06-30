@@ -52,30 +52,31 @@ moveSlider movement state = do
     void $ localSetPortDefault portRef $ toPortValue newValue
 
 stopMoveSlider :: ScreenPosition -> SliderDrag -> Command State ()
-stopMoveSlider currentPostion state = do
+stopMoveSlider _currentPostion state = do
     JS.unlockCursor
-    currentTime <- liftIO Clock.getCurrentTime
+    -- currentTime <- liftIO Clock.getCurrentTime
     let portRef = state ^. sliderDragPortRef
         newValue = state ^. sliderDragInitValue
     Batch.setPortDefault portRef $ toPortValue newValue
     removeActionFromState sliderDragAction
 
+sign :: Double -> Double
 sign a = if a < 0 then -1 else 1
 
 newSliderValue :: ScreenPosition -> UTCTime -> SliderDrag -> InitValue
 newSliderValue currentPostion currentTime slider =
-    let dx = currentPostion ^. x
-        dt = fromRational $ toRational $ Clock.diffUTCTime currentTime (slider ^. sliderDragStartTime)
-        v = dx / dt -- 100 - 4 000
-        max = 100 :: Double
-        nv = v / max :: Double
-        a = 1 :: Double
-        b = 0.9  :: Double
-        c = 0.9  :: Double
+    let dx   = currentPostion ^. x
+        dt   = fromRational $ toRational $ Clock.diffUTCTime currentTime (slider ^. sliderDragStartTime)
+        v    = dx / dt -- 100 - 4 000
+        max' = 100 :: Double
+        nv   = v / max' :: Double
         f :: Double -> Double
-        f x = x + x' * nv where
+        f x' = x' + x'' * nv where
+          x'' = sign x' + (x' ** 0.5)
         -- f x = x + nv * x' * a where
-          x' = sign x + (x ** 0.5)
+        -- a = 1 :: Double
+        -- b = 0.9  :: Double
+        -- c = 0.9  :: Double
         -- f val
         --   | val == 0 && v <  0 =     - a * (abs v ** b)
         --   | val == 0           =       a * (v ** b)
@@ -86,9 +87,6 @@ newSliderValue currentPostion currentTime slider =
     in case slider ^. sliderDragInitValue of
           Continous val -> Continous $ f val
           Discrete  val -> Discrete  $ round $ f $ fromIntegral val
-
-newPortValue :: ScreenPosition -> UTCTime -> SliderDrag -> PortDefault
-newPortValue = toPortValue .:. newSliderValue
 
 toPortValue :: InitValue -> PortDefault
 toPortValue = Constant . \case

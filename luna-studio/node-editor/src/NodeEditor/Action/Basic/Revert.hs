@@ -92,8 +92,8 @@ revertRenameNode (RenameNode.Request loc nid _) (Response.Ok (RenameNode.Inverse
 revertRenameNode (RenameNode.Request _loc _nid _) (Response.Error _msg) = panic
 
 revertRenamePort :: RenamePort.Request -> Response.Status RenamePort.Inverse -> Command State ()
-revertRenamePort (RenamePort.Request loc portRef _) (Response.Ok (RenamePort.Inverse prevName)) =
-    inCurrentLocation loc $ \path -> void $ $notImplemented
+revertRenamePort (RenamePort.Request loc _portRef _) (Response.Ok (RenamePort.Inverse _prevName)) =
+    inCurrentLocation loc $ \_path -> void $ $notImplemented
 revertRenamePort (RenamePort.Request _loc _portRef _) (Response.Error _msg) = panic
 
 revertSetNodeExpression :: SetNodeExpression.Request -> Response.Status SetNodeExpression.Inverse -> Command State ()

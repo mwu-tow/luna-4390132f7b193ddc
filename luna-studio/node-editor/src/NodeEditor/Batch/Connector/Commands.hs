@@ -54,7 +54,7 @@ withLibrary w f = f $ w ^. currentLocation
 
 
 createLibrary :: Text -> Text -> Workspace -> UUID -> Maybe UUID -> IO ()
-createLibrary name path workspace uuid guiID = sendRequest $ Message uuid guiID $ CreateLibrary.Request $notImplemented (Just $ Text.unpack name) (Text.unpack path)
+createLibrary name path _workspace uuid guiID = sendRequest $ Message uuid guiID $ CreateLibrary.Request $notImplemented (Just $ Text.unpack name) (Text.unpack path)
 
 listLibraries :: ProjectId -> UUID -> Maybe UUID -> IO ()
 listLibraries pid uuid guiID = sendRequest $ Message uuid guiID $ ListLibraries.Request pid
