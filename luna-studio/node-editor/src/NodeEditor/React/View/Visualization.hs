@@ -87,7 +87,7 @@ visualization = React.defineView viewName $ \(ref, nl, vis) -> do
     div_
         [ "className" $= Style.prefixFromList [ "noselect", "visualization-container" ]
         ] $ do
-        div_ ([ "className" $= Style.prefix "visualization-cover" ] ++ coverHandler) mempty -- TODO: LJK: add events to the cover
+        div_ ([ "className" $= Style.prefix "visualization-cover" ] ++ coverHandler) mempty
         visualizationIframe_ visId visualizer vmode
 
 visualizationIframe_ :: VisualizationId -> Visualizer -> VisualizationMode -> ReactElementM ViewEventHandler ()
