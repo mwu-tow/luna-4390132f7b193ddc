@@ -6,6 +6,3 @@ def main:
     «4»cryptocurrencies = Empty . prepend maidSafeCoin . prepend nem . prepend ripple
     «5»getExchangeRate = realCurrency: cryptoCurrency: «7»Http . getJSON ("https://min-api.cryptocompare.com/data/price?fsym=" + cryptoCurrency + "&tsyms=" + realCurrency) . lookup realCurrency . fromJust . toReal
     «6»exchangeRates = every (500 . miliseconds) (cryptocurrencies . map (getExchangeRate plny))
-
-
-    «8»node20 = "Dzięki WZA spółki poznaliśmy listę akcjonariuszy, którzy mają teraz decydujący wpływ na spółkę i decydowali o podjęciu poszczególnych uchwał. Największą liczbą głosów dysponowała Nymenia Holding Limited, której 505 063 głosów stanowiło 32,38% liczby głosów na WZA i 3,34% ogólnej liczby głosów. Drugi w kolejności Swedbank posiadał 310 797 głosów, co stanowiło 19,92% liczby głosów na WZA i 2,06 % ogólnej liczby głosów."
