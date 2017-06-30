@@ -80,18 +80,23 @@ class Monad m => MonadProgressParser m where
     getProgress = lift   getProgress
 
 class Monad m => MonadCatchParser m where
-    catch :: m a -> m (Either (Error m) a)
+    catch :: m a -> m (Either (NonEmpty (Error m)) a)
 
 
 -- === Utils === --
 
-recover :: MonadCatchParser m => (Error m -> m a) -> m a -> m a
+recover :: MonadCatchParser m => (NonEmpty (Error m) -> m a) -> m a -> m a
 recover f m = catch m >>= \case
     Right a -> return a
     Left  e -> f e
 
-recover_ :: MonadCatchParser m => (Error m -> m a) -> m b -> m ()
+recover_ :: MonadCatchParser m => (NonEmpty (Error m) -> m a) -> m b -> m ()
 recover_ f m = recover (void . f) (void m)
+
+replaceErrorsWith :: (MonadCatchParser m, MonadErrorParser e m) => e -> m a -> m a
+replaceErrorsWith e m = catch m >>= \case
+    Right a -> return a
+    Left  _ -> raise e
 
 setProgress :: MonadProgressParser m => m ()
 setProgress = putProgress True
@@ -241,16 +246,16 @@ instance Monad m => MonadTokenParser (StateT (Stream s) m) where
 
 -- === Definition === --
 
-newtype FailParser e m a = FailParser (EitherT e m a) deriving (Functor, Applicative, Monad, MonadTrans, MonadIO)
+newtype FailParser e m a = FailParser (EitherT (NonEmpty e) m a) deriving (Functor, Applicative, Monad, MonadTrans, MonadIO)
 makeLenses ''FailParser
 
 
 -- === Running === --
 
-failParser :: m (Either e a) -> FailParser e m a
+failParser :: m (Either (NonEmpty e) a) -> FailParser e m a
 failParser = wrap . EitherT
 
-runFailParser :: forall e m a. Monad m => FailParser e m a -> m (Either e a)
+runFailParser :: forall e m a. FailParser e m a -> m (Either (NonEmpty e) a)
 runFailParser = runEitherT . unwrap
 
 
@@ -264,9 +269,14 @@ instance MonadProgressParser m => Alternative (FailParser e m) where
         p <- getProgress
         unsetProgress
         la <- runFailParser l
-        p' <- getProgress
+        lp <- getProgress
         putProgress p
-        if p' || isRight la then return la else runFailParser r
+        if lp then return la else case la of
+            Right _ -> return la
+            Left  e -> do
+                ra <- runFailParser r
+                rp <- getProgress
+                return $ if rp then ra else mapLeft (e <>) ra
 
 
 type instance Error (FailParser e m) = e
@@ -277,7 +287,7 @@ instance MonadProgressParser m => MonadProgressParser (FailParser e m) where
         return a
 
 instance Monad m => MonadCatchParser (FailParser e m) where catch = failParser . fmap Right . runFailParser
-instance Monad m => MonadThrowParser (FailParser e m) where throw = failParser . return . Left
+instance Monad m => MonadThrowParser (FailParser e m) where throw = failParser . pure . Left . pure
 
 
 
@@ -499,7 +509,7 @@ instance (MonadState Offset m, MonadErrorBuilder t m a) => MonadErrorBuilder t m
         OffsetError off <$> buildError t
 
 
-runTest1 :: IO (Either String [Char])
+runTest1 :: IO (Either (NonEmpty String) [Char])
 runTest1 = evalBacktracker
          $ runFailParser
          $ evalStreamProvider (listStream "babbbaabab")
@@ -507,21 +517,21 @@ runTest1 = evalBacktracker
          $ (many (token 'a' <|> token 'b') )
 
 
-runTest2 :: IO (Either String (Char, History Char))
+runTest2 :: IO (Either (NonEmpty String) (Char, History Char))
 runTest2 = runFailParser
          $ evalStreamProvider (listStream "babbbaabab")
          $ runHistoryRegister
          $ evalOffsetRegister
          $ ((token 'a' <|> token 'b') *> token 'a')
 
-runTest3 :: IO (Either String Char)
+runTest3 :: IO (Either (NonEmpty String) Char)
 runTest3 = evalBacktracker
          $ runFailParser
          $ evalStreamProvider (listStream "babbbaabab")
          $ evalOffsetRegister
          $ (try (token 'b' *> token 'b') <|> token 'b')
 
-runTest4 :: IO (Either (OffsetError String) ())
+runTest4 :: IO (Either (NonEmpty (OffsetError String)) ())
 runTest4 = evalBacktracker
          $ runFailParser @(OffsetError String)
          $ evalStreamProvider (listStream "abbbaabab")
@@ -529,7 +539,7 @@ runTest4 = evalBacktracker
          $ recover_ (const dropToken) (token 'a' *> token 'a') <|> (() <$ token 'b')
         --  $ (token 'a' *> token 'a')
 
-runTest5 :: IO (Either String Char)
+runTest5 :: IO (Either (NonEmpty String) Char)
 runTest5 = evalBacktracker
          $ runFailParser
          $ evalStreamProvider (listStream "babbbaabab")
