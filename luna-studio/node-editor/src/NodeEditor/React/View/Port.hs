@@ -25,7 +25,7 @@ name :: JSString
 name = "port"
 
 typeOffsetX :: Double
-typeOffsetX = 40
+typeOffsetX = 36
 
 typeOffsetY1,typeOffsetY2,typeOffsetY3,typeOffsetY :: Double
 typeOffsetY1 = (-3.5)
