@@ -96,6 +96,30 @@ spec = around withChannels $ parallel $ do
             res `shouldBe` [
                     (outPortRef u1 [], inPortRef u2 [Port.Arg 1, Port.Arg 0])
                 ]
+        it "returns connections for deeply nested uses of node in self position" $ \env -> do
+            u1 <- mkUUID
+            u2 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = 1" def
+                Graph.addNode top u2 "foo . prepend foo . prepend foo" $ def & position . Position.x .~ 20.0
+                Graph.getConnections top
+            res `shouldMatchList` [
+                    (outPortRef u1 [], inPortRef u2 [Port.Arg 0]),
+                    (outPortRef u1 [], inPortRef u2 [Port.Self, Port.Arg 0]),
+                    (outPortRef u1 [], inPortRef u2 [Port.Self, Port.Self])
+                ]
+        it "returns connections for deeply nested uses of node in head position" $ \env -> do
+            u1 <- mkUUID
+            u2 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = 1" def
+                Graph.addNode top u2 "foo foo . bar foo" $ def & position . Position.x .~ 20.0
+                Graph.getConnections top
+            res `shouldMatchList` [
+                    (outPortRef u1 [], inPortRef u2 [Port.Arg 0]),
+                    (outPortRef u1 [], inPortRef u2 [Port.Self, Port.Head]),
+                    (outPortRef u1 [], inPortRef u2 [Port.Self, Port.Arg 0])
+                ]
         it "makes connection to output edge" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID

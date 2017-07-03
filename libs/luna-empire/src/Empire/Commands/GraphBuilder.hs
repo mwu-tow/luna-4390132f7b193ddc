@@ -433,18 +433,20 @@ resolveInput = IR.getLayer @Marker
 
 deepResolveInputs :: ASTOp m => NodeId -> NodeRef -> InPortRef -> m [(OutPortRef, InPortRef)]
 deepResolveInputs nid ref portRef@(InPortRef loc id) = do
-    portResolution  <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
-    let currentPortConn = (, portRef) <$> portResolution
+    currentPortResolution <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
+    let currentPortConn = (, portRef) <$> currentPortResolution
     args      <- reverse <$> ASTDeconstruct.extractAppArguments ref
     argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id ++ [Arg i]))
-    return $ currentPortConn ++ concat argsConns
+    head      <- ASTDeconstruct.extractFun ref
+    self      <- ASTDeconstruct.extractSelf head
+    headConns <- case (self, head == ref) of
+        (Just s, _) -> deepResolveInputs nid s    (InPortRef loc (id ++ [Self]))
+        (_, False)  -> deepResolveInputs nid head (InPortRef loc (id ++ [Head]))
+        _           -> return []
+    return $ concat [currentPortConn, headConns, concat argsConns]
 
 getNodeInputs :: ASTOp m => NodeId -> m [(OutPortRef, InPortRef)]
 getNodeInputs nid = do
     let loc = NodeLoc def nid
     ref      <- ASTRead.getASTTarget   nid
-    self     <- ASTRead.getSelfNodeRef ref
-    selfIn   <- catMaybes . toList <$> mapM resolveInput self
-    posConns <- deepResolveInputs nid ref (InPortRef loc [])
-    let selfConn  = (, InPortRef loc [Self]) <$> selfIn
-    return $ selfConn ++ posConns
+    deepResolveInputs nid ref (InPortRef loc [])

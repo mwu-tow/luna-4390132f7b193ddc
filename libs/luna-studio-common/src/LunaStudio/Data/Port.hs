@@ -16,7 +16,7 @@ import           LunaStudio.Data.TypeRep     (TypeRep)
 import           Prologue                    hiding (TypeRep)
 
 
-data InPortIndex = Self | Arg Int                             deriving (Eq, Generic, NFData, Ord, Read, Show)
+data InPortIndex = Self | Head | Arg Int                      deriving (Eq, Generic, NFData, Ord, Read, Show)
 data InPorts s   = InPorts { _self :: Maybe s, _args :: [s] } deriving (Default, Eq, Foldable, Functor, Generic, NFData, Show, Traversable)
 type InPortId    = [InPortIndex]
 makeLenses ''InPorts

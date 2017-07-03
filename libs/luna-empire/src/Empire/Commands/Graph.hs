@@ -979,6 +979,7 @@ disconnectPort (InPortRef (NodeLoc _ dstNodeId) dstPort) = case dstPort of
     []        -> setToNothing dstNodeId
     [Self]    -> unAcc dstNodeId
     [Arg num] -> unApp dstNodeId num
+    _         -> return ()
 
 setToNothing :: ASTOp m => NodeId -> m ()
 setToNothing dst = do
