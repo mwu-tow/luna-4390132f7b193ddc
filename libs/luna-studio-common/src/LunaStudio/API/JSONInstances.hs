@@ -18,6 +18,7 @@ import           LunaStudio.API.Graph.AddPort               as AddPort
 import           LunaStudio.API.Graph.AddSubgraph           as AddSubgraph
 import           LunaStudio.API.Graph.AutolayoutNodes       as AutolayoutNodes
 import           LunaStudio.API.Graph.CollaborationUpdate   as CollaborationUpdate
+import           LunaStudio.API.Graph.CollapseToFunction    as CollapseToFunction
 import           LunaStudio.API.Graph.DumpGraphViz          as DumpGraphViz
 import           LunaStudio.API.Graph.GetProgram            as GetProgram
 import           LunaStudio.API.Graph.GetSubgraphs          as GetSubgraphs
@@ -128,6 +129,8 @@ instance ToJSON Breadcrumb.BreadcrumbItem
 instance ToJSON CloseFile.Request
 instance ToJSON CollaborationUpdate.Event
 instance ToJSON CollaborationUpdate.Update
+instance ToJSON CollapseToFunction.Inverse
+instance ToJSON CollapseToFunction.Request
 instance ToJSON Connection.Connection
 instance ToJSON CreateLibrary.Request
 instance ToJSON CreateLibrary.Result

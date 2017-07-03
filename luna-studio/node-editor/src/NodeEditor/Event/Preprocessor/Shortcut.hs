@@ -56,13 +56,14 @@ handleKeyApp evt
     -- nodes
     | Keys.withCtrl         evt Keys.a          = Just SelectAll
     | Keys.withCtrl         evt Keys.e          = Just UnfoldSelectedNodes
+    | Keys.withCtrl         evt Keys.enter      = Just EditSelectedNodes
+    | Keys.withCtrl         evt Keys.l          = Just AutolayoutAllNodes
+    | Keys.withCtrl         evt Keys.space      = Just ZoomVisualization
     | Keys.withoutMods      evt Keys.backspace  = Just RemoveSelectedNodes
     | Keys.withoutMods      evt Keys.del        = Just RemoveSelectedNodes
     | Keys.withoutMods      evt Keys.enter      = Just ExpandSelectedNodes
-    | Keys.withCtrl         evt Keys.enter      = Just EditSelectedNodes
-    | Keys.withCtrl         evt Keys.space      = Just ZoomVisualization
+    | Keys.withoutMods      evt Keys.f          = Just CollapseToFunction
     | Keys.withoutMods      evt Keys.l          = Just AutolayoutSelectedNodes
-    | Keys.withCtrl         evt Keys.l          = Just AutolayoutAllNodes
     -- searcher
     | Keys.withoutMods evt Keys.tab             = Just SearcherOpen
     -- undo / redo

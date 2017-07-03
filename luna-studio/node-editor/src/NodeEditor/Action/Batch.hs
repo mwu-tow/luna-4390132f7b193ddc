@@ -67,6 +67,10 @@ autolayoutNodes :: [NodeLoc] -> Command State ()
 autolayoutNodes []  = return ()
 autolayoutNodes nls = withWorkspace $ BatchCmd.autolayoutNodes nls
 
+collapseToFunction :: [NodeLoc] -> Command State ()
+collapseToFunction []  = return ()
+collapseToFunction nls = withWorkspace $ BatchCmd.collapseToFunction nls
+
 getSubgraph :: NodeLoc -> Command State ()
 getSubgraph nl = withWorkspace (BatchCmd.getSubgraph nl)
 

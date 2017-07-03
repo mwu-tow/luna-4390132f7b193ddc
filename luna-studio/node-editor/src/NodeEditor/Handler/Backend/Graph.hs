@@ -12,6 +12,7 @@ import qualified LunaStudio.API.Graph.AddPort                as AddPort
 import qualified LunaStudio.API.Graph.AddSubgraph            as AddSubgraph
 import qualified LunaStudio.API.Graph.AutolayoutNodes        as AutolayoutNodes
 import qualified LunaStudio.API.Graph.CollaborationUpdate    as CollaborationUpdate
+import qualified LunaStudio.API.Graph.CollapseToFunction     as CollapseToFunction
 import qualified LunaStudio.API.Graph.GetProgram             as GetProgram
 import qualified LunaStudio.API.Graph.GetSubgraphs           as GetSubgraphs
 import qualified LunaStudio.API.Graph.MonadsUpdate           as MonadsUpdate
@@ -174,6 +175,12 @@ handle (Event.Batch ev) = Just $ case ev of
                     Node.collaboration . Node.modify . at clientId ?= DT.addSeconds modifyTime currentTime
                 CollaborationUpdate.CancelTouch nodeLocs -> touchNodes nodeLocs $  Node.collaboration . Node.touch  . at clientId .= Nothing
                 CollaborationUpdate.Refresh             -> touchCurrentlySelected
+
+    CollapseToFunctionResponse response -> handleResponse response success doNothing where
+        requestId       = response ^. Response.requestId
+        request         = response ^. Response.request
+        location        = request  ^. CollapseToFunction.location
+        success         = applyResult location
 
     DumpGraphVizResponse response -> handleResponse response doNothing doNothing
 

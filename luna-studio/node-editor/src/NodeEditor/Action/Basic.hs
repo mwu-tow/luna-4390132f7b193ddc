@@ -2,6 +2,7 @@ module NodeEditor.Action.Basic
     ( addPort
     , addSubgraph
     , centerGraph
+    , collapseToFunction
     , connect
     , createGraph
     , createNode
@@ -108,6 +109,7 @@ import           NodeEditor.Action.Basic.AddPort             (addPort, localAddP
 import           NodeEditor.Action.Basic.AddSubgraph         (addSubgraph, localAddSubgraph, localUpdateSubgraph)
 import           NodeEditor.Action.Basic.Atom                (setFile, unsetFile)
 import           NodeEditor.Action.Basic.CenterGraph         (centerGraph)
+import           NodeEditor.Action.Basic.CollapseToFunction  (collapseToFunction)
 import           NodeEditor.Action.Basic.CreateGraph         (createGraph, updateGraph)
 import           NodeEditor.Action.Basic.EnterBreadcrumb     (enterBreadcrumb, enterBreadcrumbs, enterNode, exitBreadcrumb)
 import           NodeEditor.Action.Basic.FocusNode           (focusNode, focusNodes, updateNodeZOrder)

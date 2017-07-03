@@ -34,16 +34,17 @@ data Command = Cancel
              | GoRight
              | GoUp
              -- node
-             | SelectAll
-             | RemoveSelectedNodes
-             | ExpandSelectedNodes
-             | UnfoldSelectedNodes
-             | EditSelectedNodes
-             | ZoomVisualization
-             | OpenVisualizationPreview
-             | CloseVisualizationPreview
-             | AutolayoutSelectedNodes
              | AutolayoutAllNodes
+             | AutolayoutSelectedNodes
+             | CloseVisualizationPreview
+             | CollapseToFunction
+             | EditSelectedNodes
+             | ExpandSelectedNodes
+             | OpenVisualizationPreview
+             | RemoveSelectedNodes
+             | SelectAll
+             | UnfoldSelectedNodes
+             | ZoomVisualization
              -- searcher
              | SearcherOpen
              -- undo/redo
