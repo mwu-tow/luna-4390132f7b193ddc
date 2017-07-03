@@ -11,10 +11,13 @@ import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import qualified NodeEditor.Event.UI                        as UI
 import qualified NodeEditor.React.Event.Visualization       as Visualization
 import           NodeEditor.React.Model.App                 (App)
+import           NodeEditor.React.Model.Constants           (lineHeight)
 import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc)
 import           NodeEditor.React.Model.Visualization       (RunningVisualization, RunningVisualization, VisualizationId,
-                                                             VisualizationMode (Default, Focused, FullScreen, Preview), Visualizer,
-                                                             VisualizerName, VisualizerPath, runningVisualizer, visualizationId,
+                                                             VisualizationMode (Default, Focused, FullScreen, Preview),
+                                                             VisualizationProperties, Visualizer, VisualizerName, VisualizerPath,
+                                                             runningVisualizer, visPropArgPortsNumber, visPropIsNodeExpanded,
+                                                             visPropNodeLoc, visPropVisualization, visPropVisualizers, visualizationId,
                                                              visualizationMode)
 import           NodeEditor.React.Store                     (Ref, dispatch)
 import qualified NodeEditor.React.View.Style                as Style
@@ -36,23 +39,25 @@ objNameVis      = "node-vis"
 objNameShortVal = "node-short-value"
 
 
-nodeVisualization_ :: Ref App -> NodeLoc -> Map VisualizerName VisualizerPath -> RunningVisualization -> ReactElementM ViewEventHandler ()
-nodeVisualization_ ref nl visualizers' visualization' = React.viewWithSKey nodeVisualization (visKey visualization') (ref, nl, visualizers', visualization') mempty
+nodeVisualization_ :: Ref App -> VisualizationProperties -> ReactElementM ViewEventHandler ()
+nodeVisualization_ ref visProp = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visProp) mempty
 
-nodeVisualization :: ReactView (Ref App, NodeLoc, Map VisualizerName VisualizerPath, RunningVisualization)
-nodeVisualization = React.defineView objNameVis $ \(ref, nl, visualizers', vis) -> do
-    let menuVisible = elem (vis ^. visualizationMode) [Focused, Default]
-        nid         = nl ^. NodeLoc.nodeId
-        vmode       = vis ^. visualizationMode
-        activeClass = if vmode == Default then [] else [ "visualization--active" ]
-        classes     = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
-        isExpanded  = True
-        numOfPorts  = 1
+nodeVisualization :: ReactView (Ref App, VisualizationProperties)
+nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
+    let nl           = visProp ^. visPropNodeLoc
+        nid          = nl ^. NodeLoc.nodeId
+        visualizers' = visProp ^. visPropVisualizers
+        vis          = visProp ^. visPropVisualization
+        menuVisible  = elem (vis ^. visualizationMode) [Focused, Default]
+        vmode        = vis ^. visualizationMode
+        activeClass  = if vmode == Default then [] else [ "visualization--active" ]
+        classes      = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
+        visShift     = show $ lineHeight * (if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0)
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
         , "className" $= Style.prefixFromList (classes ++ activeClass )
-        , "style"     @= Aeson.object [ "transform" Aeson..= show ("translateX(" ++ show (16 * (if isExpanded then numOfPorts else 0)) ++ "px)") ]
+        , "style"     @= Aeson.object [ "transform" Aeson..= show ("translateX(" ++ visShift ++ "px)") ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
         div_

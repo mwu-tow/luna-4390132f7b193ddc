@@ -24,7 +24,8 @@ import           NodeEditor.React.Model.NodeEditor          (GraphStatus (..), N
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import           NodeEditor.React.Model.Port                (InPortIndex (Self))
 import qualified NodeEditor.React.Model.Searcher            as Searcher
-import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview), visualizationMode)
+import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview), visPropNodeLoc,
+                                                             visPropVisualization, visualizationMode)
 import           NodeEditor.React.Store                     (Ref, dispatch, dispatch')
 import           NodeEditor.React.View.Connection           (connection_, halfConnection_)
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
@@ -79,8 +80,8 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         scale          = (Matrix.toList camera)!!0 :: Double
         maySearcher    = ne ^. NodeEditor.searcher
         visualizations = NodeEditor.getVisualizations ne
-        isAnyVisActive = any (\(_, _, vis) -> elem (vis ^. visualizationMode) [Preview, FullScreen, Focused]) visualizations
-        nodesWithVis   = Set.fromList $ map (^. _1) visualizations
+        isAnyVisActive = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
+        nodesWithVis   = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
           div_
@@ -131,7 +132,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                      n
                                                      (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                                      (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                  forM_ visualizations $ \(nl, visualizers, vis) -> nodeVisualization_ ref nl visualizers vis
+                  forM_ visualizations $ nodeVisualization_ ref
 
               forM_ input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
               forM_ output $ sidebar_ ref Nothing

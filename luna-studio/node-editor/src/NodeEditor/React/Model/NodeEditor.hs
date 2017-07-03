@@ -32,7 +32,7 @@ import           NodeEditor.React.Model.Port                (AnyPort, AnyPortId 
 import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.React.Model.Searcher            (Searcher)
 import           NodeEditor.React.Model.SelectionBox        (SelectionBox)
-import           NodeEditor.React.Model.Visualization       (NodeVisualizations, RunningVisualization, VisualizerName, VisualizerPath)
+import           NodeEditor.React.Model.Visualization       (NodeVisualizations, VisualizationProperties (VisualizationProperties))
 import qualified NodeEditor.React.Model.Visualization       as Visualization
 
 data GraphStatus = GraphLoaded
@@ -222,8 +222,12 @@ toPosHalfConnection ne halfConnection = do
         else Nothing
     return $ PosHalfConnection srcPos dstPos t c
 
-getVisualizations :: NodeEditor -> [(NodeLoc, Map VisualizerName VisualizerPath, RunningVisualization)]
+getVisualizations :: NodeEditor -> [VisualizationProperties]
 getVisualizations ne = concatMap getVisualizationsForNode . Map.toList $ ne ^. nodeVisualizations where
-    getVisualizationsForNode (nl, nv) = if maybe False (view ExpressionNode.visualizationsEnabled) $ getExpressionNode nl ne
-        then map (nl, nv ^. Visualization.visualizers, ) . Map.elems $ nv ^. Visualization.visualizations
-        else def
+    getVisualizationsForNode (nl, nv) = case getExpressionNode nl ne of
+        Nothing -> def
+        Just n  -> if not $ n ^. ExpressionNode.visualizationsEnabled then def else do
+            let isExpanded  = ExpressionNode.isExpanded n
+                argPortsNum = ExpressionNode.countArgPorts n
+                visualizers = nv ^. Visualization.visualizers
+            map (VisualizationProperties nl isExpanded argPortsNum visualizers) . Map.elems $ nv ^. Visualization.visualizations
