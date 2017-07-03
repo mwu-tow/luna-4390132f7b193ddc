@@ -10,6 +10,7 @@ import           Prologue
 import           Control.Monad.State     (MonadState)
 import           Control.Monad           (forM)
 import qualified Data.Set                as Set
+import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
 import           Data.Text.IO            as Text
@@ -17,16 +18,19 @@ import           Data.List               (sort)
 import           Data.Maybe              (listToMaybe)
 import           Empire.Data.Graph       as Graph
 import           Empire.Empire           (Command, Empire)
+import qualified Safe
 
 import           Empire.Data.AST         (NodeRef, EdgeRef)
 import           Empire.ASTOp            (GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
 import qualified Luna.IR                 as IR
+import qualified OCI.IR.Combinators      as IR (replace, substitute)
 import           Data.Text.Position      (Delta)
 import           Empire.Data.Layers      (SpanOffset, SpanLength)
 import           Data.Text.Span          (LeftSpacedSpan(..), SpacedSpan(..), leftSpacedSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan, realSpan)
+import qualified Luna.Syntax.Text.Parser.Marker   as Luna
 
 import           Luna.Syntax.Text.Lexer.Name (isOperator)
 import qualified Luna.Syntax.Text.Lexer      as Lexer
@@ -119,26 +123,56 @@ getOffsetRelativeToTarget edge = do
                 return $ off <> len
             currentOff <- IR.getLayer @SpanOffset edge
             return $ currentOff <> foldl (<>) mempty lens
+    let whenOp f a | a == edge = IR.getLayer @SpanOffset a
+                   | otherwise = do
+                       alen <- IR.getLayer @SpanLength =<< IR.source a
+                       aoff <- IR.getLayer @SpanOffset a
+                       foff <- IR.getLayer @SpanOffset f
+                       return $ aoff <> alen <> foff
     IR.matchExpr ref $ \case
         IR.App f a -> do
             isOp <- isOperatorVar =<< IR.source f
-            if | isOp && a == edge -> IR.getLayer @SpanOffset a
-               | isOp && f == edge -> do
-                      alen <- IR.getLayer @SpanLength =<< IR.source a
-                      aoff <- IR.getLayer @SpanOffset a
-                      foff <- IR.getLayer @SpanOffset f
-                      return $ aoff <> alen <> foff
-               | otherwise -> fallback
+            if isOp then whenOp f a else fallback
+        IR.RightSection f a -> whenOp f a
         _ -> fallback
 
 
-getOwnOffsetLength :: GraphOp m => NodeRef -> m (Maybe Delta)
-getOwnOffsetLength ref = do
-    succs <- toList <$> IR.getLayer @IR.Succs ref
-    case succs of
-        []  -> return Nothing
-        [s] -> Just <$> IR.getLayer @SpanOffset s
-        _   -> return Nothing
+getExprMap :: GraphOp m => m (Map.Map Luna.MarkerId NodeRef)
+getExprMap = use Graph.codeMarkers
+
+setExprMap :: GraphOp m => Map.Map Luna.MarkerId NodeRef -> m ()
+setExprMap exprMap = Graph.codeMarkers .= exprMap
+
+addExprMapping :: GraphOp m => Word64 -> NodeRef -> m ()
+addExprMapping index ref = do
+    exprMap    <- getExprMap
+    let newMap = exprMap & at index ?~ ref
+    setExprMap newMap
+
+getNextExprMarker :: GraphOp m => m Word64
+getNextExprMarker = do
+    exprMap <- getExprMap
+    let keys         = Map.keys exprMap
+        highestIndex = Safe.maximumMay keys
+    return $ maybe 0 succ highestIndex
+
+addCodeMarker :: GraphOp m => NodeRef -> m NodeRef
+addCodeMarker ref = do
+    index  <- getNextExprMarker
+    marker <- IR.marker' index
+    IR.putLayer @SpanLength marker $ convert $ Text.length $ makeMarker index
+    dummyBl    <- IR.blank
+    markedNode <- IR.marked' marker dummyBl
+    [l, r]     <- IR.inputs markedNode
+    IR.putLayer @SpanOffset l 0
+    IR.putLayer @SpanOffset r 0
+    addExprMapping index markedNode
+    Just beg <- getOffsetRelativeToFile ref
+    insertAt beg (makeMarker index)
+    IR.substitute markedNode ref
+    IR.replace ref dummyBl
+    gossipUsesChangedBy (fromIntegral $ Text.length $ makeMarker index) markedNode
+    return markedNode
 
 getOffsetRelativeToFile :: GraphOp m => NodeRef -> m (Maybe Delta)
 getOffsetRelativeToFile ref = do
@@ -159,6 +193,13 @@ getAllBeginningsOf ref = do
 
 getAnyBeginningOf :: GraphOp m => NodeRef -> m (Maybe Delta)
 getAnyBeginningOf ref = listToMaybe <$> getAllBeginningsOf ref
+
+getCodeOf :: GraphOp m => NodeRef -> m Text
+getCodeOf ref = do
+    Just beg <- getAnyBeginningOf ref
+    len <- IR.getLayer @SpanLength ref
+    getAt beg (beg + len)
+
 
 replaceAllUses :: GraphOp m => NodeRef -> Text -> m ()
 replaceAllUses ref new = do

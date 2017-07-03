@@ -41,3 +41,4 @@ localAddPort portRef@(OutPortRef nid pid@[Projection pos]) mayConnDst = do
                     _ -> return ()
                 withJust mayConnDst $ \connDst -> void $ localAddConnection portRef connDst
                 return True
+localAddPort _ _ = $notImplemented

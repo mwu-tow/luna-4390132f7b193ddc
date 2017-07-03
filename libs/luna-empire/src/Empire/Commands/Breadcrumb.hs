@@ -66,7 +66,7 @@ makeGraph funName lastUUID = do
     (_, graph) <- liftIO $ runEmpire env tempGraph $ do
         runASTOp $ propagateLengths ref
         runAliasAnalysis
-        newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy ref
+        newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy (clsGraph ^. Graph.nodeIdCache) ref
         Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
     uuid <- case lastUUID of
         Just id -> return id
@@ -84,10 +84,11 @@ makeGraphCls fun lastUUID = do
         tempBH    = def & BH._ToplevelParent . BH.topBody ?~ ref
         tempGraph = Graph.Graph ast tempBH 0 Map.empty "" def
     env <- ask
+    nodeIdCache <- use Graph.nodeIdCache
     (_, graph) <- liftIO $ runEmpire env tempGraph $ do
         runASTOp $ propagateLengths ref
         runAliasAnalysis
-        newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy ref
+        newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeIdCache ref
         Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
     uuid <- case lastUUID of
         Just id -> return id

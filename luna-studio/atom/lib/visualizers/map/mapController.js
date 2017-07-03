@@ -9,14 +9,19 @@
     var popupOptionsBig        = {autoPan: false, maxWidth: 400, maxHeight: 400};
     var mapOptions = { center: [0,0], zoom: 0.2, minZoom: 0.2, closePopupOnClick: false, maxBounds: [[-90, -Infinity], [90.0, Infinity]],  maxBoundsViscosity: 1.0};
 
-    window.addEventListener("resize", function () {
-        if (document.body.clientHeight < 500 && document.body.clientWidth < 500) {
+    window.addEventListener("resize", function (e) {
+        map.invalidateSize();
+        width = map.getSize().x;
+        height = map.getSize().y
+        if (width < 500 && height < 500) {
             hoverPopupOptions = hoverPopupOptionsSmall;
             popupOptions = popupOptionsSmall;
         } else {
             hoverPopupOptions = hoverPopupOptionsBig;
             popupOptions = popupOptionsBig;
         }
+        map.setMinZoom(Math.max(width, height)/1024);
+        map.fitBounds(markers.getBounds());
         map.closePopup();
     });
 

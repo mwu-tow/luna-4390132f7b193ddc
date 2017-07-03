@@ -11,6 +11,7 @@ import qualified LunaStudio.API.Atom.OpenFile      as OpenFile
 import qualified LunaStudio.API.Atom.SaveFile      as SaveFile
 import qualified LunaStudio.API.Atom.SetProject    as SetProject
 import qualified LunaStudio.API.Atom.Substitute    as Substitute
+import           LunaStudio.Data.GraphLocation     (GraphLocation)
 import           LunaStudio.Data.Point             (Point)
 
 -- Atom requests --
@@ -36,5 +37,6 @@ saveFile path uuid guiID = sendRequest $ Message uuid guiID $ SaveFile.Request p
 setProject :: FilePath -> UUID -> Maybe UUID -> IO ()
 setProject rootPath uuid guiID = sendRequest $ Message uuid guiID $ SetProject.Request rootPath
 
-substitute :: FilePath -> Point -> Point -> Text -> Maybe Point -> UUID -> Maybe UUID -> IO ()
-substitute path start end text cursor uuid guiID =  sendRequest $ Message uuid guiID $ Substitute.Request path start end text cursor
+substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> UUID -> Maybe UUID -> IO ()
+substitute location start end text cursor uuid guiID =
+    sendRequest $ Message uuid guiID $ Substitute.Request location start end text cursor

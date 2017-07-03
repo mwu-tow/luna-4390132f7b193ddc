@@ -24,7 +24,7 @@ import           LunaStudio.Data.NodeLoc                  (NodeLoc (NodeLoc), No
 import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta (NodeMeta))
 import qualified LunaStudio.Data.NodeMeta                 as NodeMeta
-import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer, VisualizerName, VisualizerPath)
+import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer)
 import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.React.Model.IsNode            as X
@@ -46,7 +46,6 @@ data ExpressionNode = ExpressionNode { _nodeLoc'                :: NodeLoc
                                      , _visualizationsEnabled   :: Bool
                                      , _code                    :: Text
                                      , _value                   :: Maybe Value
-                                     , _visualizers             :: Map VisualizerName VisualizerPath
                                      , _zPos                    :: Int
                                      , _isSelected              :: Bool
                                      , _mode                    :: Mode
@@ -100,7 +99,6 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- visualizationsEnabled -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
         {- code                  -} (n ^. Empire.code)
         {- value                 -} def
-        {- visualizers           -} def
         {- zPos                  -} def
         {- isSelected            -} False
         {- mode                  -} def

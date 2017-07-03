@@ -5,12 +5,12 @@ module NodeEditor.React.View.PortControl
     ) where
 
 import           Common.Prelude              hiding (group)
+import qualified JS.Config                   as Config
 import           LunaStudio.Data.Port        (InPortIndex (Arg))
 import qualified LunaStudio.Data.Port        as PortAPI
 import qualified LunaStudio.Data.PortDefault as PortDefault
 import           LunaStudio.Data.PortRef     (InPortRef (InPortRef))
 import qualified LunaStudio.Data.ValueType   as ValueType
-import qualified JS.Config                   as Config
 import qualified NodeEditor.Event.UI         as UI
 import qualified NodeEditor.React.Event.Node as Node
 import           NodeEditor.React.Model.App  (App)
@@ -25,8 +25,8 @@ import           React.Flux                  as React
 roundTo :: Int -> Double -> Double
 roundTo limit a =  (round' $ f * a) / f
   where
-    round' = fromIntegral . round
-    f      = fromIntegral 10^limit
+    round' v = fromIntegral (round v :: Integer)
+    f        = fromIntegral (10^limit :: Integer)
 
 integer :: String -> String
 integer a =
@@ -58,9 +58,9 @@ fractionalExp a =
 isExpNotation :: String -> Bool
 isExpNotation a =
     case a of
-        []     -> False
-        'e':xs -> True
-        _:xs   -> isExpNotation xs
+        []    -> False
+        'e':_ -> True
+        _:xs  -> isExpNotation xs
 
 portControlId, labelPrefix, controlPrefix :: JSString
 portControlId = Config.prefix "focus-portcontrol"

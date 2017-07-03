@@ -2,12 +2,14 @@
 module TextEditor.Event.Text where
 
 import           Common.Prelude
-import           Data.Aeson            (FromJSON, ToJSON)
-import           LunaStudio.Data.Point (Point)
+import           Data.Aeson                    (FromJSON, ToJSON)
+import           LunaStudio.Data.GraphLocation (GraphLocation)
+import qualified LunaStudio.Data.GraphLocation as GraphLocation
+import           LunaStudio.Data.Point         (Point)
 
 
 data TextEvent = TextEvent
-        { _filePath  :: FilePath
+        { _location  :: GraphLocation
         , _start     :: Point
         , _end       :: Point
         , _text      :: Text
@@ -15,3 +17,6 @@ data TextEvent = TextEvent
         } deriving (FromJSON, Generic, NFData, Show, ToJSON, Typeable)
 
 makeLenses ''TextEvent
+
+filePath :: Lens' TextEvent FilePath
+filePath = location . GraphLocation.filePath

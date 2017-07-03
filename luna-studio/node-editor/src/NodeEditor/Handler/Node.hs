@@ -4,7 +4,7 @@ import           Common.Prelude
 import           Data.ScreenPosition                        (ScreenPosition)
 import           NodeEditor.Action.Basic                    (enterNode, localSetPortDefault, removeSelectedNodes, selectAll,
                                                              setNodeExpression, setPortDefault, toggleSelect, toggleSelectedNodesMode,
-                                                             toggleSelectedNodesUnfold, unselectAll)
+                                                             toggleSelectedNodesUnfold)
 import           NodeEditor.Action.Batch                    (autolayoutNodes)
 import           NodeEditor.Action.Command                  (Command)
 import qualified NodeEditor.Action.Node                     as Node
@@ -39,7 +39,7 @@ handle (UI (NodeEvent (Node.SetExpression             nl expr))) = Just $ setNod
 handle (UI (NodeEvent (Node.PortEditString            portRef portDef)))    = Just $ void $ localSetPortDefault portRef portDef
 handle (UI (NodeEvent (Node.PortApplyString      kevt portRef portDef)))    = Just $ when (Keys.withoutMods kevt Keys.enter) $ setPortDefault portRef portDef
 handle (UI (NodeEvent (Node.PortSetPortDefault        portRef portDef)))    = Just $ setPortDefault portRef portDef
-handle (UI (NodeEvent (Node.PortInitSlider       mevt portRef sliderInit))) = Just $ PortControl.startMoveSlider portRef sliderInit
+handle (UI (NodeEvent (Node.PortInitSlider       _    portRef sliderInit))) = Just $ PortControl.startMoveSlider portRef sliderInit
 handle _ = Nothing
 
 
@@ -47,9 +47,8 @@ handleCommand :: Shortcut.Command -> Command State ()
 handleCommand = \case
     Shortcut.SelectAll               -> selectAll
     Shortcut.RemoveSelectedNodes     -> removeSelectedNodes
-    Shortcut.Cancel                  -> unselectAll
     Shortcut.ExpandSelectedNodes     -> toggleSelectedNodesMode $ Node.Expanded Node.Controls
-    Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor
+    -- Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor --TEMPORARILY DISABLED
     Shortcut.UnfoldSelectedNodes     -> toggleSelectedNodesUnfold
     Shortcut.AutolayoutSelectedNodes -> map (view Node.nodeLoc) <$> getSelectedNodes   >>= autolayoutNodes
     Shortcut.AutolayoutAllNodes      -> map (view Node.nodeLoc) <$> getExpressionNodes >>= autolayoutNodes

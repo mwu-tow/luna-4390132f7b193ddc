@@ -192,11 +192,17 @@ constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds 
     updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
         then newGraph ^. GraphAPI.outputSidebar else Nothing
 
-withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResult location action = do
+withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResult' getFinalGraph location action = do
     oldGraph <- Graph.getGraphNoTC location
     void action
-    constructResult oldGraph <$> Graph.getGraphNoTC location
+    constructResult oldGraph <$> getFinalGraph location
+
+withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResult = withDefaultResult' Graph.getGraphNoTC
+
+withDefaultResultTC :: GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResultTC = withDefaultResult' Graph.getGraph
 
 getNodeById :: GraphLocation -> NodeId -> Empire (Maybe Node.Node)
 getNodeById location nid = fmap listToMaybe $ getNodesByIds location [nid]
@@ -403,12 +409,6 @@ handleTypecheck req@(Request _ _ request) = do
         Right (_, newEmpireEnv) -> Env.empireEnv .= newEmpireEnv
     return ()
 
--- FIXME[MM]: it's wrong but it works
-instance G.GraphRequest Substitute.Request where
-    location = lens getter setter where
-        getter (Substitute.Request file _ _ _ _) = GraphLocation.GraphLocation file (Breadcrumb [])
-        setter (Substitute.Request _    s e n c) (GraphLocation.GraphLocation file _) = Substitute.Request file s e n c
-
 instance G.GraphRequest GetBuffer.Request where
     location = lens getter setter where
         getter (GetBuffer.Request file _) = GraphLocation.GraphLocation file (Breadcrumb [])
@@ -416,9 +416,9 @@ instance G.GraphRequest GetBuffer.Request where
 
 handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
-    action req@(Substitute.Request file start end newText cursor) = do
-        let location = req ^. G.location
-        withDefaultResult location $ do
+    action req@(Substitute.Request location start end newText cursor) = do
+        let file = location ^. GraphLocation.filePath
+        withDefaultResultTC location $ do
             Graph.substituteCodeFromPoints file start end newText cursor
             -- code  <- Graph.getCode location
             -- (graph, crumb) <- handle (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [])) $ do

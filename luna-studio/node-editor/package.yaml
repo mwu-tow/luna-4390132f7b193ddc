@@ -52,8 +52,8 @@ dependencies:
   - ghcjs-prim
   - hashable
   - lens
-  - luna-syntax-text-lexer
   - luna-studio-common
+  - luna-syntax-text-lexer
   - matrix
   - mtl
   - placeholders
@@ -62,6 +62,7 @@ dependencies:
   - react-flux
   - scientific
   - scope-searcher
+  - split
   - split
   - text
   - text-processing

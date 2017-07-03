@@ -25,7 +25,7 @@ name :: JSString
 name = "port"
 
 typeOffsetX :: Double
-typeOffsetX = 40
+typeOffsetX = 36
 
 typeOffsetY1,typeOffsetY2,typeOffsetY3,typeOffsetY :: Double
 typeOffsetY1 = (-3.5)
@@ -60,15 +60,15 @@ handleMouseEnter ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseEnter 
 handleMouseLeave :: Ref App -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseLeave ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseLeave portRef)
 
-port :: ReactView (Ref App, NodeLoc, Int, IsOnly, IsAlias, AnyPort, Bool)
-port = React.defineView name $ \(ref, nl, numOfPorts, isOnly, isAlias, p, visibleSelfPresent) ->
+port :: ReactView (Ref App, NodeLoc, Int, IsOnly, IsAlias, AnyPort)
+port = React.defineView name $ \(ref, nl, numOfPorts, isOnly, isAlias, p) ->
     case p ^. Port.portId of
         InPortId' (Self:_) -> portSelf_ ref nl p
-        OutPortId' []      -> if isAlias     then portAlias_  ref nl p
+        OutPortId' []      -> if isAlias     then portAlias_ p
                               else if isOnly then portSingle_ ref nl p
-                                             else portIO_     ref nl p numOfPorts visibleSelfPresent
-        _                  -> if isAlias then portAlias_  ref nl p
-                                         else portIO_     ref nl p numOfPorts visibleSelfPresent
+                                             else portIO_ ref nl p numOfPorts
+        _                  -> if isAlias then portAlias_ p
+                                         else portIO_ ref nl p numOfPorts
 
 portExpanded :: ReactView (Ref App, NodeLoc, AnyPort)
 portExpanded = React.defineView name $ \(ref, nl, p) ->
@@ -76,9 +76,9 @@ portExpanded = React.defineView name $ \(ref, nl, p) ->
         InPortId' (Self:_) -> portSelf_       ref nl p
         _                  -> portIOExpanded_ ref nl p
 
-port_ :: Ref App -> NodeLoc -> AnyPort -> Int -> IsOnly -> IsAlias -> Bool -> ReactElementM ViewEventHandler ()
-port_ ref nl p numOfPorts isOnly isAlias visibleSelfPresent =
-    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, numOfPorts, isOnly, isAlias, p, visibleSelfPresent) mempty
+port_ :: Ref App -> NodeLoc -> AnyPort -> Int -> IsOnly -> IsAlias -> ReactElementM ViewEventHandler ()
+port_ ref nl p numOfPorts isOnly isAlias =
+    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, numOfPorts, isOnly, isAlias, p) mempty
 
 portExpanded_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portExpanded_ ref nl p =
@@ -92,15 +92,10 @@ handlers ref portRef = [ onMouseDown  $ handleMouseDown  ref portRef
                        , onMouseLeave $ handleMouseLeave ref portRef
                        ]
 
-portAlias_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portAlias_ ref nl p = do
+portAlias_ :: AnyPort -> ReactElementM ViewEventHandler ()
+portAlias_ p = do
     let portId    = p ^. Port.portId
-        portRef   = toAnyPortRef nl portId
         color     = convert $ p ^. Port.color
-        modeClass = case p ^. Port.mode of
-            Highlighted -> ["hover"]
-            Invisible   -> ["port--invisible"]
-            _           -> []
         className = Style.prefixFromList $ ["port", "port--alias"] -- ++ modeClass
     g_
         [ "className" $= className ] $ do
@@ -170,8 +165,8 @@ portSingle_ ref nl p = do
               ]
             ) mempty
 
-portIO_ :: Ref App -> NodeLoc -> AnyPort -> Int -> Bool -> ReactElementM ViewEventHandler ()
-portIO_ ref nl p numOfPorts visibleSelfPresent = do
+portIO_ :: Ref App -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
+portIO_ ref nl p numOfPorts = do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         portType  = toString $ p ^. Port.valueType

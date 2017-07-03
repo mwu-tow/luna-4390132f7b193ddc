@@ -83,13 +83,14 @@ module.exports =
                     @diffToOmit.delete(change.newText)
                 else
                     diff =
-                        uri: @uri
+                        # uri: @uri
                         start: change.start
                         end:   change.start.translate(change.oldExtent)
                         text:  change.newText
                         cursor: @.getCursorBufferPosition()
                       #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
                     @internal.pushDiff(diff)
+
     serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
 
     getTitle: -> path.basename(@uri)

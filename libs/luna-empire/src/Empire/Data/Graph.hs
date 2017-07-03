@@ -20,12 +20,16 @@ module Empire.Data.Graph (
   , clsCodeMarkers
   , clsFuns
   , clsParseError
+  , nodeIdCache
   , defaultClsGraph
   , HasCode(..)
   , emptyAST
   , emptyClsAST
   , withVis
   , AST(..)
+  , NodeIdCache(..)
+  , nodeIdMap
+  , portMappingMap
   , ir
   , pmState
   , parseError
@@ -49,6 +53,7 @@ import qualified Luna.IR                                as IR
 import qualified OCI.Pass.Class                         as Pass
 import qualified OCI.Pass.Manager                       as Pass (RefState)
 import qualified OCI.Pass.Manager                       as PassManager (PassManager, State)
+import           LunaStudio.Data.Node                   (NodeId)
 import           Luna.Syntax.Text.Parser.Errors         (Invalids)
 import qualified Luna.Syntax.Text.Parser.Marker         as Luna
 import qualified Luna.Syntax.Text.Parser.Parser         as Parser
@@ -82,8 +87,12 @@ data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
                          , _clsCode        :: Text
                          , _clsParseError  :: Maybe SomeASTException
                          , _clsFuns        :: Map NodeId (String, Graph)
+                         , _nodeIdCache    :: NodeIdCache
                          } deriving Show
 
+data NodeIdCache = NodeIdCache { _nodeIdMap      :: Map Word64 NodeId
+                               , _portMappingMap :: Map (NodeId, Maybe Int) (NodeId, NodeId)
+                               } deriving Show
 
 defaultGraph :: IO Graph
 defaultGraph = do
@@ -93,7 +102,7 @@ defaultGraph = do
 defaultClsGraph :: IO ClsGraph
 defaultClsGraph = do
     (ast, cls) <- defaultClsAST
-    return $ ClsGraph ast cls def def def def
+    return $ ClsGraph ast cls def def def def (NodeIdCache def def)
 
 data AST g = AST { _ir      :: IR
                , _pmState :: Pass.RefState (PassManager.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))))
@@ -157,7 +166,7 @@ emptyAST = mdo
 
 emptyClsAST :: IO (AST ClsGraph)
 emptyClsAST = mdo
-    let g = ClsGraph ast $notImplemented def def def def
+    let g = ClsGraph ast $notImplemented def def def def (NodeIdCache def def)
     ast <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -171,7 +180,7 @@ emptyClsAST = mdo
 
 defaultClsAST :: IO (AST ClsGraph, IR.SomeExpr)
 defaultClsAST = mdo
-    let g = ClsGraph ast $notImplemented def def def def
+    let g = ClsGraph ast $notImplemented def def def def (NodeIdCache def def)
     (ast, cls) <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -189,6 +198,7 @@ defaultClsAST = mdo
 makeLenses ''Graph
 makeLenses ''ClsGraph
 makeLenses ''AST
+makeLenses ''NodeIdCache
 
 class HasCode g where
     code :: Lens' g Text

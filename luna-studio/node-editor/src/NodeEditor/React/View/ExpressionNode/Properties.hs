@@ -6,17 +6,17 @@ import           NodeEditor.React.Model.App                           (App)
 import           NodeEditor.React.Model.Node.ExpressionNodeProperties (NodeProperties)
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Store                               (Ref)
-import           NodeEditor.React.View.PortControl                    (portLabel_, portControl_)
+import           NodeEditor.React.View.PortControl                    (portControl_, portLabel_)
 import qualified NodeEditor.React.View.Style                          as Style
 import           React.Flux
-import qualified React.Flux                                            as React
+import qualified React.Flux                                           as React
 
 objName :: JSString
 objName = "node-properties"
 
 nodeProperties :: ReactView (Ref App, NodeProperties)
-nodeProperties = React.defineView objName $ \(ref, p) -> do
-    let nodeLoc    = p ^. Prop.nodeLoc
+nodeProperties = React.defineView objName $ \(ref, prop) -> do
+    let nodeLoc    = prop ^. Prop.nodeLoc
         controls p = div_
                         [ "className" $= Style.prefix "node__control"
                         ] $ do
@@ -30,7 +30,7 @@ nodeProperties = React.defineView objName $ \(ref, p) -> do
            [ "key"       $= "label-self"
            , "className" $= Style.prefixFromList [ "node__label", "node__label--self" ]
            ] $ elemString "self"
-        forM_ (Prop.inPortsList p) $ controls
+        forM_ (Prop.inPortsList prop) $ controls
 
 nodeProperties_ :: Ref App -> NodeProperties -> ReactElementM ViewEventHandler ()
 nodeProperties_ ref prop = React.viewWithSKey nodeProperties objName (ref, prop) mempty

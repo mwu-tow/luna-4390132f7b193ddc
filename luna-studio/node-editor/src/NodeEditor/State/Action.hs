@@ -112,6 +112,7 @@ data VisualizationActive = VisualizationActive
     { _visualizationActiveNodeLoc         :: NodeLoc
     , _visualizationActiveVisualizationId :: VisualizationId
     , _visualizationActiveSelectedMode    :: VisualizationMode
+    , _visualizationActiveTriggeredByVis  :: Bool
     } deriving (Eq, Show, Generic, Typeable)
 
 makeLenses ''VisualizationActive
@@ -189,3 +190,15 @@ actionsBlockingPortHighlight = Set.fromList [ multiSelectionAction
                                             , zoomDragAction
                                             , portDragAction
                                             ]
+
+actionsClosingOnMouseLeave :: Set ActionRep
+actionsClosingOnMouseLeave = Set.fromList [ nodeDragAction
+                                          , multiSelectionAction
+                                          , panDragAction
+                                          , zoomDragAction
+                                          , sliderDragAction
+                                          , penConnectAction
+                                          , penDisconnectAction
+                                          , portDragAction
+                                          , visualizationDragAction
+                                          ]

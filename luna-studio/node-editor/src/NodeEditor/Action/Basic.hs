@@ -70,6 +70,7 @@ module NodeEditor.Action.Basic
     , resetCamera
     , saveCurrentLocation
     , selectAll
+    , selectNode
     , selectNodes
     , selectPreviousNodes
     , setFile
@@ -123,8 +124,8 @@ import           NodeEditor.Action.Basic.RemovePort          (localRemovePort, r
 import           NodeEditor.Action.Basic.RenameNode          (localRenameNode, renameNode)
 import           NodeEditor.Action.Basic.RenamePort          (localRenamePort, renamePort)
 import           NodeEditor.Action.Basic.Scene               (getScene, updateScene)
-import           NodeEditor.Action.Basic.SelectNode          (dropSelectionHistory, modifySelectionHistory, selectAll, selectNodes,
-                                                              selectPreviousNodes, toggleSelect, unselectAll)
+import           NodeEditor.Action.Basic.SelectNode          (dropSelectionHistory, modifySelectionHistory, selectAll, selectNode,
+                                                              selectNodes, selectPreviousNodes, toggleSelect, unselectAll)
 import           NodeEditor.Action.Basic.SetNodeExpression   (localSetNodeExpression, setNodeExpression)
 import           NodeEditor.Action.Basic.SetNodeMeta         (localMoveNode, localMoveNodes, localSetNodeMeta, localSetNodesMeta, moveNode,
                                                               moveNodes, setNodeMeta, setNodesMeta)

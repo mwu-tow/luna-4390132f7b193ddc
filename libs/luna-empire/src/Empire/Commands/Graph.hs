@@ -78,6 +78,7 @@ import           Empire.Data.AST                  (InvalidConnectionException (.
                                                    astExceptionFromException, astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
 import           Empire.Data.Graph                (ClsGraph, Graph)
+import           Empire.Data.Graph                (ClsGraph, Graph, NodeIdCache(..), portMappingMap, nodeIdMap)
 import qualified Empire.Data.Graph                as Graph
 import           Empire.Data.Layers               (Marker, SpanLength, SpanOffset)
 import qualified Empire.Data.Library              as Library
@@ -113,6 +114,7 @@ import qualified Empire.ASTOps.Remove             as ASTRemove
 import qualified Empire.Commands.AST              as AST
 import qualified Empire.Commands.Autolayout       as Autolayout
 import           Empire.Commands.Breadcrumb       (makeGraph, makeGraphCls, withBreadcrumb)
+import           Empire.Commands.Code             (addExprMapping, getNextExprMarker, getExprMap, setExprMap)
 import qualified Empire.Commands.Code             as Code
 import qualified Empire.Commands.GraphBuilder     as GraphBuilder
 import qualified Empire.Commands.GraphUtils       as GraphUtils
@@ -192,16 +194,20 @@ addNodeNoTC loc uuid input name meta = do
         return node
     return node
 
-distanceTo :: (Double, Double) -> (Double, Double) -> Double
-distanceTo (xRef, yRef) (xPoint, yPoint) = sqrt $ (xRef - xPoint) ** 2 + (yRef - yPoint) ** 2
+findPreviousSeq :: GraphOp m => NodeRef -> Set.Set NodeRef -> m (Maybe NodeRef)
+findPreviousSeq seq nodesToTheLeft = IR.matchExpr seq $ \case
+    IR.Seq l r -> do
+        l' <- IR.source l
+        r' <- IR.source r
+        if Set.member r' nodesToTheLeft then return (Just r') else findPreviousSeq l' nodesToTheLeft
+    _ -> return $ if Set.member seq nodesToTheLeft then Just seq else Nothing
 
-findPreviousNodeInSequence :: GraphOp m => NodeMeta -> [(NodeRef, NodeMeta)] -> m (Maybe NodeRef)
-findPreviousNodeInSequence meta nodes = do
+findPreviousNodeInSequence :: GraphOp m => NodeRef -> NodeMeta -> [(NodeRef, NodeMeta)] -> m (Maybe NodeRef)
+findPreviousNodeInSequence seq meta nodes = do
     let position           = Position.toTuple $ view NodeMeta.position meta
         nodesWithPositions = map (\(n, m) -> (n, Position.toTuple $ m ^. NodeMeta.position)) nodes
-        nodesToTheLeft     = filter (\(n, (x, y)) -> x < fst position || (x == fst position && y < snd position)) nodesWithPositions
-        nearestNode        = listToMaybe $ sortOn (\(n, p) -> distanceTo position p) nodesToTheLeft
-    return $ fmap fst nearestNode
+        nodesToTheLeft     = filter (\(n, (x, y)) -> x <= fst position) nodesWithPositions
+    findPreviousSeq seq (Set.fromList $ map fst nodesToTheLeft)
 
 findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
 findM p [] = return Nothing
@@ -257,7 +263,7 @@ putInSequence ref code meta = do
             nodes              <- AST.readSeq s
             nodesAndMetas      <- mapM (\n -> (n,) <$> AST.readMeta n) nodes
             let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
-            nearestNode        <- findPreviousNodeInSequence meta nodesWithMetas
+            nearestNode        <- findPreviousNodeInSequence s meta nodesWithMetas
             blockEnd           <- Code.getCurrentBlockEnd
             (newS, shouldUpdate) <- insertAfter s nearestNode ref blockEnd code
             when shouldUpdate (updateGraphSeq $ Just newS)
@@ -266,37 +272,6 @@ putInSequence ref code meta = do
             blockEnd <- Code.getCurrentBlockEnd
             Code.insertAt (fromIntegral blockEnd) $ code <> "\n"
             updateGraphSeq $ Just ref
-
-addExprMapping :: GraphOp m => Word64 -> NodeRef -> m ()
-addExprMapping index ref = do
-    exprMap    <- getExprMap
-    let newMap = exprMap & at index ?~ ref
-    setExprMap newMap
-
-getNextExprMarker :: GraphOp m => m Word64
-getNextExprMarker = do
-    exprMap <- getExprMap
-    let keys         = Map.keys exprMap
-        highestIndex = Safe.maximumMay keys
-    return $ maybe 0 succ highestIndex
-
-addCodeMarker :: GraphOp m => NodeRef -> m NodeRef
-addCodeMarker ref = do
-    index  <- getNextExprMarker
-    marker <- IR.marker' index
-    IR.putLayer @SpanLength marker $ convert $ Text.length $ Code.makeMarker index
-    dummyBl    <- IR.blank
-    markedNode <- IR.marked' marker dummyBl
-    [l, r]     <- IR.inputs markedNode
-    IR.putLayer @SpanOffset l 0
-    IR.putLayer @SpanOffset r 0
-    addExprMapping index markedNode
-    Just beg <- Code.getOffsetRelativeToFile ref
-    Code.insertAt beg (Code.makeMarker index)
-    IR.substitute markedNode ref
-    IR.replace ref dummyBl
-    Code.gossipUsesChangedBy (fromIntegral $ Text.length $ Code.makeMarker index) markedNode
-    return markedNode
 
 updateNodeSequenceWithOutput :: GraphOp m => Maybe NodeRef -> m ()
 updateNodeSequenceWithOutput outputRef = do
@@ -360,9 +335,6 @@ addPortWithConnections loc portRef connectTo = withTC loc False $ do
     newPorts <- addPortNoTC loc portRef
     forM_ connectTo $ connectNoTC loc portRef
     return newPorts
-
-generateNodeId :: IO NodeId
-generateNodeId = UUID.nextRandom
 
 addSubgraph :: GraphLocation -> [ExpressionNode] -> [Connection] -> Empire [ExpressionNode]
 addSubgraph loc nodes conns = withTC loc False $ do
@@ -500,28 +472,29 @@ renamePort loc portRef newName = withGraph loc $ runASTOp $ do
     GraphBuilder.buildInputSidebar nodeId
 
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
-setNodeExpression loc@(GraphLocation file _) nodeId expression = do
+setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
+    let expression = Text.strip expr'
     node <- withTC loc False $ do
         oldExpr   <- runASTOp $ ASTRead.getASTTarget nodeId
         parsedRef <- view _1 <$> ASTParse.runReparser expression oldExpr
-        oldRange  <- runASTOp $ do
-            oldPointer    <- ASTRead.getASTRef nodeId
-            Just oldBegin <- Code.getOffsetRelativeToFile oldPointer
-            oldLen        <- IR.getLayer @SpanLength oldPointer
+        (oldBeg, oldEnd) <- runASTOp $ do
+            oldBegin  <- Code.getASTTargetBeginning nodeId
+            oldTarget <- ASTRead.getASTTarget nodeId
+            oldLen    <- IR.getLayer @SpanLength oldTarget
+            Code.propagateLengths parsedRef
             ASTModify.rewireNode nodeId parsedRef
             return (oldBegin, oldBegin + oldLen)
         runAliasAnalysis
-        (node, code)  <- runASTOp $ do
-            expr      <- ASTRead.getASTPointer nodeId
+        node <- runASTOp $ do
+            expr      <- ASTRead.getASTTarget nodeId
             marked    <- ASTRead.getASTRef nodeId
-            item      <- prepareChild marked parsedRef
+            item      <- prepareChild (NodeIdCache Map.empty Map.empty) marked parsedRef
             Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
+            let len = fromIntegral $ Text.length expression
+            Code.applyDiff oldBeg oldEnd expression
+            Code.gossipUsesChangedBy (len - (oldEnd - oldBeg)) expr
             node <- GraphBuilder.buildNode nodeId
-            code <- printMarkedExpression marked
-            IR.putLayer @SpanLength marked (fromIntegral $ Text.length code)
-            Code.applyDiff (fst oldRange) (snd oldRange) code
-            Code.gossipUsesChanged expr
-            return (node, code)
+            return node
         return node
     resendCode loc
     return node
@@ -585,7 +558,6 @@ connectCondTC :: Bool -> GraphLocation -> OutPortRef -> AnyPortRef -> Empire Con
 connectCondTC True  loc outPort anyPort = connect loc outPort anyPort
 connectCondTC False loc outPort anyPort = do
     connection <- withGraph loc $ connectNoTC loc outPort anyPort
-    updateNodeCode loc $ anyPort ^. PortRef.nodeId
     resendCode loc
     return connection
 
@@ -751,6 +723,40 @@ substituteCode path start end code cursor = do
     --     Left e -> withGraph loc $ Graph.parseError ?= e
     --     _      -> return ()
 
+lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
+lamItemToMapping (idArg, BH.LamItem portMapping _ _ _) = (idArg, portMapping)
+
+restorePortMappings :: GraphOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> m ()
+restorePortMappings previousPortMappings = do
+    hierarchy <- use Graph.breadcrumbHierarchy
+
+    let goParent (BH.ToplevelParent topItem) = BH.ToplevelParent <$> goTopItem topItem
+        goParent (BH.LambdaParent         _) = $notImplemented
+
+        goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
+        goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (nodeId, Nothing) lamItem
+
+        goTopItem (BH.TopItem childNodes body) = do
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs childNodes
+            return $ BH.TopItem (Map.fromList updatedChildren) body
+
+        goLamItem idArg (BH.LamItem mapping marked children body) = do
+            let cache       = Map.lookup idArg previousPortMappings
+            updatedChildren <- forM cache $ \prev -> do
+                ref <- ASTRead.getTargetFromMarked marked
+                ASTBuilder.attachNodeMarkersForArgs (fst prev) [] ref
+                updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs children
+                return $ Map.fromList updatedChildren
+            return $ BH.LamItem (fromMaybe mapping cache) marked (fromMaybe children updatedChildren) body
+
+        goExprItem nodeId (BH.ExprItem children self) = do
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (nodeId, Just a) b) $ Map.assocs children
+            return $ BH.ExprItem (Map.fromList updatedChildren) self
+
+    newHierarchy <- goParent hierarchy
+    Graph.breadcrumbHierarchy .= newHierarchy
+
+
 reloadCode :: GraphLocation -> Text -> Empire ()
 reloadCode loc@(GraphLocation file _) code = do
     -- funs <- Library.withLibrary file $ do
@@ -771,6 +777,33 @@ reloadCode loc@(GraphLocation file _) code = do
     --             let expr = Map.lookup marker currentExprMap
     --             forM_ expr $ \e -> AST.writeMeta e oldMeta
 
+-- reloadCode :: GraphLocation -> Text -> Command Graph ()
+-- reloadCode loc code = do
+--     oldMetas <- runASTOp $ do
+--         m <- getExprMap
+--         oldMetas <- forM (Map.assocs m) $ \(marker, expr) -> (marker,) <$> AST.readMeta expr
+--         return [ (marker, meta) | (marker, Just meta) <- oldMetas ]
+--     previousNodeIds <- runASTOp $ do
+--         m <- getExprMap
+--         let markers = Map.keys m
+--         nodeIds <- mapM (\k -> (k,) <$> getNodeIdForMarker (fromIntegral k)) markers
+--         return $ Map.fromList [ (marker, nodeId) | (marker, Just nodeId) <- nodeIds ]
+--     previousPortMappings <- runASTOp $ do
+--         hierarchy <- use Graph.breadcrumbHierarchy
+--         let lamItems = BH.getLamItems hierarchy
+--             elems    = map lamItemToMapping lamItems
+--         return $ Map.fromList elems
+--     oldHierarchy <- use Graph.breadcrumbHierarchy
+--     Graph.breadcrumbHierarchy .= def
+--     loadCodeWithNodeIdCache (NodeIdCache previousNodeIds previousPortMappings) code
+--         `onException` (Graph.breadcrumbHierarchy .= oldHierarchy)
+--     runASTOp $ do
+--         restorePortMappings previousPortMappings
+--         currentExprMap <- getExprMap
+--         forM_ oldMetas $ \(marker, oldMeta) -> do
+--             let expr = Map.lookup marker currentExprMap
+--             forM_ expr $ \e -> AST.writeMeta e oldMeta
+
 putIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putIntoHierarchy nodeId marked = do
     let nodeItem = BH.ExprItem Map.empty marked
@@ -780,7 +813,7 @@ putChildrenIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putChildrenIntoHierarchy uuid expr = do
     target       <- ASTRead.getASTTarget uuid
     marked       <- ASTRead.getASTRef uuid
-    item         <- prepareChild marked target
+    item         <- prepareChild (NodeIdCache Map.empty Map.empty) marked target
     Graph.breadcrumbHierarchy . BH.children . ix uuid .= item
 
 copyMeta :: GraphOp m => NodeRef -> NodeRef -> m ()
@@ -792,20 +825,6 @@ markNode :: GraphOp m => NodeId -> m ()
 markNode nodeId = do
     var <- ASTRead.getASTMarkerPosition nodeId
     ASTBuilder.attachNodeMarkers nodeId [] var
-
-recomputeLength :: GraphOp m => NodeRef -> m ()
-recomputeLength ref = do
-    inps <- IR.inputs ref
-    offs <- mapM (IR.getLayer @SpanOffset) inps
-    lens <- mapM (IR.getLayer @SpanLength <=< IR.source) inps
-    IR.putLayer @SpanLength ref $ mconcat offs <> mconcat lens
-
-gossipLengthsChanged :: GraphOp m => NodeRef -> m ()
-gossipLengthsChanged ref = do
-    recomputeLength ref
-    succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
-    succNodes <- mapM IR.readTarget succs
-    mapM_ gossipLengthsChanged succNodes
 
 loadCode :: GraphLocation -> Text -> Empire ()
 loadCode loc@(GraphLocation file _) code = do
@@ -830,6 +849,22 @@ loadCode loc@(GraphLocation file _) code = do
         autolayout loc'
     return ()
 
+-- loadCode :: GraphLocation -> Text -> Empire ()
+-- loadCode loc = loadCodeWithNodeIdCache loc (NodeIdCache Map.empty Map.empty)
+--
+-- loadCodeWithNodeIdCache :: NodeIdCache -> Text -> Empire ()
+-- loadCodeWithNodeIdCache _ code | Text.null code = return ()
+-- loadCodeWithNodeIdCache nodeIdCache code = do
+--     (ir, IR.Rooted main ref, exprMap) <- liftIO $ ASTParse.runProperParser code
+--     setExprMap (coerce exprMap)
+--     Graph.unit .= ir
+--     putNewIR main
+--     Graph.breadcrumbHierarchy . BH._ToplevelParent . BH.topBody ?= ref
+--     runASTOp $ Code.propagateLengths ref
+--     runAliasAnalysis
+--     newBH <- runASTOp $ makeTopBreadcrumbHierarchy nodeIdCache ref
+--     Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
+
 infixl 5 |>
 (|>) :: GraphLocation -> BreadcrumbItem -> GraphLocation
 (|>) (GraphLocation file bc) item = GraphLocation file $ coerce $ (++ [item]) $ coerce bc
@@ -844,12 +879,6 @@ autolayout loc = do
             BH.LambdaChild{}                -> [Breadcrumb.Lambda k]
             BH.ExprChild (BH.ExprItem pc _) -> map (Breadcrumb.Arg k) (Map.keys pc)) $ Map.assocs kids
     mapM_ (\a -> autolayout (loc |> a)) next
-
-getExprMap :: GraphOp m => m (Map.Map Luna.MarkerId NodeRef)
-getExprMap = use Graph.codeMarkers
-
-setExprMap :: GraphOp m => Map.Map Luna.MarkerId NodeRef -> m ()
-setExprMap exprMap = Graph.codeMarkers .= exprMap
 
 printMarkedExpression :: GraphOp m => NodeRef -> m Text
 printMarkedExpression ref = do
@@ -886,26 +915,6 @@ functionLocation :: GraphLocation -> GraphLocation
 functionLocation (GraphLocation file (Breadcrumb b))
     | ((Breadcrumb.Definition f) : _) <- b = GraphLocation file (Breadcrumb [Breadcrumb.Definition f])
     | otherwise = GraphLocation file (Breadcrumb [])
-
-updateNodeCode :: GraphLocation -> NodeId -> Empire ()
-updateNodeCode loc nodeId = do
-    input <- withGraph loc $ runASTOp $ isInput nodeId
-    if input then return () else do
-        ref <- withGraph loc $ runASTOp $ do
-            output     <- isOutput nodeId
-            ref        <- if output then fromJust <$> ASTRead.getCurrentASTPointer else ASTRead.getASTPointer nodeId
-            return ref
-        (range, expression) <- withGraph (functionLocation loc) $ runASTOp $ do
-            range                <- readRange ref
-            expression           <- printMarkedExpression ref
-            LeftSpacedSpan (SpacedSpan off _) <- readCodeSpan ref
-            setCodeSpan ref (leftSpacedSpan off (fromIntegral $ Text.length expression))
-            return (range, expression)
-        withGraph (functionLocation loc) $ do
-            runASTOp $ do
-                oldSeq      <- preuse $ Graph.breadcrumbHierarchy . BH.body
-                forM_ oldSeq updateCodeSpan
-            void $ Code.applyDiff (fst range) (snd range + 1) $ Text.concat [expression, "\n"]
 
 previousOffset :: GraphOp m => NodeRef -> m Delta
 previousOffset ref = do
@@ -1038,9 +1047,9 @@ unAcc nodeId = do
 
 unApp :: GraphOp m => NodeId -> Int -> m ()
 unApp nodeId pos = do
-    astNode <- GraphUtils.getASTTarget nodeId
-    newNodeRef <- ASTRemove.removeArg astNode pos
-    GraphUtils.rewireNode nodeId newNodeRef
+    dstAst <- ASTRead.getTargetEdge nodeId
+    beg    <- Code.getASTTargetBeginning nodeId
+    ASTBuilder.removeArgument dstAst beg pos
 
 makeAcc :: GraphOp m => NodeId -> NodeId -> OutPortId -> m ()
 makeAcc src dst outPort = do

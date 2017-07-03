@@ -21,7 +21,7 @@ handle (UI (VisualizationEvent (Visualization.ToggleVisualizations nl)))        
 handle (Shortcut (Shortcut.Event Shortcut.ZoomVisualization _))                    = Just $ Visualization.handleZoomVisualization
 handle (Shortcut (Shortcut.Event Shortcut.OpenVisualizationPreview _))             = Just $ Visualization.enterVisualizationMode Preview
 handle (Shortcut (Shortcut.Event Shortcut.CloseVisualizationPreview _))            = Just $ continue $ Visualization.exitPreviewMode
-handle (UI (NodeEditorEvent    (NodeEditor.Wheel _ _)))                            = Just $ continue $ Visualization.closeVisualization
+handle (UI (NodeEditorEvent    (NodeEditor.Wheel _ _)))                            = Just $ continue $ Visualization.exitVisualizationMode
 handle _                                                                           = Nothing
 
 -- handle :: Event -> Maybe (Command State ())

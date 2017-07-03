@@ -11,7 +11,7 @@ import qualified Data.HashMap.Strict                        as HashMap
 import           LunaStudio.Data.Angle                      (Angle)
 import           LunaStudio.Data.Connection                 as X (ConnectionId)
 import qualified LunaStudio.Data.Connection                 as Empire
-import           LunaStudio.Data.LabeledTree                (LabeledTree (LabeledTree))
+import qualified LunaStudio.Data.LabeledTree                as LT
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'), InPortRef, OutPortRef)
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position, move, x, y)
@@ -22,9 +22,8 @@ import           NodeEditor.React.Model.Layout              (Layout, inputSideba
 import           NodeEditor.React.Model.Node                (ExpressionNode, Node (Expression), NodeLoc)
 import qualified NodeEditor.React.Model.Node                as Node
 import           NodeEditor.React.Model.Node.ExpressionNode (countArgPorts, countOutPorts, inPorts, isCollapsed, position)
-import           NodeEditor.React.Model.Port                (EitherPort, HasSelf, InPort, InPortId, IsAlias, IsOnly, IsSelf, OutPort,
-                                                             OutPortId, getPortNumber, isSelf, portAngleStart, portAngleStop, portGap,
-                                                             portId)
+import           NodeEditor.React.Model.Port                (EitherPort, InPort, InPortId, IsAlias, IsOnly, IsSelf, OutPort, OutPortId,
+                                                             getPortNumber, isSelf, portAngleStart, portAngleStop, portGap, portId)
 import qualified NodeEditor.React.Model.Port                as Port
 
 
@@ -161,8 +160,7 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
         srcConnPos <- halfConnectionSrcPosition srcNode' (Right srcPort) dstConnPos layout
         return (srcConnPos, dstConnPos)
     (Expression srcNode, Expression dstNode) -> do
-        let hasAlias   = True
-            srcPos'    = srcNode ^. position
+        let srcPos'    = srcNode ^. position
             dstPos'    = dstNode ^. position
             isSrcExp   = not . isCollapsed $ srcNode
             isDstExp   = not . isCollapsed $ dstNode
@@ -171,18 +169,14 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
             numOfSrcOutPorts = countOutPorts srcNode
             numOfDstInPorts  = countArgPorts dstNode
             srcConnPos = connectionSrc srcPos' dstPos' isSrcExp isDstExp srcPortNum numOfSrcOutPorts $ countOutPorts srcNode + countArgPorts srcNode == 1
-            dstConnPos = connectionDst srcPos' dstPos' isSrcExp isDstExp dstPortNum numOfDstInPorts (isSelf $ dstPort ^. portId) hasAlias
-                $ case (dstNode ^. inPorts) of
-                    LabeledTree _ p -> case (p ^. Port.state) of
-                                           Port.Connected -> True
-                                           _              -> False
-                    _               ->                       False
+            dstConnPos = connectionDst srcPos' dstPos' isSrcExp isDstExp dstPortNum numOfDstInPorts (isSelf $ dstPort ^. portId) $ has (inPorts . LT.value . Port.state . Port._Connected) dstNode
         return (srcConnPos, dstConnPos)
+    _ -> return def
 
 connectionMode :: Node -> Node -> Mode
 connectionMode (Node.Input {}) _  = Sidebar
 connectionMode _ (Node.Output {}) = Sidebar
-connectionMode _ _ = Normal
+connectionMode _ _                = Normal
 
 halfConnectionMode :: Node -> Mode
 halfConnectionMode (Node.Expression {}) = Normal
@@ -194,19 +188,12 @@ halfConnectionSrcPosition (Node.Output _  ) (Left  port) _ layout = outputSideba
 halfConnectionSrcPosition (Expression node) eport mousePos _ =
     Just $ case eport of
         Right port -> connectionSrc pos mousePos isExp False (getPortNumber $ port ^. portId) numOfSameTypePorts $ countOutPorts node + countArgPorts node == 1
-        Left  port -> connectionDst mousePos pos False isExp (getPortNumber $ port ^. portId) numOfSameTypePorts (isSelf $ port ^. portId) hasSelf
-            $ case (node ^. inPorts) of
-                LabeledTree _ p -> case (p ^. Port.state) of
-                                       Port.Connected -> True
-                                       _              -> False
-                _               ->                       False
+        Left  port -> connectionDst mousePos pos False isExp (getPortNumber $ port ^. portId) numOfSameTypePorts (isSelf $ port ^. portId) $ has (inPorts . LT.value . Port.state . Port._Connected) node
     where
-        hasSelf            = True
         pos                = node ^. position
         isExp              = not . isCollapsed $ node
-        numOfSameTypePorts = case eport of
-            Right _ -> countOutPorts node
-            Left  _ -> countArgPorts node
+        numOfSameTypePorts = if isLeft eport then countArgPorts node else countOutPorts node
+halfConnectionSrcPosition _ _ _ _ = def
 
 connectionAngle :: Position -> Position -> Int -> Int -> Double
 connectionAngle srcPos' dstPos' num numOfSameTypePorts =
@@ -230,8 +217,8 @@ connectionSrc src' dst' isSrcExpanded _isDstExpanded num numOfSameTypePorts isSi
             then nodeToNodeAngle src' dst'
             else connectionAngle src' dst' num numOfSameTypePorts
 
-connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> HasSelf -> IsAlias -> Position
-connectionDst src' dst' isSrcExpanded isDstExpanded num numOfSameTypePorts isSelf' hasSelf isAlias = do
+connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Position
+connectionDst src' dst' isSrcExpanded isDstExpanded num numOfSameTypePorts isSelf' isAlias = do
     let n       = if isSelf' || isAlias then 0 else 1
         src''   = if isSrcExpanded then move (Vector2 (nodeExpandedWidth/2) 0) src' else src'
         t       = connectionAngle src'' dst' num numOfSameTypePorts

@@ -80,7 +80,6 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         maySearcher    = ne ^. NodeEditor.searcher
         visualizations = NodeEditor.getVisualizations ne
         isAnyVisActive = any (\(_, _, vis) -> elem (vis ^. visualizationMode) [Preview, FullScreen, Focused]) visualizations
-        isAnyVisZoomed = any (\(_, _, vis) -> elem (vis ^. visualizationMode) [Preview, FullScreen]) visualizations
         nodesWithVis   = Set.fromList $ map (^. _1) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->

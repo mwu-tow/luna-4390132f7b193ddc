@@ -31,7 +31,7 @@ import qualified LunaStudio.API.Graph.SetPortDefault         as SetPortDefault
 import qualified LunaStudio.API.Response                     as Response
 import           LunaStudio.Data.Breadcrumb                  (containsNode)
 import qualified LunaStudio.Data.Graph                       as Graph
-import           LunaStudio.Data.GraphLocation               (GraphLocation (GraphLocation))
+import           LunaStudio.Data.GraphLocation               (GraphLocation)
 import qualified LunaStudio.Data.GraphLocation               as GraphLocation
 import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
@@ -187,7 +187,7 @@ handle (Event.Batch ev) = Just $ case ev of
                 localMerge path $ result ^. GetSubgraphs.graphs
 
     MonadsUpdate update -> do
-        inCurrentLocation (update ^. MonadsUpdate.location) $ \path ->
+        inCurrentLocation (update ^. MonadsUpdate.location) $ \_path ->
             updateMonads $ update ^. MonadsUpdate.monads --FIXME updateMonads in path!
 
     MovePortResponse response -> handleResponse response success failure where
@@ -208,7 +208,7 @@ handle (Event.Batch ev) = Just $ case ev of
       inCurrentLocation (update ^. NodeTCUpdate.location) $ \path ->
           void $ localUpdateNodeTypecheck path $ update ^. NodeTCUpdate.node
 
-    RedoResponse response -> $notImplemented
+    RedoResponse _response -> $notImplemented
 
     RemoveConnectionResponse response -> handleResponse response success failure where
         requestId       = response ^. Response.requestId
@@ -239,14 +239,13 @@ handle (Event.Batch ev) = Just $ case ev of
         success         = applyResult location
 
     RenamePortResponse response -> handleResponse response success failure where
-        requestId       = response ^. Response.requestId
-        request         = response ^. Response.request
-        location        = request  ^. RenamePort.location
-        failure inverse = whenM (isOwnRequest requestId) $ $notImplemented
-        success         = applyResult location
+        requestId        = response ^. Response.requestId
+        request          = response ^. Response.request
+        location         = request  ^. RenamePort.location
+        failure _inverse = whenM (isOwnRequest requestId) $ $notImplemented
+        success          = applyResult location
 
     SearchNodesResponse response -> handleResponse response success doNothing where
-        requestId      = response ^. Response.requestId
         location       = response ^. Response.request . SearchNodes.location
         success result = whenM (isCurrentFile location) $
             localSetSearcherHints $ result ^. SearchNodes.nodeSearcherData
@@ -273,14 +272,12 @@ handle (Event.Batch ev) = Just $ case ev of
         success         = applyResultPreventingExpressionNodesPorts location
 
     SubstituteResponse response -> handleResponse response success doNothing where
-        requestId = response ^. Response.requestId
-        request   = response ^. Response.request
-        location  = GraphLocation (request ^. Substitute.filePath) def
-        success   = applyResult location
+        location = response ^. Response.request . Substitute.location
+        success  = applyResult location
 
     TypeCheckResponse response -> handleResponse response doNothing doNothing
 
-    UndoResponse response -> $notImplemented
+    UndoResponse _response -> $notImplemented
 
     _ -> return ()
 handle _ = Nothing

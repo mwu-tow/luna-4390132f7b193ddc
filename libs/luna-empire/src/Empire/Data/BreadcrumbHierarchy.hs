@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Empire.Data.BreadcrumbHierarchy where
 
@@ -114,6 +115,19 @@ instance HasRefs BParent where
     refs f (ToplevelParent it) = ToplevelParent <$> refs f it
     refs f (LambdaParent   it) = LambdaParent   <$> refs f it
 
+class DescedantTraversable a where
+    traverseDescedants :: Traversal' a BChild
+
+instance {-# OVERLAPPABLE #-} HasChildren a => DescedantTraversable a where
+    traverseDescedants = children . traverse . traverseDescedants
+
+instance DescedantTraversable ExprItem where
+    traverseDescedants = portChildren . traverse . traverseDescedants
+
+instance DescedantTraversable BChild where
+    traverseDescedants f (ExprChild   it) = ExprChild   <$> traverseDescedants f it
+    traverseDescedants f (LambdaChild it) = LambdaChild <$> traverseDescedants f it
+
 getBreadcrumbItems :: BParent -> Breadcrumb BreadcrumbItem -> [BChild]
 getBreadcrumbItems b (Breadcrumb crumbs) = go crumbs b where
     go [] _ = []
@@ -146,3 +160,18 @@ replaceAt (Breadcrumb crumbs) par child = go crumbs par child where
 
 topLevelIDs :: BParent -> [NodeId]
 topLevelIDs = Map.keys . view children
+
+getLamItems :: BParent -> [((NodeId, Maybe Int), LamItem)]
+getLamItems hierarchy = goParent hierarchy
+    where
+        goParent (ToplevelParent topItem) = goTopItem topItem
+        goParent (LambdaParent   lamItem) = $notImplemented
+
+        goBChild nodeId (ExprChild exprItem)  = goExprItem nodeId exprItem
+        goBChild nodeId (LambdaChild lamItem) = goLamItem (nodeId, Nothing) lamItem
+
+        goTopItem (TopItem childNodes _) = concatMap (\(a,b) -> goBChild a b) $ Map.assocs childNodes
+
+        goLamItem idArg lamItem = (idArg, lamItem) : concatMap (\(a, b) -> goBChild a b) (Map.assocs $ lamItem ^. children)
+
+        goExprItem nodeId (ExprItem children _) = map (\(a,b) -> ((nodeId, Just a), b)) $ Map.assocs children

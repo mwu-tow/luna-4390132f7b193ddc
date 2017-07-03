@@ -7,7 +7,6 @@ import           Data.Map                                   (Map)
 import qualified Data.Map                                   as Map
 import qualified JS.Config                                  as Config
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
-import           LunaStudio.Data.Position                   (Position, x, y)
 import qualified NodeEditor.Event.UI                        as UI
 import qualified NodeEditor.React.Event.Visualization       as Visualization
 import           NodeEditor.React.Model.App                 (App)
@@ -86,13 +85,15 @@ visualization = React.defineView viewName $ \(ref, nl, vis) -> do
             else [ onWheel $ \e _ _ -> [stopPropagation e, preventDefault e] ]
     div_
         [ "className" $= Style.prefixFromList [ "noselect", "visualization-container" ]
-        ] $ visualizationIframe_ visId visualizer vmode
+        ] $ do
+        div_ ([ "className" $= Style.prefix "visualization-cover" ] ++ coverHandler) mempty
+        visualizationIframe_ visId visualizer
 
-visualizationIframe_ :: VisualizationId -> Visualizer -> VisualizationMode -> ReactElementM ViewEventHandler ()
-visualizationIframe_ visId v vmode = React.view visualizationIframe (visId, v, vmode) mempty
+visualizationIframe_ :: VisualizationId -> Visualizer -> ReactElementM ViewEventHandler ()
+visualizationIframe_ visId v = React.view visualizationIframe (visId, v) mempty
 
-visualizationIframe :: ReactView (VisualizationId, Visualizer, VisualizationMode)
-visualizationIframe = React.defineView iframeName $ \(visId, visualizer, vmode) -> do
+visualizationIframe :: ReactView (VisualizationId, Visualizer)
+visualizationIframe = React.defineView iframeName $ \(visId, visualizer) -> do
     iframe_
         [ "src"       $= (convert $ snd visualizer)
         , "name"      $= (convert $ show visId)
