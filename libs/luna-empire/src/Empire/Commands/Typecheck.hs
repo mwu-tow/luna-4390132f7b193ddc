@@ -22,7 +22,7 @@ import           LunaStudio.Data.NodeValue        (NodeValue (..), Visualization
 
 import           Empire.ASTOp                     (runASTOp, runTypecheck)
 import qualified Empire.ASTOps.Read               as ASTRead
-import           Empire.Commands.Breadcrumb       (zoomBreadcrumb)
+import           Empire.Commands.Breadcrumb       (zoomInternalBreadcrumb)
 import qualified Empire.Commands.GraphBuilder     as GraphBuilder
 import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.BreadcrumbHierarchy  (topLevelIDs)
@@ -72,24 +72,24 @@ reportError loc nid err = do
             Nothing -> Publisher.notifyResultUpdate loc nid (NodeValue "" Nothing) 0
 
 updateNodes :: GraphLocation -> Command InterpreterEnv ()
-updateNodes loc@(GraphLocation _ br) = $notImplemented -- zoom graph $ zoomBreadcrumb br (error "tc") $ do
-    -- portMapping <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
-    -- (updates, errors) <- runASTOp $ do
-    --     sidebarUpdates <- case portMapping of
-    --         Just (i, o) -> do
-    --             (u1, u2) <- (,) <$> GraphBuilder.buildInputSidebarTypecheckUpdate i <*> GraphBuilder.buildOutputSidebarTypecheckUpdate o
-    --             return [u1, u2]
-    --         Nothing     -> return []
-    --     allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
-    --     nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
-    --     errors      <- forM allNodeIds $ \nid -> do
-    --         errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
-    --         case errs of
-    --             []     -> return Nothing
-    --             e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError e)
-    --     return (sidebarUpdates ++ nodeUpdates, errors)
-    -- mapM_ (Publisher.notifyNodeTypecheck loc) updates
-    -- forM_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
+updateNodes loc@(GraphLocation _ br) = zoom graph $ zoomInternalBreadcrumb br $ do
+     portMapping <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
+     (updates, errors) <- runASTOp $ do
+         sidebarUpdates <- case portMapping of
+             Just (i, o) -> do
+                 (u1, u2) <- (,) <$> GraphBuilder.buildInputSidebarTypecheckUpdate i <*> GraphBuilder.buildOutputSidebarTypecheckUpdate o
+                 return [u1, u2]
+             Nothing     -> return []
+         allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
+         nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
+         errors      <- forM allNodeIds $ \nid -> do
+             errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
+             case errs of
+                 []     -> return Nothing
+                 e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError e)
+         return (sidebarUpdates ++ nodeUpdates, errors)
+     mapM_ (Publisher.notifyNodeTypecheck loc) updates
+     forM_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
 
 updateMonads :: GraphLocation -> Command InterpreterEnv ()
 updateMonads loc@(GraphLocation _ br) = return ()--zoom graph $ zoomBreadcrumb br $ do

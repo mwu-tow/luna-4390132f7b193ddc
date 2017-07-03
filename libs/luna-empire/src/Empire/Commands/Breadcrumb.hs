@@ -96,6 +96,23 @@ makeGraphCls fun lastUUID = do
     Graph.clsFuns . at uuid ?= (name, graph)
     return (uuid, graph)
 
+
+zoomInternalBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.Graph a
+zoomInternalBreadcrumb (Breadcrumb (Definition _ : rest)) act = zoomInternalBreadcrumb (Breadcrumb rest) act
+zoomInternalBreadcrumb breadcrumb act = do
+    graph <- get
+    let  breadcrumbHierarchy = graph ^. Graph.breadcrumbHierarchy
+    case breadcrumbHierarchy `navigateTo` breadcrumb of
+        Just h -> do
+            env <- ask
+            let newGraph = graph & Graph.breadcrumbHierarchy .~ h
+            (res, state) <- liftIO $ runEmpire env newGraph act
+            let modified = replaceAt breadcrumb breadcrumbHierarchy $ state ^. Graph.breadcrumbHierarchy
+            mod <- maybe (throwM $ BreadcrumbDoesNotExistException breadcrumb) return modified
+            put $ state & Graph.breadcrumbHierarchy .~ mod
+            return res
+        _ -> throwM $ BreadcrumbDoesNotExistException breadcrumb
+
 zoomBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Command Library.Library a
 zoomBreadcrumb (Breadcrumb []) _actG actC = do
     env   <- ask
