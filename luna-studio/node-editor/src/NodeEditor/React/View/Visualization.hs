@@ -3,6 +3,7 @@
 module NodeEditor.React.View.Visualization where
 
 import           Common.Prelude
+import qualified Data.Aeson                                 as Aeson
 import           Data.Map                                   (Map)
 import qualified Data.Map                                   as Map
 import qualified JS.Config                                  as Config
@@ -45,10 +46,13 @@ nodeVisualization = React.defineView objNameVis $ \(ref, nl, visualizers', vis) 
         vmode       = vis ^. visualizationMode
         activeClass = if vmode == Default then [] else [ "visualization--active" ]
         classes     = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
+        ifExpanded  = True
+        numOfPorts  = ifExpanded then 1 else 0
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
         , "className" $= Style.prefixFromList (classes ++ activeClass )
+        , "style"     @= Aeson.object [ "transform" Aeson..= show ("translateX(" ++ show (numOfPorts * 16) ++ "px)") ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
         div_

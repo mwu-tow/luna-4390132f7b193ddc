@@ -48,7 +48,7 @@ class HasPorts node where
     countInPorts = length . inPortsList
     countOutPorts        :: node -> Int
     countOutPorts = length . outPortsList
-    countArgPorts           :: node -> Int
+    countArgPorts        :: node -> Int
     countArgPorts = length .  filter (Port.isArg . view Port.portId) . inPortsList
     countProjectionPorts :: node -> Int
     countProjectionPorts = length .  filter (Port.isProjection . view Port.portId) . outPortsList
