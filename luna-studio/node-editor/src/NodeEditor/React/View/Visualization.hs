@@ -46,13 +46,13 @@ nodeVisualization = React.defineView objNameVis $ \(ref, nl, visualizers', vis) 
         vmode       = vis ^. visualizationMode
         activeClass = if vmode == Default then [] else [ "visualization--active" ]
         classes     = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
-        ifExpanded  = True
-        numOfPorts  = ifExpanded then 1 else 0
+        isExpanded  = True
+        numOfPorts  = 1
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
         , "className" $= Style.prefixFromList (classes ++ activeClass )
-        , "style"     @= Aeson.object [ "transform" Aeson..= show ("translateX(" ++ show (numOfPorts * 16) ++ "px)") ]
+        , "style"     @= Aeson.object [ "transform" Aeson..= show ("translateX(" ++ show (16 * (if isExpanded then numOfPorts else 0)) ++ "px)") ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
         div_
