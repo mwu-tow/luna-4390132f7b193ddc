@@ -973,8 +973,10 @@ printNodeLine nodeId = GraphUtils.getASTPointer nodeId >>= ASTPrint.printExpress
 
 withTC' :: GraphLocation -> Bool -> Command Graph a -> Command ClsGraph a -> Empire a
 withTC' loc@(GraphLocation file _) flush actG actC = do
-    res <- withGraph' loc actG actC
-    -- withUnit (GraphLocation file $ Breadcrumb []) $ runTC loc flush
+    res <- flip (withGraph' loc) actC $ do
+        r <- actG
+        runTC loc flush
+        return r
     return res
 
 withTCUnit :: GraphLocation -> Bool -> Command ClsGraph a -> Empire a
