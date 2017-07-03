@@ -5,4 +5,8 @@ def main:
     «3»plny = "PLN"
     «4»cryptocurrencies = Empty . prepend maidSafeCoin . prepend nem . prepend ripple
     «5»getExchangeRate = realCurrency: cryptoCurrency: «7»Http . getJSON ("https://min-api.cryptocompare.com/data/price?fsym=" + cryptoCurrency + "&tsyms=" + realCurrency) . lookup realCurrency . fromJust . toReal
+<<<<<<< Updated upstream
     «6»exchangeRates = every (500 . miliseconds) (cryptocurrencies . map (getExchangeRate plny))
+=======
+    «6»exchangeRates = every (500 . miliseconds) (cryptocurrencies . map (getExchangeRate plny))
+>>>>>>> Stashed changes
