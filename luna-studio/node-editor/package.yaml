@@ -63,7 +63,6 @@ dependencies:
   - scientific
   - scope-searcher
   - split
-  - split
   - text
   - text-processing
   - time
