@@ -45,10 +45,11 @@ import           React.Flux
 import qualified React.Flux                                           as React
 
 
-name, objNameBody, objNamePorts :: JSString
-name            = "node"
-objNameBody     = "node-body"
-objNamePorts    = "node-ports"
+name, objNameBody, objNamePorts, objNameDynStyles :: JSString
+name             = "node"
+objNameBody      = "node-body"
+objNamePorts     = "node-ports"
+objNameDynStyles = "node-dynstyle"
 
 prefixNode :: JSString -> JSString
 prefixNode = Config.prefix . ("node-" <>)
@@ -146,7 +147,10 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             nodePorts_ ref n
 
 nodeDynamicStyles_ :: Matrix Double -> ExpressionNode -> ReactElementM ViewEventHandler ()
-nodeDynamicStyles_ camera n = do
+nodeDynamicStyles_ camera n = React.viewWithSKey nodeDynamicStyles (jsShow $ n ^. Node.nodeId) (camera, n) mempty
+
+nodeDynamicStyles :: ReactView (Matrix Double, ExpressionNode)
+nodeDynamicStyles = React.defineView objNameDynStyles $ \(camera, n) -> style_ $ do
     let nodeId  = n ^. Node.nodeId
         nodePos = n ^. Node.position
     elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate--name { transform: " <> showNodeTranslate camera nodePos <> " }"

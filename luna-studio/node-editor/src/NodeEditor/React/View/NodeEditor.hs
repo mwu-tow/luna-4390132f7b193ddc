@@ -3,6 +3,7 @@ module NodeEditor.React.View.NodeEditor where
 
 import           Common.Prelude                             hiding (transform)
 import qualified Data.HashMap.Strict                        as HashMap
+import           Data.Matrix                                (Matrix)
 import qualified Data.Matrix                                as Matrix
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
@@ -44,6 +45,12 @@ import qualified React.Flux                                 as React
 name :: JSString
 name = "node-editor"
 
+objDynStyle :: JSString
+objDynStyle = "dynamic-style"
+
+keyDynStyle :: JSString
+keyDynStyle = "dynamic-style"
+
 show1 :: Double -> String
 show1 a = showFFloat (Just 1) a "" -- limit Double to two decimal numbers TODO: remove before the release
 
@@ -77,7 +84,6 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         lookupNode m   = ( m ^. MonadPath.monadType
                          , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
         monads         = map lookupNode $ ne ^. NodeEditor.monads
-        scale          = (Matrix.toList camera)!!0 :: Double
         maySearcher    = ne ^. NodeEditor.searcher
         visualizations = NodeEditor.getVisualizations ne
         isAnyVisActive = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
@@ -93,30 +99,8 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
               , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
               , onScroll      $ \e     -> [preventDefault e]
               ] $ do
-
-              style_
-                  [ "key" $= "style"
-                  ] $ do
-
-                  elemString $ ":root { font-size: " <> show scale <> "px }"
-                  elemString $ ":root { --scale: "   <> show scale <> " }"
-
-                  elemString $ ".luna-camera-scale { transform: "     <> showCameraScale     camera <> " }"
-                  elemString $ ".luna-camera-translate { transform: " <> showCameraTranslate camera <> " }"
-                  elemString $ ".luna-camera-transform { transform: " <> showCameraMatrix    camera <> " }"
-
-                  elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
-                  elemString $ ".luna-connection__select { stroke-width: " <> show (10/scale)          <> " }"
-
-                  --collapsed nodes
-                  elemString $ ".luna-port-io-shape-mask { r: "  <> show (19.2 + (0.8 / scale)) <> "px }"
-                  elemString $ ".luna-port-io-select-mask { r: " <> show (19.2 + (0.8 / scale)) <> "px }"
-
-                  --expanded nodes
-                  elemString $ "circle.luna-port__shape { r: " <> show (3 + (1 / scale)) <> "px }"
-                  elemString $ ".luna-port--alias circle.luna-port__shape { r: " <> show (7 + (1 / scale)) <> "px }"
-
-                  forM_ (ne ^. NodeEditor.expressionNodesRecursive) $ nodeDynamicStyles_ camera
+              dynamicStyle_ camera
+              forM_ (ne ^. NodeEditor.expressionNodesRecursive) $ nodeDynamicStyles_ camera
 
               svgPlanes_ $ do
                   planeMonads_ $
@@ -148,3 +132,31 @@ noGraph_ msg =
     div_ [ "className" $= Style.prefix "graph"] $
         div_ [ "className" $= Style.prefix "background-text"] $
             elemString msg
+
+dynamicStyle_ :: Matrix Double -> ReactElementM ViewEventHandler ()
+dynamicStyle_ camera = React.viewWithSKey dynamicStyle keyDynStyle camera mempty
+
+dynamicStyle :: ReactView (Matrix Double)
+dynamicStyle = React.defineView objDynStyle $ \camera -> do
+    let scale = (Matrix.toList camera)!!0 :: Double
+    style_
+        [ "key" $= "style"
+        ] $ do
+
+        elemString $ ":root { font-size: " <> show scale <> "px }"
+        elemString $ ":root { --scale: "   <> show scale <> " }"
+
+        elemString $ ".luna-camera-scale { transform: "     <> showCameraScale     camera <> " }"
+        elemString $ ".luna-camera-translate { transform: " <> showCameraTranslate camera <> " }"
+        elemString $ ".luna-camera-transform { transform: " <> showCameraMatrix    camera <> " }"
+
+        elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
+        elemString $ ".luna-connection__select { stroke-width: " <> show (10/scale)          <> " }"
+
+        --collapsed nodes
+        elemString $ ".luna-port-io-shape-mask { r: "  <> show (19.2 + (0.8 / scale)) <> "px }"
+        elemString $ ".luna-port-io-select-mask { r: " <> show (19.2 + (0.8 / scale)) <> "px }"
+
+        --expanded nodes
+        elemString $ "circle.luna-port__shape { r: " <> show (3 + (1 / scale)) <> "px }"
+        elemString $ ".luna-port--alias circle.luna-port__shape { r: " <> show (7 + (1 / scale)) <> "px }"
