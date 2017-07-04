@@ -927,21 +927,18 @@ printNodeLine :: GraphOp m => NodeId -> m String
 printNodeLine nodeId = GraphUtils.getASTPointer nodeId >>= ASTPrint.printExpression
 
 withTC' :: GraphLocation -> Bool -> Command Graph a -> Command ClsGraph a -> Empire a
-withTC' loc@(GraphLocation file _) flush actG actC = do
-    res <- flip (withGraph' loc) actC $ do
-        r <- actG
-        runTC loc flush
-        return r
+withTC' loc@(GraphLocation file bs) flush actG actC = do
+    res <- withGraph' loc actG actC
+    case bs of
+        Breadcrumb []      -> return ()
+        Breadcrumb (d : _) -> withGraph' (GraphLocation file (Breadcrumb [d])) (runTC loc flush) (return ())
     return res
 
 withTCUnit :: GraphLocation -> Bool -> Command ClsGraph a -> Empire a
 withTCUnit loc flush cmd = withTC' loc flush (throwM UnsupportedOperation) cmd
 
 withTC :: GraphLocation -> Bool -> Command Graph a -> Empire a
-withTC loc@(GraphLocation file _) flush actG = do
-    res <- withGraph loc actG
-    -- withUnit (GraphLocation file $ Breadcrumb []) $ runTC loc flush
-    return res
+withTC loc flush actG = withTC' loc flush actG (throwM UnsupportedOperation)
 
 data UnsupportedOperation = UnsupportedOperation
     deriving Show
