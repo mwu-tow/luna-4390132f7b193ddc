@@ -26,24 +26,6 @@ library:
         - aeson
         - binary
 
-executables:
-  scope-searcher-exe:
-    main: Main.hs
-    source-dirs:
-        - app
-        - data
-    default-extensions:
-        - FlexibleContexts
-        - TemplateHaskell
-    ghc-options:
-        - -rtsopts
-        - -with-rtsopts=-N
-    dependencies:
-        - ansi-terminal
-        - mtl
-        - pretty-show
-        - scope-searcher
-
 tests:
   scope-searcher-test:
     main: Main.hs

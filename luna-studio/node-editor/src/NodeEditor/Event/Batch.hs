@@ -11,6 +11,7 @@ import qualified LunaStudio.API.Graph.AddPort               as AddPort
 import qualified LunaStudio.API.Graph.AddSubgraph           as AddSubgraph
 import qualified LunaStudio.API.Graph.AutolayoutNodes       as AutolayoutNodes
 import qualified LunaStudio.API.Graph.CollaborationUpdate   as CollaborationUpdate
+import qualified LunaStudio.API.Graph.CollapseToFunction    as CollapseToFunction
 import qualified LunaStudio.API.Graph.DumpGraphViz          as DumpGraphViz
 import qualified LunaStudio.API.Graph.GetProgram            as GetProgram
 import qualified LunaStudio.API.Graph.GetSubgraphs          as GetSubgraphs
@@ -44,6 +45,7 @@ data Event = UnknownEvent String
            | AddSubgraphResponse                   AddSubgraph.Response
            | AutolayoutNodesResponse           AutolayoutNodes.Response
            | CollaborationUpdate           CollaborationUpdate.Update
+           | CollapseToFunctionResponse     CollapseToFunction.Response
            | ConnectionDropped
            | ConnectionOpened
            | DumpGraphVizResponse                 DumpGraphViz.Response

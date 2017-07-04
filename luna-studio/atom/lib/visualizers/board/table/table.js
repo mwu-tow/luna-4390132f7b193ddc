@@ -9,6 +9,5 @@
   };
   window.addEventListener("message", function (evt) {
     render(evt.data.data);
-    document.body.addEventListener("click", function () { console.log("Clicked inside table"); });
   });
 }());

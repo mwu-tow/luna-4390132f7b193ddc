@@ -2,9 +2,9 @@ module NodeEditor.Handler.Node where
 
 import           Common.Prelude
 import           Data.ScreenPosition                        (ScreenPosition)
-import           NodeEditor.Action.Basic                    (enterNode, localSetPortDefault, removeSelectedNodes, selectAll,
-                                                             setNodeExpression, setPortDefault, toggleSelect, toggleSelectedNodesMode,
-                                                             toggleSelectedNodesUnfold)
+import           NodeEditor.Action.Basic                    (collapseToFunction, enterNode, localSetPortDefault, removeSelectedNodes,
+                                                             selectAll, setNodeExpression, setPortDefault, toggleSelect,
+                                                             toggleSelectedNodesMode, toggleSelectedNodesUnfold)
 import           NodeEditor.Action.Batch                    (autolayoutNodes)
 import           NodeEditor.Action.Command                  (Command)
 import qualified NodeEditor.Action.Node                     as Node
@@ -45,13 +45,14 @@ handle _ = Nothing
 
 handleCommand :: Shortcut.Command -> Command State ()
 handleCommand = \case
-    Shortcut.SelectAll               -> selectAll
-    Shortcut.RemoveSelectedNodes     -> removeSelectedNodes
-    Shortcut.ExpandSelectedNodes     -> toggleSelectedNodesMode $ Node.Expanded Node.Controls
-    -- Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor --TEMPORARILY DISABLED
-    Shortcut.UnfoldSelectedNodes     -> toggleSelectedNodesUnfold
-    Shortcut.AutolayoutSelectedNodes -> map (view Node.nodeLoc) <$> getSelectedNodes   >>= autolayoutNodes
     Shortcut.AutolayoutAllNodes      -> map (view Node.nodeLoc) <$> getExpressionNodes >>= autolayoutNodes
+    Shortcut.AutolayoutSelectedNodes -> map (view Node.nodeLoc) <$> getSelectedNodes   >>= autolayoutNodes
+    Shortcut.CollapseToFunction      -> collapseToFunction
+    -- Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor --TEMPORARILY DISABLED
+    Shortcut.ExpandSelectedNodes     -> toggleSelectedNodesMode $ Node.Expanded Node.Controls
+    Shortcut.RemoveSelectedNodes     -> removeSelectedNodes
+    Shortcut.SelectAll               -> selectAll
+    Shortcut.UnfoldSelectedNodes     -> toggleSelectedNodesUnfold
     _                                -> return ()
 
 handleMouseDown :: MouseEvent -> NodeLoc -> Command State ()

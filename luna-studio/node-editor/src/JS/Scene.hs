@@ -30,8 +30,10 @@ outputSidebarId = Config.prefix "sidebar--o"
 
 foreign import javascript safe "document.getElementById($1).offsetWidth"  elementWidth  :: JSString -> IO Double
 foreign import javascript safe "document.getElementById($1).offsetHeight" elementHeight :: JSString -> IO Double
-foreign import javascript safe "document.getElementById($1).getBoundingClientRect().left" elementLeft :: JSString -> IO Double
-foreign import javascript safe "document.getElementById($1).getBoundingClientRect().top"  elementTop  :: JSString -> IO Double
+foreign import javascript safe "document.getElementById($1).getBoundingClientRect().left"   elementLeft   :: JSString -> IO Double
+foreign import javascript safe "document.getElementById($1).getBoundingClientRect().top"    elementTop    :: JSString -> IO Double
+foreign import javascript safe "document.getElementById($1).getBoundingClientRect().right"  elementRight  :: JSString -> IO Double
+foreign import javascript safe "document.getElementById($1).getBoundingClientRect().bottom" elementBottom :: JSString -> IO Double
 foreign import javascript safe "movementHandler = function(e) { ($1)(e.movementX, e.movementY);};"  onMouseMove'  :: Callback (JSVal -> JSVal -> IO ()) -> IO ()
 foreign import javascript safe "new ResizeObserver($2).observe(document.getElementById($1))" onResize' :: JSString -> Callback (IO ()) -> IO ()
 

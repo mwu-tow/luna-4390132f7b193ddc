@@ -7,6 +7,7 @@ module NodeEditor.React.Model.Visualization
 import           Common.Prelude
 import           Data.Map                  (Map)
 import qualified Data.Map                  as Map
+import           LunaStudio.Data.NodeLoc   (NodeLoc)
 import           LunaStudio.Data.NodeValue as X (VisualizationId, VisualizationValue (..), Visualizer, VisualizerName, VisualizerPath)
 
 
@@ -37,11 +38,20 @@ data NodeVisualizations = NodeVisualizations { _visualizations     :: Map Visual
                                              , _visualizers        :: Map VisualizerName VisualizerPath
                                              } deriving (Eq, Generic, NFData, Show)
 
+
+data VisualizationProperties = VisualizationProperties { _visPropNodeLoc        :: NodeLoc
+                                                       , _visPropIsNodeExpanded :: Bool
+                                                       , _visPropArgPortsNumber :: Int
+                                                       , _visPropVisualizers    :: Map VisualizerName VisualizerPath
+                                                       , _visPropVisualization  :: RunningVisualization
+                                                       } deriving (Eq, Generic, NFData, Show)
+
 makePrisms ''VisualizationStatus
 makePrisms ''VisualizationMode
 makeLenses ''RunningVisualization
 makeLenses ''IdleVisualization
 makeLenses ''NodeVisualizations
+makeLenses ''VisualizationProperties
 
 instance Default NodeVisualizations where def = NodeVisualizations def def def
 

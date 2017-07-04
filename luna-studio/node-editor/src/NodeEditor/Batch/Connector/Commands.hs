@@ -12,6 +12,7 @@ import qualified LunaStudio.API.Graph.AddSubgraph         as AddSubgraph
 import qualified LunaStudio.API.Graph.AutolayoutNodes     as AutolayoutNodes
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import qualified LunaStudio.API.Graph.CollaborationUpdate as CollaborationUpdate
+import qualified LunaStudio.API.Graph.CollapseToFunction  as CollapseToFunction
 import qualified LunaStudio.API.Graph.DumpGraphViz        as DumpGraphViz
 import qualified LunaStudio.API.Graph.GetProgram          as GetProgram
 import qualified LunaStudio.API.Graph.GetSubgraphs        as GetSubgraphs
@@ -104,6 +105,10 @@ addSubgraph nodes connections workspace uuid guiID = sendRequest $ Message uuid 
 
 autolayoutNodes :: [NodeLoc] -> Workspace -> UUID -> Maybe UUID -> IO ()
 autolayoutNodes nls workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace AutolayoutNodes.Request) nls
+
+collapseToFunction :: [NodeLoc] -> Workspace -> UUID -> Maybe UUID ->  IO ()
+collapseToFunction nodeLocs workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' CollapseToFunction.Request nodeLocs' where
+    (workspace', nodeLocs') = normalise' workspace nodeLocs
 
 getSubgraph :: NodeLoc -> Workspace -> UUID -> Maybe UUID -> IO ()
 getSubgraph nodeLoc workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace $ GetSubgraphs.Request . (GraphLocation.breadcrumb .~ NodeLoc.toBreadcrumb (NodeLoc.prependPath workspace nodeLoc))

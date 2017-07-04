@@ -1,0 +1,12 @@
+html {
+  font-size: 1px;
+}
+body {
+  background-color: #222;
+  font-family: monospace;
+  font-size: 14rem;
+  font-weight: lighter;
+  color: #666;
+  padding: 6rem;
+  margin: 0;
+}

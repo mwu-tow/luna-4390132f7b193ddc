@@ -45,13 +45,14 @@ import           React.Flux
 import qualified React.Flux                                           as React
 
 
-name, objNameBody, objNamePorts :: JSString
-name            = "node"
-objNameBody     = "node-body"
-objNamePorts    = "node-ports"
+name, objNameBody, objNamePorts, objNameDynStyles :: JSString
+name             = "node"
+objNameBody      = "node-body"
+objNamePorts     = "node-ports"
+objNameDynStyles = "node-dynstyle"
 
-nodePrefix :: JSString
-nodePrefix = Config.prefix "node-"
+prefixNode :: JSString -> JSString
+prefixNode = Config.prefix . ("node-" <>)
 
 nameLabelId :: JSString
 nameLabelId = Config.prefix "focus-nameLabel"
@@ -124,8 +125,8 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             showValue       = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression      = n ^. Node.expression
         div_
-            [ "key"       $= (nodePrefix <> fromString (show nodeId))
-            , "id"        $= (nodePrefix <> fromString (show nodeId))
+            [ "key"       $= prefixNode (jsShow nodeId)
+            , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
                                                                        ++ (if returnsError n then ["node--error"] else [])
                                                                        ++ (if n ^. Node.isSelected then ["node--selected"] else [])
@@ -146,14 +147,17 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             nodePorts_ ref n
 
 nodeDynamicStyles_ :: Matrix Double -> ExpressionNode -> ReactElementM ViewEventHandler ()
-nodeDynamicStyles_ camera n = do
+nodeDynamicStyles_ camera n = React.viewWithSKey nodeDynamicStyles (jsShow $ n ^. Node.nodeId) (camera, n) mempty
+
+nodeDynamicStyles :: ReactView (Matrix Double, ExpressionNode)
+nodeDynamicStyles = React.defineView objNameDynStyles $ \(camera, n) -> style_ $ do
     let nodeId  = n ^. Node.nodeId
         nodePos = n ^. Node.position
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> fromString (show nodeId) <> " .luna-node-translate--name { transform: " <> showNodeTranslate camera nodePos <> " }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> fromString (show nodeId) <> " .luna-node-translate { transform: "       <> showNodeTranslate camera nodePos <> " }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> fromString (show nodeId) <> " .luna-node-transform { transform: "       <> showNodeMatrix    camera nodePos <> " }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> fromString (show nodeId) <> " path.luna-port__shape { clip-path: url(#port-io-shape-mask-"   <> show nodeId <> ") }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> fromString (show nodeId) <> " path.luna-port__select { clip-path: url(#port-io-select-mask-" <> show nodeId <> ") }"
+    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate--name { transform: " <> showNodeTranslate camera nodePos <> " }"
+    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate { transform: "       <> showNodeTranslate camera nodePos <> " }"
+    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-transform { transform: "       <> showNodeMatrix    camera nodePos <> " }"
+    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " path.luna-port__shape { clip-path: url(#port-io-shape-mask-"   <> show nodeId <> ") }"
+    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " path.luna-port__select { clip-path: url(#port-io-select-mask-" <> show nodeId <> ") }"
 
 nodeBody_ :: Ref App -> ExpressionNode -> ReactElementM ViewEventHandler ()
 nodeBody_ ref model = React.viewWithSKey nodeBody "node-body" (ref, model) mempty
@@ -163,6 +167,7 @@ nodeBody = React.defineView objNameBody $ \(ref, n) -> do
     let nodeLoc = n ^. Node.nodeLoc
     div_
         [ "key"       $= "nodeBody"
+        , "id"        $= prefixNode ("body-" <> jsShow (n ^. Node.nodeId))
         , "className" $= Style.prefixFromList [ "node__body", "node-translate" ]
         ] $ do
         errorMark_

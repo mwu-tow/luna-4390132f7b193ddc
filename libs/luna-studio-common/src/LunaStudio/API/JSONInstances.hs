@@ -18,6 +18,7 @@ import           LunaStudio.API.Graph.AddPort               as AddPort
 import           LunaStudio.API.Graph.AddSubgraph           as AddSubgraph
 import           LunaStudio.API.Graph.AutolayoutNodes       as AutolayoutNodes
 import           LunaStudio.API.Graph.CollaborationUpdate   as CollaborationUpdate
+import           LunaStudio.API.Graph.CollapseToFunction    as CollapseToFunction
 import           LunaStudio.API.Graph.DumpGraphViz          as DumpGraphViz
 import           LunaStudio.API.Graph.GetProgram            as GetProgram
 import           LunaStudio.API.Graph.GetSubgraphs          as GetSubgraphs
@@ -73,230 +74,164 @@ import           LunaStudio.Data.ValueType                  as ValueType
 import           LunaStudio.Data.Vector2                    as Vector2
 
 
-instance FromJSON a => FromJSON (Vector2.Vector2 a)
-instance ToJSON   a => ToJSON (Vector2.Vector2 a)
-
-instance FromJSON  Position.Position
-instance ToJSON    Position.Position
-
-instance ToJSON    Size.Size
-
-
-instance ToJSON Project.Project
-instance ToJSON Library.Library
-
-instance ToJSON a   => ToJSON (Breadcrumb.Breadcrumb a)
-instance ToJSON a   => ToJSON (Breadcrumb.Named a)
-instance               ToJSON Breadcrumb.BreadcrumbItem
-
 instance FromJSON a => FromJSON (Breadcrumb.Breadcrumb a)
 instance FromJSON a => FromJSON (Breadcrumb.Named a)
-instance               FromJSON Breadcrumb.BreadcrumbItem
-
-instance ToJSON GraphLocation.GraphLocation
+instance FromJSON a => FromJSON (Vector2.Vector2 a)
+instance FromJSON Breadcrumb.BreadcrumbItem
+instance FromJSON Connection.Connection
+instance FromJSON Graph.Graph
 instance FromJSON GraphLocation.GraphLocation
-
-instance ToJSON   Node.ExpressionNode
+instance FromJSON i => FromJSON (Port.Port i)
+instance FromJSON MonadPath.MonadPath
 instance FromJSON Node.ExpressionNode
-instance ToJSON   Node.InputSidebar
 instance FromJSON Node.InputSidebar
-instance ToJSON   Node.OutputSidebar
-instance FromJSON Node.OutputSidebar
-instance ToJSON   Node.Node
 instance FromJSON Node.Node
-instance ToJSON   Node.NodeTypecheckerUpdate
 instance FromJSON Node.NodeTypecheckerUpdate
-
-instance ToJSON NodeMeta.NodeMeta
-instance FromJSON NodeMeta.NodeMeta
-
-instance ToJSON NodeLoc
-instance ToJSON NodePath
+instance FromJSON Node.OutputSidebar
 instance FromJSON NodeLoc
+instance FromJSON NodeMeta.NodeMeta
 instance FromJSON NodePath
+instance FromJSON NodeValue.VisualizationValue
+instance FromJSON PEnvelope.Envelope
+instance FromJSON PLibrary.Library
+instance FromJSON Point
+instance FromJSON Port.AnyPortId
+instance FromJSON Port.PortState
+instance FromJSON PortDefault.PortDefault
+instance FromJSON PortDefault.PortValue
+instance FromJSON PortRef.AnyPortRef
+instance FromJSON PortRef.InPortRef
+instance FromJSON PortRef.OutPortRef
+instance FromJSON Position.Position
+instance FromJSON PProject.Project
+instance FromJSON Result.Result
+instance FromJSON TypeRep.TypeRep
 
 instance FromJSONKey AnyPortRef
 instance FromJSONKey Breadcrumb.BreadcrumbItem
 instance FromJSONKey InPortRef
 instance FromJSONKey NodeLoc
+instance FromJSONKey TypeRep.TypeRep
+
+instance (ToJSON req, ToJSON res, ToJSON inv) => ToJSON (Response.Response req inv res)
+instance ToJSON a => ToJSON (Breadcrumb.Breadcrumb a)
+instance ToJSON a => ToJSON (Breadcrumb.Named a)
+instance ToJSON a => ToJSON (Request.Request a)
+instance ToJSON a => ToJSON (Vector2.Vector2 a)
+instance ToJSON AddConnection.Inverse
+instance ToJSON AddConnection.Request
+instance ToJSON AddNode.Request
+instance ToJSON AddPort.Request
+instance ToJSON AddSubgraph.Request
+instance ToJSON AutolayoutNodes.Inverse
+instance ToJSON AutolayoutNodes.Request
+instance ToJSON Breadcrumb.BreadcrumbItem
+instance ToJSON CloseFile.Request
+instance ToJSON CollaborationUpdate.Event
+instance ToJSON CollaborationUpdate.Update
+instance ToJSON CollapseToFunction.Inverse
+instance ToJSON CollapseToFunction.Request
+instance ToJSON Connection.Connection
+instance ToJSON CreateLibrary.Request
+instance ToJSON CreateLibrary.Result
+instance ToJSON CreateLibrary.Update
+instance ToJSON CreateProject.Request
+instance ToJSON CreateProject.Result
+instance ToJSON CreateProject.Update
+instance ToJSON DumpGraphViz.Request
+instance ToJSON EmpireStarted.Status
+instance ToJSON Error.Error
+instance ToJSON Error.ErrorType
+instance ToJSON ExportProject.Request
+instance ToJSON ExportProject.Result
+instance ToJSON FileChanged.Request
+instance ToJSON GetBuffer.Request
+instance ToJSON GetBuffer.Result
+instance ToJSON GetProgram.Request
+instance ToJSON GetProgram.Result
+instance ToJSON GetSubgraphs.Request
+instance ToJSON GetSubgraphs.Result
+instance ToJSON Graph.Graph
+instance ToJSON GraphLocation.GraphLocation
+instance ToJSON i => ToJSON (Port.Port i)
+instance ToJSON ImportProject.Request
+instance ToJSON ImportProject.Result
+instance ToJSON IsSaved.Request
+instance ToJSON IsSaved.Result
+instance ToJSON IsSaved.Saved
+instance ToJSON Library.Library
+instance ToJSON ListLibraries.Request
+instance ToJSON ListLibraries.Result
+instance ToJSON ListProjects.Request
+instance ToJSON ListProjects.Result
+instance ToJSON ListProjects.Update
+instance ToJSON MonadPath.MonadPath
+instance ToJSON MonadsUpdate.Update
+instance ToJSON MovePort.Request
+instance ToJSON Node.ExpressionNode
+instance ToJSON Node.InputSidebar
+instance ToJSON Node.Node
+instance ToJSON Node.NodeTypecheckerUpdate
+instance ToJSON Node.OutputSidebar
+instance ToJSON NodeLoc
+instance ToJSON NodeMeta.NodeMeta
+instance ToJSON NodePath
+instance ToJSON NodeResultUpdate.Update
+instance ToJSON NodeTypecheckerUpdate.Update
+instance ToJSON NodeValue.NodeValue
+instance ToJSON NodeValue.VisualizationValue
+instance ToJSON OpenFile.Request
+instance ToJSON OpenProject.Request
+instance ToJSON OpenProject.Result
+instance ToJSON OpenProject.Update
+instance ToJSON payload => ToJSON (Response.Status payload)
+instance ToJSON PEnvelope.Envelope
+instance ToJSON PLibrary.Library
+instance ToJSON Point
+instance ToJSON Port.AnyPortId
+instance ToJSON Port.PortState
+instance ToJSON PortDefault.PortDefault
+instance ToJSON PortDefault.PortValue
+instance ToJSON PortRef.AnyPortRef
+instance ToJSON PortRef.InPortRef
+instance ToJSON PortRef.OutPortRef
+instance ToJSON Position.Position
+instance ToJSON PProject.Project
+instance ToJSON Project.Project
+instance ToJSON Redo.RedoRequest
+instance ToJSON Redo.Request
+instance ToJSON RemoveConnection.Inverse
+instance ToJSON RemoveConnection.Request
+instance ToJSON RemoveNodes.Inverse
+instance ToJSON RemoveNodes.Request
+instance ToJSON RemovePort.Inverse
+instance ToJSON RemovePort.Request
+instance ToJSON RenameNode.Inverse
+instance ToJSON RenameNode.Request
+instance ToJSON RenamePort.Inverse
+instance ToJSON RenamePort.Request
+instance ToJSON Result.Result
+instance ToJSON SaveFile.Request
+instance ToJSON SearchNodes.Request
+instance ToJSON SearchNodes.Result
+instance ToJSON SetNodeExpression.Inverse
+instance ToJSON SetNodeExpression.Request
+instance ToJSON SetNodesMeta.Inverse
+instance ToJSON SetNodesMeta.Request
+instance ToJSON SetPortDefault.Inverse
+instance ToJSON SetPortDefault.Request
+instance ToJSON SetProject.Request
+instance ToJSON Size.Size
+instance ToJSON Substitute.Request
+instance ToJSON Substitute.Update
+instance ToJSON TypeCheck.Request
+instance ToJSON TypeRep.TypeRep
+instance ToJSON Undo.Request
+instance ToJSON Undo.UndoRequest
+instance ToJSON ValueType.ValueTypeEnum
+
 instance ToJSONKey AnyPortRef
 instance ToJSONKey Breadcrumb.BreadcrumbItem
 instance ToJSONKey InPortRef
 instance ToJSONKey NodeLoc
-
-instance ToJSON i => ToJSON (Port.Port i)
-instance FromJSON i => FromJSON (Port.Port i)
-instance ToJSON Port.AnyPortId
-instance FromJSON Port.AnyPortId
-instance ToJSON Port.PortState
-instance FromJSON Port.PortState
-
-instance ToJSON TypeRep.TypeRep
-instance FromJSON TypeRep.TypeRep
 instance ToJSONKey TypeRep.TypeRep
-instance FromJSONKey TypeRep.TypeRep
-
-instance ToJSON ValueType.ValueTypeEnum
-
-instance ToJSON PortRef.AnyPortRef
-instance FromJSON PortRef.AnyPortRef
-instance ToJSON PortRef.OutPortRef
-instance FromJSON PortRef.OutPortRef
-instance ToJSON PortRef.InPortRef
-instance FromJSON PortRef.InPortRef
-
-instance ToJSON Connection.Connection
-instance FromJSON Connection.Connection
-
-instance ToJSON PortDefault.PortValue
-instance FromJSON PortDefault.PortValue
-instance ToJSON PortDefault.PortDefault
-instance FromJSON PortDefault.PortDefault
-
-instance ToJSON NodeValue.NodeValue
-instance ToJSON NodeValue.VisualizationValue
-instance FromJSON NodeValue.VisualizationValue
-
-instance ToJSON Point
-instance FromJSON Point
-
-instance ToJSON Graph.Graph
-instance FromJSON Graph.Graph
-
-instance ToJSON MonadPath.MonadPath
-instance FromJSON MonadPath.MonadPath
-
-instance ToJSON IsSaved.Saved
-
-instance ToJSON Error.ErrorType
-instance ToJSON Error.Error
-
-instance ToJSON Result.Result
-instance FromJSON Result.Result
-
-
-instance ToJSON AddConnection.Request
-instance ToJSON AddConnection.Inverse
-
-instance ToJSON AddNode.Request
-
-instance ToJSON AddPort.Request
-
-instance ToJSON AddSubgraph.Request
-
-instance ToJSON AutolayoutNodes.Request
-instance ToJSON AutolayoutNodes.Inverse
-
-instance ToJSON CollaborationUpdate.Update
-instance ToJSON CollaborationUpdate.Event
-
-instance ToJSON DumpGraphViz.Request
-
-instance ToJSON GetProgram.Request
-instance ToJSON GetProgram.Result
-
-instance ToJSON GetSubgraphs.Request
-instance ToJSON GetSubgraphs.Result
-
-instance ToJSON MonadsUpdate.Update
-
-instance ToJSON MovePort.Request
-
-instance ToJSON NodeResultUpdate.Update
-
-instance ToJSON NodeTypecheckerUpdate.Update
-
-instance ToJSON Redo.RedoRequest
-instance ToJSON Redo.Request
-
-
-
-instance ToJSON GetBuffer.Request
-instance ToJSON GetBuffer.Result
-
-instance ToJSON Substitute.Request
-instance ToJSON Substitute.Update
-
-instance ToJSON RemoveConnection.Request
-instance ToJSON RemoveConnection.Inverse
-
-instance ToJSON RemoveNodes.Request
-instance ToJSON RemoveNodes.Inverse
-
-instance ToJSON RemovePort.Request
-instance ToJSON RemovePort.Inverse
-
-instance ToJSON RenameNode.Request
-instance ToJSON RenameNode.Inverse
-
-instance ToJSON RenamePort.Request
-instance ToJSON RenamePort.Inverse
-
-instance ToJSON a => ToJSON (Request.Request a)
-
-instance ToJSON SearchNodes.Request
-instance ToJSON SearchNodes.Result
-
-instance ToJSON SetNodeExpression.Request
-instance ToJSON SetNodeExpression.Inverse
-
-instance ToJSON SetNodesMeta.Request
-instance ToJSON SetNodesMeta.Inverse
-
-instance ToJSON SetPortDefault.Request
-instance ToJSON SetPortDefault.Inverse
-
-instance ToJSON TypeCheck.Request
-
-instance ToJSON Undo.UndoRequest
-instance ToJSON Undo.Request
-
-
-instance ToJSON CreateLibrary.Request
-instance ToJSON CreateLibrary.Result
-instance ToJSON CreateLibrary.Update
-
-instance ToJSON ListLibraries.Request
-instance ToJSON ListLibraries.Result
-
-instance ToJSON CreateProject.Request
-instance ToJSON CreateProject.Result
-instance ToJSON CreateProject.Update
-
-instance ToJSON OpenProject.Request
-instance ToJSON OpenProject.Result
-instance ToJSON OpenProject.Update
-
-instance ToJSON ListProjects.Request
-instance ToJSON ListProjects.Result
-instance ToJSON ListProjects.Update
-
-instance ToJSON ExportProject.Request
-instance ToJSON ExportProject.Result
-
-instance ToJSON ImportProject.Request
-instance ToJSON ImportProject.Result
-
-instance ToJSON CloseFile.Request
-instance ToJSON FileChanged.Request
-instance ToJSON OpenFile.Request
-
-instance ToJSON SaveFile.Request
-
-instance ToJSON IsSaved.Request
-instance ToJSON IsSaved.Result
-
-instance ToJSON SetProject.Request
-
-
-instance (ToJSON req, ToJSON res, ToJSON inv) => ToJSON (Response.Response req inv res)
-instance ToJSON payload => ToJSON (Response.Status payload)
-
-instance ToJSON EmpireStarted.Status
-
-instance ToJSON PProject.Project
-instance FromJSON PProject.Project
-instance ToJSON PLibrary.Library
-instance FromJSON PLibrary.Library
-instance ToJSON PEnvelope.Envelope
-instance FromJSON PEnvelope.Envelope

@@ -128,6 +128,7 @@
   'enter'             : 'luna-studio:expand-selected-nodes'       # ExpandSelectedNodes
   'ctrl-enter'        : 'luna-studio:edit-selected-nodes'         # EditSelectedNodes
   'cmd-enter'         : 'luna-studio:edit-selected-nodes'         # EditSelectedNodes
+  'f'                 : 'luna-studio:collapse-to-function'        # CollapseToFunction
   'ctrl-space'        : 'luna-studio:zoom-visualization'          # ZoomVisualization
   'space'             : 'luna-studio:open-visualization-preview'  # OpenVisualizationPreview
   '^space'            : 'luna-studio:close-visualization-preview' # CloseVisualizationPreview
