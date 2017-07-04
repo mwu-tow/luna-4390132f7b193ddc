@@ -38,6 +38,7 @@ import qualified LunaStudio.Data.NodeMeta        as NodeMeta
 import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
+import           LunaStudio.Data.Vector2         (Vector2(..))
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 
@@ -343,6 +344,18 @@ spec = around withChannels $ parallel $ do
             prev ^. Graph.inputSidebar `shouldBe` new ^. Graph.inputSidebar
             prev ^. Graph.outputSidebar `shouldBe` new ^. Graph.outputSidebar
             prev ^. Graph.connections `shouldBe` new ^. Graph.connections
+        it "preserves node meta on code reload" $ \env -> do
+            meta <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                Graph.setNodeMeta loc' foo (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
+                Graph.substituteCode "TestPath" 63 64 "5" (Just 64)
+                Graph.getNodeMeta loc' foo
+            meta `shouldBe` Just (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|

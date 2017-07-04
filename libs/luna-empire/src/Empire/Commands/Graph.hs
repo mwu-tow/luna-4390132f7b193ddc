@@ -623,7 +623,7 @@ disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
 
 getNodeMeta :: GraphLocation -> NodeId -> Empire (Maybe NodeMeta)
 getNodeMeta loc nodeId = withGraph loc $ runASTOp $ do
-    ref <- GraphUtils.getASTPointer nodeId
+    ref <- ASTRead.getASTRef nodeId
     AST.readMeta ref
 
 getCode :: GraphLocation -> Empire String
@@ -745,18 +745,17 @@ reloadCode loc@(GraphLocation file _) code = do
         let lamItems = BH.getLamItems hierarchy
             elems    = map lamItemToMapping lamItems
         return $ Map.fromList elems
-    liftIO $ print previousNodeIds >> print previousPortMappings
     withUnit (GraphLocation file (Breadcrumb [])) $ Graph.nodeIdCache .= NodeIdCache (Map.unions previousNodeIds) (Map.unions previousPortMappings)
     loadCode loc code
-    -- newFuns <- Library.withLibrary file $ do
-    --     funs <- use Library.funs
-    --     return $ map Text.pack $ Map.keys funs
-    -- forM_ newFuns $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-    --     currentExprMap <- getExprMap
-    --     forM (Map.lookup fun oldMetas) $ \listOfMetas -> do
-    --         forM listOfMetas $ \(marker, oldMeta) -> do
-    --             let expr = Map.lookup marker currentExprMap
-    --             forM_ expr $ \e -> AST.writeMeta e oldMeta
+    newFuns <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        funs <- use Graph.clsFuns
+        return $ Map.keys funs
+    forM_ newFuns $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        currentExprMap <- getExprMap
+        forM (Map.lookup fun oldMetas) $ \listOfMetas -> do
+            forM listOfMetas $ \(marker, oldMeta) -> do
+                let expr = Map.lookup marker currentExprMap
+                forM_ expr $ \e -> AST.writeMeta e oldMeta
 
 -- reloadCode :: GraphLocation -> Text -> Command Graph ()
 -- reloadCode loc code = do
