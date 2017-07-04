@@ -1,11 +1,13 @@
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Empire.ASTOps.BreadcrumbHierarchy where
 
 import Empire.Prelude
 
 import           Control.Arrow                 ((&&&))
+import           Control.Monad                 (forM)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.UUID.V4  as UUID
@@ -17,7 +19,7 @@ import qualified Empire.ASTOps.Read              as ASTRead
 import           Empire.Commands.Code            (addCodeMarker)
 import           Empire.Data.AST                 (NodeRef)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               (NodeIdCache, nodeIdMap)
+import           Empire.Data.Graph               (NodeIdCache, breadcrumbHierarchy, nodeIdMap)
 import           Empire.Data.Layers              (Marker)
 import           LunaStudio.Data.Node            (NodeId)
 import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
@@ -94,3 +96,33 @@ prepareExprChild nodeIdCache marked ref = do
           Just ch -> par & BH.portChildren . at port ?~ ch
           _       -> par
     return $ BH.ExprChild $ foldl addItem bareItem $ zip [0..] items
+
+restorePortMappings :: GraphOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> m ()
+restorePortMappings previousPortMappings = do
+    hierarchy <- use breadcrumbHierarchy
+
+    let goParent (BH.ToplevelParent topItem) = BH.ToplevelParent <$> goTopItem topItem
+        goParent (BH.LambdaParent         _) = $notImplemented
+
+        goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
+        goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (nodeId, Nothing) lamItem
+
+        goTopItem (BH.TopItem childNodes body) = do
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs childNodes
+            return $ BH.TopItem (Map.fromList updatedChildren) body
+
+        goLamItem idArg (BH.LamItem mapping marked children body) = do
+            let cache       = Map.lookup idArg previousPortMappings
+            updatedChildren <- forM cache $ \prev -> do
+                ref <- ASTRead.getTargetFromMarked marked
+                ASTBuilder.attachNodeMarkersForArgs (fst prev) [] ref
+                updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs children
+                return $ Map.fromList updatedChildren
+            return $ BH.LamItem (fromMaybe mapping cache) marked (fromMaybe children updatedChildren) body
+
+        goExprItem nodeId (BH.ExprItem children self) = do
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (nodeId, Just a) b) $ Map.assocs children
+            return $ BH.ExprItem (Map.fromList updatedChildren) self
+
+    newHierarchy <- goParent hierarchy
+    breadcrumbHierarchy .= newHierarchy

@@ -726,46 +726,27 @@ substituteCode path start end code cursor = do
 lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
 lamItemToMapping (idArg, BH.LamItem portMapping _ _ _) = (idArg, portMapping)
 
-restorePortMappings :: GraphOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> m ()
-restorePortMappings previousPortMappings = do
-    hierarchy <- use Graph.breadcrumbHierarchy
-
-    let goParent (BH.ToplevelParent topItem) = BH.ToplevelParent <$> goTopItem topItem
-        goParent (BH.LambdaParent         _) = $notImplemented
-
-        goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
-        goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (nodeId, Nothing) lamItem
-
-        goTopItem (BH.TopItem childNodes body) = do
-            updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs childNodes
-            return $ BH.TopItem (Map.fromList updatedChildren) body
-
-        goLamItem idArg (BH.LamItem mapping marked children body) = do
-            let cache       = Map.lookup idArg previousPortMappings
-            updatedChildren <- forM cache $ \prev -> do
-                ref <- ASTRead.getTargetFromMarked marked
-                ASTBuilder.attachNodeMarkersForArgs (fst prev) [] ref
-                updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs children
-                return $ Map.fromList updatedChildren
-            return $ BH.LamItem (fromMaybe mapping cache) marked (fromMaybe children updatedChildren) body
-
-        goExprItem nodeId (BH.ExprItem children self) = do
-            updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (nodeId, Just a) b) $ Map.assocs children
-            return $ BH.ExprItem (Map.fromList updatedChildren) self
-
-    newHierarchy <- goParent hierarchy
-    Graph.breadcrumbHierarchy .= newHierarchy
-
-
 reloadCode :: GraphLocation -> Text -> Empire ()
 reloadCode loc@(GraphLocation file _) code = do
-    -- funs <- Library.withLibrary file $ do
-    --     funs <- use Library.funs
-    --     return $ map Text.pack $ Map.keys funs
-    -- oldMetas <- Map.fromList <$> (forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-    --     m <- getExprMap
-    --     oldMetas <- forM (Map.assocs m) $ \(marker, expr) -> (marker,) <$> AST.readMeta expr
-    --     return (fun, [ (marker, meta) | (marker, Just meta) <- oldMetas ]))
+    funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        funs <- use Graph.clsFuns
+        return $ Map.keys funs
+    oldMetas <- Map.fromList <$> (forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        m <- getExprMap
+        oldMetas <- forM (Map.assocs m) $ \(marker, expr) -> (marker,) <$> AST.readMeta expr
+        return (fun, [ (marker, meta) | (marker, Just meta) <- oldMetas ]))
+    previousNodeIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        m <- getExprMap
+        let markers = Map.keys m
+        nodeIds <- mapM (\k -> (k,) <$> getNodeIdForMarker (fromIntegral k)) markers
+        return $ Map.fromList [ (marker, nodeId) | (marker, Just nodeId) <- nodeIds ]
+    previousPortMappings <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        hierarchy <- use Graph.breadcrumbHierarchy
+        let lamItems = BH.getLamItems hierarchy
+            elems    = map lamItemToMapping lamItems
+        return $ Map.fromList elems
+    liftIO $ print previousNodeIds >> print previousPortMappings
+    withUnit (GraphLocation file (Breadcrumb [])) $ Graph.nodeIdCache .= NodeIdCache (Map.unions previousNodeIds) (Map.unions previousPortMappings)
     loadCode loc code
     -- newFuns <- Library.withLibrary file $ do
     --     funs <- use Library.funs

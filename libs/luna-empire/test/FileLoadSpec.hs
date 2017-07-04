@@ -331,10 +331,12 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc testLuna
-                Just foo <- Graph.withGraph loc $ runASTOp (Graph.getNodeIdForMarker 1)
-                previousGraph <- Graph.getGraph (loc |> foo)
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                previousGraph <- Graph.getGraph (loc' |> foo)
                 Graph.substituteCode "TestPath" 65 66 "5" (Just 66)
-                newGraph <- Graph.getGraph (loc |> foo)
+                newGraph <- Graph.getGraph (loc' |> foo)
                 return (previousGraph, newGraph)
             let Just lala = find (\n -> n ^. Node.name == Just "lala") $ new ^. Graph.nodes
             lala ^. Node.code `shouldBe` "15.0"

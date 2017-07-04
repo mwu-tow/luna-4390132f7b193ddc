@@ -68,6 +68,7 @@ makeGraph funName lastUUID = do
         runAliasAnalysis
         newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy (clsGraph ^. Graph.nodeIdCache) ref
         Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
+        runASTOp $ restorePortMappings (clsGraph ^. Graph.nodeIdCache . Graph.portMappingMap)
     uuid <- case lastUUID of
         Just id -> return id
         _       -> liftIO $ UUID.nextRandom
@@ -90,6 +91,7 @@ makeGraphCls fun lastUUID = do
         runAliasAnalysis
         newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeIdCache ref
         Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
+        runASTOp $ restorePortMappings (nodeIdCache ^. Graph.portMappingMap)
     uuid <- case lastUUID of
         Just id -> return id
         _       -> liftIO $ UUID.nextRandom
