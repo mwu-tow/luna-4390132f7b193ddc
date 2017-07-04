@@ -17,3 +17,4 @@ try:
     os.environ['ATOM_HOME'] = os.path.expanduser('~') + '/.atom'
 except subprocess.CalledProcessError:
     print("Status : FAIL")
+    exit(1)
