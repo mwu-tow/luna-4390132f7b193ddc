@@ -324,21 +324,17 @@ spec = around withChannels $ parallel $ do
                 let referenceConnection = (outPortRef u2 [], inPortRef out [])
                 uncurry (connectToInput loc') referenceConnection
                 Graph.removeNodes top [u1]
-                Graph.withGraph top $ (,,) <$> use (breadcrumbHierarchy .  BH.children) <*> runASTOp exprs <*> runASTOp links
-            withResult res $ \(mapping, nodes, edges) -> do
-                mapping `shouldSatisfy` Map.null
-                edges   `shouldSatisfy` null
-                nodes   `shouldSatisfy` null
+                Graph.withGraph top $ use (breadcrumbHierarchy . BH.children)
+            withResult res $ \mapping -> do
+                length mapping `shouldBe` 1
         it "removes `foo = a: a`" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
                 Graph.addNode top u1 "foo = a: a" def
                 Graph.removeNodes top [u1]
-                Graph.withGraph top $ (,,) <$> use (breadcrumbHierarchy . BH.children) <*> runASTOp exprs <*> runASTOp links
-            withResult res $ \(mapping, nodes, edges) -> do
-                mapping `shouldSatisfy` Map.null
-                nodes   `shouldSatisfy` null
-                edges   `shouldSatisfy` null
+                Graph.withGraph top $ use (breadcrumbHierarchy . BH.children)
+            withResult res $ \mapping -> do
+                length mapping `shouldBe` 1
         it "RHS of `foo = a: a` is Lam" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -486,7 +482,7 @@ spec = around withChannels $ parallel $ do
                 return $ find (\node -> node ^. Node.nodeId == u1) nodes
             withResult res $ \(Just plus) -> do
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «1»a + b")
+                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «2»a + b")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
                     ]
@@ -513,7 +509,7 @@ spec = around withChannels $ parallel $ do
             withResult res $ \nodes -> do
                 let Just plus = find (\a -> view Node.nodeId a == u1) nodes
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «1»a + b node2")
+                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «2»a + b node2")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.Connected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
                     ]
@@ -714,7 +710,7 @@ spec = around withChannels $ parallel $ do
                     , Port.Port [Port.Projection 2] "c" TStar Port.NotConnected
                     ]
                 (defFoo ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: c: «1»a + b")
+                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: c: «2»a + b")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 2] "c"    TStar Port.NotConnected
@@ -1072,7 +1068,7 @@ spec = around withChannels $ parallel $ do
                     ]
 
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                        Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «3»a + b x y")
+                        Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «4»a + b x y")
                       , Port.Port [Port.Arg 0] "a"    TStar Port.Connected
                       , Port.Port [Port.Arg 1] "b"    TStar Port.Connected
                     ]

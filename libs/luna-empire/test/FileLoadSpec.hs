@@ -167,7 +167,7 @@ spec = around withChannels $ parallel $ do
                 pi ^. Node.code `shouldBe` "3.14"
                 pi ^. Node.canEnter `shouldBe` False
                 let Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
-                foo ^. Node.code `shouldBe` "a: b: a + b"
+                foo ^. Node.code `shouldBe` "a: b: «5»a + b"
                 foo ^. Node.canEnter `shouldBe` True
                 let Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
                 bar ^. Node.code `shouldBe` "foo c 6"
@@ -249,12 +249,12 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainCondensed
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 86 86 "    d = 10\n" (Just 86)
+                Graph.substituteCode "TestPath" 89 89 "    d = 10\n" (Just 89)
                 Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                     Just d = find (\node -> node ^. Node.name == Just "d") nodes
-                d ^. Node.code `shouldBe` "d = 10"
+                d ^. Node.code `shouldBe` "10"
                 let Just c = find (\node -> node ^. Node.name == Just "c") nodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
                 connections `shouldMatchList` [
@@ -267,7 +267,7 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainCondensed
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 22 26 ")" (Just 26) `catch` (\(_e :: SomeASTException) -> return ())
+                Graph.substituteCode "TestPath" 22 26 ")" (Just 26)
                 Graph.substituteCode "TestPath" 22 23 "5" (Just 23)
                 Graph.getGraph loc'
             withResult res $ \graph -> do
@@ -464,13 +464,15 @@ spec = around withChannels $ parallel $ do
         it "adds one node to code" $ \env -> do
             u1 <- mkUUID
             code <- evalEmp env $ do
-                Graph.addNode top u1 "4" def
+                [main] <- Graph.getNodes (GraphLocation "TestFile" (Breadcrumb []))
+                let loc' = GraphLocation "TestFile" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.addNode top u1 "4" (atXPos (-20.0))
                 Graph.getCode top
             code `shouldBe` "def main:\n    node1 = 4\n    None"
         it "adds one node and updates it" $ \env -> do
             u1 <- mkUUID
             code <- evalEmp env $ do
-                Graph.addNode top u1 "4" def
+                Graph.addNode top u1 "4" (atXPos (-10))
                 Graph.markerCodeSpan top 0
                 Graph.setNodeExpression top u1 "5"
                 Graph.getCode top
@@ -489,10 +491,10 @@ spec = around withChannels $ parallel $ do
         it "disconnect/connect updates code at proper range" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 pi
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 pi
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 [Just pi, Just bar] <- Graph.withGraph loc $ runASTOp $ mapM (Graph.getNodeIdForMarker) [0,3]
@@ -610,7 +612,7 @@ spec = around withChannels $ parallel $ do
                 def main:
                     pi = 3.14
                     foo = a: b: d = 8
-                                a + b
+                                   a + b
                     c = 4
                     bar = foo 8 c
                 |]
@@ -620,7 +622,7 @@ spec = around withChannels $ parallel $ do
                 u1 <- mkUUID
                 Graph.addNode loc' u1 "x = 2 + 3 +    5" (atXPos 0)
                 u2 <- mkUUID
-                Graph.addNode loc' u2 "d = 8" (atXPos 10.0)
+                Graph.addNode loc' u2 "d = 8" (atXPos (-10.0))
                 Graph.removeNodes loc' [u1]
         it "updates code span after editing an expression" $ let
             expectedCode = [r|

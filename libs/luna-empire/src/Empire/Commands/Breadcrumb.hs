@@ -45,63 +45,30 @@ instance Exception BreadcrumbDoesNotExistException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-makeGraph :: String -> Maybe NodeId -> Command Library.Library (NodeId, Graph.Graph)
-makeGraph funName lastUUID = do
-    env      <- ask
-    emptyAST <- liftIO $ Graph.emptyAST
-    lib      <- get
-    let clsGraph = lib ^. Library.body
-    (IR.Rooted ir ref, state) <- liftIO $ runEmpire env clsGraph $ do
-        IR.Rooted fun ref <- runASTOp $ do
-            funs      <- classFunctions $ clsGraph ^. Graph.clsClass
-            foundFuns <- forM funs $ \fun -> IR.matchExpr fun $ \case
-                IR.ASGRootedFunction n root -> return $ if n == (convert funName) then Just root else Nothing
-            case catMaybes foundFuns of
-                [f] -> return f
-                _   -> throwM $ BreadcrumbDoesNotExistException (Breadcrumb [])
-        return $ IR.Rooted fun ref
-    let ast       = emptyAST & Graph.ir .~ ir
-        tempBH    = def & BH._ToplevelParent . BH.topBody ?~ ref
-        tempGraph = Graph.Graph ast tempBH 0 Map.empty "" def
-    (_, graph) <- liftIO $ runEmpire env tempGraph $ do
-        runASTOp $ propagateLengths ref
-        runAliasAnalysis
-        newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy (clsGraph ^. Graph.nodeIdCache) ref
-        Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
-        runASTOp $ restorePortMappings (clsGraph ^. Graph.nodeIdCache . Graph.portMappingMap)
-    uuid <- case lastUUID of
-        Just id -> return id
-        _       -> liftIO $ UUID.nextRandom
-    Library.body . Graph.clsFuns . at uuid ?= (funName, graph)
-    return (uuid, graph)
+makeGraph :: NodeRef -> Maybe NodeId -> Command Library.Library (NodeId, Graph.Graph)
+makeGraph fun lastUUID = zoom Library.body $ makeGraphCls fun lastUUID
 
 makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph.Graph)
 makeGraphCls fun lastUUID = do
     emptyAST <- liftIO $ Graph.emptyAST
-    clsClass <- use Graph.clsClass
-    (name, IR.Rooted ir ref) <- runASTOp $ IR.matchExpr fun $ \case
-        IR.ASGRootedFunction n root -> return (nameToString n, root)
-    let ast       = emptyAST & Graph.ir .~ ir
-        tempBH    = def & BH._ToplevelParent . BH.topBody ?~ ref
-        tempGraph = Graph.Graph ast tempBH 0 Map.empty "" def
-    env <- ask
     nodeIdCache <- use Graph.nodeIdCache
-    (_, graph) <- liftIO $ runEmpire env tempGraph $ do
+    (funName, IR.Rooted ir ref) <- runASTOp $ IR.matchExpr fun $ \case
+        IR.ASGRootedFunction n root -> return (nameToString n, root)
+    let ast   = emptyAST & Graph.ir .~ ir
+        bh    = def & BH._ToplevelParent . BH.topBody ?~ ref
+        graph = Graph.Graph ast bh 0 def def def
+    uuid <- maybe (liftIO $ UUID.nextRandom) return lastUUID
+    Graph.clsFuns . at uuid ?= (funName, graph)
+    withRootedFunction uuid $ do
         runASTOp $ propagateLengths ref
         runAliasAnalysis
-        newBH <- runASTOp $ ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeIdCache ref
-        Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
-        runASTOp $ restorePortMappings (nodeIdCache ^. Graph.portMappingMap)
-    uuid <- case lastUUID of
-        Just id -> return id
-        _       -> liftIO $ UUID.nextRandom
-    Graph.clsFuns . at uuid ?= (name, graph)
+        runASTOp $ do
+            ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeIdCache ref
+            restorePortMappings (nodeIdCache ^. Graph.portMappingMap)
     return (uuid, graph)
 
-
-zoomInternalBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.Graph a
-zoomInternalBreadcrumb (Breadcrumb (Definition _ : rest)) act = zoomInternalBreadcrumb (Breadcrumb rest) act
-zoomInternalBreadcrumb breadcrumb act = do
+runInternalBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.Graph a
+runInternalBreadcrumb breadcrumb act = do
     graph <- get
     let  breadcrumbHierarchy = graph ^. Graph.breadcrumbHierarchy
     case breadcrumbHierarchy `navigateTo` breadcrumb of
@@ -111,9 +78,33 @@ zoomInternalBreadcrumb breadcrumb act = do
             (res, state) <- liftIO $ runEmpire env newGraph act
             let modified = replaceAt breadcrumb breadcrumbHierarchy $ state ^. Graph.breadcrumbHierarchy
             mod <- maybe (throwM $ BreadcrumbDoesNotExistException breadcrumb) return modified
-            put $ state & Graph.breadcrumbHierarchy .~ mod
+            let newGraph = state & Graph.breadcrumbHierarchy .~ mod
+            put newGraph
             return res
         _ -> throwM $ BreadcrumbDoesNotExistException breadcrumb
+
+zoomInternalBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.Graph a
+zoomInternalBreadcrumb (Breadcrumb (Definition _ : rest)) act = zoomInternalBreadcrumb (Breadcrumb rest) act
+zoomInternalBreadcrumb breadcrumb act = runInternalBreadcrumb breadcrumb act
+
+withRootedFunction :: NodeId -> Command Graph.Graph a -> Command Graph.ClsGraph a
+withRootedFunction uuid act = do
+    graph    <- preuse (Graph.clsFuns . ix uuid . _2) <?!> BreadcrumbDoesNotExistException (Breadcrumb [Definition uuid])
+    env      <- ask
+    clsGraph <- get
+    let properGraph = let clsMarkers    = clsGraph ^. Graph.clsCodeMarkers
+                          clsCode       = clsGraph ^. Graph.code
+                          clsParseError = clsGraph ^. Graph.clsParseError
+                      in graph & Graph.code .~ clsCode
+                               & Graph.codeMarkers .~ clsMarkers
+                               & Graph.parseError .~ clsParseError
+    (res, newGraph) <- liftIO $ runEmpire env properGraph act
+    let newClsGraph = clsGraph & Graph.clsFuns . ix uuid . _2 .~ newGraph
+                               & Graph.clsCodeMarkers .~ newGraph ^. Graph.codeMarkers
+                               & Graph.code           .~ newGraph ^. Graph.code
+                               & Graph.clsParseError  .~ newGraph ^. Graph.parseError
+    put newClsGraph
+    return res
 
 zoomBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Command Library.Library a
 zoomBreadcrumb (Breadcrumb []) _actG actC = do
@@ -123,43 +114,6 @@ zoomBreadcrumb (Breadcrumb []) _actG actC = do
     (res, state) <- liftIO $ runEmpire env (lib ^. Library.body) actC
     put $ set Library.body state newLib
     return res
-zoomBreadcrumb breadcrumb@(Breadcrumb (Definition uuid : rest)) actG _actC = do
-    lib <- get
-    env <- ask
-    let graphCache = fmap snd $ lib ^. Library.body . Graph.clsFuns . at uuid
-    graph <- case graphCache of
-        Just g -> return g
-        _      -> snd <$> makeGraph $notImplemented (Just uuid)
-    let properGraph = let clsGraph   = lib ^. Library.body
-                          clsMarkers = clsGraph ^. Graph.clsCodeMarkers
-                          clsCode    = clsGraph ^. Graph.code
-                          clsParseError = clsGraph ^. Graph.clsParseError
-                      in graph & Graph.code .~ clsCode
-                               & Graph.codeMarkers .~ clsMarkers
-                               & Graph.parseError .~ clsParseError
-    case rest of
-        [] -> do
-            (res, state) <- liftIO $ runEmpire env properGraph actG
-            let newLib = lib & Library.body . Graph.clsFuns . at uuid . traverse . _2 .~ state
-                             & Library.body . Graph.clsCodeMarkers .~ state ^. Graph.codeMarkers
-                             & Library.body . Graph.code           .~ state ^. Graph.code
-                             & Library.body . Graph.clsParseError  .~ state ^. Graph.parseError
-            put newLib
-            return res
-        _  -> do
-            let  breadcrumbHierarchy = properGraph ^. Graph.breadcrumbHierarchy
-            case breadcrumbHierarchy `navigateTo` (Breadcrumb rest) of
-                Just h -> do
-                    let newGraph = properGraph & Graph.breadcrumbHierarchy .~ h
-                    (res, state) <- liftIO $ runEmpire env newGraph actG
-                    let modified = replaceAt (Breadcrumb rest) breadcrumbHierarchy $ state ^. Graph.breadcrumbHierarchy
-                    mod <- maybe (throwM $ BreadcrumbDoesNotExistException breadcrumb) return modified
-                    let properState = state & Graph.breadcrumbHierarchy .~ mod
-                    let newLib = lib & Library.body . Graph.clsFuns . at uuid . traverse . _2 .~ properState
-                                     & Library.body . Graph.clsCodeMarkers .~ properState ^. Graph.codeMarkers
-                                     & Library.body . Graph.code           .~ properState ^. Graph.code
-                                     & Library.body . Graph.clsParseError  .~ properState ^. Graph.parseError
-                    put newLib
-                    return res
-                _ -> throwM $ BreadcrumbDoesNotExistException breadcrumb
+zoomBreadcrumb breadcrumb@(Breadcrumb (Definition uuid : rest)) actG _actC =
+    zoom Library.body $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) actG
 zoomBreadcrumb breadcrumb _ _ = throwM $ BreadcrumbDoesNotExistException breadcrumb

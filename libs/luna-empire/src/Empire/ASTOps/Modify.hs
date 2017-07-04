@@ -17,13 +17,14 @@ import           Empire.Prelude
 import           LunaStudio.Data.Node               (NodeId)
 import qualified LunaStudio.Data.Port               as Port
 import           Empire.ASTOp                       (GraphOp, match)
-import qualified Empire.ASTOps.Builder              as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct          as ASTDeconstruct
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Remove               as ASTRemove
 import           Empire.Data.AST                    (EdgeRef, NodeRef, NotLambdaException(..),
                                                      NotUnifyException(..), astExceptionToException,
                                                      astExceptionFromException)
+import qualified Empire.Data.BreadcrumbHierarchy    as BH
+import qualified Empire.Data.Graph                  as Graph
 
 import qualified OCI.IR.Combinators as IR (replaceSource, narrowTerm, replace, substitute)
 import           Luna.IR.Term.Uni
@@ -60,7 +61,7 @@ replaceWithLam parent name lam = do
     newLam   <- IR.lam binder tmpBlank
     case parent of
         Just e  -> IR.replaceSource (IR.generalize newLam) e
-        Nothing -> IR.substitute newLam lam
+        Nothing -> substitute (IR.generalize newLam) lam
     IR.replace lam tmpBlank
     return ()
 
@@ -77,6 +78,12 @@ instance Exception CannotRemovePortException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
+lamAny :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
+lamAny a b = fmap IR.generalize $ IR.lam a b
+
+lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
+lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
+
 removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m NodeRef
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
@@ -85,7 +92,7 @@ removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
         args <- ASTDeconstruct.extractArguments lambda
         out  <- ASTRead.getFirstNonLambdaRef lambda
         let newArgs = args ^.. folded . ifiltered (\i _ -> i /= port)
-        ASTBuilder.lams newArgs out
+        lams newArgs out
     _ -> throwM $ NotLambdaException lambda
 
 shiftPosition :: Int -> Int -> [a] -> [a]
@@ -104,7 +111,7 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
         args <- ASTDeconstruct.extractArguments lambda
         out  <- ASTRead.getLambdaOutputRef      lambda
         let newArgs = shiftPosition port newPosition args
-        ASTBuilder.lams newArgs out
+        lams newArgs out
     _ -> throwM $ NotLambdaException lambda
 
 renameLambdaArg :: GraphOp m => Port.OutPortId -> String -> NodeRef -> m ()
@@ -123,7 +130,7 @@ redirectLambdaOutput lambda newOutputRef = do
         Grouped g   -> IR.source g >>= flip redirectLambdaOutput newOutputRef >>= fmap IR.generalize . IR.grouped
         Lam _args _ -> do
             args' <- ASTDeconstruct.extractArguments lambda
-            ASTBuilder.lams args' newOutputRef
+            lams args' newOutputRef
         _ -> throwM $ NotLambdaException lambda
 
 setLambdaOutputToBlank :: GraphOp m => NodeRef -> m NodeRef
@@ -133,7 +140,7 @@ setLambdaOutputToBlank lambda = do
         Lam _args _ -> do
             args' <- ASTDeconstruct.extractArguments lambda
             blank <- IR.generalize <$> IR.blank
-            ASTBuilder.lams args' blank
+            lams args' blank
         _ -> throwM $ NotLambdaException lambda
 
 replaceTargetNode :: GraphOp m => NodeRef -> NodeRef -> m ()
@@ -180,3 +187,18 @@ renameVar :: GraphOp m => NodeRef -> String -> m ()
 renameVar vref name = do
     var <- IR.narrowTerm @IR.Var vref
     mapM_ (flip IR.modifyExprTerm $ IR.name .~ (stringToName name)) var
+
+replaceWhenBody :: GraphOp m => NodeRef -> NodeRef -> m ()
+replaceWhenBody to from = do
+    oldBody <- preuse $ Graph.breadcrumbHierarchy . BH.body
+    when (oldBody == Just from) $ Graph.breadcrumbHierarchy . BH.body .= to
+
+replace :: GraphOp m => NodeRef -> NodeRef -> m ()
+replace to from = do
+    IR.replace to from
+    replaceWhenBody to from
+
+substitute :: GraphOp m => NodeRef -> NodeRef -> m ()
+substitute to from = do
+    IR.substitute to from
+    replaceWhenBody to from

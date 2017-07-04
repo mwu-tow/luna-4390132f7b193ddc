@@ -23,6 +23,8 @@ import qualified Safe
 import           Empire.Data.AST         (NodeRef, EdgeRef)
 import           Empire.ASTOp            (GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
+import           Empire.ASTOps.Modify    as ASTModify
+
 import qualified Luna.IR                 as IR
 import qualified OCI.IR.Combinators      as IR (replace, substitute)
 import           Data.Text.Position      (Delta)
@@ -160,16 +162,16 @@ addCodeMarker :: GraphOp m => NodeRef -> m NodeRef
 addCodeMarker ref = do
     index  <- getNextExprMarker
     marker <- IR.marker' index
-    IR.putLayer @SpanLength marker $ convert $ Text.length $ makeMarker index
     dummyBl    <- IR.blank
     markedNode <- IR.marked' marker dummyBl
-    [l, r]     <- IR.inputs markedNode
-    IR.putLayer @SpanOffset l 0
-    IR.putLayer @SpanOffset r 0
+    exprLength <- IR.getLayer @SpanLength ref
+    let markerLength = convert $ Text.length $ makeMarker index
+    IR.putLayer @SpanLength marker markerLength
+    IR.putLayer @SpanLength markedNode (exprLength + markerLength)
     addExprMapping index markedNode
     Just beg <- getOffsetRelativeToFile ref
     insertAt beg (makeMarker index)
-    IR.substitute markedNode ref
+    ASTModify.substitute markedNode ref
     IR.replace ref dummyBl
     gossipUsesChangedBy (fromIntegral $ Text.length $ makeMarker index) markedNode
     return markedNode

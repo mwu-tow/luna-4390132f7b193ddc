@@ -713,15 +713,8 @@ substituteCode path start end code cursor = do
     let loc = GraphLocation path (Breadcrumb [])
     newCode <- withUnit loc $ Code.applyDiff start end code
     handle (\(e :: SomeASTException) -> withUnit loc $ Graph.clsParseError ?= e) $ do
+        withUnit loc $ Graph.clsParseError .= Nothing
         reloadCode loc newCode
-
-    -- newCode <- withUnit loc $ Code.applyDiff start end code
-    -- result <- handle (\(e :: SomeASTException) -> return $ Left e) $ fmap Right $ withGraph loc $ do
-    --     Graph.parseError .= Nothing
-    --     reloadCode loc newCode
-    -- case result of
-    --     Left e -> withGraph loc $ Graph.parseError ?= e
-    --     _      -> return ()
 
 lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
 lamItemToMapping (idArg, BH.LamItem portMapping _ _ _) = (idArg, portMapping)
@@ -757,33 +750,6 @@ reloadCode loc@(GraphLocation file _) code = do
                 let expr = Map.lookup marker currentExprMap
                 forM_ expr $ \e -> AST.writeMeta e oldMeta
 
--- reloadCode :: GraphLocation -> Text -> Command Graph ()
--- reloadCode loc code = do
---     oldMetas <- runASTOp $ do
---         m <- getExprMap
---         oldMetas <- forM (Map.assocs m) $ \(marker, expr) -> (marker,) <$> AST.readMeta expr
---         return [ (marker, meta) | (marker, Just meta) <- oldMetas ]
---     previousNodeIds <- runASTOp $ do
---         m <- getExprMap
---         let markers = Map.keys m
---         nodeIds <- mapM (\k -> (k,) <$> getNodeIdForMarker (fromIntegral k)) markers
---         return $ Map.fromList [ (marker, nodeId) | (marker, Just nodeId) <- nodeIds ]
---     previousPortMappings <- runASTOp $ do
---         hierarchy <- use Graph.breadcrumbHierarchy
---         let lamItems = BH.getLamItems hierarchy
---             elems    = map lamItemToMapping lamItems
---         return $ Map.fromList elems
---     oldHierarchy <- use Graph.breadcrumbHierarchy
---     Graph.breadcrumbHierarchy .= def
---     loadCodeWithNodeIdCache (NodeIdCache previousNodeIds previousPortMappings) code
---         `onException` (Graph.breadcrumbHierarchy .= oldHierarchy)
---     runASTOp $ do
---         restorePortMappings previousPortMappings
---         currentExprMap <- getExprMap
---         forM_ oldMetas $ \(marker, oldMeta) -> do
---             let expr = Map.lookup marker currentExprMap
---             forM_ expr $ \e -> AST.writeMeta e oldMeta
-
 putIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putIntoHierarchy nodeId marked = do
     let nodeItem = BH.ExprItem Map.empty marked
@@ -816,15 +782,15 @@ loadCode loc@(GraphLocation file _) code = do
     let funsUUIDs = Map.fromList $ map (\(k, (n,g)) -> (n, k)) $ Map.assocs funs
     activeFiles . at file . traverse . Library.body . Graph.clsFuns .= Map.empty
     withUnit (GraphLocation file (Breadcrumb [])) $ putNewIRCls main
-    funNames <- withUnit loc $ do
+    functions <- withUnit loc $ do
         klass <- use Graph.clsClass
         runASTOp $ do
             funs <- AST.classFunctions klass
             forM funs $ \f -> IR.matchExpr f $ \case
-                IR.ASGRootedFunction name _ -> return (convert name)
-    forM_ funNames $ \name -> do
+                IR.ASGRootedFunction name _ -> return (convert name, f)
+    forM_ functions $ \(name, fun) -> do
         let lastUUID = Map.lookup name funsUUIDs
-        uuid <- Library.withLibrary file (fst <$> makeGraph name lastUUID)
+        uuid <- Library.withLibrary file (fst <$> makeGraph fun lastUUID)
         let loc' = GraphLocation file $ Breadcrumb [Breadcrumb.Definition uuid]
         autolayout loc'
     return ()

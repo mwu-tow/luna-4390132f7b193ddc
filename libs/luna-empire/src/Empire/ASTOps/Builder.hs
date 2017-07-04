@@ -43,11 +43,7 @@ apps fun exprs = IR.unsafeRelayout <$> foldM f (IR.unsafeRelayout fun) (IR.unsaf
 appAny :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
 appAny = fmap IR.generalize .: IR.app
 
-lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
-lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
 
-lamAny :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
-lamAny a b = fmap IR.generalize $ IR.lam a b
 
 newApplication :: GraphOp m => NodeRef -> NodeRef -> Int -> m NodeRef
 newApplication fun arg' pos = do

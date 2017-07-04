@@ -27,7 +27,6 @@ import qualified Data.Map                     as Map
 import qualified Data.Text                    as Text
 
 import           Empire.ASTOp                    (GraphOp, PMStack, runPass, runPM)
-import           Empire.ASTOps.Builder           (lams)
 import           Empire.ASTOps.Print
 import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.Graph               (ClsGraph, Graph)

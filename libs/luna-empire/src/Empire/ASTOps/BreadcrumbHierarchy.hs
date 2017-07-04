@@ -27,11 +27,11 @@ import           LunaStudio.Data.PortRef         (OutPortRef (..))
 
 import qualified Luna.IR as IR
 
-makeTopBreadcrumbHierarchy :: GraphOp m => NodeIdCache -> NodeRef -> m BH.TopItem
+makeTopBreadcrumbHierarchy :: GraphOp m => NodeIdCache -> NodeRef -> m ()
 makeTopBreadcrumbHierarchy nodeIdCache ref = do
-    let bareItem = BH.TopItem def $ Just ref
+    breadcrumbHierarchy . BH._ToplevelParent . BH.topBody ?= ref
     children <- childrenFromSeq nodeIdCache ref
-    return $ bareItem & BH.children .~ children
+    breadcrumbHierarchy . BH.children .= children
 
 getMarker :: GraphOp m => NodeRef -> m Word64
 getMarker marker = do
