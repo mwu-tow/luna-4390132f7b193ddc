@@ -30,6 +30,23 @@ import Shelly.Lifted (toTextIgnore)
 import qualified Shelly.Lifted as Shelly
 import Luna.Manager.Archive
 
+
+
+-- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+-- FIXME: Remove it as fast as we upload config yaml to the server
+hardcodedRepo :: Repo
+hardcodedRepo = Repo defpkgs ["studio"] where
+    defpkgs = mempty & at "lib1"         .~ Just (Package "lib1 synopsis"     $ fromList [ (Version 1 0 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc mempty "path")] )])
+                     & at "luna-studio"  .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+                                                                                         , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+                                                                                         , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+                                                                                         ])
+
+                     & at "luna"         .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
+                     & at "luna-manager" .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
+
+
+
 ---------------------------------
 -- === Installation config === --
 ---------------------------------
@@ -163,11 +180,10 @@ postInstallation installPath appPath = do
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
     repo <- getRepo
-    print $ show (Map.keys $ repo ^. apps)
     (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
-        $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. apps))
-        & help   .~ choiceHelp "components" (Map.keys $ repo ^. apps)
-        & defArg .~ Just (repo ^. defaultApp)
+        $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
+        & help   .~ choiceHelp "components" (repo ^. apps)
+        & defArg .~ maybeHead (repo ^. apps)
 
     let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
         vss  = sort . Map.keys $ vmap
@@ -176,7 +192,7 @@ runInstaller opts = do
         & help   .~ choiceHelp (appName <> " versions") vss
         & defArg .~ fmap showPretty (maybeLast vss)
 
-    let (unresolvedLibs, libsToInstall) = Repo.resolve repo appPkgDesc
+    let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
     installConfig <- get @InstallConfig
@@ -193,10 +209,10 @@ runInstaller opts = do
 
 
 
-    -- print $ "TODO: Install the libs (each with separate progress bar): " <> show libsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
+    -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     print $ "TODO: Add new exports to bashRC if not already present"
     print $ "TODO: IMPORTANT: be sure that installation of manager updates the manager in-place"
-    -- TODO: powinnismy zrobic funckje "installPackage" i przemapowac ja przez app i libsToInstall
+    -- TODO: powinnismy zrobic funckje "installPackage" i przemapowac ja przez app i pkgsToInstall
     --       i to powinien byc koniec "instalacji" - potem jeszcze dopisywanie do shelli sciezek etc
 
 

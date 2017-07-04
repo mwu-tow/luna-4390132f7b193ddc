@@ -13,7 +13,7 @@ import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Data.Map                      (Map)
-import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON)
 import qualified Data.Map            as Map
 import qualified Data.Text           as Text
 import qualified Data.Yaml           as Yaml
@@ -32,10 +32,10 @@ import Filesystem.Path.CurrentOS (encodeString)
 -- === Definition === --
 
 -- Core
-data Repo          = Repo          { _apps     :: Map Text Package , _libs     :: Map Text Package, _defaultApp :: Text } deriving (Show, Generic, Eq)
-data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap                            } deriving (Show, Generic, Eq)
-data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: URIPath                               } deriving (Show, Generic, Eq)
-data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                               } deriving (Show, Generic, Eq)
+data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]     } deriving (Show, Generic, Eq)
+data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap } deriving (Show, Generic, Eq)
+data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: URIPath    } deriving (Show, Generic, Eq)
+data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version    } deriving (Show, Generic, Eq)
 type VersionMap    = Map Version (Map SysDesc PackageDesc)
 
 -- Helpers
@@ -50,7 +50,7 @@ makeLenses ''ResolvedPackage
 -- === Utils === --
 
 lookupPackage :: Repo -> PackageHeader -> Maybe ResolvedPackage
-lookupPackage repo h = ResolvedPackage h <$> repo ^? libs . ix (h ^. name) . versions . ix (h ^. version) . ix currentSysDesc
+lookupPackage repo h = ResolvedPackage h <$> repo ^? packages . ix (h ^. name) . versions . ix (h ^. version) . ix currentSysDesc
 
 resolveSingleLevel :: Repo -> PackageDesc -> ([PackageHeader], [ResolvedPackage])
 resolveSingleLevel repo desc = partitionEithers $ zipWith combine directSubDeps directSubPkgs where
@@ -73,11 +73,11 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
 instance ToJSON   Repo           where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Package        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc    where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
-instance ToJSON   PackageHeader  where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON -- JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
+instance ToJSON   PackageHeader  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
 instance FromJSON Repo           where parseJSON  = lensJSONParse
 instance FromJSON Package        where parseJSON  = lensJSONParse
 instance FromJSON PackageDesc    where parseJSON  = lensJSONParse
-instance FromJSON PackageHeader  where parseJSON  = lensJSONParse
+instance FromJSON PackageHeader  where parseJSON  = either (fail . convert) return . readPretty <=< parseJSON
 
 -- Show
 instance Pretty PackageHeader where
