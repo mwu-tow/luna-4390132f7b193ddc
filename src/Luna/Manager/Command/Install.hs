@@ -18,6 +18,7 @@ import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 
+import qualified Data.Char as Char
 import Data.Maybe (listToMaybe)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -53,33 +54,47 @@ hardcodedRepo = Repo defpkgs ["studio"] where
 
 -- === Definition === --
 
-data InstallConfig = InstallConfig { _execName        :: Text
-                                   , _defaultConfPath :: FilePath
+data InstallConfig = InstallConfig { _defaultConfPath :: FilePath
                                    , _defaultBinPath  :: FilePath
                                    , _localName       :: Text
+                                   , _packageBinPath  :: FilePath
                                    }
 makeLenses ''InstallConfig
 
 
 -- === Instances === --
 
+-- TODO: refactor out
+mkSystemPkgName :: Text -> Text
+mkSystemPkgName = case currentHost of
+    Linux   -> id
+    Darwin  -> mkCamelCaseName
+    Windows -> mkCamelCaseName
+
+mkCamelCaseName :: Text -> Text
+mkCamelCaseName txt = convert $ goHead (convert txt) where
+    goHead :: [Char] -> [Char]
+    goHead = \case []     -> []
+                   (s:ss) -> Char.toUpper s : goBody ss
+    goBody = \case [] -> []
+                   ('-':ss) -> goHead ss
+                   (s  :ss) -> s : goBody ss
+
 instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
     defaultHostConfig = return $ InstallConfig
-        { _execName        = "luna-studio"
-        , _defaultConfPath = "~/.luna"
+        { _defaultConfPath = "~/.luna"
         , _defaultBinPath  = "~/.luna-bin"
         , _localName       = "local"
+        , _packageBinPath  = "bin"
         }
 
 instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & execName       .~ "LunaStudio"
-                           & defaultBinPath .~ "~/Applications"
+        reconfig cfg = cfg & defaultBinPath .~ "/Applications"
 
 instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & execName       .~ "LunaStudio"
-                           & defaultBinPath .~ "C:\\Program Files"
+        reconfig cfg = cfg & defaultBinPath .~ "C:\\Program Files"
 
 
 
@@ -106,65 +121,44 @@ executableNotFound = toException ExecutableNotFound
 
 type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
 
-prepareInstallPath :: MonadInstall m => Text -> Text -> Text -> m FilePath
-prepareInstallPath appPath appName appVersion = do
-    case currentHost of
-        Linux   -> do
-            installPath <- expand $ (fromText appPath) </> (fromText appName) </> (fromText appVersion)
-            return installPath
-        Windows -> do
-            installPath <- expand $ (fromText appPath) </> (fromText appName) </> (fromText appVersion)
-            return installPath
-        Darwin  -> do
-            exec <- view execName <$> get @InstallConfig
-            installPath <- expand $ (fromText appPath) </> (fromText (Text.append exec ".app")) </> (fromText "Contents") </> (fromText "Resources") </> (fromText appVersion)
-            return installPath
+prepareInstallPath :: MonadInstall m => FilePath -> Text -> Text -> m FilePath
+prepareInstallPath appPath appName appVersion = expand $ case currentHost of
+    Linux   -> appPath </> convert appName </> convert appVersion
+    Windows -> appPath </> convert appName </> convert appVersion
+    Darwin  -> appPath </> convert (appName <> ".app") </> "Contents" </> "Resources" </> convert appVersion
 
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> m ()
 downloadAndUnpack pkgPath installPath = do
     Shelly.shelly $ Shelly.mkdir_p installPath
     tmp <- getTmpPath
+    print $ pkgPath
     pkg <- downloadWithProgressBar pkgPath tmp
-    case currentHost of
-        Linux -> do
-            Shelly.shelly $ Shelly.cp pkg installPath
-        Darwin -> do
-            Shelly.shelly $ unpackTarGzUnix pkg
-            let packageFolder = basename pkg
-                unzippedPackagePath = tmp </> packageFolder
-            Shelly.shelly $ copyDir unzippedPackagePath installPath
-        Windows -> do
-            unzipFileWindows pkg
-            let packageFolder = basename pkg
-                unzippedPackagePath = tmp </> packageFolder
-            Shelly.shelly $ copyDir unzippedPackagePath installPath
+    unpacked <- unpackArchive pkg
+    Shelly.shelly $ copyDir unpacked installPath
 
-
-
-postInstallation :: MonadInstall m => FilePath -> Text -> m()
-postInstallation installPath appPath = do
+postInstallation :: MonadInstall m => FilePath -> Text -> Text -> m()
+postInstallation installPath binPath appName = do
     home <- getHomePath
     case currentHost of
         Linux -> do
+            --check bin dir in install path and symlink everything inside + chmod for linux
             execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
             appimage <- tryJust executableNotFound $ listToMaybe execList
             makeExecutable appimage
-            exec <- view execName <$> get @InstallConfig
-            currentAppimage <- expand $ (fromText appPath) </> (fromText exec)
+            currentAppimage <- expand $ (fromText binPath) </> (fromText appName)
             let localBinDir = home </> ".local/bin" -- TODO: moe to state and use the same code for windows
-                localBin = home </> ".local/bin" </> (fromText exec)
+                localBin = home </> ".local/bin" </> (fromText appName)
             Shelly.shelly $ Shelly.mkdir_p localBinDir
             createSymLink appimage currentAppimage
             createSymLink currentAppimage localBin
             shell <- checkShell
             exportPath localBinDir shell -- rename export because it is not export to env
         Darwin  -> do
-            exec          <- view execName <$> get @InstallConfig
-            let resourcesBin  = installPath </> (fromText exec)
+            let resourcesBin  = installPath </> (fromText appName)
                 localBinDir   = home </> ".local/bin"
-                localBin      = home </> ".local/bin" </> (fromText exec)
-            currentBinDir <- expand $ (fromText appPath) </> (fromText (Text.append exec ".app")) </> (fromText "Contents") </> (fromText "MacOS")
-            currentBin    <- expand $ (fromText appPath) </> (fromText (Text.append exec ".app")) </> (fromText "Contents") </> (fromText "MacOS") </> (fromText exec)
+                localBin      = home </> ".local/bin" </> (fromText appName)
+            currentBinDir <- expand $ (fromText binPath) </> (fromText (Text.append appName ".app")) </> (fromText "Contents") </> (fromText "MacOS")
+            currentBin    <- expand $ (fromText binPath) </> (fromText (Text.append appName ".app")) </> (fromText "Contents") </> (fromText "MacOS") </> (fromText appName)
 
             Shelly.shelly $ Shelly.mkdir_p currentBinDir
             createSymLink resourcesBin currentBin
@@ -196,17 +190,16 @@ runInstaller opts = do
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
     installConfig <- get @InstallConfig
-    appPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
+    binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question "Select installation path" plainTextReader
         & defArg .~ Just (toTextIgnore (installConfig ^. defaultBinPath)) --TODO uzyć toText i złapać tryRight'
 
 
-    let pkgPath = appPkgDesc ^. path
-    installPath <- prepareInstallPath appPath appName appVersion
-    downloadAndUnpack pkgPath installPath
-    postInstallation installPath appPath
+    installPath <- prepareInstallPath (convert binPath) (mkSystemPkgName appName) appVersion
+    downloadAndUnpack (appPkgDesc ^. path) installPath
+    postInstallation installPath binPath (mkSystemPkgName appName)
 
-
+    -- appsToInstall = filter ((`elem` (repo ^.apps)) . view) pkgsToInstall
 
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
