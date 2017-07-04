@@ -83,7 +83,7 @@ instance FromJSON PackageHeader  where parseJSON  = either (fail . convert) retu
 instance Pretty PackageHeader where
     showPretty (PackageHeader n v) = n <> "-" <> showPretty v
     readPretty t = mapLeft (const "Conversion error") $ PackageHeader s <$> readPretty ss where
-        (s,ss) = Text.breakOnEnd "-" t
+        (s,ss) = Text.breakOnEnd "-" t & _1 %~ Text.init
 
 
 
