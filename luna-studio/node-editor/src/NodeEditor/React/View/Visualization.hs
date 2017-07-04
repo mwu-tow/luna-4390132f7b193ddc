@@ -52,7 +52,7 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
         vmode        = vis ^. visualizationMode
         activeClass  = if vmode == Default then [] else [ "visualization--active" ]
         classes      = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
-        visShift     = show $ lineHeight * if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0
+        visShift     = show $ 4 + lineHeight * if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
