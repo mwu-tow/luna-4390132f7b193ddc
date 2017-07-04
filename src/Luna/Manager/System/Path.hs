@@ -1,6 +1,6 @@
 module Luna.Manager.System.Path where
 
-import Prologue hiding (FilePath, null)
+import Prologue hiding (FilePath, null, fromText)
 
 import Luna.Manager.System.Env
 
@@ -10,6 +10,9 @@ import Filesystem.Path.CurrentOS (fromText, encodeString)
 import Control.Monad.Raise
 
 type URIPath  = Text
+
+instance Convertible Text FilePath where
+    convert = fromText
 
 expand :: MonadIO m => FilePath -> m FilePath
 expand path = do
