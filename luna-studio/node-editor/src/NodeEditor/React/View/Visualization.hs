@@ -52,13 +52,13 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
         vmode        = vis ^. visualizationMode
         activeClass  = if vmode == Default then [] else [ "visualization--active" ]
         classes      = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
-        visShift     = show $ lineHeight * (if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0)
+        visShift     = show $ lineHeight * if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
         , "className" $= Style.prefixFromList (classes ++ activeClass )
-        , "style"     @= Aeson.object [ "transform" Aeson..= show "translate(0,10px)"
-                                      , "zIndex"    Aeson..= show 1 
+        , "style"     @= Aeson.object [ "transform" Aeson..= ("translate(-150px," ++ visShift ++ "rem)"::String)
+                                      , "zIndex"    Aeson..= show 1
                                       ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
