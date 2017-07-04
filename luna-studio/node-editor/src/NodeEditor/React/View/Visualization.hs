@@ -57,7 +57,9 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
         , "className" $= Style.prefixFromList (classes ++ activeClass )
-        , "style"     @= Aeson.object [ "transform" Aeson..= show ("translateX(" ++ visShift ++ "px)") ]
+        , "style"     @= Aeson.object [ "transform" Aeson..= show "translate(0,10px)"
+                                      , "zIndex"    Aeson..= show 1 
+                                      ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
         div_
