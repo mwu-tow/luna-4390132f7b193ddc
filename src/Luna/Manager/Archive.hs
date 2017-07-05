@@ -33,7 +33,6 @@ unpackArchive file = case currentHost of
             "gz"       -> Shelly.shelly $ unpackTarGzUnix file
 
 
--- TODO: wspolny upack
 unpackTarGzUnix :: Shelly.MonadSh m => FilePath -> m FilePath
 unpackTarGzUnix file = do
     let dir = directory file

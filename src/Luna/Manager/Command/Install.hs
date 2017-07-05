@@ -136,6 +136,7 @@ downloadAndUnpack pkgPath installPath = do
     unpacked <- unpackArchive pkg
     Shelly.shelly $ copyDir unpacked installPath
 
+
 postInstallation :: MonadInstall m => FilePath -> Text -> Text -> m()
 postInstallation installPath binPath appName = do
     home <- getHomePath
@@ -145,10 +146,15 @@ postInstallation installPath binPath appName = do
             execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
             appimage <- tryJust executableNotFound $ listToMaybe execList
             makeExecutable appimage
-            currentAppimage <- expand $ (fromText binPath) </> (fromText appName)
+            currentAppimageDir <- expand $ (fromText binPath) </> "bin"
+            currentAppimage <- expand $ (fromText binPath) </> "bin" </> (fromText appName)
             let localBinDir = home </> ".local/bin" -- TODO: moe to state and use the same code for windows
                 localBin = home </> ".local/bin" </> (fromText appName)
             Shelly.shelly $ Shelly.mkdir_p localBinDir
+            print $ show appimage
+            print $ show currentAppimage
+            print $ show localBin
+            Shelly.shelly $ Shelly.mkdir_p currentAppimageDir
             createSymLink appimage currentAppimage
             createSymLink currentAppimage localBin
             shell <- checkShell
@@ -169,6 +175,11 @@ postInstallation installPath binPath appName = do
             Shelly.shelly $ runServicesWindows services
             --copy shortcut to menu programs
 
+installApp :: MonadInstall m => Text -> ResolvedPackage -> m ()
+installApp binPath package = do
+    installPath <- prepareInstallPath (convert binPath) (mkSystemPkgName ((package ^. header) ^. name)) $ showPretty ((package ^. header) ^. version)
+    downloadAndUnpack ((package ^. desc) ^. path) installPath
+    postInstallation installPath binPath (mkSystemPkgName ((package ^. header) ^. name))
 
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
@@ -194,12 +205,12 @@ runInstaller opts = do
         $ question "Select installation path" plainTextReader
         & defArg .~ Just (toTextIgnore (installConfig ^. defaultBinPath)) --TODO uzyć toText i złapać tryRight'
 
-
+    let appsToInstall = filter (( <$> ((^. name) <$> (^. header))) (`elem` (repo ^.apps))) pkgsToInstall
     installPath <- prepareInstallPath (convert binPath) (mkSystemPkgName appName) appVersion
     downloadAndUnpack (appPkgDesc ^. path) installPath
     postInstallation installPath binPath (mkSystemPkgName appName)
+    mapM_ (installApp binPath) appsToInstall
 
-    -- appsToInstall = filter ((`elem` (repo ^.apps)) . view) pkgsToInstall
 
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
