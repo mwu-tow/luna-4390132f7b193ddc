@@ -121,7 +121,9 @@ buildNodes = do
 buildMonads :: GraphOp m => m [MonadPath]
 buildMonads = do
     allNodeIds <- getNodeIdSequence
-    ioPath     <- filterM doesIO allNodeIds
+    mapping    <- getEdgePortMapping
+    let relevantNodeIds = filter ((/= mapping ^? _Just . _1) . Just) allNodeIds
+    ioPath     <- filterM doesIO relevantNodeIds
     let ioMonad = MonadPath (TCons "IO" []) ioPath
     return [ioMonad]
 
@@ -152,7 +154,12 @@ getNodeIdSequence = do
     nodeSeq    <- case bodySeq of
         Just b -> AST.readSeq b
         _      -> return []
-    catMaybes <$> mapM (getMarkedExpr >=> ASTRead.getNodeId) nodeSeq
+    catMaybes <$> mapM getNodeIdWhenMarked nodeSeq
+
+getNodeIdWhenMarked :: GraphOp m => NodeRef -> m (Maybe NodeId)
+getNodeIdWhenMarked ref = match ref $ \case
+    IR.Marked _m expr -> IR.source expr >>= ASTRead.getNodeId
+    _                 -> return Nothing
 
 getMarkedExpr :: GraphOp m => NodeRef -> m NodeRef
 getMarkedExpr ref = match ref $ \case
@@ -427,7 +434,7 @@ buildInputSidebarTypecheckUpdate nid = do
 buildInputSidebar :: GraphOp m => NodeId -> m API.InputSidebar
 buildInputSidebar nid = do
     Just ref <- ASTRead.getCurrentASTTarget
-    args     <- ASTDeconstruct.extractArguments ref
+    args     <- ASTDeconstruct.extractLamArguments ref
     argTrees <- zipWithM buildOutPortTree (pure . Projection <$> [0..]) args
     return $ API.InputSidebar nid argTrees
 

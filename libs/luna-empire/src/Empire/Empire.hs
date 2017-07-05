@@ -3,7 +3,7 @@
 module Empire.Empire where
 
 import           Empire.Data.AST               (SomeASTException)
-import           Empire.Data.Graph             (Graph, defaultGraph)
+import           Empire.Data.Graph             (Graph)
 import           Empire.Data.Library           (Library)
 import           Empire.Prelude                hiding (TypeRep)
 import           Empire.Prelude
@@ -62,11 +62,6 @@ data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _imports     :: Imports
                                      }
 makeLenses ''InterpreterEnv
-
-defaultInterpreterEnv :: IO InterpreterEnv
-defaultInterpreterEnv = do
-    g <- defaultGraph
-    return $ InterpreterEnv def def def g (return ()) def def
 
 type CommandStack s = ReaderT CommunicationEnv (StateT s IO)
 type Command s a = ReaderT CommunicationEnv (StateT s IO) a

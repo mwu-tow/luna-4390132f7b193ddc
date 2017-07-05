@@ -7,7 +7,7 @@ import qualified LunaStudio.Data.Graph          as API (Graph)
 import qualified LunaStudio.Data.Library        as API
 import qualified LunaStudio.Data.Node           as API (NodeId)
 import qualified LunaStudio.API.Persistence.Library as Persistence
-import           Empire.Data.Graph              (Graph, ClsGraph, defaultGraph)
+import           Empire.Data.Graph              (Graph, ClsGraph)
 import           Empire.Prelude
 
 

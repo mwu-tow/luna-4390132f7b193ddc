@@ -74,8 +74,7 @@ spec = around withChannels $ do
                 Graph.loadCode loc code
                 n <- Graph.addNode loc u1 "quux" def
                 Graph.getNodes (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
-            length nodes `shouldBe` 1
-            head nodes ^. Node.expression `shouldBe` "None"
+            length nodes `shouldBe` 0
         it "removes function at top-level" $ \env -> do
             nodes <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"

@@ -1,6 +1,7 @@
-{-# LANGUAGE LambdaCase       #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Empire.ASTOps.BreadcrumbHierarchy where
 
@@ -30,9 +31,8 @@ import qualified Luna.IR as IR
 
 makeTopBreadcrumbHierarchy :: GraphOp m => NodeCache -> NodeRef -> m ()
 makeTopBreadcrumbHierarchy nodeCache ref = do
-    breadcrumbHierarchy . BH._ToplevelParent . BH.topBody ?= ref
-    children <- childrenFromSeq nodeCache ref
-    breadcrumbHierarchy . BH.children .= children
+    item <- prepareLambdaChild nodeCache ref ref
+    breadcrumbHierarchy .= BH.LambdaParent item
 
 getMarker :: GraphOp m => NodeRef -> m Word64
 getMarker marker = do
@@ -61,14 +61,18 @@ childrenFromSeq nodeCache ref = do
             return $ Map.singleton uid child
         _ -> childrenFromSeq nodeCache =<< addCodeMarker ref
 
+isNone :: GraphOp m => NodeRef -> m Bool
+isNone = flip IR.matchExpr $ \case
+    IR.Cons n _ -> return $ n == "None"
+    _           -> return False
+
 lambdaChildren :: GraphOp m => NodeCache -> NodeRef -> m (Map NodeId BH.BChild)
 lambdaChildren nodeCache ref = IR.matchExpr ref $ \case
     IR.Seq l r -> Map.union <$> (childrenFromSeq nodeCache =<< IR.source l) <*> (lambdaChildren nodeCache =<< IR.source r)
     _          -> do
         marker <- IR.getLayer @Marker ref
-        case marker of
-            Just a  -> return Map.empty
-            Nothing -> childrenFromSeq nodeCache ref
+        isN    <- isNone ref
+        if isJust marker || isN then return Map.empty else childrenFromSeq nodeCache ref
 
 prepareChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
 prepareChild nodeCache marked ref = do
@@ -103,27 +107,29 @@ restorePortMappings :: GraphOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> 
 restorePortMappings previousPortMappings = do
     hierarchy <- use breadcrumbHierarchy
 
-    let goParent (BH.ToplevelParent topItem) = BH.ToplevelParent <$> goTopItem topItem
-        goParent (BH.LambdaParent         _) = $notImplemented
+    let goParent (BH.LambdaParent   lamItem) = BH.LambdaParent <$> goLamItem Nothing lamItem
 
         goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
-        goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (nodeId, Nothing) lamItem
+        goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (Just (nodeId, Nothing)) lamItem
 
         goTopItem (BH.TopItem childNodes body) = do
             updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs childNodes
             return $ BH.TopItem (Map.fromList updatedChildren) body
 
         goLamItem idArg (BH.LamItem mapping marked children body) = do
-            let cache       = Map.lookup idArg previousPortMappings
-            updatedChildren <- forM cache $ \prev -> do
+            let cache       = case idArg of
+                    Just idarg -> Map.lookup idarg previousPortMappings
+                    _          -> Nothing
+            forM cache $ \prev -> do
                 ref <- ASTRead.getTargetFromMarked marked
                 ASTBuilder.attachNodeMarkersForArgs (fst prev) [] ref
+            updatedChildren <- do
                 updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs children
                 return $ Map.fromList updatedChildren
-            return $ BH.LamItem (fromMaybe mapping cache) marked (fromMaybe children updatedChildren) body
+            return $ BH.LamItem (fromMaybe mapping cache) marked updatedChildren body
 
         goExprItem nodeId (BH.ExprItem children self) = do
-            updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (nodeId, Just a) b) $ Map.assocs children
+            updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (Just (nodeId, Just a)) b) $ Map.assocs children
             return $ BH.ExprItem (Map.fromList updatedChildren) self
 
     newHierarchy <- goParent hierarchy

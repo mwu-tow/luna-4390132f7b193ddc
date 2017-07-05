@@ -112,7 +112,6 @@ isOperatorVar expr = IR.matchExpr expr $ \case
     IR.Var n -> return $ isOperator n
     _        -> return False
 
--- TODO: handle infixes
 getOffsetRelativeToTarget :: GraphOp m => EdgeRef -> m Delta
 getOffsetRelativeToTarget edge = do
     ref  <- IR.readTarget edge
@@ -229,7 +228,6 @@ getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do
     currentTgt <- ASTRead.getCurrentASTTarget
     body       <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    outLink    <- mapM ASTRead.getFirstNonLambdaLink currentTgt
     case (currentTgt, body) of
         (Nothing, Nothing) -> return globalFileBlockStart
         (Nothing, Just b)  -> fromJust <$> getOffsetRelativeToFile b

@@ -69,19 +69,16 @@ data NodeCache = NodeCache { _nodeIdMap      :: Map Word64 NodeId
                            , _portMappingMap :: Map (NodeId, Maybe Int) (NodeId, NodeId)
                            } deriving Show
 
-defaultGraph :: IO Graph
-defaultGraph = do
-    ast' <- emptyAST
-    return $ Graph ast' def 0 def def def
-
 defaultClsGraph :: IO ClsGraph
 defaultClsGraph = do
     (ast, cls) <- defaultClsAST
     return $ ClsGraph ast cls def def def def (NodeCache def def def)
 
+type PMState g = Pass.RefState (PassManager.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))))
+
 data AST g = AST { _ir      :: IR
-               , _pmState :: Pass.RefState (PassManager.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))))
-               }
+                 , _pmState :: PMState g
+                 }
 
 instance Show (AST g) where
    show _ = "AST"
@@ -125,19 +122,16 @@ type instance Pass.Outputs    IR.Event InitPass = '[IR.New IR.// IR.AnyExpr, IR.
 
 type instance Pass.Preserves        InitPass = '[]
 
-emptyAST :: IO (AST Graph)
-emptyAST = mdo
-    let g = Graph ast def 0 def def def
-    ast <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
+defaultPMState :: IO (PMState Graph)
+defaultPMState = mdo
+    flip evalStateT undefined $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
         attachLayer 5 (getTypeDesc @CodeSpan.CodeSpan) (getTypeDesc @AnyExpr)
         attachEmpireLayers
         initExprMapping
-        st   <- snapshot
         pass <- DepState.get @PassManager.State
-        return $ AST st pass
-    return ast
+        return pass
 
 emptyClsAST :: IO (AST ClsGraph)
 emptyClsAST = mdo

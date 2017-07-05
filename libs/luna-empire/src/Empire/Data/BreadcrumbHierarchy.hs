@@ -29,7 +29,7 @@ data TopItem = TopItem { _childNodes :: Map NodeId BChild
                        } deriving (Show, Eq)
 
 data BChild  = ExprChild       ExprItem | LambdaChild  LamItem deriving (Show, Eq)
-data BParent = ToplevelParent  TopItem  | LambdaParent LamItem deriving (Show, Eq)
+data BParent = LambdaParent LamItem deriving (Show, Eq)
 
 makeLenses ''LamItem
 makeLenses ''ExprItem
@@ -39,9 +39,6 @@ makePrisms ''BParent
 
 instance Default TopItem where
     def = TopItem def def
-
-instance Default BParent where
-    def = ToplevelParent def
 
 class HasSelf a where
     self :: Lens' a NodeRef
@@ -70,9 +67,7 @@ instance HasChildren TopItem where
 
 instance HasChildren BParent where
     children = lens get set where
-        get (ToplevelParent i) = i ^. children
         get (LambdaParent   i) = i ^. children
-        set (ToplevelParent i) c = ToplevelParent $ i & children .~ c
         set (LambdaParent   i) c = LambdaParent   $ i & children .~ c
 
 class HasBody a where
@@ -87,7 +82,6 @@ instance HasBody TopItem where
 instance HasBody BParent where
     body trans s = case s of
         LambdaParent   i -> LambdaParent   <$> body trans i
-        ToplevelParent i -> ToplevelParent <$> body trans i
 
 class HasRefs a where
     refs :: Traversal' a NodeRef
@@ -112,7 +106,6 @@ instance HasRefs BChild where
     refs f (LambdaChild it) = LambdaChild <$> refs f it
 
 instance HasRefs BParent where
-    refs f (ToplevelParent it) = ToplevelParent <$> refs f it
     refs f (LambdaParent   it) = LambdaParent   <$> refs f it
 
 class DescedantTraversable a where
@@ -164,14 +157,17 @@ topLevelIDs = Map.keys . view children
 getLamItems :: BParent -> [((NodeId, Maybe Int), LamItem)]
 getLamItems hierarchy = goParent hierarchy
     where
-        goParent (ToplevelParent topItem) = goTopItem topItem
-        goParent (LambdaParent   lamItem) = $notImplemented
+        goParent (LambdaParent lamItem) = goLamItem Nothing lamItem
 
         goBChild nodeId (ExprChild exprItem)  = goExprItem nodeId exprItem
-        goBChild nodeId (LambdaChild lamItem) = goLamItem (nodeId, Nothing) lamItem
+        goBChild nodeId (LambdaChild lamItem) = goLamItem (Just (nodeId, Nothing)) lamItem
 
         goTopItem (TopItem childNodes _) = concatMap (\(a,b) -> goBChild a b) $ Map.assocs childNodes
 
-        goLamItem idArg lamItem = (idArg, lamItem) : concatMap (\(a, b) -> goBChild a b) (Map.assocs $ lamItem ^. children)
+        goLamItem idArg lamItem = first ++ concatMap (\(a, b) -> goBChild a b) (Map.assocs $ lamItem ^. children)
+            where
+                first = case idArg of
+                    Just a -> [(a, lamItem)]
+                    _      -> []
 
         goExprItem nodeId (ExprItem children _) = map (\(a,b) -> ((nodeId, Just a), b)) $ Map.assocs children

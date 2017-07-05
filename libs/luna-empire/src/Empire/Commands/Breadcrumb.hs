@@ -50,14 +50,16 @@ makeGraph fun lastUUID = zoom Library.body $ makeGraphCls fun lastUUID
 
 makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph.Graph)
 makeGraphCls fun lastUUID = do
-    emptyAST  <- liftIO $ Graph.emptyAST
+    pmState   <- liftIO Graph.defaultPMState
     nodeCache <- use Graph.nodeCache
     (funName, IR.Rooted ir ref) <- runASTOp $ IR.matchExpr fun $ \case
         IR.ASGRootedFunction n root -> return (nameToString n, root)
-    let ast   = emptyAST & Graph.ir .~ ir
-        bh    = def & BH._ToplevelParent . BH.topBody ?~ ref
-        graph = Graph.Graph ast bh 0 def def def
+    let ast   = Graph.AST ir pmState
     uuid <- maybe (liftIO $ UUID.nextRandom) return lastUUID
+    let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
+    portMapping <- fromMaybeM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
+    let bh = BH.LambdaParent $ BH.LamItem portMapping ref def ref
+        graph = Graph.Graph ast bh 0 def def def
     Graph.clsFuns . at uuid ?= (funName, graph)
     withRootedFunction uuid $ do
         runASTOp $ propagateLengths ref

@@ -328,7 +328,7 @@ spec = around withChannels $ parallel $ do
                 uniquePositions = Set.size $ Set.fromList positions
             uniquePositions `shouldBe` length nodes
         it "retains node ids on code reload" $ \env -> do
-            (prev, new) <- evalEmp env $ do
+            (prev, new, foo, newFoo) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc testLuna
@@ -337,13 +337,15 @@ spec = around withChannels $ parallel $ do
                 Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
                 previousGraph <- Graph.getGraph (loc' |> foo)
                 Graph.substituteCode "TestPath" 65 66 "5" (Just 66)
+                Just newFoo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
                 newGraph <- Graph.getGraph (loc' |> foo)
-                return (previousGraph, newGraph)
+                return (previousGraph, newGraph, foo, newFoo)
             let Just lala = find (\n -> n ^. Node.name == Just "lala") $ new ^. Graph.nodes
             lala ^. Node.code `shouldBe` "15.0"
-            prev ^. Graph.inputSidebar `shouldBe` new ^. Graph.inputSidebar
-            prev ^. Graph.outputSidebar `shouldBe` new ^. Graph.outputSidebar
-            prev ^. Graph.connections `shouldBe` new ^. Graph.connections
+            newFoo `shouldBe` foo
+            new ^. Graph.inputSidebar `shouldBe` prev ^. Graph.inputSidebar
+            new ^. Graph.connections `shouldBe` prev ^. Graph.connections
+            new ^. Graph.outputSidebar `shouldBe` prev ^. Graph.outputSidebar
         it "preserves node meta on code reload" $ \env -> do
             meta <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -588,24 +590,37 @@ spec = around withChannels $ parallel $ do
             initialCode = [r|
                 def main:
                     «0»pi = 3.14
+                    None
                 |]
-            expectedCode = "def main:"
+            expectedCode = [r|
+                def main:
+                    None
+                |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just id <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
                 Graph.removeNodes loc [id]
         it "removes all nodes from a file, then adds some" $ let
+            initialCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                    None
+                |]
             expectedCode = [r|
                 def main:
                     foo = 3 + 5
                     bar = 20 + 30
+                    None
                 |]
-            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
                 ids <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..3]
                 Graph.removeNodes loc (fromJust <$> ids)
                 u1 <- mkUUID
                 u2 <- mkUUID
                 Graph.addNode loc u1 "foo = 3 + 5"   (atXPos 20.0)
-                Graph.addNode loc u1 "bar = 20 + 30" (atXPos 30.0)
+                Graph.addNode loc u2 "bar = 20 + 30" (atXPos 30.0)
 
         it "adds and removes nodes inside a lambda" $ let
             expectedCode = [r|

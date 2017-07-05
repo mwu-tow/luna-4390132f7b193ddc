@@ -288,14 +288,14 @@ updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
     oldSeq     <- preuse $ Graph.breadcrumbHierarchy . BH.body
     currentTgt <- ASTRead.getCurrentASTTarget
-    outLink    <- mapM ASTRead.getFirstNonLambdaLink currentTgt
+    outLink    <- join <$> mapM ASTRead.getFirstNonLambdaLink currentTgt
     case (,) <$> outLink <*> newOut of
         Just (l, o) -> IR.replaceSource o l
         Nothing     -> return ()
     forM_ oldSeq $ flip IR.deepDeleteWithWhitelist $ Set.fromList $ maybeToList newOut
-    Graph.breadcrumbHierarchy . BH._ToplevelParent . BH.topBody .= newOut
+    oldRef <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.self
+    when (oldRef == oldSeq) $ forM_ newOut (Graph.breadcrumbHierarchy . BH._LambdaParent . BH.self .=)
     forM_ newOut $ (Graph.breadcrumbHierarchy . BH.body .=)
-    {-forM_ newOut $ updateCodeSpan-}
 
 updateCodeSpan' :: GraphOp m => NodeRef -> m _
 updateCodeSpan' ref = IR.matchExpr ref $ \case
@@ -790,22 +790,6 @@ loadCode loc@(GraphLocation file _) code = do
         let loc' = GraphLocation file $ Breadcrumb [Breadcrumb.Definition uuid]
         autolayout loc'
     return ()
-
--- loadCode :: GraphLocation -> Text -> Empire ()
--- loadCode loc = loadCodeWithNodeIdCache loc (NodeIdCache Map.empty Map.empty)
---
--- loadCodeWithNodeIdCache :: NodeIdCache -> Text -> Empire ()
--- loadCodeWithNodeIdCache _ code | Text.null code = return ()
--- loadCodeWithNodeIdCache nodeIdCache code = do
---     (ir, IR.Rooted main ref, exprMap) <- liftIO $ ASTParse.runProperParser code
---     setExprMap (coerce exprMap)
---     Graph.unit .= ir
---     putNewIR main
---     Graph.breadcrumbHierarchy . BH._ToplevelParent . BH.topBody ?= ref
---     runASTOp $ Code.propagateLengths ref
---     runAliasAnalysis
---     newBH <- runASTOp $ makeTopBreadcrumbHierarchy nodeIdCache ref
---     Graph.breadcrumbHierarchy .= BH.ToplevelParent newBH
 
 infixl 5 |>
 (|>) :: GraphLocation -> BreadcrumbItem -> GraphLocation

@@ -61,7 +61,7 @@ spec = around withChannels $ parallel $ do
                 n1Level  <- Graph.getGraph (top |> u1)
                 return (topLevel, n1Level)
             withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _) -> do
-                length topLevel `shouldBe` 2
+                length topLevel `shouldBe` 1
                 topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
                 o            `shouldSatisfy` isJust
@@ -74,7 +74,7 @@ spec = around withChannels $ parallel $ do
                 n1Level <- Graph.getGraph (top |> u1)
                 return (topLevel, n1Level)
             withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _) -> do
-                length topLevel `shouldBe` 2
+                length topLevel `shouldBe` 1
                 topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
                 o            `shouldSatisfy` isJust
@@ -326,7 +326,7 @@ spec = around withChannels $ parallel $ do
                 Graph.removeNodes top [u1]
                 Graph.withGraph top $ use (breadcrumbHierarchy . BH.children)
             withResult res $ \mapping -> do
-                length mapping `shouldBe` 1
+                length mapping `shouldBe` 0
         it "removes `foo = a: a`" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -334,7 +334,7 @@ spec = around withChannels $ parallel $ do
                 Graph.removeNodes top [u1]
                 Graph.withGraph top $ use (breadcrumbHierarchy . BH.children)
             withResult res $ \mapping -> do
-                length mapping `shouldBe` 1
+                length mapping `shouldBe` 0
         it "RHS of `foo = a: a` is Lam" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -380,7 +380,7 @@ spec = around withChannels $ parallel $ do
             withResult res $ \(node, nodes) -> do
                 node ^. Node.expression `shouldBe` "456"
                 node ^. Node.nodeId     `shouldBe` u1
-                nodes `shouldSatisfy` ((== 2) . length)
+                nodes `shouldSatisfy` ((== 1) . length)
         it "changes expression to lambda" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -393,7 +393,7 @@ spec = around withChannels $ parallel $ do
                 node ^. Node.code       `shouldBe` "a: a"
                 node ^. Node.nodeId     `shouldBe` u1
                 node ^. Node.canEnter   `shouldBe` True
-                nodes `shouldSatisfy` ((== 2) . length)
+                nodes `shouldSatisfy` ((== 1) . length)
         it "does not allow to change expression to assignment" $ \env -> do
             u1 <- mkUUID
             let res = evalEmp env $ do
@@ -482,7 +482,7 @@ spec = around withChannels $ parallel $ do
                 return $ find (\node -> node ^. Node.nodeId == u1) nodes
             withResult res $ \(Just plus) -> do
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «2»a + b")
+                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «1»a + b")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
                     ]
@@ -509,7 +509,7 @@ spec = around withChannels $ parallel $ do
             withResult res $ \nodes -> do
                 let Just plus = find (\a -> view Node.nodeId a == u1) nodes
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «2»a + b node2")
+                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «1»a + b node2")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.Connected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
                     ]
@@ -710,7 +710,7 @@ spec = around withChannels $ parallel $ do
                     , Port.Port [Port.Projection 2] "c" TStar Port.NotConnected
                     ]
                 (defFoo ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: c: «2»a + b")
+                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: c: «1»a + b")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 2] "c"    TStar Port.NotConnected
@@ -869,58 +869,53 @@ spec = around withChannels $ parallel $ do
         it "adds one node to sequence" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
-                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" def
                 seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-                return (seq, none ^. Node.nodeId)
-            withResult res $ \(nodeSeq, noneId) -> do
-                nodeSeq `shouldMatchList` [noneId, u1]
+                return seq
+            withResult res $ \nodeSeq -> do
+                nodeSeq `shouldMatchList` [u1]
         it "adds three nodes in line" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
-                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (20, 10)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (30, 10)) False def
                 seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-                return (seq, none ^. Node.nodeId)
-            withResult res $ \(nodeSeq, noneId) -> do
-                nodeSeq `shouldMatchList` [noneId, u1, u2, u3]
+                return seq
+            withResult res $ \nodeSeq -> do
+                nodeSeq `shouldMatchList` [u1, u2, u3]
         it "adds three nodes in reverse order" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
-                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (30, 10)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (20, 10)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-                return (seq, none ^. Node.nodeId)
-            withResult res $ \(nodeSeq, noneId) -> do
-                nodeSeq `shouldMatchList` [noneId, u3, u2, u1]
+                return seq
+            withResult res $ \nodeSeq -> do
+                nodeSeq `shouldMatchList` [u3, u2, u1]
         it "updates sequence after node removal" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
-                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (10, 30)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (10, 20)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.removeNodes top [u2]
                 seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-                return (seq, none ^. Node.nodeId)
-            withResult res $ \(nodeSeq, noneId) -> do
-                nodeSeq `shouldMatchList` [noneId, u3, u1]
+                return seq
+            withResult res $ \nodeSeq -> do
+                nodeSeq `shouldMatchList` [u3, u1]
         it "updates sequence after node meta update" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
-                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (10, 20)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (10, 30)) False def
@@ -928,9 +923,9 @@ spec = around withChannels $ parallel $ do
                 Graph.setNodeMeta top u2 $ NodeMeta (Position.fromTuple (20, 30)) False def
                 Graph.setNodeMeta top u1 $ NodeMeta (Position.fromTuple (30, 20)) False def
                 seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-                return (seq, none ^. Node.nodeId)
-            withResult res $ \(nodeSeq, noneId) -> do
-                nodeSeq `shouldMatchList` [noneId, u3, u2, u1]
+                return seq
+            withResult res $ \nodeSeq -> do
+                nodeSeq `shouldMatchList` [u3, u2, u1]
         it "adds one node inside lambda" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
@@ -1078,7 +1073,7 @@ spec = around withChannels $ parallel $ do
                     ]
 
                 (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                        Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «4»a + b x y")
+                        Port.Port []           "base" TStar (Port.WithDefault $ Expression "a: b: «3»a + b x y")
                       , Port.Port [Port.Arg 0] "a"    TStar Port.Connected
                       , Port.Port [Port.Arg 1] "b"    TStar Port.Connected
                     ]

@@ -4,6 +4,7 @@ module Empire.ASTOps.Deconstruct (
     deconstructApp
   , extractArguments
   , extractAppArguments
+  , extractLamArguments
   , dumpAccessors
   ) where
 
@@ -41,6 +42,9 @@ extractArguments expr = match expr $ \case
     Cons _ args -> mapM IR.source args
     Grouped g   -> IR.source g >>= extractArguments
     _           -> return []
+
+extractLamArguments :: GraphOp m => NodeRef -> m [NodeRef]
+extractLamArguments = extractArguments' FLam
 
 extractAppArguments :: GraphOp m => NodeRef -> m [NodeRef]
 extractAppArguments = extractArguments' FApp

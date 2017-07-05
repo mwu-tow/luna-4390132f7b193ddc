@@ -35,7 +35,7 @@ import qualified Control.Monad.State.Dependent as DepState
 import qualified Data.Map             as Map
 import           Data.Foldable        (toList)
 import           Empire.Data.Graph    (AST(..), ClsGraph, Graph, withVis)
-import qualified Empire.Data.Graph    as Graph (ast, breadcrumbHierarchy, clsAst, emptyAST, emptyClsAST, pmState, ir)
+import qualified Empire.Data.Graph    as Graph
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Data.Layers   (Marker, Meta, TypeLayer, attachEmpireLayers, SpanLength, SpanOffset)
 import           Empire.Empire        (Command)
@@ -237,8 +237,8 @@ runTypecheck imports = do
 
 putNewIR :: IR -> Command Graph ()
 putNewIR ir = do
-    newAST <- liftIO $ Graph.emptyAST
-    Graph.ast .= (newAST & Graph.ir .~ ir)
+    pmState <- liftIO $ Graph.defaultPMState
+    Graph.ast .= AST ir pmState
 
 putNewIRCls :: IR -> Command ClsGraph ()
 putNewIRCls ir = do

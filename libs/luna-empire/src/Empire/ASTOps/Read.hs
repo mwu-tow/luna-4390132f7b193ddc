@@ -212,10 +212,9 @@ getSelfNodeRef' seenAcc node = match node $ \case
     _       -> return $ if seenAcc then Just node else Nothing
 
 getLambdaBodyRef :: GraphOp m => NodeRef -> m (Maybe NodeRef)
-getLambdaBodyRef lam = do
-    seqRef <- getLambdaSeqRef lam
-    forM seqRef $ flip match $ \case
-        Seq l _r -> IR.source l
+getLambdaBodyRef lam = match lam $ \case
+    Lam _ o -> getLambdaBodyRef =<< IR.source o
+    _       -> return $ Just lam
 
 getLambdaSeqRef :: GraphOp m => NodeRef -> m (Maybe NodeRef)
 getLambdaSeqRef = getLambdaSeqRef' False
@@ -238,17 +237,19 @@ getLambdaOutputRef node = match node $ \case
     _          -> return node
 
 getFirstNonLambdaRef :: GraphOp m => NodeRef -> m NodeRef
-getFirstNonLambdaRef = getFirstNonLambdaLink >=> IR.source
+getFirstNonLambdaRef ref = do
+    link <- getFirstNonLambdaLink ref
+    maybe (return ref) (IR.source) link
 
-getFirstNonLambdaLink :: GraphOp m => NodeRef -> m EdgeRef
+getFirstNonLambdaLink :: GraphOp m => NodeRef -> m (Maybe EdgeRef)
 getFirstNonLambdaLink node = match node $ \case
     Grouped g  -> IR.source g >>= getFirstNonLambdaLink
     Lam _ next -> do
         nextLam <- IR.source next
         match nextLam $ \case
             Lam{} -> getFirstNonLambdaLink nextLam
-            _     -> return next
-    _         -> throwM $ NotLambdaException node
+            _     -> return $ Just next
+    _         -> return Nothing
 
 isApp :: GraphOp m => NodeRef -> m Bool
 isApp expr = isJust <$> IRExpr.narrowTerm @IR.App expr
