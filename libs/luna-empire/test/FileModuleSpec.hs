@@ -154,3 +154,9 @@ spec = around withChannels $ do
                 Graph.decodeLocation loc'''
             let names = map (view Breadcrumb.name) location
             names `shouldBe` ["main", "foo", "buzz"]
+        it "does not crash on substitute with multiple functions" $ \env -> do
+            evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc code
+                Graph.substituteCode "TestPath" 13 14 "10" (Just 14)

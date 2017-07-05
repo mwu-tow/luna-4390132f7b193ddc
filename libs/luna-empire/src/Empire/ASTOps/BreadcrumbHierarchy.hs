@@ -17,9 +17,10 @@ import qualified Empire.ASTOps.Builder           as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct       as ASTDeconstruct
 import qualified Empire.ASTOps.Read              as ASTRead
 import           Empire.Commands.Code            (addCodeMarker)
+import qualified Empire.Commands.AST             as AST
 import           Empire.Data.AST                 (NodeRef)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               (NodeIdCache, breadcrumbHierarchy, nodeIdMap)
+import           Empire.Data.Graph               as Graph (NodeCache, breadcrumbHierarchy, nodeIdMap, nodeMetaMap)
 import           Empire.Data.Layers              (Marker)
 import           LunaStudio.Data.Node            (NodeId)
 import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
@@ -27,10 +28,10 @@ import           LunaStudio.Data.PortRef         (OutPortRef (..))
 
 import qualified Luna.IR as IR
 
-makeTopBreadcrumbHierarchy :: GraphOp m => NodeIdCache -> NodeRef -> m ()
-makeTopBreadcrumbHierarchy nodeIdCache ref = do
+makeTopBreadcrumbHierarchy :: GraphOp m => NodeCache -> NodeRef -> m ()
+makeTopBreadcrumbHierarchy nodeCache ref = do
     breadcrumbHierarchy . BH._ToplevelParent . BH.topBody ?= ref
-    children <- childrenFromSeq nodeIdCache ref
+    children <- childrenFromSeq nodeCache ref
     breadcrumbHierarchy . BH.children .= children
 
 getMarker :: GraphOp m => NodeRef -> m Word64
@@ -38,15 +39,15 @@ getMarker marker = do
     IR.matchExpr marker $ \case
         IR.Marker index -> return index
 
-childrenFromSeq :: GraphOp m => NodeIdCache -> NodeRef -> m (Map NodeId BH.BChild)
-childrenFromSeq nodeIdCache ref = do
+childrenFromSeq :: GraphOp m => NodeCache -> NodeRef -> m (Map NodeId BH.BChild)
+childrenFromSeq nodeCache ref = do
     IR.matchExpr ref $ \case
-        IR.Seq    l r    -> Map.union <$> (childrenFromSeq nodeIdCache =<< IR.source l) <*> (childrenFromSeq nodeIdCache =<< IR.source r)
+        IR.Seq    l r    -> Map.union <$> (childrenFromSeq nodeCache =<< IR.source l) <*> (childrenFromSeq nodeCache =<< IR.source r)
         IR.Marked m expr -> do
             expr'      <- IR.source expr
             index      <- getMarker =<< IR.source m
             newNodeId  <- liftIO UUID.nextRandom
-            let nodeId = nodeIdCache ^. nodeIdMap . at index
+            let nodeId = nodeCache ^. nodeIdMap . at index
                 uid    = fromMaybe newNodeId nodeId
             childTarget <- IR.matchExpr expr' $ \case
                 IR.Unify l r -> do
@@ -55,43 +56,44 @@ childrenFromSeq nodeIdCache ref = do
                 _ -> do
                     IR.putLayer @Marker expr' $ Just $ OutPortRef (NodeLoc def uid) []
                     return expr'
-            child <- prepareChild nodeIdCache ref childTarget
+            child <- prepareChild nodeCache ref childTarget
+            forM (nodeCache ^? Graph.nodeMetaMap . ix index) $ AST.writeMeta ref
             return $ Map.singleton uid child
-        _ -> childrenFromSeq nodeIdCache =<< addCodeMarker ref
+        _ -> childrenFromSeq nodeCache =<< addCodeMarker ref
 
-lambdaChildren :: GraphOp m => NodeIdCache -> NodeRef -> m (Map NodeId BH.BChild)
-lambdaChildren nodeIdCache ref = IR.matchExpr ref $ \case
-    IR.Seq l r -> Map.union <$> (childrenFromSeq nodeIdCache =<< IR.source l) <*> (lambdaChildren nodeIdCache =<< IR.source r)
+lambdaChildren :: GraphOp m => NodeCache -> NodeRef -> m (Map NodeId BH.BChild)
+lambdaChildren nodeCache ref = IR.matchExpr ref $ \case
+    IR.Seq l r -> Map.union <$> (childrenFromSeq nodeCache =<< IR.source l) <*> (lambdaChildren nodeCache =<< IR.source r)
     _          -> do
         marker <- IR.getLayer @Marker ref
         case marker of
             Just a  -> return Map.empty
-            Nothing -> childrenFromSeq nodeIdCache ref
+            Nothing -> childrenFromSeq nodeCache ref
 
-prepareChild :: GraphOp m => NodeIdCache -> NodeRef -> NodeRef -> m BH.BChild
-prepareChild nodeIdCache marked ref = do
+prepareChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
+prepareChild nodeCache marked ref = do
     isLambda <- ASTRead.isLambda ref
-    (if isLambda then fmap BH.LambdaChild .: (prepareLambdaChild nodeIdCache) else prepareExprChild nodeIdCache) marked ref
+    (if isLambda then fmap BH.LambdaChild .: (prepareLambdaChild nodeCache) else prepareExprChild nodeCache) marked ref
 
-prepareChildWhenLambda :: GraphOp m => NodeIdCache -> NodeRef -> NodeRef -> m (Maybe BH.LamItem)
-prepareChildWhenLambda nodeIdCache marked ref = do
+prepareChildWhenLambda :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m (Maybe BH.LamItem)
+prepareChildWhenLambda nodeCache marked ref = do
     isLambda <- ASTRead.isLambda ref
-    if isLambda then Just <$> prepareLambdaChild nodeIdCache marked ref else return Nothing
+    if isLambda then Just <$> prepareLambdaChild nodeCache marked ref else return Nothing
 
-prepareLambdaChild :: GraphOp m => NodeIdCache -> NodeRef -> NodeRef -> m BH.LamItem
-prepareLambdaChild nodeIdCache marked ref = do
+prepareLambdaChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.LamItem
+prepareLambdaChild nodeCache marked ref = do
     portMapping <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
     lambdaBody  <- ASTRead.getFirstNonLambdaRef ref
     ASTBuilder.attachNodeMarkersForArgs (fst portMapping) [] ref
-    children    <- lambdaChildren nodeIdCache lambdaBody
+    children    <- lambdaChildren nodeCache lambdaBody
     newBody     <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children newBody
 
-prepareExprChild :: GraphOp m => NodeIdCache -> NodeRef -> NodeRef -> m BH.BChild
-prepareExprChild nodeIdCache marked ref = do
+prepareExprChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
+prepareExprChild nodeCache marked ref = do
     let bareItem = BH.ExprItem Map.empty marked
     args  <- ASTDeconstruct.extractAppArguments ref
-    items <- mapM (uncurry (prepareChildWhenLambda nodeIdCache) . (id &&& id)) args
+    items <- mapM (uncurry (prepareChildWhenLambda nodeCache) . (id &&& id)) args
     let addItem par (port, child) = case child of
           Just ch -> par & BH.portChildren . at port ?~ ch
           _       -> par

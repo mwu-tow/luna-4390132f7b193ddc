@@ -152,7 +152,7 @@ getNodeIdSequence = do
     nodeSeq    <- case bodySeq of
         Just b -> AST.readSeq b
         _      -> return []
-    catMaybes <$> mapM (getMarkedExpr >=> ASTRead.safeGetVarNodeId) nodeSeq
+    catMaybes <$> mapM (getMarkedExpr >=> ASTRead.getNodeId) nodeSeq
 
 getMarkedExpr :: GraphOp m => NodeRef -> m NodeRef
 getMarkedExpr ref = match ref $ \case

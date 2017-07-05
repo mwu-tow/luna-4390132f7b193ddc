@@ -6,34 +6,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Empire.Data.Graph (
-    Graph(..)
-  , ast
-  , breadcrumbHierarchy
-  , lastNameId
-  , codeMarkers
-  , defaultGraph
-  , ClsGraph(..)
-  , clsAst
-  , clsClass
-  , clsCode
-  , clsCodeMarkers
-  , clsFuns
-  , clsParseError
-  , nodeIdCache
-  , defaultClsGraph
-  , HasCode(..)
-  , emptyAST
-  , emptyClsAST
-  , withVis
-  , AST(..)
-  , NodeIdCache(..)
-  , nodeIdMap
-  , portMappingMap
-  , ir
-  , pmState
-  , parseError
-  ) where
+module Empire.Data.Graph where
 
 import           Empire.Data.BreadcrumbHierarchy   (BParent)
 import           Empire.Prelude
@@ -54,6 +27,7 @@ import qualified OCI.Pass.Class                         as Pass
 import qualified OCI.Pass.Manager                       as Pass (RefState)
 import qualified OCI.Pass.Manager                       as PassManager (PassManager, State)
 import           LunaStudio.Data.Node                   (NodeId)
+import           LunaStudio.Data.NodeMeta               (NodeMeta)
 import           Luna.Syntax.Text.Parser.Errors         (Invalids)
 import qualified Luna.Syntax.Text.Parser.Marker         as Luna
 import qualified Luna.Syntax.Text.Parser.Parser         as Parser
@@ -87,12 +61,13 @@ data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
                          , _clsCode        :: Text
                          , _clsParseError  :: Maybe SomeASTException
                          , _clsFuns        :: Map NodeId (String, Graph)
-                         , _nodeIdCache    :: NodeIdCache
+                         , _nodeCache    :: NodeCache
                          } deriving Show
 
-data NodeIdCache = NodeIdCache { _nodeIdMap      :: Map Word64 NodeId
-                               , _portMappingMap :: Map (NodeId, Maybe Int) (NodeId, NodeId)
-                               } deriving Show
+data NodeCache = NodeCache { _nodeIdMap      :: Map Word64 NodeId
+                           , _nodeMetaMap    :: Map Word64 NodeMeta
+                           , _portMappingMap :: Map (NodeId, Maybe Int) (NodeId, NodeId)
+                           } deriving Show
 
 defaultGraph :: IO Graph
 defaultGraph = do
@@ -102,7 +77,7 @@ defaultGraph = do
 defaultClsGraph :: IO ClsGraph
 defaultClsGraph = do
     (ast, cls) <- defaultClsAST
-    return $ ClsGraph ast cls def def def def (NodeIdCache def def)
+    return $ ClsGraph ast cls def def def def (NodeCache def def def)
 
 data AST g = AST { _ir      :: IR
                , _pmState :: Pass.RefState (PassManager.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))))
@@ -166,7 +141,7 @@ emptyAST = mdo
 
 emptyClsAST :: IO (AST ClsGraph)
 emptyClsAST = mdo
-    let g = ClsGraph ast $notImplemented def def def def (NodeIdCache def def)
+    let g = ClsGraph ast $notImplemented def def def def (NodeCache def def def)
     ast <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -180,7 +155,7 @@ emptyClsAST = mdo
 
 defaultClsAST :: IO (AST ClsGraph, IR.SomeExpr)
 defaultClsAST = mdo
-    let g = ClsGraph ast $notImplemented def def def def (NodeIdCache def def)
+    let g = ClsGraph ast $notImplemented def def def def (NodeCache def def def)
     (ast, cls) <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -198,7 +173,7 @@ defaultClsAST = mdo
 makeLenses ''Graph
 makeLenses ''ClsGraph
 makeLenses ''AST
-makeLenses ''NodeIdCache
+makeLenses ''NodeCache
 
 class HasCode g where
     code :: Lens' g Text

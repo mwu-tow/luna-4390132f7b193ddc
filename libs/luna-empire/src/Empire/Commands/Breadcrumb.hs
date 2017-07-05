@@ -50,8 +50,8 @@ makeGraph fun lastUUID = zoom Library.body $ makeGraphCls fun lastUUID
 
 makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph.Graph)
 makeGraphCls fun lastUUID = do
-    emptyAST <- liftIO $ Graph.emptyAST
-    nodeIdCache <- use Graph.nodeIdCache
+    emptyAST  <- liftIO $ Graph.emptyAST
+    nodeCache <- use Graph.nodeCache
     (funName, IR.Rooted ir ref) <- runASTOp $ IR.matchExpr fun $ \case
         IR.ASGRootedFunction n root -> return (nameToString n, root)
     let ast   = emptyAST & Graph.ir .~ ir
@@ -63,8 +63,8 @@ makeGraphCls fun lastUUID = do
         runASTOp $ propagateLengths ref
         runAliasAnalysis
         runASTOp $ do
-            ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeIdCache ref
-            restorePortMappings (nodeIdCache ^. Graph.portMappingMap)
+            ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeCache ref
+            restorePortMappings (nodeCache ^. Graph.portMappingMap)
     return (uuid, graph)
 
 runInternalBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.Graph a

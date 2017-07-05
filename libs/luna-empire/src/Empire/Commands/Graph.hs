@@ -77,8 +77,7 @@ import qualified System.IO                        as IO
 import           Empire.Data.AST                  (InvalidConnectionException (..), NodeRef, NotInputEdgeException (..), SomeASTException,
                                                    astExceptionFromException, astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
-import           Empire.Data.Graph                (ClsGraph, Graph)
-import           Empire.Data.Graph                (ClsGraph, Graph, NodeIdCache(..), portMappingMap, nodeIdMap)
+import           Empire.Data.Graph                (ClsGraph, Graph, NodeCache(..), portMappingMap, nodeIdMap)
 import qualified Empire.Data.Graph                as Graph
 import           Empire.Data.Layers               (Marker, SpanLength, SpanOffset)
 import qualified Empire.Data.Library              as Library
@@ -104,7 +103,7 @@ import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
 
 import qualified Empire.ASTOps.Builder            as ASTBuilder
-import           Empire.ASTOps.BreadcrumbHierarchy (prepareChild, makeTopBreadcrumbHierarchy)
+import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy)
 import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
 import qualified Empire.ASTOps.Modify             as ASTModify
 import qualified Empire.ASTOps.Parse              as ASTParse
@@ -488,7 +487,7 @@ setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
         node <- runASTOp $ do
             expr      <- ASTRead.getASTTarget nodeId
             marked    <- ASTRead.getASTRef nodeId
-            item      <- prepareChild (NodeIdCache Map.empty Map.empty) marked parsedRef
+            item      <- prepareChild (NodeCache Map.empty Map.empty Map.empty) marked parsedRef
             Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
             let len = fromIntegral $ Text.length expression
             Code.applyDiff oldBeg oldEnd expression
@@ -622,9 +621,7 @@ disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
     resendCode loc
 
 getNodeMeta :: GraphLocation -> NodeId -> Empire (Maybe NodeMeta)
-getNodeMeta loc nodeId = withGraph loc $ runASTOp $ do
-    ref <- ASTRead.getASTRef nodeId
-    AST.readMeta ref
+getNodeMeta loc = withGraph loc . runASTOp . AST.getNodeMeta
 
 getCode :: GraphLocation -> Empire String
 getCode loc@(GraphLocation file _) = Text.unpack . Code.removeMarkers <$> withUnit (GraphLocation file (Breadcrumb [])) (use Graph.clsCode)
@@ -719,36 +716,35 @@ substituteCode path start end code cursor = do
 lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
 lamItemToMapping (idArg, BH.LamItem portMapping _ _ _) = (idArg, portMapping)
 
+extractMarkedMetasAndIds :: GraphOp m => NodeRef -> m [(Word64, (Maybe NodeMeta, Maybe NodeId))]
+extractMarkedMetasAndIds root = IR.matchExpr root $ \case
+    IR.Marked m e -> do
+        meta   <- AST.readMeta root
+        marker <- getMarker =<< IR.source m
+        expr   <- IR.source e
+        rest   <- extractMarkedMetasAndIds expr
+        nid    <- ASTRead.getNodeId  expr
+        return $ (marker, (meta, nid)) : rest
+    _ -> concat <$> (mapM (extractMarkedMetasAndIds <=< IR.source) =<< IR.inputs root)
+
 reloadCode :: GraphLocation -> Text -> Empire ()
 reloadCode loc@(GraphLocation file _) code = do
     funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         funs <- use Graph.clsFuns
         return $ Map.keys funs
-    oldMetas <- Map.fromList <$> (forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        m <- getExprMap
-        oldMetas <- forM (Map.assocs m) $ \(marker, expr) -> (marker,) <$> AST.readMeta expr
-        return (fun, [ (marker, meta) | (marker, Just meta) <- oldMetas ]))
-    previousNodeIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        m <- getExprMap
-        let markers = Map.keys m
-        nodeIds <- mapM (\k -> (k,) <$> getNodeIdForMarker (fromIntegral k)) markers
-        return $ Map.fromList [ (marker, nodeId) | (marker, Just nodeId) <- nodeIds ]
+    oldMetasAndIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        Just root <- preuse $ Graph.breadcrumbHierarchy . BH.body
+        oldMetas  <- extractMarkedMetasAndIds root
+        return $ Map.fromList oldMetas
     previousPortMappings <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
         hierarchy <- use Graph.breadcrumbHierarchy
         let lamItems = BH.getLamItems hierarchy
             elems    = map lamItemToMapping lamItems
         return $ Map.fromList elems
-    withUnit (GraphLocation file (Breadcrumb [])) $ Graph.nodeIdCache .= NodeIdCache (Map.unions previousNodeIds) (Map.unions previousPortMappings)
+    let previousNodeIds   = Map.unions $ Map.mapMaybe snd <$> oldMetasAndIds
+        previousNodeMetas = Map.unions $ Map.mapMaybe fst <$> oldMetasAndIds
+    withUnit (GraphLocation file (Breadcrumb [])) $ Graph.nodeCache .= NodeCache previousNodeIds previousNodeMetas (Map.unions previousPortMappings)
     loadCode loc code
-    newFuns <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-        funs <- use Graph.clsFuns
-        return $ Map.keys funs
-    forM_ newFuns $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        currentExprMap <- getExprMap
-        forM (Map.lookup fun oldMetas) $ \listOfMetas -> do
-            forM listOfMetas $ \(marker, oldMeta) -> do
-                let expr = Map.lookup marker currentExprMap
-                forM_ expr $ \e -> AST.writeMeta e oldMeta
 
 putIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putIntoHierarchy nodeId marked = do
@@ -759,7 +755,7 @@ putChildrenIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putChildrenIntoHierarchy uuid expr = do
     target       <- ASTRead.getASTTarget uuid
     marked       <- ASTRead.getASTRef uuid
-    item         <- prepareChild (NodeIdCache Map.empty Map.empty) marked target
+    item         <- prepareChild (NodeCache Map.empty Map.empty Map.empty) marked target
     Graph.breadcrumbHierarchy . BH.children . ix uuid .= item
 
 copyMeta :: GraphOp m => NodeRef -> NodeRef -> m ()
@@ -817,9 +813,12 @@ infixl 5 |>
 
 autolayout :: GraphLocation -> Empire ()
 autolayout loc = do
-    kids <- withGraph loc $ do
+    kids <- withGraph loc $ runASTOp $ do
         kids <- uses Graph.breadcrumbHierarchy (view BH.children)
-        runASTOp $ autolayoutNodes $ Map.keys kids
+        needLayout <- fmap catMaybes $ forM (Map.keys kids) $ \id -> do
+            meta <- AST.getNodeMeta id
+            return $ if meta /= def then Nothing else Just id
+        autolayoutNodes needLayout
         return kids
     let next = concatMap (\(k, v) -> case v of
             BH.LambdaChild{}                -> [Breadcrumb.Lambda k]
@@ -904,9 +903,8 @@ getNodeIdForMarker index = do
     IR.matchExpr ref $ \case
         IR.Marked _m expr -> do
             expr'     <- IR.source expr
-            varNodeId <- ASTRead.safeGetVarNodeId expr'
             nodeId    <- ASTRead.getNodeId expr'
-            return $ varNodeId <|> nodeId
+            return nodeId
 
 markerCodeSpan :: GraphLocation -> Int -> Empire (Int, Int)
 markerCodeSpan loc index = withGraph loc $ runASTOp $ do

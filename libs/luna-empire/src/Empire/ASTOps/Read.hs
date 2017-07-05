@@ -69,7 +69,10 @@ isGraphNode :: GraphOp m => NodeRef -> m Bool
 isGraphNode = fmap isJust . getNodeId
 
 getNodeId :: GraphOp m => NodeRef -> m (Maybe NodeId)
-getNodeId node = preview (_Just . PortRef.srcNodeLoc . NodeLoc.nodeId) <$> IR.getLayer @Marker node
+getNodeId node = do
+    rootNodeId <- preview (_Just . PortRef.srcNodeLoc . NodeLoc.nodeId) <$> IR.getLayer @Marker node
+    varNodeId  <- (getVarNode node >>= getNodeId) `catch` (\(_e :: NotUnifyException) -> return Nothing)
+    return $ rootNodeId <|> varNodeId
 
 getPatternNames :: GraphOp m => NodeRef -> m [String]
 getPatternNames node = match node $ \case
@@ -114,10 +117,6 @@ leftMatchOperand node = match node $ \case
 
 getVarNode :: GraphOp m => NodeRef -> m NodeRef
 getVarNode node = leftMatchOperand node >>= IR.source
-
-safeGetVarNodeId :: GraphOp m => NodeRef -> m (Maybe NodeId)
-safeGetVarNodeId node = (getVarNode node >>= getNodeId) `catch`
-    (\(_e :: NotUnifyException) -> return Nothing)
 
 data NodeDoesNotExistException = NodeDoesNotExistException NodeId
     deriving Show

@@ -47,6 +47,9 @@ addNode nid name node = do
 readMeta :: (IR.Reader IR.Layer (IR.AnyExpr IR.// Meta) m, IR.MonadRef m) => NodeRef -> m (Maybe NodeMeta)
 readMeta ref = IR.getLayer @Meta ref
 
+getNodeMeta :: GraphOp m => NodeId -> m (Maybe NodeMeta)
+getNodeMeta = ASTRead.getASTRef >=> readMeta
+
 writeMeta :: (IR.Writer IR.Layer (IR.AnyExpr IR.// Meta) m, IR.MonadRef m) => NodeRef -> NodeMeta -> m ()
 writeMeta ref newMeta = IR.putLayer @Meta ref $ Just newMeta
 

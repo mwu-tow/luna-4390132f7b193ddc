@@ -869,58 +869,68 @@ spec = around withChannels $ parallel $ do
         it "adds one node to sequence" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
+                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" def
-                Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-            withResult res $ \nodeSeq -> do
-                nodeSeq `shouldMatchList` [u1]
+                seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
+                return (seq, none ^. Node.nodeId)
+            withResult res $ \(nodeSeq, noneId) -> do
+                nodeSeq `shouldMatchList` [noneId, u1]
         it "adds three nodes in line" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
+                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (20, 10)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (30, 10)) False def
-                Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-            withResult res $ \nodeSeq -> do
-                nodeSeq `shouldMatchList` [u1, u2, u3]
+                seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
+                return (seq, none ^. Node.nodeId)
+            withResult res $ \(nodeSeq, noneId) -> do
+                nodeSeq `shouldMatchList` [noneId, u1, u2, u3]
         it "adds three nodes in reverse order" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
+                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (30, 10)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (20, 10)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (10, 10)) False def
-                Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-            withResult res $ \nodeSeq -> do
-                nodeSeq `shouldMatchList` [u3, u2, u1]
+                seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
+                return (seq, none ^. Node.nodeId)
+            withResult res $ \(nodeSeq, noneId) -> do
+                nodeSeq `shouldMatchList` [noneId, u3, u2, u1]
         it "updates sequence after node removal" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
+                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (10, 30)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (10, 20)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.removeNodes top [u2]
-                Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-            withResult res $ \nodeSeq -> do
-                nodeSeq `shouldMatchList` [u3, u1]
+                seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
+                return (seq, none ^. Node.nodeId)
+            withResult res $ \(nodeSeq, noneId) -> do
+                nodeSeq `shouldMatchList` [noneId, u3, u1]
         it "updates sequence after node meta update" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
             u3 <- mkUUID
             res <- evalEmp env $ do
+                [none] <- Graph.getNodes top
                 Graph.addNode top u1 "1" $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.addNode top u2 "2" $ NodeMeta (Position.fromTuple (10, 20)) False def
                 Graph.addNode top u3 "3" $ NodeMeta (Position.fromTuple (10, 30)) False def
                 Graph.setNodeMeta top u3 $ NodeMeta (Position.fromTuple (10, 10)) False def
                 Graph.setNodeMeta top u2 $ NodeMeta (Position.fromTuple (20, 30)) False def
                 Graph.setNodeMeta top u1 $ NodeMeta (Position.fromTuple (30, 20)) False def
-                Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
-            withResult res $ \nodeSeq -> do
-                nodeSeq `shouldMatchList` [u3, u2, u1]
+                seq <- Graph.withGraph top $ runASTOp $ GraphBuilder.getNodeIdSequence
+                return (seq, none ^. Node.nodeId)
+            withResult res $ \(nodeSeq, noneId) -> do
+                nodeSeq `shouldMatchList` [noneId, u3, u2, u1]
         it "adds one node inside lambda" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
