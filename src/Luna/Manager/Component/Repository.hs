@@ -30,16 +30,18 @@ import Filesystem.Path.CurrentOS (encodeString)
 --        - We should keep sha of whole yaml and keep it separate on server, so yamls could be cached locally and we can check if they are up to date with VERY low bandwich
 
 -- === Definition === --
+data AppType = BatchApp | GuiApp deriving (Show, Generic, Eq)
+
 
 -- Core
-data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]     } deriving (Show, Generic, Eq)
-data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap } deriving (Show, Generic, Eq)
-data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: URIPath    } deriving (Show, Generic, Eq)
-data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version    } deriving (Show, Generic, Eq)
+data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                          } deriving (Show, Generic, Eq)
+data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap, _appType :: AppType } deriving (Show, Generic, Eq)
+data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: URIPath                         } deriving (Show, Generic, Eq)
+data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                         } deriving (Show, Generic, Eq)
 type VersionMap    = Map Version (Map SysDesc PackageDesc)
 
 -- Helpers
-data ResolvedPackage = ResolvedPackage { _header :: PackageHeader, _desc :: PackageDesc } deriving (Show, Generic, Eq)
+data ResolvedPackage = ResolvedPackage { _header :: PackageHeader, _desc :: PackageDesc, _resolvedAppType :: AppType } deriving (Show, Generic, Eq)
 
 makeLenses ''Repo
 makeLenses ''Package
@@ -50,7 +52,10 @@ makeLenses ''ResolvedPackage
 -- === Utils === --
 
 lookupPackage :: Repo -> PackageHeader -> Maybe ResolvedPackage
-lookupPackage repo h = ResolvedPackage h <$> repo ^? packages . ix (h ^. name) . versions . ix (h ^. version) . ix currentSysDesc
+lookupPackage repo h = do
+    des <- repo ^? packages . ix (h ^. name) . versions . ix (h ^. version) . ix currentSysDesc
+    apptype <- repo ^? packages . ix (h ^. name) . appType
+    return $ ResolvedPackage h des apptype
 
 resolveSingleLevel :: Repo -> PackageDesc -> ([PackageHeader], [ResolvedPackage])
 resolveSingleLevel repo desc = partitionEithers $ zipWith combine directSubDeps directSubPkgs where
@@ -70,10 +75,12 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
 -- === Instances === --
 
 -- JSON
+instance ToJSON   AppType        where toEncoding = lensJSONToEncoding . show; toJSON = lensJSONToJSON . show
 instance ToJSON   Repo           where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Package        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc    where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageHeader  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
+instance FromJSON AppType        where parseJSON  = lensJSONParse 
 instance FromJSON Repo           where parseJSON  = lensJSONParse
 instance FromJSON Package        where parseJSON  = lensJSONParse
 instance FromJSON PackageDesc    where parseJSON  = lensJSONParse
@@ -119,6 +126,6 @@ getRepo = do
 -- === Instances === --
 
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig RepoConfig sys arch m where
-    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://s3-us-west-2.amazonaws.com/packages-luna/config.yaml"
+    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://s3-us-west-2.amazonaws.com/packages-luna/config2.yaml"
                                             , _cachedRepo = Nothing
                                             }

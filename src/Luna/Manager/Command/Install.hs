@@ -35,16 +35,16 @@ import Luna.Manager.Archive
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 -- FIXME: Remove it as fast as we upload config yaml to the server
-hardcodedRepo :: Repo
-hardcodedRepo = Repo defpkgs ["studio"] where
-    defpkgs = mempty & at "lib1"         .~ Just (Package "lib1 synopsis"     $ fromList [ (Version 1 0 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc mempty "path")] )])
-                     & at "luna-studio"  .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
-                                                                                         , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
-                                                                                         , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
-                                                                                         ])
-
-                     & at "luna"         .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
-                     & at "luna-manager" .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
+-- hardcodedRepo :: Repo
+-- hardcodedRepo = Repo defpkgs ["studio"] where
+--     defpkgs = mempty & at "lib1"         .~ Just (Package "lib1 synopsis"     $ fromList [ (Version 1 0 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc mempty "path")] )])
+--                      & at "luna-studio"  .~ Just (Package "studio synopsis"   $ fromList [ (Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+--                                                                                          , (Version 1 0 0 (Just $ RC 6), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+--                                                                                          , (Version 1 1 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 Nothing)] "path")] )
+--                                                                                          ])
+--
+--                      & at "luna"         .~ Just (Package "compiler synopsis" $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
+--                      & at "luna-manager" .~ Just (Package "manager synopsis"  $ fromList [(Version 1 0 0 (Just $ RC 5), fromList [(SysDesc Linux X64, PackageDesc [PackageHeader "lib1" (Version 1 0 0 (Just $ RC 5))] "path")] )])
 
 
 
@@ -54,10 +54,11 @@ hardcodedRepo = Repo defpkgs ["studio"] where
 
 -- === Definition === --
 
-data InstallConfig = InstallConfig { _defaultConfPath :: FilePath
-                                   , _defaultBinPath  :: FilePath
-                                   , _localName       :: Text
-                                   , _packageBinPath  :: FilePath
+data InstallConfig = InstallConfig { _defaultConfPath     :: FilePath
+                                   , _defaultBinPathBatchApp :: FilePath
+                                   , _defaultBinPathGuiApp   :: FilePath
+                                   , _localName           :: Text
+                                   , _packageBinPath      :: FilePath
                                    }
 makeLenses ''InstallConfig
 
@@ -82,19 +83,22 @@ mkCamelCaseName txt = convert $ goHead (convert txt) where
 
 instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
     defaultHostConfig = return $ InstallConfig
-        { _defaultConfPath = "~/.luna"
-        , _defaultBinPath  = "~/.luna-bin"
-        , _localName       = "local"
-        , _packageBinPath  = "bin"
+        { _defaultConfPath         = "~/.luna"
+        , _defaultBinPathBatchApp  = "~/.luna-bin"
+        , _defaultBinPathGuiApp    = "~/.luna-bin"
+        , _localName               = "local"
+        , _packageBinPath          = "bin"
         }
 
 instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & defaultBinPath .~ "/Applications"
+        reconfig cfg = cfg & defaultBinPathBatchApp .~ "~/.luna-bin"
+                           & defaultBinPathGuiApp   .~ "/Applications"
 
 instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & defaultBinPath .~ "C:\\Program Files"
+        reconfig cfg = cfg & defaultBinPathBatchApp .~ "%USERPROFILE%\\.luna-bin"
+                           & defaultBinPathGuiApp   .~ "C:\\Program Files"
 
 
 
@@ -121,13 +125,13 @@ executableNotFound = toException ExecutableNotFound
 
 type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
 
-prepareInstallPath :: MonadInstall m => FilePath -> Text -> Text -> m FilePath
-prepareInstallPath appPath appName appVersion = expand $ case currentHost of
+prepareInstallPath :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m FilePath
+prepareInstallPath appType appPath appName appVersion = expand $ case currentHost of
     Linux   -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
     Windows -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
-    Darwin  -> case appName of
-        "luna-studio" -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
-        "luna"        -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+    Darwin  -> case appType of
+        GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
+        BatchApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
 
 
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> m ()
@@ -139,8 +143,8 @@ downloadAndUnpack pkgPath installPath = do
     Shelly.shelly $ copyDir unpacked installPath
 
 
-postInstallation :: MonadInstall m => FilePath -> Text -> Text -> m()
-postInstallation installPath binPath appName = do
+postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
+postInstallation appType installPath binPath appName = do
     home <- getHomePath
     case currentHost of
         Linux -> do
@@ -158,12 +162,12 @@ postInstallation installPath binPath appName = do
             exportPath (parent localBin) shell -- rename export because it is not export to env
         Darwin  -> do
             let localBin      = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
-                resourcesBin = case appName of
-                    "luna-studio" -> installPath </> (fromText (mkSystemPkgName appName))
-                    "luna"        -> installPath </> "bin" </> (fromText (mkSystemPkgName appName))
-            currentBin <- case appName of
-                "luna-studio" -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
-                "luna"        -> expand $ (fromText binPath) </> "bin" </> (fromText (mkSystemPkgName appName))
+                resourcesBin = case appType of
+                    GuiApp   -> installPath </> (fromText (mkSystemPkgName appName))
+                    BatchApp -> installPath </> "bin" </> (fromText (mkSystemPkgName appName))
+            currentBin <- case appType of
+                GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
+                BatchApp -> expand $ (fromText binPath) </> "bin" </> (fromText (mkSystemPkgName appName))
             Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
             createSymLink resourcesBin currentBin
             createSymLink currentBin localBin
@@ -175,9 +179,9 @@ postInstallation installPath binPath appName = do
 
 installApp :: MonadInstall m => Text -> ResolvedPackage -> m ()
 installApp binPath package = do
-    installPath <- prepareInstallPath (convert binPath)  ((package ^. header) ^. name) $ showPretty ((package ^. header) ^. version)
+    installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  ((package ^. header) ^. name) $ showPretty ((package ^. header) ^. version)
     downloadAndUnpack ((package ^. desc) ^. path) installPath
-    postInstallation installPath binPath  ((package ^. header) ^. name)
+    postInstallation (package ^. resolvedAppType) installPath binPath  ((package ^. header) ^. name)
 
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
@@ -199,14 +203,17 @@ runInstaller opts = do
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
     installConfig <- get @InstallConfig
+    let pkgInstallDefPath = case (appPkg ^. appType) of
+            GuiApp -> installConfig ^. defaultBinPathGuiApp
+            BatchApp -> installConfig ^. defaultBinPathBatchApp
     binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question "Select installation path" plainTextReader
-        & defArg .~ Just (toTextIgnore (installConfig ^. defaultBinPath)) --TODO uzyć toText i złapać tryRight'
+        & defArg .~ Just (toTextIgnore pkgInstallDefPath) --TODO uzyć toText i złapać tryRight'
 
     let appsToInstall = filter (( <$> ((^. name) <$> (^. header))) (`elem` (repo ^.apps))) pkgsToInstall
-    installPath <- prepareInstallPath (convert binPath) appName appVersion
+    installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
     downloadAndUnpack (appPkgDesc ^. path) installPath
-    postInstallation installPath binPath  appName
+    postInstallation (appPkg ^. appType) installPath binPath  appName
     mapM_ (installApp binPath) appsToInstall
 
 
