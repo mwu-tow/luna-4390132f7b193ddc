@@ -52,8 +52,11 @@ createSymLink src dst = liftIO $ System.createFileLink (encodeString src) (encod
 
 copyDir :: Shelly.MonadSh m => FilePath -> FilePath -> m ()-- copy the content of the source directory
 copyDir src dst = do
-    listedDirectory <- Shelly.ls src
-    mapM_ (flip Shelly.cp_r dst) listedDirectory
+    isDir <- Shelly.test_d src
+    if isDir then do
+        listedDirectory <- Shelly.ls src
+        mapM_ (flip Shelly.cp_r dst) listedDirectory
+    else Shelly.cp src dst
 
 -- === Instances === --
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m where
