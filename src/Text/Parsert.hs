@@ -24,7 +24,9 @@ import Data.Foldable (asum)
 type family Error (m :: * -> *) :: *
 
 class Monad m => MonadThrowParser m where
-    throw :: forall a. Error m -> m a
+    throw     :: forall a.           Error m  -> m a
+    throwMany :: forall a .NonEmpty (Error m) -> m a
+    throw = throwMany . pure
 
 class Monad m => MonadErrorBuilder t m e where
     buildError :: t -> m e
@@ -34,9 +36,10 @@ type MonadErrorParser t m = (MonadThrowParser m, MonadErrorBuilder t m (Error m)
 
 -- === Utils === --
 
-raise :: MonadErrorParser t m => t -> m a
-raise = buildError >=> throw
-
+raise     :: MonadErrorParser t m =>          t -> m a
+raiseMany :: MonadErrorParser t m => NonEmpty t -> m a
+raise     = throw     <=< buildError
+raiseMany = throwMany <=< mapM buildError
 
 -- === Primitive errors === --
 
@@ -56,7 +59,8 @@ descibedError' = descibedError . convert
 
 type instance Error (StateT s m) = Error m
 instance MonadThrowParser m => MonadThrowParser (StateT s m) where
-    throw = lift . throw
+    throw     = lift . throw
+    throwMany = lift . throwMany
 
 
 
@@ -128,9 +132,12 @@ instance {-# OVERLAPPABLE #-} MonadCatchParser m
 type family Token (m :: * -> *) :: *
 
 class Monad m => MonadTokenParser m where
-    lookupToken :: m (Maybe (Token m))
-    default lookupToken :: (m ~ t m', Token m' ~ Token (t m'), MonadTokenParser m', MonadTrans t, Monad m') => m (Maybe (Token m))
-    lookupToken = lift lookupToken
+    getNextToken  :: m (Maybe (Token m))
+    viewNextToken :: m (Maybe (Token m))
+    default getNextToken  :: (m ~ t m', Token m' ~ Token (t m'), MonadTokenParser m', MonadTrans t, Monad m') => m (Maybe (Token m))
+    default viewNextToken :: (m ~ t m', Token m' ~ Token (t m'), MonadTokenParser m', MonadTrans t, Monad m') => m (Maybe (Token m))
+    getNextToken  = lift getNextToken
+    viewNextToken = lift viewNextToken
 
 instance {-# OVERLAPPABLE #-} (Monad (t m), MonadTrans t, Token m ~ Token (t m), MonadTokenParser m)
       => MonadTokenParser (t m)
@@ -139,7 +146,7 @@ instance {-# OVERLAPPABLE #-} (Monad (t m), MonadTrans t, Token m ~ Token (t m),
 -- === Utils === --
 
 takeToken :: (MonadTokenParser m, MonadErrorParser EmptyStreamError m) => m (Token m)
-takeToken = maybe (raise EmptyStreamError) return =<< lookupToken
+takeToken = maybe (raise EmptyStreamError) return =<< getNextToken
 
 anyToken :: (MonadTokenParser m, MonadErrorParser EmptyStreamError m, MonadProgressParser m) => m (Token m)
 anyToken = takeToken <* setProgress
@@ -156,10 +163,12 @@ notToken = satisfy . (/=)
 tokens :: (MonadTokenParser m, MonadProgressParser m, Alternative m, Eq (Token m), MonadErrorParser SatisfyError m, MonadErrorParser EmptyStreamError m) => [Token m] -> m [Token m]
 tokens = try . mapM token
 
-satisfy :: (MonadTokenParser m, MonadProgressParser m, Alternative m, MonadErrorParser SatisfyError m, MonadErrorParser EmptyStreamError m) => (Token m -> Bool) -> m (Token m)
-satisfy f = takeToken >>= \tok -> if f tok
+satisfy, satisfyNot :: (MonadTokenParser m, MonadProgressParser m, Alternative m, MonadErrorParser SatisfyError m, MonadErrorParser EmptyStreamError m) => (Token m -> Bool) -> m (Token m)
+satisfyNot = satisfy . fmap not
+satisfy f  = takeToken >>= \tok -> if f tok
     then tok <$ setProgress
     else raise SatisfyError
+
 
 notFollowedBy :: (MonadTokenParser m, MonadProgressParser m, Alternative m, MonadErrorParser SatisfyError m, MonadErrorParser EmptyStreamError m, MonadCatchParser m) => m a -> m ()
 notFollowedBy m = catch m >>= \case
@@ -198,7 +207,7 @@ instance Semigroup Offset where (<>)   = (+)
 
 type instance Token (StateT Offset m) = Token m
 instance MonadTokenParser m => MonadTokenParser (StateT Offset m) where
-    lookupToken = modify_ @Offset succ >> lift lookupToken
+    getNextToken = modify_ @Offset succ >> lift getNextToken
 
 
 
@@ -233,7 +242,8 @@ listStream = Stream List.uncons
 
 type instance Token (StateT (Stream s) m) = Item s
 instance Monad m => MonadTokenParser (StateT (Stream s) m) where
-    lookupToken = modify @Stream go where
+    viewNextToken = fmap fst . splitStream <$> get @Stream
+    getNextToken = modify @Stream go where
         go s = case splitStream s of
             Nothing     -> (Nothing, s)
             Just (t,s') -> (Just t, s')
@@ -286,8 +296,8 @@ instance MonadProgressParser m => MonadProgressParser (FailParser e m) where
         when (isLeft a) unsetProgress
         return a
 
-instance Monad m => MonadCatchParser (FailParser e m) where catch = failParser . fmap Right . runFailParser
-instance Monad m => MonadThrowParser (FailParser e m) where throw = failParser . pure . Left . pure
+instance Monad m => MonadCatchParser (FailParser e m) where catch     = failParser . fmap Right . runFailParser
+instance Monad m => MonadThrowParser (FailParser e m) where throwMany = failParser . pure . Left
 
 
 
@@ -331,7 +341,8 @@ instance MonadProgressParser IO where
     try         = id
 
 instance MonadThrowParser IO where
-    throw = fail . show
+    throwMany = fail . show
+    throw     = fail . show
 
 
 
@@ -348,7 +359,8 @@ instance MonadProgressParser Identity where
     try         = id
 
 instance MonadThrowParser Identity where
-    throw = error . show
+    throwMany = error . show
+    throw     = error . show
 
 
 
@@ -439,7 +451,7 @@ execHistoryRegister = execDefStateT
 
 type instance Token (StateT (History tok) m) = Token m
 instance (MonadTokenParser m, tok ~ Token m) => MonadTokenParser (StateT (History tok) m) where
-    lookupToken = withJustM (lift lookupToken) $ \tok -> Just tok <$ modify_ @History (wrapped %~ (tok:))
+    getNextToken = withJustM (lift getNextToken) $ \tok -> Just tok <$ modify_ @History (wrapped %~ (tok:))
 
 instance (Show tok) => Show (History tok) where
        showsPrec d (History toks) = showParen' d $
@@ -546,10 +558,10 @@ runTest5 = evalBacktracker
          $ evalOffsetRegister
          $ ((token 'b' *> (token 'x' <|> pure 'y') *> token 'z') <|> token 'b')
 
-main :: IO ()
-main = do
-    print =<< runTest2
-    print "---"
+-- main :: IO ()
+-- main = do
+--     print =<< runTest2
+--     print "---"
 
 --
 -- --
