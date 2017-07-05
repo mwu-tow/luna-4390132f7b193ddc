@@ -26,7 +26,7 @@ import qualified Data.Text as Text
 
 import qualified Data.Yaml as Yaml
 
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, basename, hasExtension)
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, basename, hasExtension, parent)
 import Shelly.Lifted (toTextIgnore)
 import qualified Shelly.Lifted as Shelly
 import Luna.Manager.Archive
@@ -123,15 +123,17 @@ type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, Mo
 
 prepareInstallPath :: MonadInstall m => FilePath -> Text -> Text -> m FilePath
 prepareInstallPath appPath appName appVersion = expand $ case currentHost of
-    Linux   -> appPath </> convert appName </> convert appVersion
-    Windows -> appPath </> convert appName </> convert appVersion
-    Darwin  -> appPath </> convert (appName <> ".app") </> "Contents" </> "Resources" </> convert appVersion
+    Linux   -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+    Windows -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+    Darwin  -> case appName of
+        "luna-studio" -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
+        "luna"        -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+
 
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> m ()
 downloadAndUnpack pkgPath installPath = do
     Shelly.shelly $ Shelly.mkdir_p installPath
     tmp <- getTmpPath
-    print $ pkgPath
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
     Shelly.shelly $ copyDir unpacked installPath
@@ -146,27 +148,23 @@ postInstallation installPath binPath appName = do
             execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
             appimage <- tryJust executableNotFound $ listToMaybe execList
             makeExecutable appimage
-            currentAppimageDir <- expand $ (fromText binPath) </> "bin"
-            currentAppimage <- expand $ (fromText binPath) </> "bin" </> (fromText appName)
-            let localBinDir = home </> ".local/bin" -- TODO: moe to state and use the same code for windows
-                localBin = home </> ".local/bin" </> (fromText appName)
-            Shelly.shelly $ Shelly.mkdir_p localBinDir
-            print $ show appimage
-            print $ show currentAppimage
-            print $ show localBin
-            Shelly.shelly $ Shelly.mkdir_p currentAppimageDir
+            currentAppimage <- expand $ (fromText binPath) </> "bin" </> (fromText (mkSystemPkgName appName))
+            let localBin = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
+            Shelly.shelly $ Shelly.mkdir_p $ parent localBin
+            Shelly.shelly $ Shelly.mkdir_p $ parent currentAppimage
             createSymLink appimage currentAppimage
             createSymLink currentAppimage localBin
             shell <- checkShell
-            exportPath localBinDir shell -- rename export because it is not export to env
+            exportPath (parent localBin) shell -- rename export because it is not export to env
         Darwin  -> do
-            let resourcesBin  = installPath </> (fromText appName)
-                localBinDir   = home </> ".local/bin"
-                localBin      = home </> ".local/bin" </> (fromText appName)
-            currentBinDir <- expand $ (fromText binPath) </> (fromText (Text.append appName ".app")) </> (fromText "Contents") </> (fromText "MacOS")
-            currentBin    <- expand $ (fromText binPath) </> (fromText (Text.append appName ".app")) </> (fromText "Contents") </> (fromText "MacOS") </> (fromText appName)
-
-            Shelly.shelly $ Shelly.mkdir_p currentBinDir
+            let localBin      = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
+                resourcesBin = case appName of
+                    "luna-studio" -> installPath </> (fromText (mkSystemPkgName appName))
+                    "luna"        -> installPath </> "bin" </> (fromText (mkSystemPkgName appName))
+            currentBin <- case appName of
+                "luna-studio" -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
+                "luna"        -> expand $ (fromText binPath) </> "bin" </> (fromText (mkSystemPkgName appName))
+            Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
             createSymLink resourcesBin currentBin
             createSymLink currentBin localBin
 
@@ -177,9 +175,9 @@ postInstallation installPath binPath appName = do
 
 installApp :: MonadInstall m => Text -> ResolvedPackage -> m ()
 installApp binPath package = do
-    installPath <- prepareInstallPath (convert binPath) (mkSystemPkgName ((package ^. header) ^. name)) $ showPretty ((package ^. header) ^. version)
+    installPath <- prepareInstallPath (convert binPath)  ((package ^. header) ^. name) $ showPretty ((package ^. header) ^. version)
     downloadAndUnpack ((package ^. desc) ^. path) installPath
-    postInstallation installPath binPath (mkSystemPkgName ((package ^. header) ^. name))
+    postInstallation installPath binPath  ((package ^. header) ^. name)
 
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
@@ -206,9 +204,9 @@ runInstaller opts = do
         & defArg .~ Just (toTextIgnore (installConfig ^. defaultBinPath)) --TODO uzyć toText i złapać tryRight'
 
     let appsToInstall = filter (( <$> ((^. name) <$> (^. header))) (`elem` (repo ^.apps))) pkgsToInstall
-    installPath <- prepareInstallPath (convert binPath) (mkSystemPkgName appName) appVersion
+    installPath <- prepareInstallPath (convert binPath) appName appVersion
     downloadAndUnpack (appPkgDesc ^. path) installPath
-    postInstallation installPath binPath (mkSystemPkgName appName)
+    postInstallation installPath binPath  appName
     mapM_ (installApp binPath) appsToInstall
 
 
