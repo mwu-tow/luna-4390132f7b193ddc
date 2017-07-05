@@ -38,7 +38,7 @@ unpackTarGzUnix file = do
     let dir = directory file
         name = basename file
     Shelly.cd dir
-    Shelly.cmd  "tar" "-xvpzf" file "--strip=1" name
+    Shelly.cmd  "tar" "-xpzf" file "--strip=1" name
     return name
 
 -- TODO: download unzipper if missing
