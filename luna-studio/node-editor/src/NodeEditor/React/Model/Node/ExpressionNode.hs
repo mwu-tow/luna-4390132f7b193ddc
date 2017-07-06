@@ -37,9 +37,10 @@ import           NodeEditor.State.Collaboration           (ColorId)
 data ExpressionNode = ExpressionNode { _nodeLoc'                :: NodeLoc
                                      , _name                    :: Maybe Text
                                      , _expression              :: Text
-                                     , _canEnter                :: Bool
                                      , _inPorts                 :: InPortTree InPort
                                      , _outPorts                :: OutPortTree OutPort
+                                     , _acceptsArguments        :: Bool
+                                     , _canEnter                :: Bool
                                      , _position                :: Position
                                      , _defaultVisualizer       :: Maybe Visualizer
                                      , _visualizationsEnabled   :: Bool
@@ -89,9 +90,10 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- nodeLoc               -} (NodeLoc path $ n ^. Empire.nodeId)
         {- name                  -} (n ^. Empire.name)
         {- expression            -} (n ^. Empire.expression)
-        {- canEnter              -} (n ^. Empire.canEnter)
         {- inPorts               -} (convert <$> n ^. Empire.inPorts)
         {- outPorts              -} (convert <$> n ^. Empire.outPorts)
+        {- acceptsArguments      -} (n ^. Empire.acceptsArguments)
+        {- canEnter              -} (n ^. Empire.canEnter)
         {- position              -} (n ^. Empire.position)
         {- defaultVisualizer     -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
         {- visualizationsEnabled -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
@@ -105,14 +107,15 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
 
 instance Convertible ExpressionNode Empire.ExpressionNode where
     convert n = Empire.ExpressionNode
-        {- exprNodeId -} (n ^. nodeId)
-        {- expression -} (n ^. expression)
-        {- name       -} (n ^. name)
-        {- code       -} (n ^. code)
-        {- inPorts    -} (convert <$> n ^. inPorts)
-        {- outPorts   -} (convert <$> n ^. outPorts)
-        {- nodeMeta   -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
-        {- canEnter   -} (n ^. canEnter)
+        {- exprNodeId       -} (n ^. nodeId)
+        {- expression       -} (n ^. expression)
+        {- name             -} (n ^. name)
+        {- code             -} (n ^. code)
+        {- inPorts          -} (convert <$> n ^. inPorts)
+        {- outPorts         -} (convert <$> n ^. outPorts)
+        {- acceptsArguments -} (n ^. acceptsArguments)
+        {- nodeMeta         -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
+        {- canEnter         -} (n ^. canEnter)
 
 instance Default Mode where def = Collapsed
 

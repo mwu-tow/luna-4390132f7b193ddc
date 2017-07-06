@@ -43,12 +43,12 @@ startPortDragOrConnect evt portRef mode = do
     mayInputNode <- getInputNode (portRef ^. nodeLoc)
     case (mayInputNode, portRef) of
         (Just _, OutPortRef' inPortRef) -> do
-            isPhantom <- addPhantomPortIfPossibleAndNeeded inPortRef
-            startPortDrag mousePos inPortRef isPhantom mode
+            isArgumentConstructor <- addArgumentConstructorIfPossibleAndNeeded inPortRef
+            startPortDrag mousePos inPortRef isArgumentConstructor mode
         _ -> startConnecting mousePos portRef Nothing False mode
 
-addPhantomPortIfPossibleAndNeeded :: OutPortRef -> Command State Bool
-addPhantomPortIfPossibleAndNeeded portRef = do
+addArgumentConstructorIfPossibleAndNeeded :: OutPortRef -> Command State Bool
+addArgumentConstructorIfPossibleAndNeeded portRef = do
     let nid = portRef ^. nodeLoc
         pid = portRef ^. srcPortId
     getInputNode nid >>= \case

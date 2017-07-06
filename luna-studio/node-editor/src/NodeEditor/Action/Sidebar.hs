@@ -23,10 +23,10 @@ import           NodeEditor.React.Model.Port             (AnyPortRef (OutPortRef
 import qualified NodeEditor.React.Model.Port             as Port
 import           NodeEditor.React.Model.Sidebar          (portPositionInInputSidebar)
 import           NodeEditor.State.Action                 (Action (begin, continue, end, update), Connect, Mode (Click, Drag),
-                                                          PortDrag (PortDrag), connectIsPortPhantom, connectMode, connectSourcePort,
-                                                          connectStartPos, portDragActPortRef, portDragAction, portDragIsPortPhantom,
-                                                          portDragMode, portDragPortStartPosInSidebar, portDragStartPortRef,
-                                                          portDragStartPos)
+                                                          PortDrag (PortDrag), connectIsArgumentConstructor, connectMode, connectSourcePort,
+                                                          connectStartPos, portDragActPortRef, portDragAction,
+                                                          portDragIsArgumentConstructor, portDragMode, portDragPortStartPosInSidebar,
+                                                          portDragStartPortRef, portDragStartPos)
 import           NodeEditor.State.Global                 (State)
 import           React.Flux                              (MouseEvent)
 
@@ -35,7 +35,7 @@ instance Action (Command State) PortDrag where
     begin      = beginActionWithKey    portDragAction
     continue   = continueActionWithKey portDragAction
     update     = updateActionWithKey   portDragAction
-    end action = if action ^. portDragIsPortPhantom
+    end action = if action ^. portDragIsArgumentConstructor
         then do
             void $ localRemovePort $ action ^. portDragActPortRef
             removeActionFromState portDragAction
@@ -69,13 +69,13 @@ handleAppMove evt = do
     continue $ Connect.handleMove evt
 
 startPortDrag :: ScreenPosition -> OutPortRef -> Bool -> Mode -> Command State ()
-startPortDrag mousePos portRef isPhantom mode = do
+startPortDrag mousePos portRef isArgumentConstructor mode = do
     maySuccess <- runMaybeT $ do
         let portId  = portRef ^. PortRef.srcPortId
         portPos <- MaybeT $ fmap2 (flip portPositionInInputSidebar portId) getInputSidebarSize
         lift . setInputSidebarPortMode portRef $ Port.Moved portPos
-        lift . begin $ PortDrag mousePos portPos portRef portRef isPhantom mode
-    when (isNothing maySuccess && isPhantom) $ void $ localRemovePort portRef
+        lift . begin $ PortDrag mousePos portPos portRef portRef isArgumentConstructor mode
+    when (isNothing maySuccess && isArgumentConstructor) $ void $ localRemovePort portRef
 
 handleMove :: MouseEvent -> PortDrag -> Command State ()
 handleMove evt portDrag = do
@@ -112,10 +112,10 @@ finishPortDrag portDrag = do
     let portRef    = portDrag ^. portDragActPortRef
         orgPortRef = portDrag ^. portDragStartPortRef
         portId     = portRef ^. PortRef.srcPortId
-        isPhantom  = portDrag ^. portDragIsPortPhantom
+        isArgumentConstructor  = portDrag ^. portDragIsArgumentConstructor
     if portRef == orgPortRef then end portDrag else do
         setInputSidebarPortMode portRef Port.Normal
-        if isPhantom
+        if isArgumentConstructor
             then Batch.addPort portRef Nothing
             else Batch.movePort orgPortRef $ getPortNumber portId
         removeActionFromState portDragAction
@@ -123,11 +123,11 @@ finishPortDrag portDrag = do
 restoreConnect :: PortDrag -> Command State ()
 restoreConnect portDrag = do
     cancelPortDragUnsafe portDrag
-    Connect.startConnecting (portDrag ^. portDragStartPos) (OutPortRef' $ portDrag ^. portDragStartPortRef) Nothing (portDrag ^. portDragIsPortPhantom) (portDrag ^. portDragMode)
+    Connect.startConnecting (portDrag ^. portDragStartPos) (OutPortRef' $ portDrag ^. portDragStartPortRef) Nothing (portDrag ^. portDragIsArgumentConstructor) (portDrag ^. portDragMode)
 
 restorePortDrag :: NodeLoc -> Connect -> Command State ()
 restorePortDrag nodeLoc connect = when (connect ^. connectSourcePort . PortRef.nodeLoc == nodeLoc) $ do
     Connect.stopConnectingUnsafe connect
     case connect ^. connectSourcePort of
-        OutPortRef' sourcePort -> startPortDrag (connect ^. connectStartPos) sourcePort (connect ^. connectIsPortPhantom) (connect ^. connectMode)
+        OutPortRef' sourcePort -> startPortDrag (connect ^. connectStartPos) sourcePort (connect ^. connectIsArgumentConstructor) (connect ^. connectMode)
         _                      -> return ()

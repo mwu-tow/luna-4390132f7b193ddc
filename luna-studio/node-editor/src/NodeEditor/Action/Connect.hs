@@ -38,7 +38,7 @@ import           NodeEditor.React.Model.Node                (Node (Expression))
 import           NodeEditor.React.Model.Node.ExpressionNode (isCollapsed)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), Connect (Connect), Mode (Click, Drag),
-                                                             connectAction, connectIsPortPhantom, connectMode, connectSnappedPort,
+                                                             connectAction, connectIsArgumentConstructor, connectMode, connectSnappedPort,
                                                              connectSourcePort, connectStartPos)
 import           NodeEditor.State.Global                    (State, actions, currentConnectAction)
 import           React.Flux                                 (MouseEvent)
@@ -50,7 +50,7 @@ instance Action (Command State) Connect where
     update       = updateActionWithKey   connectAction
     end action   = do
         stopConnectingUnsafe action
-        when (action ^. connectIsPortPhantom) $ case action ^. connectSourcePort of
+        when (action ^. connectIsArgumentConstructor) $ case action ^. connectSourcePort of
             OutPortRef' outPortRef -> void $ localRemovePort outPortRef
             _                      -> return ()
 
@@ -65,7 +65,7 @@ handleConnectionMouseDown evt connId modifiedEnd = do
         startConnecting mousePos portRef (Just connId) False Drag
 
 startConnecting :: ScreenPosition -> AnyPortRef -> Maybe ConnectionId -> Bool -> Mode -> Command State ()
-startConnecting screenMousePos anyPortRef mayModifiedConnId isPortPhantom connectMode' = do
+startConnecting screenMousePos anyPortRef mayModifiedConnId isArgumentConstructor connectMode' = do
     let nodeLoc = anyPortRef ^. PortRef.nodeLoc
         portId  = anyPortRef ^. PortRef.portId
     mousePos <- translateToWorkspace screenMousePos
@@ -80,7 +80,7 @@ startConnecting screenMousePos anyPortRef mayModifiedConnId isPortPhantom connec
         then lift $ when (connectMode' == Drag) $ startNodeDrag mousePos nodeLoc True
         else do
             halfConnectionModel <- MaybeT $ createHalfConnectionModel anyPortRef mousePos
-            let action = Connect screenMousePos anyPortRef (isJust mayModifiedConnId) Nothing isPortPhantom connectMode'
+            let action = Connect screenMousePos anyPortRef (isJust mayModifiedConnId) Nothing isArgumentConstructor connectMode'
             lift $ do
                 withJust mayModifiedConnId removeConnection
                 begin action
@@ -89,7 +89,7 @@ startConnecting screenMousePos anyPortRef mayModifiedConnId isPortPhantom connec
                     withJust mayModifiedConnId $ \connId ->
                         NodeEditor.connections . at connId .= Nothing
                     NodeEditor.halfConnections .= [halfConnectionModel]
-    when (isNothing maySuccess && isPortPhantom) $ case anyPortRef of
+    when (isNothing maySuccess && isArgumentConstructor) $ case anyPortRef of
         OutPortRef' outPortRef -> void $ localRemovePort outPortRef
         _                      -> return ()
 
@@ -133,7 +133,7 @@ stopConnectingUnsafe _ = do
 connectToPort :: AnyPortRef -> Connect -> Command State ()
 connectToPort dst action = do
     withJust (toValidEmpireConnection dst $ action ^. connectSourcePort) $ \newConn -> do
-        case (action ^. connectIsPortPhantom, action ^. connectSourcePort) of
+        case (action ^. connectIsArgumentConstructor, action ^. connectSourcePort) of
             (True, OutPortRef' outPortRef) -> do
                 void . localAddConnection outPortRef $ newConn ^. ConnectionAPI.dst
                 Batch.addPort outPortRef $ Just $ newConn ^. ConnectionAPI.dst

@@ -37,7 +37,7 @@ import           NodeEditor.React.View.ExpressionNode.Properties      (nodePrope
 import           NodeEditor.React.View.Field                          (multilineField_)
 import           NodeEditor.React.View.Monad                          (monads_)
 import           NodeEditor.React.View.Plane                          (planeMonads_, svgPlanes_)
-import           NodeEditor.React.View.Port                           (portExpanded_, portPhantom_, port_)
+import           NodeEditor.React.View.Port                           (argumentConstructor_, portExpanded_, port_)
 import           NodeEditor.React.View.Searcher                       (searcher_)
 import           NodeEditor.React.View.Style                          (errorMark_, selectionMark_)
 import qualified NodeEditor.React.View.Style                          as Style
@@ -227,7 +227,8 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
             else do
                 ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
                 forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ \port -> portExpanded_ ref nodeLoc port
-            portPhantom_ ref $ toAnyPortRef nodeLoc $ InPortId' [Arg $ countArgPorts n]
+            when (n ^. Node.acceptsArguments) $
+                argumentConstructor_ ref $ toAnyPortRef nodeLoc $ InPortId' [Arg $ countArgPorts n]
 
 nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, maySearcher, nodesWithVis, subgraphs) mempty

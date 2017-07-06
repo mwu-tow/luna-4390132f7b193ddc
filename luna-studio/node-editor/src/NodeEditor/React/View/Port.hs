@@ -269,15 +269,15 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
               ]
             ) mempty
 
-portPhantom_ :: Ref App -> AnyPortRef -> ReactElementM ViewEventHandler ()
-portPhantom_ ref portRef = do
+argumentConstructor_ :: Ref App -> AnyPortRef -> ReactElementM ViewEventHandler ()
+argumentConstructor_ ref portRef = do
     g_
-        [ "key"       $= "port-phantom"
-        , "className" $= Style.prefixFromList ["port", "port--i", "port--i--phantom"]
+        [ "key"       $= "argument-constructor"
+        , "className" $= Style.prefixFromList ["port", "port--i", "port--i--constructor"]
         ] $ do
         circle_
             [ "className" $= Style.prefix "port__shape"
-            , "key"       $= "phantom-shape"
+            , "key"       $= "shape"
             , "r"         $= jsShow2 3
             , "fill"      $= "gray"
             , "cy"        $= fromString (show (2 * gridSize) <> "px")
@@ -285,7 +285,7 @@ portPhantom_ ref portRef = do
         circle_
             ( handlers ref portRef ++
               [ "className" $= Style.prefix "port__select"
-              , "key"       $= "phantom-select"
+              , "key"       $= "select"
               , "r"         $= jsShow2 (lineHeight/1.5)
               , "cy"        $= fromString (show (2 * gridSize) <> "px")
               ]

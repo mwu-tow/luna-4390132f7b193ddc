@@ -142,8 +142,8 @@ toPosConnection src' dst' = PosConnection src' dst' <$> view srcPos <*> view dst
 instance Convertible Connection Empire.Connection where
     convert = Empire.Connection <$> view src <*> view dst
 
-portPhantomPosition :: ExpressionNode -> Position
-portPhantomPosition n = n ^. position & y %~ (+ 2 * gridSize)
+argumentConstructorPosition :: ExpressionNode -> Position
+argumentConstructorPosition n = n ^. position & y %~ (+ 2 * gridSize)
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of
