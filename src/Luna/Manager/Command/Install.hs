@@ -142,41 +142,86 @@ downloadAndUnpack pkgPath installPath = do
     unpacked <- unpackArchive pkg
     Shelly.shelly $ copyDir unpacked installPath
 
+linking :: MonadInstall m => FilePath -> FilePath -> FilePath -> m ()
+linking packageBin currentBin localBin = do
+    Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
+    Shelly.shelly $ Shelly.mkdir_p $ parent localBin
+    print $ show packageBin
+    print $ show currentBin
+    print $ show localBin
+    createSymLink packageBin currentBin
+    createSymLink currentBin localBin
+    shell <- checkShell
+    exportPath (parent localBin) shell -- rename export because it is not export to env
+
+runServices :: MonadInstall m => FilePath -> m ()
+runServices installPath = case currentHost of
+    Windows -> do
+        let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
+        Shelly.shelly $ runServicesWindows services
+    otherwise -> return ()
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
 postInstallation appType installPath binPath appName = do
     home <- getHomePath
     installConfig <- get @InstallConfig
-    case currentHost of
+    packageBin <- case currentHost of
         Linux -> do
-            --check bin dir in install path and symlink everything inside + chmod for linux
             execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
             appimage <- tryJust executableNotFound $ listToMaybe execList
             makeExecutable appimage
-            currentAppimage <- expand $ (fromText binPath) </> (installConfig ^. lunaBinPath)  </> (fromText (mkSystemPkgName appName))
-            let localBin = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
-            Shelly.shelly $ Shelly.mkdir_p $ parent localBin
-            Shelly.shelly $ Shelly.mkdir_p $ parent currentAppimage
-            createSymLink appimage currentAppimage
-            createSymLink currentAppimage localBin
-            shell <- checkShell
-            exportPath (parent localBin) shell -- rename export because it is not export to env
-        Darwin  -> do
-            let localBin      = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
-                resourcesBin = case appType of
-                    GuiApp   -> installPath </> (fromText (mkSystemPkgName appName))
-                    BatchApp -> installPath </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
-            currentBin <- case appType of
-                GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
-                BatchApp -> expand $ (fromText binPath) </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
-            Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
-            createSymLink resourcesBin currentBin
-            createSymLink currentBin localBin
+            return appimage
+        Darwin -> case appType of
+            GuiApp   -> return $ installPath </> (fromText (mkSystemPkgName appName))
+            BatchApp -> return $ installPath </> (fromText (mkSystemPkgName appName))
+        -- Windows -> return ()
+    currentBin <- case currentHost of
+        Linux -> expand $ (fromText binPath) </> (installConfig ^. lunaBinPath)  </> (fromText (mkSystemPkgName appName))
+        Darwin -> case appType of
+            GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
+            BatchApp -> expand $ (fromText binPath) </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
+        -- Windows -> return ()
+    localBin <- case currentHost of
+        Linux -> return $ home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
+        Darwin -> return $ "/usr/local/bin" </> (fromText appName)
+        -- Windows -> return ()
+    linking packageBin currentBin localBin
+    runServices installPath
 
-        Windows -> do
-            let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
-            Shelly.shelly $ runServicesWindows services
-            --copy shortcut to menu programs
+
+
+    -- case currentHost of
+    --     Linux -> do
+    --         --check bin dir in install path and symlink everything inside + chmod for linux
+    --         execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
+    --         appimage <- tryJust executableNotFound $ listToMaybe execList
+    --         makeExecutable appimage
+    --         currentAppimage <- expand $ (fromText binPath) </> (installConfig ^. lunaBinPath)  </> (fromText (mkSystemPkgName appName))
+    --         let localBin = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
+    --         Shelly.shelly $ Shelly.mkdir_p $ parent localBin
+    --         Shelly.shelly $ Shelly.mkdir_p $ parent currentAppimage
+    --         createSymLink appimage currentAppimage
+    --         createSymLink currentAppimage localBin
+    --         shell <- checkShell
+    --         exportPath (parent localBin) shell -- rename export because it is not export to env
+    --     Darwin  -> do
+    --         let localBin      = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
+    --             resourcesBin = case appType of
+    --                 GuiApp   -> installPath </> (fromText (mkSystemPkgName appName))
+    --                 BatchApp -> installPath </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
+    --         currentBin <- case appType of
+    --             GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
+    --             BatchApp -> expand $ (fromText binPath) </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
+    --         Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
+    --         createSymLink resourcesBin currentBin
+    --         createSymLink currentBin localBin
+    --         shell <- checkShell
+    --         exportPath (parent localBin) shell -- rename export because it is not export to env
+    --
+    --     Windows -> do
+    --         let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
+    --         Shelly.shelly $ runServicesWindows services
+    --         --copy shortcut to menu programs
 
 installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
 installApp opts package = do
