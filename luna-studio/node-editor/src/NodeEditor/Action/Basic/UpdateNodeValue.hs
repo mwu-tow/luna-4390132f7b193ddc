@@ -18,7 +18,7 @@ import           NodeEditor.State.Global                    (State)
 
 
 updateNodeValueAndVisualization :: NodeLoc -> NodeValue -> Command State ()
-updateNodeValueAndVisualization nl nv = case nv of
+updateNodeValueAndVisualization nl = \case
     NodeValue sv (Just (StreamDataPoint visVal)) -> do
         modifyExpressionNode nl $ value ?= ShortValue (Text.take 100 sv)
         let updateBackup (StreamBackup backup) = Just . StreamBackup $ visVal : backup
