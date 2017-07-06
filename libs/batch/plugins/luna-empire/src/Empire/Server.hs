@@ -109,9 +109,8 @@ startTCWorker :: Empire.CommunicationEnv -> MVar (GraphLocation, Graph, Bool) ->
 startTCWorker env reqs scopeVar = liftIO $ do
     (Scope std, symbolMap, cleanup) <- prepareStdlib
     putMVar scopeVar symbolMap
-    baseIntEnv <- Empire.defaultInterpreterEnv
-    let interpreterEnv = baseIntEnv & Empire.imports .~ std & Empire.cleanUp .~ cleanup
-    let pmState = interpreterEnv ^. Empire.graph . Graph.ast . Graph.pmState
+    pmState <- Graph.defaultPMState
+    let interpreterEnv = Empire.InterpreterEnv def def def undefined cleanup def std
     void $ Empire.runEmpire env interpreterEnv $ forever $ do
         (loc, g, flush) <- liftIO $ takeMVar reqs
         when flush
