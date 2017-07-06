@@ -30,38 +30,6 @@ getTypeRep tp = match tp $ \case
     Number _      -> return $ TCons "Number" []
     _             -> return TStar
 
-parenIf :: Bool -> String -> String
-parenIf False s = s
-parenIf True  s = "(" ++ s ++ ")"
-
-printCurrentFunction :: GraphOp m => m (Maybe (String, String))
-printCurrentFunction = do
-    mptr <- ASTRead.getCurrentASTPointer
-    mlam <- ASTRead.getCurrentASTTarget
-    forM ((,) <$> mptr <*> mlam) $ \(ptr, lam) -> do
-        header <- printFunctionHeader ptr
-        ret    <- printReturnValue lam
-        return (header, ret)
-
-printFunctionArguments :: GraphOp m => NodeRef -> m [String]
-printFunctionArguments lam = match lam $ \case
-    Grouped g   -> IR.source g >>= printFunctionArguments
-    Lam _args _ -> do
-        args' <- ASTDeconstruct.extractArguments lam
-        mapM printExpression args'
-
-printReturnValue :: GraphOp m => NodeRef -> m String
-printReturnValue lam = do
-    out' <- ASTRead.getLambdaOutputRef lam
-    printExpression out'
-
-printFunctionHeader :: GraphOp m => NodeRef -> m String
-printFunctionHeader function = match function $ \case
-    Unify l r -> do
-        name <- IR.source l >>= printExpression
-        args <- IR.source r >>= printFunctionArguments
-        return $ "def " ++ name ++ " " ++ unwords args ++ ":"
-
 instance ASTOpReq Graph m => Compactible t CompactStyle m where
     shouldBeCompact _ r = ASTRead.isGraphNode r
 

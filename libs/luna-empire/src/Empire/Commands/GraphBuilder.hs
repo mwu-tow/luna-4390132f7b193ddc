@@ -160,11 +160,7 @@ hasIO ref = IR.matchExpr ref $ \case
     _         -> return False
 
 getNodeSeq :: GraphOp m => m (Maybe NodeRef)
-getNodeSeq = do
-    lref    <- ASTRead.getCurrentASTTarget
-    case lref of
-        Just l -> ASTRead.getLambdaBodyRef l
-        _      -> preuse $ Graph.breadcrumbHierarchy . BH.body
+getNodeSeq = ASTRead.getCurrentASTTarget >>= ASTRead.getLambdaBodyRef
 
 getNodeIdSequence :: GraphOp m => m [NodeId]
 getNodeIdSequence = do
@@ -311,11 +307,7 @@ extractAppArgNames node = go [] node
             _       -> return []
 
 insideThisNode :: GraphOp m => NodeRef -> m Bool
-insideThisNode node = do
-    curr <- ASTRead.getCurrentASTTarget
-    return $ case curr of
-        Just n -> n == node
-        _      -> False
+insideThisNode node = (== node) <$> ASTRead.getCurrentASTTarget
 
 getPortsNames :: GraphOp m => NodeRef -> m [String]
 getPortsNames node = do
@@ -451,7 +443,7 @@ buildInputSidebarTypecheckUpdate nid = do
 
 buildInputSidebar :: GraphOp m => NodeId -> m API.InputSidebar
 buildInputSidebar nid = do
-    Just ref <- ASTRead.getCurrentASTTarget
+    ref      <- ASTRead.getCurrentASTTarget
     args     <- ASTDeconstruct.extractLamArguments ref
     argTrees <- zipWithM buildOutPortTree (pure . Projection <$> [0..]) args
     return $ API.InputSidebar nid argTrees
@@ -463,17 +455,17 @@ buildOutputSidebarTypecheckUpdate nid = do
 
 buildOutputSidebar :: GraphOp m => NodeId -> m API.OutputSidebar
 buildOutputSidebar nid = do
-    Just ref <- ASTRead.getCurrentASTTarget
-    out      <- ASTRead.getLambdaOutputRef ref
-    tp       <- followTypeRep out
-    state    <- getPortState  out
+    ref   <- ASTRead.getCurrentASTTarget
+    out   <- ASTRead.getLambdaOutputRef ref
+    tp    <- followTypeRep out
+    state <- getPortState  out
     return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing [])  $ Port [] "output" tp state
 
 getOutputSidebarInputs :: GraphOp m => NodeId -> m (Maybe (OutPortRef, InPortRef))
 getOutputSidebarInputs outputEdge = do
-    Just ref <- ASTRead.getCurrentASTTarget
-    out      <- ASTRead.getLambdaOutputRef ref
-    wholeIn  <- resolveInput out
+    ref     <- ASTRead.getCurrentASTTarget
+    out     <- ASTRead.getLambdaOutputRef ref
+    wholeIn <- resolveInput out
     return $ (, InPortRef (NodeLoc def outputEdge) []) <$> wholeIn
 
 nodeConnectedToOutput :: GraphOp m => m (Maybe NodeId)

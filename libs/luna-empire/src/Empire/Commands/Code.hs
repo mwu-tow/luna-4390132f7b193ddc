@@ -226,15 +226,10 @@ globalFileBlockStart = 14
 
 getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do
-    currentTgt <- ASTRead.getCurrentASTTarget
-    body       <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    case (currentTgt, body) of
-        (Nothing, Nothing) -> return globalFileBlockStart
-        (Nothing, Just b)  -> fromJust <$> getOffsetRelativeToFile b
-        (Just tgt, _)      -> do
-            Just defBegin <- getOffsetRelativeToFile tgt
-            off           <- getFirstNonLambdaOffset tgt
-            return $ defBegin <> off
+    tgt           <- ASTRead.getCurrentASTTarget
+    Just defBegin <- getOffsetRelativeToFile tgt
+    off           <- getFirstNonLambdaOffset tgt
+    return $ defBegin <> off
 
 getFirstNonLambdaOffset :: GraphOp m => NodeRef -> m Delta
 getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case

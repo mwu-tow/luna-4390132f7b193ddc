@@ -137,14 +137,15 @@ getASTPointer nodeId = do
         IR.Marked _m expr -> IR.source expr
         _                 -> return marked
 
-getCurrentASTPointer :: GraphOp m => m (Maybe NodeRef)
+getCurrentASTPointer :: GraphOp m => m NodeRef
 getCurrentASTPointer = do
-    marked <- getCurrentASTRef
-    forM marked $ \m -> IR.matchExpr m $ \case
-        IR.Marked _m expr -> IR.source expr
+    ref <- getCurrentASTRef
+    IR.matchExpr ref $ \case
+        IR.Marked _ expr -> IR.source expr
+        _                -> return ref
 
-getCurrentASTRef :: GraphOp m => m (Maybe NodeRef)
-getCurrentASTRef = Just <$> use (Graph.breadcrumbHierarchy . BH.self)
+getCurrentASTRef :: GraphOp m => m NodeRef
+getCurrentASTRef = use $ Graph.breadcrumbHierarchy . BH.self
 
 -- TODO[MK]: Fail when not marked and unify with getTargetEdge
 getTargetFromMarked :: GraphOp m => NodeRef -> m NodeRef
@@ -186,18 +187,18 @@ getASTTarget nodeId = do
     ref <- getASTRef nodeId
     getTargetFromMarked ref
 
-getCurrentASTTarget :: GraphOp m => m (Maybe NodeRef)
+getCurrentASTTarget :: GraphOp m => m NodeRef
 getCurrentASTTarget = do
-    ref <- fmap Just $ use $ Graph.breadcrumbHierarchy . BH.self
-    mapM getTargetFromMarked ref
+    ref <- use $ Graph.breadcrumbHierarchy . BH.self
+    getTargetFromMarked ref
 
 getASTVar :: GraphOp m => NodeId -> m NodeRef
 getASTVar nodeId = do
     matchNode <- getASTPointer nodeId
     getVarNode matchNode
 
-getCurrentASTVar :: GraphOp m => m (Maybe NodeRef)
-getCurrentASTVar = mapM getVarNode =<< getCurrentASTPointer
+getCurrentASTVar :: GraphOp m => m NodeRef
+getCurrentASTVar = getVarNode =<< getCurrentASTPointer
 
 getSelfNodeRef :: GraphOp m => NodeRef -> m (Maybe NodeRef)
 getSelfNodeRef = getSelfNodeRef' False

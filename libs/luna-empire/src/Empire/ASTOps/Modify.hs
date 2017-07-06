@@ -178,8 +178,8 @@ rewireNodeName nodeId newVar = do
 
 rewireCurrentNode :: GraphOp m => NodeRef -> m ()
 rewireCurrentNode newTarget = do
-    Just matchNode <- ASTRead.getCurrentASTPointer
-    Just oldTarget <- ASTRead.getCurrentASTTarget
+    matchNode <- ASTRead.getCurrentASTPointer
+    oldTarget <- ASTRead.getCurrentASTTarget
     replaceTargetNode matchNode newTarget
     ASTRemove.removeSubtree oldTarget
 
