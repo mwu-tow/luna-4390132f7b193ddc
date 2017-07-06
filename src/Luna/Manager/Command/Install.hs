@@ -54,11 +54,11 @@ import Luna.Manager.Archive
 
 -- === Definition === --
 
-data InstallConfig = InstallConfig { _defaultConfPath     :: FilePath
+data InstallConfig = InstallConfig { _defaultConfPath        :: FilePath
                                    , _defaultBinPathBatchApp :: FilePath
                                    , _defaultBinPathGuiApp   :: FilePath
-                                   , _localName           :: Text
-                                   , _packageBinPath      :: FilePath
+                                   , _localName              :: Text
+                                   , _lunaBinPath            :: FilePath
                                    }
 makeLenses ''InstallConfig
 
@@ -87,7 +87,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
         , _defaultBinPathBatchApp  = "~/.luna-bin"
         , _defaultBinPathGuiApp    = "~/.luna-bin"
         , _localName               = "local"
-        , _packageBinPath          = "bin"
+        , _lunaBinPath             = "bin"
         }
 
 instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
@@ -146,13 +146,14 @@ downloadAndUnpack pkgPath installPath = do
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
 postInstallation appType installPath binPath appName = do
     home <- getHomePath
+    installConfig <- get @InstallConfig
     case currentHost of
         Linux -> do
             --check bin dir in install path and symlink everything inside + chmod for linux
             execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
             appimage <- tryJust executableNotFound $ listToMaybe execList
             makeExecutable appimage
-            currentAppimage <- expand $ (fromText binPath) </> "bin" </> (fromText (mkSystemPkgName appName))
+            currentAppimage <- expand $ (fromText binPath) </> (installConfig ^. lunaBinPath)  </> (fromText (mkSystemPkgName appName))
             let localBin = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
             Shelly.shelly $ Shelly.mkdir_p $ parent localBin
             Shelly.shelly $ Shelly.mkdir_p $ parent currentAppimage
@@ -164,10 +165,10 @@ postInstallation appType installPath binPath appName = do
             let localBin      = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
                 resourcesBin = case appType of
                     GuiApp   -> installPath </> (fromText (mkSystemPkgName appName))
-                    BatchApp -> installPath </> "bin" </> (fromText (mkSystemPkgName appName))
+                    BatchApp -> installPath </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
             currentBin <- case appType of
                 GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
-                BatchApp -> expand $ (fromText binPath) </> "bin" </> (fromText (mkSystemPkgName appName))
+                BatchApp -> expand $ (fromText binPath) </> (installConfig ^. lunaBinPath) </> (fromText (mkSystemPkgName appName))
             Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
             createSymLink resourcesBin currentBin
             createSymLink currentBin localBin
@@ -217,7 +218,6 @@ runInstaller opts = do
 
     binPath <- askLocation opts (appPkg ^. appType) appName
     mapM_ (installApp opts) appsToInstall
-    -- askLocation
     installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
     downloadAndUnpack (appPkgDesc ^. path) installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName
