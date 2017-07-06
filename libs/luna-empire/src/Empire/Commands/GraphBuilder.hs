@@ -195,7 +195,7 @@ buildEdgeNodes = getEdgePortMapping >>= \p -> case p of
     _ -> return Nothing
 
 getEdgePortMapping :: (MonadIO m, GraphOp m) => m (Maybe (NodeId, NodeId))
-getEdgePortMapping = preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
+getEdgePortMapping = fmap Just $ use $ Graph.breadcrumbHierarchy . BH.portMapping
 
 buildNode :: GraphOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
@@ -478,7 +478,7 @@ getOutputSidebarInputs outputEdge = do
 
 nodeConnectedToOutput :: GraphOp m => m (Maybe NodeId)
 nodeConnectedToOutput = do
-    edges  <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
+    edges  <- fmap Just $ use $ Graph.breadcrumbHierarchy . BH.portMapping
     fmap join $ forM edges $ \(i, o) -> do
         connection <- getOutputSidebarInputs o
         return $ (view $ _1 . srcNodeId) <$> connection

@@ -73,13 +73,10 @@ reportError loc nid err = do
 
 updateNodes :: GraphLocation -> Command InterpreterEnv ()
 updateNodes loc@(GraphLocation _ br) = zoom graph $ zoomInternalBreadcrumb br $ do
-     portMapping <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
+     (inEdge, outEdge) <- use $ Graph.breadcrumbHierarchy . BH.portMapping
      (updates, errors) <- runASTOp $ do
-         sidebarUpdates <- case portMapping of
-             Just (i, o) -> do
-                 (u1, u2) <- (,) <$> GraphBuilder.buildInputSidebarTypecheckUpdate i <*> GraphBuilder.buildOutputSidebarTypecheckUpdate o
-                 return [u1, u2]
-             Nothing     -> return []
+         sidebarUpdates <- (\x y -> [x, y]) <$> GraphBuilder.buildInputSidebarTypecheckUpdate  inEdge
+                                            <*> GraphBuilder.buildOutputSidebarTypecheckUpdate outEdge
          allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
          nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
          errors      <- forM allNodeIds $ \nid -> do

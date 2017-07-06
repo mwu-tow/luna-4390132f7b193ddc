@@ -248,13 +248,10 @@ getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
 
 getCurrentBlockEnd :: GraphOp m => m Delta
 getCurrentBlockEnd = do
-    body       <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    case body of
-        Nothing -> getCurrentBlockBeginning
-        Just b  -> do
-            len <- IR.getLayer @SpanLength b
-            beg <- getCurrentBlockBeginning
-            return $ len + beg
+    body <- use $ Graph.breadcrumbHierarchy . BH.body
+    len  <- IR.getLayer @SpanLength body
+    beg  <- getCurrentBlockBeginning
+    return $ len + beg
 
 defaultIndentationLength :: Delta
 defaultIndentationLength = 4

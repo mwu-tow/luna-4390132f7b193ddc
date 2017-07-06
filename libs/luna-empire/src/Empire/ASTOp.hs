@@ -208,12 +208,12 @@ runASTOp pass = runPass inits pass where
 
 runAliasAnalysis :: Command Graph ()
 runAliasAnalysis = do
-    roots <- gets $ toListOf $ Graph.breadcrumbHierarchy . BH.body
+    root <- use $ Graph.breadcrumbHierarchy . BH.body
     let inits = do
             Pass.setAttr (getTypeDesc @UnresolvedVars)   $ UnresolvedVars   []
             Pass.setAttr (getTypeDesc @UnresolvedConses) $ UnresolvedConses []
             Pass.setAttr (getTypeDesc @NegativeConses)   $ NegativeConses   []
-            Pass.setAttr (getTypeDesc @ExprRoots) $ ExprRoots $ map unsafeGeneralize roots
+            Pass.setAttr (getTypeDesc @ExprRoots) $ ExprRoots [unsafeGeneralize root]
     runPass inits PatternTransformation.runPatternTransformation
     runPass inits AliasAnalysis.runAliasAnalysis
 
@@ -221,7 +221,7 @@ runTypecheck :: Imports -> Command Graph ()
 runTypecheck imports = do
     g <- get
     AST currentStateIR currentStatePass <- use Graph.ast
-    root <- preuse $ Graph.breadcrumbHierarchy . BH.body
+    root <- use $ Graph.breadcrumbHierarchy . BH.body
     let evalIR = flip runStateT g
                . withVis
                . dropLogs
@@ -229,7 +229,7 @@ runTypecheck imports = do
                . flip evalIRBuilder currentStateIR
                . flip evalPassManager currentStatePass
     ((st, passSt), newG) <- liftIO $ evalIR $ do
-        Typecheck.typecheck TgtNone imports $ map unsafeGeneralize $ toList root
+        Typecheck.typecheck TgtNone imports [unsafeGeneralize root]
         st     <- snapshot
         passSt <- DepState.get @Pass.State
         return (st, passSt)

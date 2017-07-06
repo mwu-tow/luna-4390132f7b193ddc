@@ -256,21 +256,15 @@ insertAfter s after new textBeginning code = IR.matchExpr s $ \case
 
 putInSequence :: GraphOp m => NodeRef -> Text -> NodeMeta -> m ()
 putInSequence ref code meta = do
-    oldSeq      <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    case oldSeq of
-        Just s -> do
-            nodes              <- AST.readSeq s
-            nodesAndMetas      <- mapM (\n -> (n,) <$> AST.readMeta n) nodes
-            let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
-            nearestNode        <- findPreviousNodeInSequence s meta nodesWithMetas
-            blockEnd           <- Code.getCurrentBlockEnd
-            (newS, shouldUpdate) <- insertAfter s nearestNode ref blockEnd code
-            when shouldUpdate (updateGraphSeq $ Just newS)
-            Code.gossipLengthsChanged newS
-        _ -> do
-            blockEnd <- Code.getCurrentBlockEnd
-            Code.insertAt (fromIntegral blockEnd) $ code <> "\n"
-            updateGraphSeq $ Just ref
+    oldSeq             <- use $ Graph.breadcrumbHierarchy . BH.body
+    nodes              <- AST.readSeq oldSeq
+    nodesAndMetas      <- mapM (\n -> (n,) <$> AST.readMeta n) nodes
+    let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
+    nearestNode        <- findPreviousNodeInSequence oldSeq meta nodesWithMetas
+    blockEnd           <- Code.getCurrentBlockEnd
+    (newS, shouldUpdate) <- insertAfter oldSeq nearestNode ref blockEnd code
+    when shouldUpdate (updateGraphSeq $ Just newS)
+    Code.gossipLengthsChanged newS
 
 updateNodeSequenceWithOutput :: GraphOp m => Maybe NodeRef -> m ()
 updateNodeSequenceWithOutput outputRef = do
@@ -286,15 +280,15 @@ makeCurrentSeq out = do
 
 updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
-    oldSeq     <- preuse $ Graph.breadcrumbHierarchy . BH.body
+    oldSeq     <- use $ Graph.breadcrumbHierarchy . BH.body
     currentTgt <- ASTRead.getCurrentASTTarget
     outLink    <- join <$> mapM ASTRead.getFirstNonLambdaLink currentTgt
     case (,) <$> outLink <*> newOut of
         Just (l, o) -> IR.replaceSource o l
         Nothing     -> return ()
     forM_ oldSeq $ flip IR.deepDeleteWithWhitelist $ Set.fromList $ maybeToList newOut
-    oldRef <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.self
-    when (oldRef == oldSeq) $ forM_ newOut (Graph.breadcrumbHierarchy . BH._LambdaParent . BH.self .=)
+    oldRef <- use $ Graph.breadcrumbHierarchy . BH.self
+    when (oldRef == oldSeq) $ forM_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
     forM_ newOut $ (Graph.breadcrumbHierarchy . BH.body .=)
 
 updateCodeSpan' :: GraphOp m => NodeRef -> m _

@@ -190,8 +190,8 @@ renameVar vref name = do
 
 replaceWhenBody :: GraphOp m => NodeRef -> NodeRef -> m ()
 replaceWhenBody to from = do
-    oldBody <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    when (oldBody == Just from) $ Graph.breadcrumbHierarchy . BH.body .= to
+    oldBody <- use $ Graph.breadcrumbHierarchy . BH.body
+    when (oldBody == from) $ Graph.breadcrumbHierarchy . BH.body .= to
 
 replace :: GraphOp m => NodeRef -> NodeRef -> m ()
 replace to from = do

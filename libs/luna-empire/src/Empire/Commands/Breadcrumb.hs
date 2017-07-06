@@ -58,7 +58,7 @@ makeGraphCls fun lastUUID = do
     uuid <- maybe (liftIO $ UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromMaybeM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
-    let bh = BH.LambdaParent $ BH.LamItem portMapping ref def ref
+    let bh = BH.LamItem portMapping ref def ref
         graph = Graph.Graph ast bh 0 def def def
     Graph.clsFuns . at uuid ?= (funName, graph)
     withRootedFunction uuid $ do

@@ -40,13 +40,10 @@ cutThroughGroups r = match r $ \case
 
 getASTOutForPort :: GraphOp m => NodeId -> OutPortId -> m NodeRef
 getASTOutForPort nodeId port = do
-    asLambda <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent
-    case asLambda of
-        Just l -> do
-            if l ^. BH.portMapping . _1 == nodeId
-              then getLambdaInputForPort port =<< getTargetFromMarked (l ^. BH.self)
-              else getOutputForPort      port =<< getASTVar nodeId
-        _ -> getOutputForPort port =<< getASTVar nodeId
+    lambda <- use Graph.breadcrumbHierarchy
+    if lambda ^. BH.portMapping . _1 == nodeId
+      then getLambdaInputForPort port =<< getTargetFromMarked (lambda ^. BH.self)
+      else getOutputForPort      port =<< getASTVar nodeId
 
 getLambdaInputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
 getLambdaInputForPort []                    lam = throwM PortDoesNotExistException
@@ -147,7 +144,7 @@ getCurrentASTPointer = do
         IR.Marked _m expr -> IR.source expr
 
 getCurrentASTRef :: GraphOp m => m (Maybe NodeRef)
-getCurrentASTRef = preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.self
+getCurrentASTRef = Just <$> use (Graph.breadcrumbHierarchy . BH.self)
 
 -- TODO[MK]: Fail when not marked and unify with getTargetEdge
 getTargetFromMarked :: GraphOp m => NodeRef -> m NodeRef
@@ -191,7 +188,7 @@ getASTTarget nodeId = do
 
 getCurrentASTTarget :: GraphOp m => m (Maybe NodeRef)
 getCurrentASTTarget = do
-    ref <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.self
+    ref <- fmap Just $ use $ Graph.breadcrumbHierarchy . BH.self
     mapM getTargetFromMarked ref
 
 getASTVar :: GraphOp m => NodeId -> m NodeRef

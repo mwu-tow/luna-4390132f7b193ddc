@@ -8,7 +8,7 @@
 
 module Empire.Data.Graph where
 
-import           Empire.Data.BreadcrumbHierarchy   (BParent)
+import           Empire.Data.BreadcrumbHierarchy   (LamItem)
 import           Empire.Prelude
 
 import           Control.Monad.State               (MonadState(..), StateT, evalStateT, lift)
@@ -48,7 +48,7 @@ import           Luna.Pass.Data.ExprMapping
 
 
 data Graph = Graph { _ast                   :: AST Graph
-                   , _breadcrumbHierarchy   :: BParent
+                   , _breadcrumbHierarchy   :: LamItem
                    , _lastNameId            :: Integer
                    , _codeMarkers           :: Map Luna.MarkerId NodeRef
                    , _graphCode             :: Text

@@ -32,7 +32,7 @@ import qualified Luna.IR as IR
 makeTopBreadcrumbHierarchy :: GraphOp m => NodeCache -> NodeRef -> m ()
 makeTopBreadcrumbHierarchy nodeCache ref = do
     item <- prepareLambdaChild nodeCache ref ref
-    breadcrumbHierarchy .= BH.LambdaParent item
+    breadcrumbHierarchy .= item
 
 getMarker :: GraphOp m => NodeRef -> m Word64
 getMarker marker = do
@@ -107,14 +107,10 @@ restorePortMappings :: GraphOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> 
 restorePortMappings previousPortMappings = do
     hierarchy <- use breadcrumbHierarchy
 
-    let goParent (BH.LambdaParent   lamItem) = BH.LambdaParent <$> goLamItem Nothing lamItem
+    let goParent lamItem = goLamItem Nothing lamItem
 
         goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
         goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (Just (nodeId, Nothing)) lamItem
-
-        goTopItem (BH.TopItem childNodes body) = do
-            updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs childNodes
-            return $ BH.TopItem (Map.fromList updatedChildren) body
 
         goLamItem idArg (BH.LamItem mapping marked children body) = do
             let cache       = case idArg of
