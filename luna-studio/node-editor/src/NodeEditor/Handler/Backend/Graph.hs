@@ -177,7 +177,6 @@ handle (Event.Batch ev) = Just $ case ev of
                 CollaborationUpdate.Refresh             -> touchCurrentlySelected
 
     CollapseToFunctionResponse response -> handleResponse response success doNothing where
-        requestId       = response ^. Response.requestId
         request         = response ^. Response.request
         location        = request  ^. CollapseToFunction.location
         success         = applyResult location

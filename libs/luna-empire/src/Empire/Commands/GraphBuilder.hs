@@ -25,38 +25,12 @@ module Empire.Commands.GraphBuilder (
   , nodeConnectedToOutput
   ) where
 
-import           Data.Foldable                   (toList)
-import           Empire.Prelude                  hiding (toList)
-
 import           Control.Monad.State             hiding (when)
-
+import           Data.Foldable                   (toList)
 import qualified Data.List                       as List
-import qualified Data.Map                        as Map
-import           Data.Maybe                      (catMaybes, fromJust, fromMaybe, isJust, maybeToList)
+import           Data.Maybe                      (catMaybes, fromMaybe, maybeToList)
 import           Data.Text                       (Text)
 import qualified Data.Text                       as Text
-import qualified Data.UUID.V4                    as UUID (nextRandom)
-
-import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               (Graph)
-import qualified Empire.Data.Graph               as Graph
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem, Named (..))
-import qualified LunaStudio.Data.Breadcrumb      as Breadcrumb
-
-import qualified LunaStudio.Data.Graph           as API
-import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
-import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
-import           LunaStudio.Data.Node            (NodeId)
-import qualified LunaStudio.Data.Node            as API
-import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
-import qualified LunaStudio.Data.NodeLoc         as NodeLoc
-import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
-                                                  OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
-import qualified LunaStudio.Data.Port            as Port
-import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
-import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), dstNodeId, srcNodeId)
-import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar))
-
 import           Empire.ASTOp                    (ASTOp, match, runASTOp)
 import qualified Empire.ASTOps.Deconstruct       as ASTDeconstruct
 import qualified Empire.ASTOps.Print             as Print
@@ -64,15 +38,30 @@ import qualified Empire.ASTOps.Read              as ASTRead
 import qualified Empire.Commands.AST             as AST
 import qualified Empire.Commands.Code            as Code
 import qualified Empire.Commands.GraphUtils      as GraphUtils
-import           Empire.Data.AST                 (NodeRef, NotAppException (..), NotUnifyException, astExceptionFromException,
-                                                  astExceptionToException)
-import           Empire.Data.Layers              (Marker, SpanLength, TypeLayer)
+import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
+import qualified Empire.Data.BreadcrumbHierarchy as BH
+import           Empire.Data.Graph               (Graph)
+import qualified Empire.Data.Graph               as Graph
+import           Empire.Data.Layers              (Marker, TypeLayer)
 import           Empire.Empire
-
+import           Empire.Prelude                  hiding (toList)
 import qualified Luna.IR                         as IR
 import qualified Luna.IR.Term.Literal            as Lit
 import           Luna.IR.Term.Uni
-import qualified OCI.IR.Combinators              as IR
+import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem, Named (..))
+import qualified LunaStudio.Data.Graph           as API
+import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
+import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
+import           LunaStudio.Data.Node            (NodeId)
+import qualified LunaStudio.Data.Node            as API
+import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
+import           LunaStudio.Data.Port            (InPort, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId, OutPortIndex (..),
+                                                  OutPortTree, OutPorts (..), Port (..), PortState (..))
+import qualified LunaStudio.Data.Port            as Port
+import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
+import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId)
+import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TStar))
+
 
 decodeBreadcrumbs :: Breadcrumb BreadcrumbItem -> Command Graph (Breadcrumb (Named BreadcrumbItem))
 decodeBreadcrumbs bs@(Breadcrumb items) = runASTOp $ do

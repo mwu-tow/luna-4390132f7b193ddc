@@ -150,7 +150,7 @@ run loc = do
     updateNodes  loc
     {-updateMonads loc-}
     liftIO cln
-    liftIO $ mapM killThread threads
+    liftIO $ mapM_ killThread threads
     listeners .= []
     scope <- zoom graph $ runInterpreter std
     mapM_ (updateValues loc) scope

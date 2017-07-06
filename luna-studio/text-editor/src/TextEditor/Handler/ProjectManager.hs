@@ -26,7 +26,7 @@ handle (Atom (InternalEvent IsSaved path _))    = Just $ BatchCmd.isSaved path
 
 handle (Batch (Batch.ProjectSet response))    = Just $ handleResponse response doNothing doNothing
 handle (Batch (Batch.FileOpened response))    = Just $ handleResponse response success doNothing where
-    success result = do
+    success _ = do
         let uri  = response ^. Response.request . OpenFile.filePath
             status = "ok"
         liftIO $ pushStatus (convert "FileSaved") (convert uri) (convert status)

@@ -59,26 +59,45 @@ import           Control.Monad.Catch              (handle, onException)
 import           Control.Monad.State              hiding (when)
 import           Data.Coerce                      (coerce)
 import           Data.Foldable                    (toList)
-import           Data.List                        (elemIndex, group, sortOn)
+import           Data.List                        (elemIndex, group)
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
-import           Data.Maybe                       (fromMaybe, listToMaybe, maybeToList)
+import           Data.Maybe                       (fromMaybe, maybeToList)
 import qualified Data.Set                         as Set
 import           Data.Text                        (Text)
 import qualified Data.Text                        as Text
 import qualified Data.Text.IO                     as Text
+import           Data.Text.Position               (Delta)
+import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Data.UUID.V4                     as UUID (nextRandom)
-import           Empire.Prelude                   hiding (toList)
-import qualified Safe
-
+import           Empire.ASTOp                     (ASTOp, putNewIR, runASTOp, runAliasAnalysis)
+import qualified Empire.ASTOps.Builder            as ASTBuilder
+import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
+import qualified Empire.ASTOps.Modify             as ASTModify
+import qualified Empire.ASTOps.Parse              as ASTParse
+import qualified Empire.ASTOps.Print              as ASTPrint
+import qualified Empire.ASTOps.Read               as ASTRead
+import qualified Empire.Commands.AST              as AST
+import qualified Empire.Commands.Autolayout       as Autolayout
+import           Empire.Commands.Breadcrumb       (withBreadcrumb)
+import qualified Empire.Commands.Code             as Code
+import qualified Empire.Commands.GraphBuilder     as GraphBuilder
+import qualified Empire.Commands.GraphUtils       as GraphUtils
+import qualified Empire.Commands.Library          as Library
+import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.AST                  (InvalidConnectionException (..), NodeRef, NotInputEdgeException (..), SomeASTException,
                                                    astExceptionFromException, astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
-import           Empire.Data.Graph                (Graph, NodeIdCache(..), portMappingMap, nodeIdMap)
+import           Empire.Data.Graph                (Graph, NodeIdCache (..), nodeIdMap)
 import qualified Empire.Data.Graph                as Graph
 import           Empire.Data.Layers               (Marker, SpanLength, SpanOffset)
-
-import           Empire.ASTOp                     (ASTOp, putNewIR, runASTOp, runAliasAnalysis)
+import           Empire.Empire
+import           Empire.Prelude                   hiding (toList)
+import qualified Luna.IR                          as IR
+import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
+import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
+import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
+import qualified Luna.Syntax.Text.Parser.Marker   as Luna
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Connection       (Connection (..))
@@ -97,32 +116,8 @@ import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (.
 import qualified LunaStudio.Data.PortRef          as PortRef
 import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
-
-import qualified Empire.ASTOps.Builder            as ASTBuilder
-import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
-import qualified Empire.ASTOps.Modify             as ASTModify
-import qualified Empire.ASTOps.Parse              as ASTParse
-import qualified Empire.ASTOps.Print              as ASTPrint
-import qualified Empire.ASTOps.Read               as ASTRead
-import qualified Empire.ASTOps.Remove             as ASTRemove
-import qualified Empire.Commands.AST              as AST
-import qualified Empire.Commands.Autolayout       as Autolayout
-import           Empire.Commands.Breadcrumb       (withBreadcrumb)
-import qualified Empire.Commands.Code             as Code
-import qualified Empire.Commands.GraphBuilder     as GraphBuilder
-import qualified Empire.Commands.GraphUtils       as GraphUtils
-import qualified Empire.Commands.Library          as Library
-import qualified Empire.Commands.Publisher        as Publisher
-import           Empire.Empire
-
-import           Data.Text.Position               (Delta)
-import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
-import qualified Luna.IR                          as IR
-import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
-import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
-import qualified Luna.Syntax.Text.Parser.Marker   as Luna
 import qualified OCI.IR.Combinators               as IR (replace, replaceSource, substitute)
+import qualified Safe
 
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
