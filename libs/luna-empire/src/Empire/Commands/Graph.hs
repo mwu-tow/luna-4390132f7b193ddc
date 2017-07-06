@@ -418,7 +418,7 @@ removeSequenceElement seq ref = IR.matchExpr seq $ \case
 
 removeFromSequence :: GraphOp m => NodeRef -> m ()
 removeFromSequence ref = do
-    Just oldSeq <- preuse $ Graph.breadcrumbHierarchy . BH.body
+    oldSeq <- use $ Graph.breadcrumbHierarchy . BH.body
     (newS, shouldUpdate) <- removeSequenceElement oldSeq ref
     when shouldUpdate (updateGraphSeq newS)
     mapM_ Code.gossipLengthsChanged newS
@@ -701,8 +701,8 @@ reloadCode loc@(GraphLocation file _) code = do
         funs <- use Graph.clsFuns
         return $ Map.keys funs
     oldMetasAndIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        Just root <- preuse $ Graph.breadcrumbHierarchy . BH.body
-        oldMetas  <- extractMarkedMetasAndIds root
+        root       <- Graph.breadcrumbHierarchy . BH.body
+        oldMetas   <- extractMarkedMetasAndIds root
         return $ Map.fromList oldMetas
     previousPortMappings <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
         hierarchy <- use Graph.breadcrumbHierarchy

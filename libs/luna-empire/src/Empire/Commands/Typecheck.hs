@@ -51,15 +51,12 @@ runTC imports = do
 
 runInterpreter :: Imports -> Command Graph (Maybe Interpreter.LocalScope)
 runInterpreter imports = runASTOp $ do
-    bodyRef    <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    res        <- mapM (Interpreter.interpret' imports . IR.unsafeGeneralize) bodyRef
-    case res of
-        Nothing -> return Nothing
-        Just v  -> do
-            result <- liftIO $ runIO $ runError $ execStateT v def
-            case result of
-                Left e  -> return Nothing
-                Right r -> return $ Just r
+    bodyRef <- use $ Graph.breadcrumbHierarchy . BH.body
+    res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
+    result  <- liftIO $ runIO $ runError $ execStateT res def
+    case result of
+        Left e  -> return Nothing
+        Right r -> return $ Just r
 
 reportError :: GraphLocation -> NodeId -> Maybe APIError.Error -> Command InterpreterEnv ()
 reportError loc nid err = do
