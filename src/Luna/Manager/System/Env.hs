@@ -10,6 +10,7 @@ import Control.Monad.State.Layered
 import qualified System.Directory as System
 import Control.Monad.Raise
 import qualified Shelly.Lifted as Shelly
+import System.IO.Error
 
 --------------------------
 -- === EnvConfig === --
@@ -46,13 +47,14 @@ setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
 setTmpCwd = liftIO . System.setCurrentDirectory . encodeString =<< getTmpPath
 
 createSymLink :: MonadIO m => FilePath -> FilePath -> m ()
-createSymLink src dst = liftIO $ do
-    checkLink <- System.pathIsSymbolicLink (encodeString dst)
-    if checkLink then do
-        System.removeFile $ encodeString dst
-        System.createFileLink (encodeString src) (encodeString dst)
-        else System.createFileLink (encodeString src) (encodeString dst)
-
+createSymLink src dst = liftIO $ catch (System.createFileLink (encodeString src) (encodeString dst)) $ handler src dst
+    where
+        handler :: FilePath -> FilePath -> SomeException -> IO ()
+        handler src dst ex = case ex of
+            isAlreadyExistsError -> do
+                System.removeFile $ encodeString dst
+                createSymLink src dst
+            otherwise -> return ()
 
 
 copyDir :: Shelly.MonadSh m => FilePath -> FilePath -> m ()-- copy the content of the source directory
