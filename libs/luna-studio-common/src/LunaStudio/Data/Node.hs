@@ -57,26 +57,15 @@ instance Binary OutputSidebar
 instance Binary NodeTypecheckerUpdate
 instance Binary Node
 
-class HasNodeId a where
-    nodeId :: Lens' a NodeId
+class HasNodeId a where nodeId :: Lens' a NodeId
 
-instance HasNodeId ExpressionNode where
-    nodeId = exprNodeId
-
-instance HasNodeId InputSidebar where
-    nodeId = inputNodeId
-
-instance HasNodeId OutputSidebar where
-    nodeId = outputNodeId
-
+instance HasNodeId ExpressionNode where nodeId = exprNodeId
+instance HasNodeId InputSidebar where nodeId = inputNodeId
+instance HasNodeId OutputSidebar where nodeId = outputNodeId
 instance HasNodeId Node where
-    nodeId = lens getNodeId setNodeId where
-        getNodeId (ExpressionNode' n) = n ^. exprNodeId
-        getNodeId (InputSidebar'   n) = n ^. inputNodeId
-        getNodeId (OutputSidebar'  n) = n ^. outputNodeId
-        setNodeId (ExpressionNode' n) nid = ExpressionNode' $ n & exprNodeId   .~ nid
-        setNodeId (InputSidebar'   n) nid = InputSidebar'   $ n & inputNodeId  .~ nid
-        setNodeId (OutputSidebar'  n) nid = OutputSidebar'  $ n & outputNodeId .~ nid
+    nodeId f (ExpressionNode' node) = ExpressionNode' <$> nodeId f node
+    nodeId f (InputSidebar'   node) = InputSidebar'   <$> nodeId f node
+    nodeId f (OutputSidebar'  node) = OutputSidebar'  <$> nodeId f node
 
 mkExprNode :: NodeId -> Text -> Position -> ExpressionNode
 mkExprNode nid expr pos = ExpressionNode nid
