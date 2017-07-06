@@ -4,8 +4,10 @@
 module FileModuleSpec (spec) where
 
 import           Data.List                      (find)
+import qualified Data.Set                       as Set
 import qualified Data.Text                      as Text
 import           Empire.ASTOp                   (runASTOp)
+import qualified Empire.Commands.AST            as AST
 import qualified Empire.Commands.Graph          as Graph
 import qualified Empire.Commands.GraphBuilder   as GraphBuilder
 import qualified Empire.Commands.Library        as Library
@@ -14,6 +16,7 @@ import qualified LunaStudio.Data.Breadcrumb     as Breadcrumb
 import qualified LunaStudio.Data.Graph          as Graph
 import           LunaStudio.Data.GraphLocation  (GraphLocation (..))
 import qualified LunaStudio.Data.Node           as Node
+import qualified LunaStudio.Data.NodeMeta       as NodeMeta
 
 import           Luna.Prelude                   (normalizeQQ)
 import           Empire.Prelude
@@ -44,8 +47,12 @@ spec = around withChannels $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc code
-                Graph.getNodes loc
+                nodes <- Graph.getNodes loc
+                return nodes
             length nodes `shouldBe` 3
+            -- nodes are layouted by default
+            let uniquePositions = Set.toList $ Set.fromList $ map (view (Node.nodeMeta . NodeMeta.position)) nodes
+            length uniquePositions `shouldBe` 3
         it "adds function at top-level" $ \env -> do
             u1 <- mkUUID
             nodes <- evalEmp env $ do

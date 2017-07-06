@@ -23,6 +23,7 @@ module Empire.Commands.GraphBuilder (
   , getNodeSeq
   , getInPortDefault
   , getDefault
+  , getFunByName
   , getNodeName
   , nodeConnectedToOutput
   ) where
@@ -105,12 +106,29 @@ buildClassGraph :: ClassOp m => m API.Graph
 buildClassGraph = do
     funs <- use Graph.clsFuns
 
-    let nodes' = map (\(uuid, (name,_)) -> buildClassNode uuid name) $ Map.assocs funs
+    nodes' <- mapM (\(uuid, (name,_)) -> buildClassNode uuid name) $ Map.assocs funs
     return $ API.Graph nodes' [] Nothing Nothing []
 
-buildClassNode :: NodeId -> String -> API.ExpressionNode
-buildClassNode uuid name =
-    API.ExpressionNode uuid "" True (Just $ convert name) "" (LabeledTree (InPorts Nothing []) (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) def True
+getFunByName :: ClassOp m => String -> m NodeRef
+getFunByName name = do
+    cls <- use Graph.clsClass
+    maybeFuns <- IR.matchExpr cls $ \case
+        IR.Unit _ _ cls -> do
+            cls' <- IR.source cls
+            IR.matchExpr cls' $ \case
+                IR.ClsASG _ _ _ decls -> do
+                    forM decls $ \funLink -> do
+                        fun <- IR.source funLink
+                        IR.matchExpr fun $ \case
+                            IR.ASGRootedFunction n _ -> return $ if nameToString n == name then Just fun else Nothing
+    case catMaybes maybeFuns of
+        [f] -> return f
+
+buildClassNode :: ClassOp m => NodeId -> String -> m API.ExpressionNode
+buildClassNode uuid name = do
+    f    <- getFunByName name
+    meta <- fromMaybe def <$> AST.readMeta f
+    return $ API.ExpressionNode uuid "" True (Just $ convert name) "" (LabeledTree (InPorts Nothing []) (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) meta True
 
 buildNodes :: GraphOp m => m [API.ExpressionNode]
 buildNodes = do

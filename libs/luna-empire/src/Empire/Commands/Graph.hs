@@ -162,7 +162,7 @@ addFunNode loc uuid expr meta = withUnit loc $ do
     funs <- use Graph.clsFuns
     (uuid, graph) <- makeGraphCls parse Nothing
 
-    return $ GraphBuilder.buildClassNode uuid name
+    runASTOp $ GraphBuilder.buildClassNode uuid name
 
 addNodeNoTC :: GraphLocation -> NodeId -> Text -> Maybe Text -> NodeMeta -> Command Graph ExpressionNode
 addNodeNoTC loc uuid input name meta = do
@@ -518,25 +518,10 @@ setNodeMetaGraph nodeId newMeta = runASTOp $ do
     ref <- ASTRead.getASTRef nodeId
     AST.writeMeta ref newMeta
 
-getFunByName :: ClassOp m => String -> m NodeRef
-getFunByName name = do
-    cls <- use Graph.clsClass
-    maybeFuns <- IR.matchExpr cls $ \case
-        IR.Unit _ _ cls -> do
-            cls' <- IR.source cls
-            IR.matchExpr cls' $ \case
-                IR.ClsASG _ _ _ decls -> do
-                    forM decls $ \funLink -> do
-                        fun <- IR.source funLink
-                        IR.matchExpr fun $ \case
-                            IR.ASGRootedFunction n _ -> return $ if nameToString n == name then Just fun else Nothing
-    case catMaybes maybeFuns of
-        [f] -> return f
-
 setNodeMetaFun :: NodeId -> NodeMeta -> Command ClsGraph ()
 setNodeMetaFun nodeId newMeta = runASTOp $ do
     Just (name, _) <- use $ Graph.clsFuns . at nodeId
-    f <- getFunByName name
+    f              <- GraphBuilder.getFunByName name
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
@@ -552,6 +537,13 @@ setNodePositionAST nodeId newPos = do
     ref <- ASTRead.getASTRef nodeId
     oldMeta <- fromMaybe def <$> AST.readMeta ref
     AST.writeMeta ref $ oldMeta & NodeMeta.position .~ newPos
+
+setNodePositionCls :: ClassOp m => NodeId -> Position -> m ()
+setNodePositionCls nodeId newPos = do
+    Just (name, _) <- use $ Graph.clsFuns . at nodeId
+    f              <- GraphBuilder.getFunByName name
+    oldMeta <- fromMaybe def <$> AST.readMeta f
+    AST.writeMeta f $ oldMeta & NodeMeta.position .~ newPos
 
 connectCondTC :: Bool -> GraphLocation -> OutPortRef -> AnyPortRef -> Empire Connection
 connectCondTC True  loc outPort anyPort = connect loc outPort anyPort
@@ -789,6 +781,7 @@ loadCode loc@(GraphLocation file _) code = do
         uuid <- Library.withLibrary file (fst <$> makeGraph fun lastUUID)
         let loc' = GraphLocation file $ Breadcrumb [Breadcrumb.Definition uuid]
         autolayout loc'
+    autolayoutTopLevel loc
     return ()
 
 infixl 5 |>
@@ -808,6 +801,19 @@ autolayout loc = do
             BH.LambdaChild{}                -> [Breadcrumb.Lambda k]
             BH.ExprChild (BH.ExprItem pc _) -> map (Breadcrumb.Arg k) (Map.keys pc)) $ Map.assocs kids
     mapM_ (\a -> autolayout (loc |> a)) next
+
+autolayoutTopLevel :: GraphLocation -> Empire ()
+autolayoutTopLevel loc = do
+    withUnit loc $ runASTOp $ do
+        clsFuns <- use Graph.clsFuns
+        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, _)) -> do
+            f    <- GraphBuilder.getFunByName name
+            meta <- AST.readMeta f
+            return $ if meta /= def then Nothing else Just id
+
+        nodes <- view APIGraph.nodes <$> GraphBuilder.buildClassGraph
+        let autolayout = Autolayout.autolayoutNodes needLayout nodes []
+        mapM_ (uncurry setNodePositionCls) autolayout
 
 printMarkedExpression :: GraphOp m => NodeRef -> m Text
 printMarkedExpression ref = do
