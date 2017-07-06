@@ -99,8 +99,8 @@ buildGraph :: GraphOp m => m API.Graph
 buildGraph = do
     connections <- buildConnections
     nodes       <- buildNodes
-    edges       <- buildEdgeNodes
-    API.Graph nodes connections (fst <$> edges) (snd <$> edges) <$> buildMonads
+    (inE, outE) <- buildEdgeNodes
+    API.Graph nodes connections (Just inE) (Just outE) <$> buildMonads
 
 buildClassGraph :: ClassOp m => m API.Graph
 buildClassGraph = do
@@ -139,9 +139,7 @@ buildNodes = do
 buildMonads :: GraphOp m => m [MonadPath]
 buildMonads = do
     allNodeIds <- getNodeIdSequence
-    mapping    <- getEdgePortMapping
-    let relevantNodeIds = filter ((/= mapping ^? _Just . _1) . Just) allNodeIds
-    ioPath     <- filterM doesIO relevantNodeIds
+    ioPath     <- filterM doesIO allNodeIds
     let ioMonad = MonadPath (TCons "IO" []) ioPath
     return [ioMonad]
 
@@ -182,16 +180,15 @@ getMarkedExpr ref = match ref $ \case
 
 type EdgeNodes = (API.InputSidebar, API.OutputSidebar)
 
-buildEdgeNodes :: GraphOp m => m (Maybe EdgeNodes)
-buildEdgeNodes = getEdgePortMapping >>= \p -> case p of
-    Just (inputPort, outputPort) -> do
-        inputEdge  <- buildInputSidebar  inputPort
-        outputEdge <- buildOutputSidebar outputPort
-        return $ Just (inputEdge, outputEdge)
-    _ -> return Nothing
+buildEdgeNodes :: GraphOp m => m EdgeNodes
+buildEdgeNodes = do
+    (inputPort, outputPort) <- getEdgePortMapping
+    inputEdge  <- buildInputSidebar  inputPort
+    outputEdge <- buildOutputSidebar outputPort
+    return (inputEdge, outputEdge)
 
-getEdgePortMapping :: (MonadIO m, GraphOp m) => m (Maybe (NodeId, NodeId))
-getEdgePortMapping = fmap Just $ use $ Graph.breadcrumbHierarchy . BH.portMapping
+getEdgePortMapping :: (MonadIO m, GraphOp m) => m (NodeId, NodeId)
+getEdgePortMapping = use $ Graph.breadcrumbHierarchy . BH.portMapping
 
 buildNode :: GraphOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
@@ -430,10 +427,10 @@ buildOutPorts ref = match ref $ \case
 buildConnections :: GraphOp m => m [(OutPortRef, InPortRef)]
 buildConnections = do
     allNodes       <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
-    edges          <- getEdgePortMapping
+    (_, outEdge)   <- getEdgePortMapping
     connections    <- mapM getNodeInputs allNodes
-    outputEdgeConn <- forM (snd <$> edges) getOutputSidebarInputs
-    return $ (maybeToList $ join outputEdgeConn) ++ concat connections
+    outputEdgeConn <- getOutputSidebarInputs outEdge
+    return $ (maybeToList outputEdgeConn) ++ concat connections
 
 buildInputSidebarTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildInputSidebarTypecheckUpdate nid = do

@@ -919,5 +919,5 @@ spec = around withChannels $ parallel $ do
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
-                Just (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
+                (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.disconnect (loc |> foo) (inPortRef output [])
