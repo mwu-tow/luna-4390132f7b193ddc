@@ -51,7 +51,7 @@ runTC imports = do
 
 runInterpreter :: Imports -> Command Graph (Maybe Interpreter.LocalScope)
 runInterpreter imports = runASTOp $ do
-    bodyRef <- use $ Graph.breadcrumbHierarchy . BH.body
+    bodyRef <- use $ Graph.breadcrumbHierarchy . BH.self
     res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
     result  <- liftIO $ runIO $ runError $ execStateT res def
     case result of

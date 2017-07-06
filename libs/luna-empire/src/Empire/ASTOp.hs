@@ -221,7 +221,7 @@ runTypecheck :: Imports -> Command Graph ()
 runTypecheck imports = do
     g <- get
     AST currentStateIR currentStatePass <- use Graph.ast
-    root <- use $ Graph.breadcrumbHierarchy . BH.body
+    root <- use $ Graph.breadcrumbHierarchy . BH.self
     let evalIR = flip runStateT g
                . withVis
                . dropLogs
