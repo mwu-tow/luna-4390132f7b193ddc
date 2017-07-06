@@ -701,7 +701,7 @@ reloadCode loc@(GraphLocation file _) code = do
         funs <- use Graph.clsFuns
         return $ Map.keys funs
     oldMetasAndIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        root       <- Graph.breadcrumbHierarchy . BH.body
+        root       <- use $ Graph.breadcrumbHierarchy . BH.body
         oldMetas   <- extractMarkedMetasAndIds root
         return $ Map.fromList oldMetas
     previousPortMappings <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
