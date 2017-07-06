@@ -177,12 +177,23 @@ postInstallation appType installPath binPath appName = do
             Shelly.shelly $ runServicesWindows services
             --copy shortcut to menu programs
 
-installApp :: MonadInstall m => Text -> ResolvedPackage -> m ()
-installApp binPath package = do
+installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
+installApp opts package = do
+    binPath     <- askLocation opts (package ^. resolvedAppType) ((package ^. header) ^. name)
     installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  ((package ^. header) ^. name) $ showPretty ((package ^. header) ^. version)
     downloadAndUnpack ((package ^. desc) ^. path) installPath
     postInstallation (package ^. resolvedAppType) installPath binPath  ((package ^. header) ^. name)
 
+askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
+askLocation opts appType appName = do
+    installConfig <- get @InstallConfig
+    let pkgInstallDefPath = case appType of
+            GuiApp -> installConfig ^. defaultBinPathGuiApp
+            BatchApp -> installConfig ^. defaultBinPathBatchApp
+    binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
+        $ question ("Select installation path for " <> appName) plainTextReader
+        & defArg .~ Just (toTextIgnore pkgInstallDefPath) --TODO uzyć toText i złapać tryRight'
+    return binPath
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
@@ -202,19 +213,14 @@ runInstaller opts = do
     let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
-    installConfig <- get @InstallConfig
-    let pkgInstallDefPath = case (appPkg ^. appType) of
-            GuiApp -> installConfig ^. defaultBinPathGuiApp
-            BatchApp -> installConfig ^. defaultBinPathBatchApp
-    binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
-        $ question "Select installation path" plainTextReader
-        & defArg .~ Just (toTextIgnore pkgInstallDefPath) --TODO uzyć toText i złapać tryRight'
-
     let appsToInstall = filter (( <$> ((^. name) <$> (^. header))) (`elem` (repo ^.apps))) pkgsToInstall
+
+    binPath <- askLocation opts (appPkg ^. appType) appName
+    mapM_ (installApp opts) appsToInstall
+    -- askLocation
     installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
     downloadAndUnpack (appPkgDesc ^. path) installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName
-    mapM_ (installApp binPath) appsToInstall
 
 
 
