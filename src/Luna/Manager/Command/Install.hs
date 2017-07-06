@@ -146,9 +146,6 @@ linking :: MonadInstall m => FilePath -> FilePath -> FilePath -> m ()
 linking packageBin currentBin localBin = do
     Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
     Shelly.shelly $ Shelly.mkdir_p $ parent localBin
-    print $ show packageBin
-    print $ show currentBin
-    print $ show localBin
     createSymLink packageBin currentBin
     createSymLink currentBin localBin
     shell <- checkShell
