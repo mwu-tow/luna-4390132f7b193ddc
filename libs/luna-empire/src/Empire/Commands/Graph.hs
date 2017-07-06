@@ -305,7 +305,8 @@ updateCodeSpan :: GraphOp m => NodeRef -> m ()
 updateCodeSpan ref = do
     updateCodeSpan' ref
     LeftSpacedSpan (SpacedSpan off len) <- readCodeSpan ref
-    setCodeSpan ref (leftSpacedSpan 14 len)
+    fileOffset <- use Graph.fileOffset
+    setCodeSpan ref (leftSpacedSpan fileOffset len)
 
 addPort :: GraphLocation -> OutPortRef -> Empire InputSidebar
 addPort loc portRef = withTC loc False $ addPortNoTC loc portRef

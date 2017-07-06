@@ -187,7 +187,7 @@ getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
 getAllBeginningsOf ref = do
     succs <- toList <$> IR.getLayer @IR.Succs ref
     case succs of
-        [] -> return [globalFileBlockStart]
+        [] -> fmap (\x -> [x]) $ use Graph.fileOffset
         _  -> fmap concat $ forM succs $ \s -> do
             off  <- getOffsetRelativeToTarget s
             begs <- getAllBeginningsOf =<< IR.readTarget s
@@ -221,31 +221,31 @@ computeLength ref = do
 recomputeLength :: GraphOp m => NodeRef -> m ()
 recomputeLength ref = IR.putLayer @SpanLength ref =<< computeLength ref
 
--- TODO: read from upper AST
-globalFileBlockStart :: Delta
-globalFileBlockStart = 14
-
 functionBlockStart :: ClassOp m => NodeId -> m Delta
 functionBlockStart funUUID = do
     unit <- use Graph.clsClass
     funs <- use Graph.clsFuns
     let fun = Map.lookup funUUID funs
     (name, _) <- fromMaybeM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
-    ref <- ASTRead.getFunByName name
+    ref       <- ASTRead.getFunByName name
+    functionBlockStartRef ref
+
+functionBlockStartRef :: ClassOp m => NodeRef -> m Delta
+functionBlockStartRef ref = do
     LeftSpacedSpan (SpacedSpan off len) <- getOffset ref
     return $ off + len
 
 getOffset :: ClassOp m => NodeRef -> m (LeftSpacedSpan Delta)
 getOffset ref = do
-    succs <- toList <$> IR.getLayer @IR.Succs ref
+    succs    <- toList <$> IR.getLayer @IR.Succs ref
     leftSpan <- case succs of
-        [] -> return $ LeftSpacedSpan (SpacedSpan 0 0)
+        []     -> return $ LeftSpacedSpan (SpacedSpan 0 0)
         [more] -> do
-            inputs <- IR.inputs =<< IR.readTarget more
-            realInputs <- mapM (IR.readSource) inputs
+            inputs         <- IR.inputs =<< IR.readTarget more
+            realInputs     <- mapM IR.readSource inputs
             let leftInputs = takeWhile (/= ref) realInputs
-            moreOffset <- getOffset =<< IR.readTarget more
-            lefts <- mconcat <$> mapM (fmap (view CodeSpan.realSpan) . IR.getLayer @CodeSpan) leftInputs
+            moreOffset     <- getOffset =<< IR.readTarget more
+            lefts          <- mconcat <$> mapM (fmap (view CodeSpan.realSpan) . IR.getLayer @CodeSpan) leftInputs
             return $ moreOffset <> lefts
     LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
     return $ leftSpan <> LeftSpacedSpan (SpacedSpan off 0)

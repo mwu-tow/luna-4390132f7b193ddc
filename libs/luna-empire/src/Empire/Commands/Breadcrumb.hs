@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE ViewPatterns      #-}
 
 module Empire.Commands.Breadcrumb where
@@ -18,7 +19,7 @@ import qualified Data.UUID.V4                    as UUID
 import           Empire.ASTOp                      (putNewIR, runAliasAnalysis, runASTOp)
 import           Empire.ASTOps.BreadcrumbHierarchy as ASTBreadcrumb
 import           Empire.Commands.AST               (classFunctions)
-import           Empire.Commands.Code              (propagateLengths)
+import           Empire.Commands.Code              (functionBlockStartRef, propagateLengths)
 import           Empire.Data.AST                   (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.BreadcrumbHierarchy   (navigateTo, replaceAt)
 import qualified Empire.Data.BreadcrumbHierarchy   as BH
@@ -29,6 +30,8 @@ import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbIte
 import           LunaStudio.Data.Library         (LibraryId)
 import           LunaStudio.Data.Node            (NodeId)
 import           LunaStudio.Data.Project         (ProjectId)
+import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
+import           Data.Text.Span                  (LeftSpacedSpan(..), SpacedSpan(..))
 
 import           Empire.Commands.Library         (withLibrary)
 import           Empire.Empire                   (Command, CommunicationEnv, Empire, runEmpire)
@@ -45,17 +48,23 @@ makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph
 makeGraphCls fun lastUUID = do
     pmState   <- liftIO Graph.defaultPMState
     nodeCache <- use Graph.nodeCache
-    (funName, IR.Rooted ir ref) <- runASTOp $ IR.matchExpr fun $ \case
-        IR.ASGRootedFunction n root -> return (nameToString n, root)
+    (funName, IR.Rooted ir ref, fileOffset, blockLength) <- runASTOp $ IR.matchExpr fun $ \case
+        IR.ASGRootedFunction n root -> do
+            offset <- functionBlockStartRef fun
+            LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
+            return (nameToString n, root, offset, len)
     let ast   = Graph.AST ir pmState
     uuid <- maybe (liftIO $ UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromMaybeM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
     let bh = BH.LamItem portMapping ref def ref
-        graph = Graph.Graph ast bh 0 def def def
+        graph = Graph.Graph ast bh 0 def def def fileOffset blockLength
     Graph.clsFuns . at uuid ?= (funName, graph)
     withRootedFunction uuid $ do
-        runASTOp $ propagateLengths ref
+        runASTOp $ do
+            propagateLengths ref
+            LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan ref
+            Graph.fileOffset += off
         runAliasAnalysis
         runASTOp $ do
             ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeCache ref

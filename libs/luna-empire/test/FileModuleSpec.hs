@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE TupleSections     #-}
 
 module FileModuleSpec (spec) where
 
 import           Data.List                      (find)
+import qualified Data.Map                       as Map
 import qualified Data.Set                       as Set
 import qualified Data.Text                      as Text
 import           Empire.ASTOp                   (runASTOp)
@@ -12,17 +14,22 @@ import qualified Empire.Commands.Code           as Code
 import qualified Empire.Commands.Graph          as Graph
 import qualified Empire.Commands.GraphBuilder   as GraphBuilder
 import qualified Empire.Commands.Library        as Library
+import qualified Empire.Data.BreadcrumbHierarchy as BH
+import qualified Empire.Data.Graph              as Graph
 import           LunaStudio.Data.Breadcrumb     (Breadcrumb (..), BreadcrumbItem (..))
 import qualified LunaStudio.Data.Breadcrumb     as Breadcrumb
 import qualified LunaStudio.Data.Graph          as Graph
 import           LunaStudio.Data.GraphLocation  (GraphLocation (..))
 import qualified LunaStudio.Data.Node           as Node
+import           LunaStudio.Data.NodeMeta       (NodeMeta(..))
 import qualified LunaStudio.Data.NodeMeta       as NodeMeta
+import qualified LunaStudio.Data.Position       as Position
 
 import           Luna.Prelude                   (forM, normalizeQQ)
+import           Empire.Empire
 import           Empire.Prelude
 
-import           Test.Hspec                     (Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
+import           Test.Hspec                     (Expectation, Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
                                                  shouldNotBe, shouldSatisfy, shouldStartWith, xit)
 
 import           EmpireUtils
@@ -51,6 +58,20 @@ def bar:
 def main:
     print bar
 |]
+
+specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
+specifyCodeChange initialCode expectedCode act env = do
+    let normalize = Text.pack . normalizeQQ . Text.unpack
+    actualCode <- evalEmp env $ do
+        Library.createLibrary Nothing "TestPath"
+        let loc = GraphLocation "TestPath" $ Breadcrumb []
+        Graph.loadCode loc $ normalize initialCode
+        [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
+        let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+        act loc'
+        Text.pack <$> Graph.getCode loc'
+    Text.strip actualCode `shouldBe` normalize expectedCode
+
 
 spec :: Spec
 spec = around withChannels $ do
@@ -195,3 +216,17 @@ spec = around withChannels $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
             sort offsets `shouldBe` [12, 28, 48]
+        xit "adds node in function" $
+            let expectedCode = [r|def foo:
+                    5
+
+                def bar:
+                    "bar"
+
+                def main:
+                    node1 = 5
+                    print bar
+                |]
+            in specifyCodeChange code expectedCode $ \loc -> do
+                u1 <- mkUUID
+                Graph.addNode loc u1 "5" def

@@ -34,6 +34,7 @@ import qualified Luna.Syntax.Text.Parser.Parser         as Parser
 import qualified Luna.Syntax.Text.Parser.Parsing        as Parser ()
 import qualified Luna.Syntax.Text.Parser.CodeSpan       as CodeSpan
 import           Data.TypeDesc                          (getTypeDesc)
+import           Data.Text.Position                     (Delta)
 
 import           System.Log                             (Logger, DropLogger, dropLogs, MonadLogging)
 
@@ -53,6 +54,8 @@ data Graph = Graph { _ast                   :: AST Graph
                    , _codeMarkers           :: Map Luna.MarkerId NodeRef
                    , _graphCode             :: Text
                    , _parseError            :: Maybe SomeASTException
+                   , _fileOffset            :: Delta
+                   , _blockLength           :: Delta
                    } deriving Show
 
 data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
@@ -61,7 +64,7 @@ data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
                          , _clsCode        :: Text
                          , _clsParseError  :: Maybe SomeASTException
                          , _clsFuns        :: Map NodeId (String, Graph)
-                         , _nodeCache    :: NodeCache
+                         , _nodeCache      :: NodeCache
                          } deriving Show
 
 data NodeCache = NodeCache { _nodeIdMap      :: Map Word64 NodeId
