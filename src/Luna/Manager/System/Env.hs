@@ -46,7 +46,12 @@ setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
 setTmpCwd = liftIO . System.setCurrentDirectory . encodeString =<< getTmpPath
 
 createSymLink :: MonadIO m => FilePath -> FilePath -> m ()
-createSymLink src dst = liftIO $ System.createFileLink (encodeString src) (encodeString dst)
+createSymLink src dst = liftIO $ do
+    checkLink <- System.pathIsSymbolicLink (encodeString dst)
+    if checkLink then do
+        System.removeFile $ encodeString dst
+        System.createFileLink (encodeString src) (encodeString dst)
+        else System.createFileLink (encodeString src) (encodeString dst)
 
 
 
