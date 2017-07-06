@@ -80,7 +80,7 @@ instance ToJSON   Repo           where toEncoding = lensJSONToEncoding; toJSON =
 instance ToJSON   Package        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc    where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageHeader  where toEncoding = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
-instance FromJSON AppType        where parseJSON  = lensJSONParse 
+instance FromJSON AppType        where parseJSON  = lensJSONParse
 instance FromJSON Repo           where parseJSON  = lensJSONParse
 instance FromJSON Package        where parseJSON  = lensJSONParse
 instance FromJSON PackageDesc    where parseJSON  = lensJSONParse
@@ -126,6 +126,6 @@ getRepo = do
 -- === Instances === --
 
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig RepoConfig sys arch m where
-    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://s3-us-west-2.amazonaws.com/packages-luna/config2.yaml"
+    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://s3-us-west-2.amazonaws.com/packages-luna/config.yaml"
                                             , _cachedRepo = Nothing
                                             }
