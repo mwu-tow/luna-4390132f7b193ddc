@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable, exportPath, checkShell, runServicesWindows)
+import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -152,7 +152,7 @@ linking packageBin currentBin localBin = do
     createSymLink packageBin currentBin
     createSymLink currentBin localBin
     shell <- checkShell
-    exportPath (parent localBin) shell -- rename export because it is not export to env
+    exportPath' (parent localBin) shell -- rename export because it is not export to env
 
 runServices :: MonadInstall m => FilePath -> m ()
 runServices installPath = case currentHost of

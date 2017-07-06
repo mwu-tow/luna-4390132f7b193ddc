@@ -77,6 +77,17 @@ unrecognizedShellError :: SomeException
 unrecognizedShellError = toException UnrecognizedShellError
 
 
+-- handleAll :: Monad m => (SomeException -> m a) -> ExceptT' m a -> m a
+
+
+exportPath' :: MonadIO m => FilePath -> Shell -> m ()
+exportPath' pathToExport shellType = flip handleAll (exportPath pathToExport shellType) $ \_ -> print "error occured, TODO[WD]"
+    -- | e == unrecognizedShellError  -> error "d"
+    -- | e == bashConfigNotFoundError -> error "x"
+    -- UnrecognizedShellError ->
+    -- `catches` [Handler (\ (ex :: UnrecognizedShellError) -> liftIO $ putStrLn $ displayException ex),
+    --                                                                               Handler (\ (ex :: BashConfigNotFoundError) -> liftIO $ putStrLn $ displayException ex)]
+
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
 exportPath :: (MonadException SomeException m, MonadIO m) => FilePath -> Shell -> m ()
 exportPath pathToExport shellType = do
