@@ -506,7 +506,7 @@ setNodeMetaGraph nodeId newMeta = runASTOp $ do
 setNodeMetaFun :: NodeId -> NodeMeta -> Command ClsGraph ()
 setNodeMetaFun nodeId newMeta = runASTOp $ do
     Just (name, _) <- use $ Graph.clsFuns . at nodeId
-    f              <- GraphBuilder.getFunByName name
+    f              <- ASTRead.getFunByName name
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
@@ -526,7 +526,7 @@ setNodePositionAST nodeId newPos = do
 setNodePositionCls :: ClassOp m => NodeId -> Position -> m ()
 setNodePositionCls nodeId newPos = do
     Just (name, _) <- use $ Graph.clsFuns . at nodeId
-    f              <- GraphBuilder.getFunByName name
+    f              <- ASTRead.getFunByName name
     oldMeta <- fromMaybe def <$> AST.readMeta f
     AST.writeMeta f $ oldMeta & NodeMeta.position .~ newPos
 
@@ -783,7 +783,7 @@ autolayoutTopLevel loc = do
     withUnit loc $ runASTOp $ do
         clsFuns <- use Graph.clsFuns
         needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, _)) -> do
-            f    <- GraphBuilder.getFunByName name
+            f    <- ASTRead.getFunByName name
             meta <- AST.readMeta f
             return $ if meta /= def then Nothing else Just id
 

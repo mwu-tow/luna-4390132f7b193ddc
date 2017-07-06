@@ -6,14 +6,14 @@
 
 module Empire.Commands.Code where
 
-import           Prologue
+import           Empire.Prelude
 import           Control.Monad.State     (MonadState)
 import           Control.Monad           (forM)
 import qualified Data.Set                as Set
 import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
-import           Data.Text.IO            as Text
+import qualified Data.Text.IO            as Text
 import           Data.List               (sort)
 import           Data.Maybe              (listToMaybe)
 import           Empire.Data.Graph       as Graph
@@ -21,7 +21,7 @@ import           Empire.Empire           (Command, Empire)
 import qualified Safe
 
 import           Empire.Data.AST         (NodeRef, EdgeRef)
-import           Empire.ASTOp            (GraphOp, runASTOp)
+import           Empire.ASTOp            (ClassOp, GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
 import           Empire.ASTOps.Modify    as ASTModify
 
@@ -39,6 +39,7 @@ import qualified Luna.Syntax.Text.Lexer      as Lexer
 import           Luna.Syntax.Text.SpanTree   as SpanTree
 import           Data.VectorText             (VectorText)
 
+import           LunaStudio.Data.Breadcrumb         (Breadcrumb(..), BreadcrumbItem(..))
 import           LunaStudio.Data.Node               (NodeId)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 
@@ -223,6 +224,31 @@ recomputeLength ref = IR.putLayer @SpanLength ref =<< computeLength ref
 -- TODO: read from upper AST
 globalFileBlockStart :: Delta
 globalFileBlockStart = 14
+
+functionBlockStart :: ClassOp m => NodeId -> m Delta
+functionBlockStart funUUID = do
+    unit <- use Graph.clsClass
+    funs <- use Graph.clsFuns
+    let fun = Map.lookup funUUID funs
+    (name, _) <- fromMaybeM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
+    ref <- ASTRead.getFunByName name
+    LeftSpacedSpan (SpacedSpan off len) <- getOffset ref
+    return $ off + len
+
+getOffset :: ClassOp m => NodeRef -> m (LeftSpacedSpan Delta)
+getOffset ref = do
+    succs <- toList <$> IR.getLayer @IR.Succs ref
+    leftSpan <- case succs of
+        [] -> return $ LeftSpacedSpan (SpacedSpan 0 0)
+        [more] -> do
+            inputs <- IR.inputs =<< IR.readTarget more
+            realInputs <- mapM (IR.readSource) inputs
+            let leftInputs = takeWhile (/= ref) realInputs
+            moreOffset <- getOffset =<< IR.readTarget more
+            lefts <- mconcat <$> mapM (fmap (view CodeSpan.realSpan) . IR.getLayer @CodeSpan) leftInputs
+            return $ moreOffset <> lefts
+    LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
+    return $ leftSpan <> LeftSpacedSpan (SpacedSpan off 0)
 
 getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do

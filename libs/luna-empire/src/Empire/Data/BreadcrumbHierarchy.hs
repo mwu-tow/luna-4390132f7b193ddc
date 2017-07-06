@@ -8,7 +8,7 @@ import           Prologue                   hiding (children)
 import           LunaStudio.Data.Breadcrumb (Breadcrumb (..), BreadcrumbItem (..))
 import           LunaStudio.Data.Node       (NodeId)
 
-import           Empire.Data.AST            (NodeRef)
+import           Empire.Data.AST            (NodeRef, astExceptionToException, astExceptionFromException)
 
 import           Data.Map                   (Map)
 import qualified Data.Map                   as Map
@@ -25,6 +25,13 @@ data ExprItem = ExprItem { _portChildren :: Map Int LamItem
                          } deriving (Show, Eq)
 
 data BChild  = ExprChild ExprItem | LambdaChild  LamItem deriving (Show, Eq)
+
+data BreadcrumbDoesNotExistException = BreadcrumbDoesNotExistException (Breadcrumb BreadcrumbItem)
+    deriving (Show)
+
+instance Exception BreadcrumbDoesNotExistException where
+    toException = astExceptionToException
+    fromException = astExceptionFromException
 
 makeLenses ''LamItem
 makeLenses ''ExprItem

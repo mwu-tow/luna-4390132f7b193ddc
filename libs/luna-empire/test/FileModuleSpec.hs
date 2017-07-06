@@ -8,6 +8,7 @@ import qualified Data.Set                       as Set
 import qualified Data.Text                      as Text
 import           Empire.ASTOp                   (runASTOp)
 import qualified Empire.Commands.AST            as AST
+import qualified Empire.Commands.Code           as Code
 import qualified Empire.Commands.Graph          as Graph
 import qualified Empire.Commands.GraphBuilder   as GraphBuilder
 import qualified Empire.Commands.Library        as Library
@@ -18,7 +19,7 @@ import           LunaStudio.Data.GraphLocation  (GraphLocation (..))
 import qualified LunaStudio.Data.Node           as Node
 import qualified LunaStudio.Data.NodeMeta       as NodeMeta
 
-import           Luna.Prelude                   (normalizeQQ)
+import           Luna.Prelude                   (forM, normalizeQQ)
 import           Empire.Prelude
 
 import           Test.Hspec                     (Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
@@ -30,6 +31,18 @@ import           Text.RawString.QQ              (r)
 
 
 code = [r|def foo:
+    5
+
+def bar:
+    "bar"
+
+def main:
+    print bar
+|]
+
+codeWithImport = [r|import Std
+
+def foo:
     5
 
 def bar:
@@ -166,3 +179,19 @@ spec = around withChannels $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc code
                 Graph.substituteCode "TestPath" 13 14 "10" (Just 14)
+        it "shows proper function offsets without imports" $ \env -> do
+            offsets <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc code
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
+            sort offsets `shouldBe` [0, 16, 36]
+        it "shows proper function offsets with imports" $ \env -> do
+            offsets <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc codeWithImport
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
+            sort offsets `shouldBe` [12, 28, 48]

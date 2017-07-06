@@ -21,7 +21,7 @@ import           LunaStudio.Data.Node               (NodeId)
 import qualified LunaStudio.Data.PortRef            as PortRef
 import           LunaStudio.Data.Port               as Port
 import qualified LunaStudio.Data.NodeLoc            as NodeLoc
-import           Empire.ASTOp                       (GraphOp, match)
+import           Empire.ASTOp                       (ClassOp, GraphOp, match)
 import           Empire.Data.AST                    (NodeRef, EdgeRef, NotUnifyException(..),
                                                      NotLambdaException(..), PortDoesNotExistException (..),
                                                      astExceptionFromException, astExceptionToException)
@@ -296,3 +296,18 @@ canEnterNode :: GraphOp m => NodeRef -> m Bool
 canEnterNode ref = do
     match' <- isMatch ref
     if match' then rhsIsLambda ref else return False
+
+getFunByName :: ClassOp m => String -> m NodeRef
+getFunByName name = do
+    cls <- use Graph.clsClass
+    maybeFuns <- IR.matchExpr cls $ \case
+        IR.Unit _ _ cls -> do
+            cls' <- IR.source cls
+            IR.matchExpr cls' $ \case
+                IR.ClsASG _ _ _ decls -> do
+                    forM decls $ \funLink -> do
+                        fun <- IR.source funLink
+                        IR.matchExpr fun $ \case
+                            IR.ASGRootedFunction n _ -> return $ if nameToString n == name then Just fun else Nothing
+    case catMaybes maybeFuns of
+        [f] -> return f

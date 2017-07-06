@@ -38,13 +38,6 @@ import qualified Luna.IR as IR
 withBreadcrumb :: FilePath -> Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Empire a
 withBreadcrumb file breadcrumb actG actC = withLibrary file $ zoomBreadcrumb breadcrumb actG actC
 
-data BreadcrumbDoesNotExistException = BreadcrumbDoesNotExistException (Breadcrumb BreadcrumbItem)
-    deriving (Show)
-
-instance Exception BreadcrumbDoesNotExistException where
-    toException = astExceptionToException
-    fromException = astExceptionFromException
-
 makeGraph :: NodeRef -> Maybe NodeId -> Command Library.Library (NodeId, Graph.Graph)
 makeGraph fun lastUUID = zoom Library.body $ makeGraphCls fun lastUUID
 
@@ -79,11 +72,11 @@ runInternalBreadcrumb breadcrumb act = do
             let newGraph = graph & Graph.breadcrumbHierarchy .~ h
             (res, state) <- liftIO $ runEmpire env newGraph act
             let modified = replaceAt breadcrumb breadcrumbHierarchy $ state ^. Graph.breadcrumbHierarchy
-            mod <- maybe (throwM $ BreadcrumbDoesNotExistException breadcrumb) return modified
+            mod <- maybe (throwM $ BH.BreadcrumbDoesNotExistException breadcrumb) return modified
             let newGraph = state & Graph.breadcrumbHierarchy .~ mod
             put newGraph
             return res
-        _ -> throwM $ BreadcrumbDoesNotExistException breadcrumb
+        _ -> throwM $ BH.BreadcrumbDoesNotExistException breadcrumb
 
 zoomInternalBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.Graph a
 zoomInternalBreadcrumb (Breadcrumb (Definition _ : rest)) act = zoomInternalBreadcrumb (Breadcrumb rest) act
@@ -91,7 +84,7 @@ zoomInternalBreadcrumb breadcrumb act = runInternalBreadcrumb breadcrumb act
 
 withRootedFunction :: NodeId -> Command Graph.Graph a -> Command Graph.ClsGraph a
 withRootedFunction uuid act = do
-    graph    <- preuse (Graph.clsFuns . ix uuid . _2) <?!> BreadcrumbDoesNotExistException (Breadcrumb [Definition uuid])
+    graph    <- preuse (Graph.clsFuns . ix uuid . _2) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition uuid])
     env      <- ask
     clsGraph <- get
     let properGraph = let clsMarkers    = clsGraph ^. Graph.clsCodeMarkers
@@ -118,4 +111,4 @@ zoomBreadcrumb (Breadcrumb []) _actG actC = do
     return res
 zoomBreadcrumb breadcrumb@(Breadcrumb (Definition uuid : rest)) actG _actC =
     zoom Library.body $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) actG
-zoomBreadcrumb breadcrumb _ _ = throwM $ BreadcrumbDoesNotExistException breadcrumb
+zoomBreadcrumb breadcrumb _ _ = throwM $ BH.BreadcrumbDoesNotExistException breadcrumb
