@@ -12,6 +12,8 @@ import Type.Inference
 
 import Control.Monad.State.Layered
 import Data.Foldable (asum)
+import GHC.Exts (Any)
+import Unsafe.Coerce (unsafeCoerce)
 
 
 ---------------------------
@@ -139,8 +141,13 @@ class Monad m => MonadTokenParser m where
     getNextToken  = lift getNextToken
     viewNextToken = lift viewNextToken
 
-instance {-# OVERLAPPABLE #-} (Monad (t m), MonadTrans t, Token m ~ Token (t m), MonadTokenParser m)
-      => MonadTokenParser (t m)
+class MonadTokenParser m => MonadFiniteTokenParser m where
+    viewNextTokens :: m [Token m]
+    default viewNextTokens :: (m ~ t m', Token m' ~ Token (t m'), MonadFiniteTokenParser m', MonadTrans t, Monad m') => m [Token m]
+    viewNextTokens = lift viewNextTokens
+
+instance {-# OVERLAPPABLE #-} (Monad (t m), MonadTrans t, Token m ~ Token (t m), MonadTokenParser m)       => MonadTokenParser       (t m)
+instance {-# OVERLAPPABLE #-} (Monad (t m), MonadTrans t, Token m ~ Token (t m), MonadFiniteTokenParser m) => MonadFiniteTokenParser (t m)
 
 
 -- === Utils === --
@@ -177,7 +184,7 @@ notFollowedBy m = catch m >>= \case
 
 data SatisfyError     = SatisfyError     deriving (Show)
 data EmptyStreamError = EmptyStreamError deriving (Show)
-
+data PreviewError     = PreviewError Any
 
 
 ---------------------------
@@ -248,6 +255,8 @@ instance Monad m => MonadTokenParser (StateT (Stream s) m) where
             Nothing     -> (Nothing, s)
             Just (t,s') -> (Just t, s')
 
+instance (Monad m, Convertible' s [Item s]) => MonadFiniteTokenParser (StateT (Stream s) m) where
+    viewNextTokens = convert' . view streamBuffer <$> get @Stream
 
 
 ------------------------
