@@ -180,10 +180,10 @@ postInstallation appType installPath binPath appName = do
 
 installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
 installApp opts package = do
-    binPath     <- askLocation opts (package ^. resolvedAppType) ((package ^. header) ^. name)
-    installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  ((package ^. header) ^. name) $ showPretty ((package ^. header) ^. version)
-    downloadAndUnpack ((package ^. desc) ^. path) installPath
-    postInstallation (package ^. resolvedAppType) installPath binPath  ((package ^. header) ^. name)
+    binPath     <- askLocation opts (package ^. resolvedAppType) (package ^. header . name)
+    installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  (package ^. header . name) $ showPretty (package ^. header . version)
+    downloadAndUnpack (package ^. desc . path) installPath
+    postInstallation (package ^. resolvedAppType) installPath binPath  (package ^. header . name)
 
 askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
@@ -214,7 +214,7 @@ runInstaller opts = do
     let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
-    let appsToInstall = filter (( <$> ((^. name) <$> (^. header))) (`elem` (repo ^.apps))) pkgsToInstall
+    let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
 
     binPath <- askLocation opts (appPkg ^. appType) appName
     mapM_ (installApp opts) appsToInstall
