@@ -122,15 +122,19 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
               forM_ output $ sidebar_ ref Nothing
 
               planeCanvas_ mempty
-        GraphLoading   -> noGraph_ "Loading..."
-        NoGraph        -> noGraph_ "No file selected"
-        GraphError msg -> noGraph_ msg
+        GraphLoading   -> noGraph_ True "Loading..."
+        NoGraph        -> noGraph_ False ""
+        GraphError msg -> noGraph_ True msg
 
 
-noGraph_ :: String -> ReactElementM ViewEventHandler ()
-noGraph_ msg =
+noGraph_ :: Bool -> String -> ReactElementM ViewEventHandler ()
+noGraph_ hideLogo msg =
     div_ [ "className" $= Style.prefix "graph"] $
-        div_ [ "className" $= Style.prefix "background-text"] $
+        div_ [ "className" $= Style.prefix "background-text"] $ do
+            unless hideLogo $ img_
+                    [ "className" $= Style.prefix "message-logo"
+                    , "src"       $= "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGZpbGw9IiM1RjE1MjIgIiBkPSJNMzUuMiA4MC40YzMwLjUgMCA0MC43IDI0IDU3LjMgMjIuNEMxMDkgMTAxIDU2IDEyMy4zIDU2IDEyMy4zUzE4IDEyNyAxOCA5MGMwLTcuNCAxMi43LTkuNiAxNy4yLTkuNnoiLz48cGF0aCBmaWxsPSIjRjIyMTQ2ICIgZD0iTTkwIDE4MGM0OS43IDAgOTAtNDAuMyA5MC05MFMxMzkuNyAwIDkwIDAgMCA0MC4zIDAgOTBzNDAuMyA5MCA5MCA5MHptMC05YzQ0LjcgMCA4MS0zNi4zIDgxLTgxUzEzNC43IDkgOTAgOSA5IDQ1LjMgOSA5MHMzNi4zIDgxIDgxIDgxem03Mi03OS4yYzAgMzktMzIuOCA3MC4yLTcyIDcwLjItMzkuOCAwLTcyLTMyLjItNzItNzIgOSAxNC43IDI0IDI0LjYgNDAuMyAyNS4yIDE5LjQuOCAzOS43LTExIDQ4LjMtMzEuNiA2LTE0LjIgMTYuNy0xOS41IDI3LTE5LjUgMTMuOCAwIDI4LjQgMTEgMjguNCAyOHoiLz48L2c+PC9zdmc+Cg=="
+                    ] mempty
             elemString msg
 
 dynamicStyle_ :: Matrix Double -> ReactElementM ViewEventHandler ()
