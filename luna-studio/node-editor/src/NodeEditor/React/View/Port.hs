@@ -3,6 +3,7 @@
 module NodeEditor.React.View.Port where
 
 import           Common.Prelude
+import qualified Data.Aeson                       as Aeson
 import           LunaStudio.Data.Constants        (nodePropertiesWidth)
 import           LunaStudio.Data.PortRef          (AnyPortRef, toAnyPortRef)
 import qualified NodeEditor.Event.Mouse           as Mouse
@@ -269,8 +270,9 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
               ]
             ) mempty
 
-argumentConstructor_ :: Ref App -> AnyPortRef -> ReactElementM ViewEventHandler ()
-argumentConstructor_ ref portRef = do
+argumentConstructor_ :: Ref App -> AnyPortRef -> Int -> ReactElementM ViewEventHandler ()
+argumentConstructor_ ref portRef numOfPorts = do
+    let offsetY = ((fromIntegral numOfPorts) * gridSize) + 18.0
     g_
         [ "key"       $= "argument-constructor"
         , "className" $= Style.prefixFromList ["port", "port--i", "port--i--constructor"]
@@ -279,15 +281,16 @@ argumentConstructor_ ref portRef = do
             [ "className" $= Style.prefix "port__shape"
             , "key"       $= "shape"
             , "r"         $= jsShow2 3
-            , "fill"      $= "gray"
-            , "cy"        $= fromString (show (2 * gridSize) <> "px")
+            --, "cy"        $= fromString (show offsetY <> "px")
+            , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY ++ "px") ]
             ] mempty
         circle_
             ( handlers ref portRef ++
               [ "className" $= Style.prefix "port__select"
               , "key"       $= "select"
               , "r"         $= jsShow2 (lineHeight/1.5)
-              , "cy"        $= fromString (show (2 * gridSize) <> "px")
+              --, "cy"        $= fromString (show offsetY <> "px")
+              , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY ++ "px") ]
               ]
             ) mempty
 

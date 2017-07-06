@@ -115,15 +115,15 @@ node :: ReactView (Ref App, ExpressionNode, Maybe Searcher, Set NodeLoc)
 node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
     Node.Expanded (Node.Function fs) -> nodeContainer_ ref maySearcher relatedNodesWithVis $ Map.elems fs
     _ -> do
-        let nodeId          = n ^. Node.nodeId
-            nodeLoc         = n ^. Node.nodeLoc
-            nodeLimit       = 10000::Int
-            zIndex          = n ^. Node.zPos
-            z               = if isCollapsed n then zIndex else zIndex + nodeLimit
-            hasSelf         = any (\p -> (Port.isSelf $ p ^. Port.portId) && (not $ Port.isInvisible p)) $ Node.inPortsList n
-            mayVisVisible   = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
-            showValue       = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
-            expression      = n ^. Node.expression
+        let nodeId        = n ^. Node.nodeId
+            nodeLoc       = n ^. Node.nodeLoc
+            nodeLimit     = 10000::Int
+            zIndex        = n ^. Node.zPos
+            z             = if isCollapsed n then zIndex else zIndex + nodeLimit
+            hasSelf       = any (\p -> (Port.isSelf $ p ^. Port.portId) && (not $ Port.isInvisible p)) $ Node.inPortsList n
+            mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
+            showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
+            expression    = n ^. Node.expression
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
@@ -184,19 +184,18 @@ nodePorts_ ref model = React.viewWithSKey nodePorts objNamePorts (ref, model) me
 
 nodePorts :: ReactView (Ref App, ExpressionNode)
 nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
-    let nodeId             = n ^. Node.nodeId
-        nodeLoc            = n ^. Node.nodeLoc
-        nodePorts'         = Node.portsList n
-        ports p =
-            forM_ p $ \port -> port_ ref
-                                     nodeLoc
-                                     port
-                                     (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
-                                     (withOut isOutAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
-                                     (case (n ^. Node.inPorts) of
-                                         LabeledTree _ a -> case (a ^. Port.state) of
-                                             Port.Connected -> True
-                                             _              -> False )
+    let nodeId     = n ^. Node.nodeId
+        nodeLoc    = n ^. Node.nodeLoc
+        nodePorts' = Node.portsList n
+        ports p    = forM_ p $ \port -> port_ ref
+                                              nodeLoc
+                                              port
+                                              (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
+                                              (withOut isOutAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
+                                              (case (n ^. Node.inPorts) of
+                                                  LabeledTree _ a -> case (a ^. Port.state) of
+                                                      Port.Connected -> True
+                                                      _              -> False )
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]
@@ -228,7 +227,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                 ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
                 forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ \port -> portExpanded_ ref nodeLoc port
             when (n ^. Node.acceptsArguments) $
-                argumentConstructor_ ref $ toAnyPortRef nodeLoc $ InPortId' [Arg $ countArgPorts n]
+                argumentConstructor_ ref (toAnyPortRef nodeLoc $ InPortId' [Arg $ countArgPorts n]) $ countArgPorts n
 
 nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, maySearcher, nodesWithVis, subgraphs) mempty
