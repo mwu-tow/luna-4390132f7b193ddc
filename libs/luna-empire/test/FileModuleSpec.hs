@@ -59,6 +59,8 @@ def main:
     print bar
 |]
 
+atXPos = ($ def) . (NodeMeta.position . Position.x .~)
+
 specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
 specifyCodeChange initialCode expectedCode act env = do
     let normalize = Text.pack . normalizeQQ . Text.unpack
@@ -216,17 +218,47 @@ spec = around withChannels $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
             sort offsets `shouldBe` [12, 28, 48]
-        xit "adds node in function" $
-            let expectedCode = [r|def foo:
-                    5
-
-                def bar:
-                    "bar"
-
-                def main:
-                    node1 = 5
-                    print bar
-                |]
-            in specifyCodeChange code expectedCode $ \loc -> do
+        it "adds node in a function with at least two nodes" $
+            let initialCode = [r|
+                    def foo:
+                        «0»5
+                    def bar:
+                        «1»"bar"
+                    def main:
+                        «2»c = 4
+                        «3»print bar
+                    |]
+                expectedCode = [r|
+                    def foo:
+                        5
+                    def bar:
+                        "bar"
+                    def main:
+                        node1 = 5
+                        c = 4
+                        print bar
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
-                Graph.addNode loc u1 "5" def
+                Graph.addNode loc u1 "5" (atXPos (-50))
+        xit "adds node in a function with one node" $
+            let initialCode = [r|
+                    def foo:
+                        «0»5
+                    def bar:
+                        «1»"bar"
+                    def main:
+                        «2»print bar
+                    |]
+                expectedCode = [r|
+                    def foo:
+                        5
+                    def bar:
+                        "bar"
+                    def main:
+                        node1 = 5
+                        print bar
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                Graph.addNode loc u1 "5" (atXPos (-50))
