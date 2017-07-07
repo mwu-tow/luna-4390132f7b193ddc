@@ -76,10 +76,6 @@ instance Exception UnrecognizedShellError where
 unrecognizedShellError :: SomeException
 unrecognizedShellError = toException UnrecognizedShellError
 
-
--- handleAll :: Monad m => (SomeException -> m a) -> ExceptT' m a -> m a
-
-
 exportPath' :: MonadIO m => FilePath -> Shell -> m ()
 exportPath' pathToExport shellType = flip handleAll (exportPath pathToExport shellType) $ \_ -> print "error occured, TODO[WD]"
     -- | e == unrecognizedShellError  -> error "d"
