@@ -4,7 +4,6 @@ module NodeEditor.React.View.NodeEditor where
 import           Common.Prelude                             hiding (transform)
 import qualified Data.HashMap.Strict                        as HashMap
 import           Data.Matrix                                (Matrix)
-import qualified Data.Matrix                                as Matrix
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
 import           JS.Scene                                   (sceneId)
@@ -12,7 +11,9 @@ import qualified LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.NodeLoc                    (NodePath)
 import           LunaStudio.Data.PortRef                    (InPortRef (InPortRef))
 import qualified NodeEditor.Data.CameraTransformation       as CameraTransformation
-import           NodeEditor.Data.Matrix                     (showCameraMatrix, showCameraScale, showCameraTranslate)
+import           NodeEditor.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraScale,
+                                                             showCameraTranslate)
+import qualified NodeEditor.Data.Matrix                     as Matrix
 import           NodeEditor.Event.Event                     (Event (Shortcut))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import qualified NodeEditor.Event.UI                        as UI
@@ -48,8 +49,10 @@ name = "node-editor"
 objDynStyle :: JSString
 objDynStyle = "dynamic-style"
 
-keyDynStyle :: JSString
-keyDynStyle = "dynamic-style"
+keyDynScale, keyDynTranslate, keyDynTransform :: JSString
+keyDynScale = "dynamic-scale"
+keyDynTranslate = "dynamic-translate"
+keyDynTransform = "dynamic-transform"
 
 show1 :: Double -> String
 show1 a = showFFloat (Just 1) a "" -- limit Double to two decimal numbers TODO: remove before the release
@@ -99,8 +102,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
               , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
               , onScroll      $ \e     -> [preventDefault e]
               ] $ do
-              dynamicStyle_ camera
-              forM_ (ne ^. NodeEditor.expressionNodesRecursive) $ nodeDynamicStyles_ camera
+              dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
 
               svgPlanes_ $ do
                   planeMonads_ $
@@ -137,30 +139,52 @@ noGraph_ hideLogo msg =
                     ] mempty
             elemString msg
 
-dynamicStyle_ :: Matrix Double -> ReactElementM ViewEventHandler ()
-dynamicStyle_ camera = React.viewWithSKey dynamicStyle keyDynStyle camera mempty
+dynamicStyles_ :: Matrix Double -> [ExpressionNode.ExpressionNode] -> ReactElementM ViewEventHandler ()
+dynamicStyles_ camera nodes = do
+    dynamicTransform_ camera
+    dynamicTranslate_ $ convert camera
+    dynamicScale_ $ convert camera
+    forM_ nodes $ nodeDynamicStyles_ camera
 
-dynamicStyle :: ReactView (Matrix Double)
-dynamicStyle = React.defineView objDynStyle $ \camera -> do
-    let scale = (Matrix.toList camera)!!0 :: Double
+
+dynamicScale_ :: CameraScale -> ReactElementM ViewEventHandler ()
+dynamicScale_ cameraScale = React.viewWithSKey dynamicScale keyDynScale cameraScale mempty
+
+dynamicScale :: ReactView CameraScale
+dynamicScale = React.defineView objDynStyle $ \cameraScale -> do
+    let scale = cameraScale ^. Matrix.scale
     style_
-        [ "key" $= "style"
+        [ "key" $= "scale"
         ] $ do
+          elemString $ ":root { font-size: " <> show scale <> "px }"
+          elemString $ ":root { --scale: "   <> show scale <> " }"
+          elemString $ ".luna-camera-scale { transform: "     <> showCameraScale cameraScale <> " }"
 
-        elemString $ ":root { font-size: " <> show scale <> "px }"
-        elemString $ ":root { --scale: "   <> show scale <> " }"
+          elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
+          elemString $ ".luna-connection__select { stroke-width: " <> show (10/scale)          <> " }"
 
-        elemString $ ".luna-camera-scale { transform: "     <> showCameraScale     camera <> " }"
-        elemString $ ".luna-camera-translate { transform: " <> showCameraTranslate camera <> " }"
-        elemString $ ".luna-camera-transform { transform: " <> showCameraMatrix    camera <> " }"
+          --collapsed nodes
+          elemString $ ".luna-port-io-shape-mask { r: "  <> show (19.2 + (0.8 / scale)) <> "px }"
+          elemString $ ".luna-port-io-select-mask { r: " <> show (19.2 + (0.8 / scale)) <> "px }"
 
-        elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
-        elemString $ ".luna-connection__select { stroke-width: " <> show (10/scale)          <> " }"
+          --expanded nodes
+          elemString $ "circle.luna-port__shape { r: " <> show (3 + (1 / scale)) <> "px }"
+          elemString $ ".luna-port--alias circle.luna-port__shape { r: " <> show (7 + (1 / scale)) <> "px }"
 
-        --collapsed nodes
-        elemString $ ".luna-port-io-shape-mask { r: "  <> show (19.2 + (0.8 / scale)) <> "px }"
-        elemString $ ".luna-port-io-select-mask { r: " <> show (19.2 + (0.8 / scale)) <> "px }"
+dynamicTranslate_ :: CameraTranslate -> ReactElementM ViewEventHandler ()
+dynamicTranslate_ cameraTranslate = React.viewWithSKey dynamicTranslate keyDynTranslate cameraTranslate mempty
 
-        --expanded nodes
-        elemString $ "circle.luna-port__shape { r: " <> show (3 + (1 / scale)) <> "px }"
-        elemString $ ".luna-port--alias circle.luna-port__shape { r: " <> show (7 + (1 / scale)) <> "px }"
+dynamicTranslate :: ReactView CameraTranslate
+dynamicTranslate = React.defineView objDynStyle $ \cameraTranslate ->
+    style_
+        [ "key" $= "translate"
+        ] $ elemString $ ".luna-camera-translate { transform: " <> showCameraTranslate cameraTranslate <> " }"
+
+dynamicTransform_ :: Matrix Double -> ReactElementM ViewEventHandler ()
+dynamicTransform_ camera = React.viewWithSKey dynamicTransform keyDynTransform camera mempty
+
+dynamicTransform :: ReactView (Matrix Double)
+dynamicTransform = React.defineView objDynStyle $ \camera ->
+    style_
+        [ "key" $= "transform"
+        ] $ elemString $ ".luna-camera-transform { transform: " <> showCameraMatrix camera <> " }"

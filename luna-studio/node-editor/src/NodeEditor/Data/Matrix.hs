@@ -1,13 +1,37 @@
+{-# LANGUAGE TypeFamilies #-}
 module NodeEditor.Data.Matrix where
 
 import           Common.Prelude
+import           Data.Convert             (Convertible (..))
 import           Data.Matrix              (Matrix)
 import qualified Data.Matrix              as Matrix
 import           Data.ScreenPosition      (ScreenPosition)
 import           LunaStudio.Data.Position (Position, x, y)
-import           LunaStudio.Data.Vector2  (Vector2)
+import           LunaStudio.Data.Vector2  (Dim1, Dim2, IsVector, Vector2 (Vector2), VectorOf)
 import           Numeric                  (showFFloat)
 
+
+data CameraScale     = CameraScale     { _scale :: Double } deriving (Eq)
+data CameraTranslate = CameraTranslate { fromCameraTranslate :: Vector2 Double } deriving (Eq, Generic)
+
+makeWrapped ''CameraTranslate
+makeLenses ''CameraScale
+
+type instance VectorOf CameraTranslate = Vector2 Double
+
+instance Dim1      CameraTranslate
+instance Dim2      CameraTranslate
+instance IsVector  CameraTranslate
+
+type instance Item CameraTranslate = Double
+
+
+instance Convertible (Matrix Double) CameraScale where
+    convert matrix = CameraScale $ (Matrix.toList matrix)!!0
+
+instance Convertible (Matrix Double) CameraTranslate where
+    convert matrix = CameraTranslate $ Vector2 (mx!!12) (mx!!13) where
+        mx = Matrix.toList matrix
 
 translationMatrix :: Vector2 Double -> Matrix Double
 translationMatrix vec = Matrix.fromList 4 4 [ 1       , 0       , 0, 0
@@ -49,15 +73,11 @@ invertedHomothetyMatrix pos k = Matrix.fromList 4 4 [ 1/k  , 0    , 0, 0
     hX = (1 - k) * pos ^. x
     hY = (1 - k) * pos ^. y
 
-showCameraTranslate :: Matrix Double -> String
-showCameraTranslate matrix = "translate(" <> show nx <> "px, " <> show ny <> "px)"
-    where mx = Matrix.toList matrix
-          nx = mx!!12
-          ny = mx!!13
+showCameraTranslate :: CameraTranslate -> String
+showCameraTranslate ct = "translate(" <> show (ct ^. x) <> "px, " <> show (ct ^. y) <> "px)"
 
-showCameraScale :: Matrix Double -> String
-showCameraScale camera = "scale(" <> show scale <> ")"
-    where scale = (Matrix.toList camera)!!0
+showCameraScale :: CameraScale -> String
+showCameraScale cs = "scale(" <> show (cs ^. scale) <> ")"
 
 showCameraMatrix :: Matrix Double -> String
 showCameraMatrix camera = foldl (<>) "matrix3d(" (intersperse ", " $ map show mx2) <> ")"
