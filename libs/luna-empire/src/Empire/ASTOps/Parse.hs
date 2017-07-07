@@ -87,6 +87,7 @@ runProperParser code = do
     runPM $ do
         parserBoilerplate
         attachEmpireLayers
+        -- putStrLn $ Text.unpack code
         IR.setAttr (getTypeDesc @Source.Source) $ (convert code :: Source.Source)
         (unit, root) <- Pass.eval' @ParserPass $ do
             Parsing.parsingPassM Parsing.unit' `catchAll` (\e -> throwM $ SomeParserException e)
@@ -113,7 +114,7 @@ runParser expr = do
         return (unwrap' res, exprMap)
 
 prepareInput :: Text.Text -> Text.Text
-prepareInput expr = Text.concat ["def ", varName, ":\n    None"]
+prepareInput expr = Text.concat ["def ", varName, ":\n    None\n\n"]
     where
         stripped = Text.strip expr
         varName  = case Text.splitOn " " stripped of
@@ -121,10 +122,11 @@ prepareInput expr = Text.concat ["def ", varName, ":\n    None"]
             [def, var] -> var
             _          -> ""
 
-runFunHackParser :: Text.Text -> Command ClsGraph (NodeRef, Parser.MarkedExprMap)
+runFunHackParser :: Text.Text -> Command ClsGraph (NodeRef, Text.Text)
 runFunHackParser expr = do
     let input = prepareInput expr
-    runFunParser input
+    parse <- runFunParser $ Text.strip input
+    return (fst parse, input)
 
 runFunParser :: Text.Text -> Command ClsGraph (NodeRef, Parser.MarkedExprMap)
 runFunParser expr = do

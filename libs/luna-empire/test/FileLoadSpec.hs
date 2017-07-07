@@ -56,7 +56,7 @@ import qualified Luna.IR                         as IR
 
 mainCondensed = [r|def main:
     «0»pi = 3.14
-    «1»foo = a: b: a + b
+    «1»foo = a: b: «4»a + b
     «2»c = 4
     «3»bar = foo 8 c
 |]
@@ -404,9 +404,9 @@ spec = around withChannels $ parallel $ do
             withResult res $ \spans -> do
                 spans `shouldBe` [
                       (14, 26)
-                    , (31, 51)
-                    , (56, 64)
-                    , (69, 85)
+                    , (31, 54)
+                    , (59, 67)
+                    , (72, 88)
                     ]
         it "updateCodeSpan does not break anything" $ \env -> do
             res <- evalEmp env $ do
@@ -423,9 +423,9 @@ spec = around withChannels $ parallel $ do
             withResult res $ \spans -> do
                 spans `shouldBe` [
                       (14, 26)
-                    , (31, 51)
-                    , (56, 64)
-                    , (69, 85)
+                    , (31, 54)
+                    , (59, 67)
+                    , (72, 88)
                     ]
         it "assigns nodeids to marked expressions" $ \env -> do
             res <- evalEmp env $ do
