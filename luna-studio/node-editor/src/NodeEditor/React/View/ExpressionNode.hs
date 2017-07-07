@@ -133,6 +133,8 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
                                                                        ++ (if hasSelf then ["node--has-self"] else ["node--no-self"]))
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
+            , onMouseEnter  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
+            , onMouseLeave  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
             ] $ do

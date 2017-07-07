@@ -13,6 +13,8 @@ data Event = EditExpression                     NodeLoc
            | EditName                           NodeLoc
            | Enter                              NodeLoc
            | MouseDown            MouseEvent    NodeLoc
+           | MouseEnter                         NodeLoc
+           | MouseLeave                         NodeLoc
            | PortApplyString      KeyboardEvent InPortRef PortDefault
            | PortEditString                     InPortRef PortDefault
            | PortInitSlider          MouseEvent InPortRef InitValue
