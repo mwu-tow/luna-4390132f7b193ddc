@@ -13,7 +13,7 @@ import Type.Inference
 import Control.Monad.State.Layered
 import Data.Foldable (asum)
 import GHC.Exts (Any)
-import Unsafe.Coerce (unsafeCoerce)
+import Control.Monad.Branch
 
 
 ---------------------------
@@ -176,7 +176,6 @@ satisfy f  = takeToken >>= \tok -> if f tok
     then tok <$ setProgress
     else raise SatisfyError
 
-
 notFollowedBy :: (MonadTokenParser m, MonadProgressParser m, Alternative m, MonadErrorParser SatisfyError m, MonadErrorParser EmptyStreamError m, MonadCatchParser m) => m a -> m ()
 notFollowedBy m = catch m >>= \case
     Right _ -> raise SatisfyError
@@ -308,6 +307,9 @@ instance MonadProgressParser m => MonadProgressParser (FailParser e m) where
 instance Monad m => MonadCatchParser (FailParser e m) where catch     = failParser . fmap Right . runFailParser
 instance Monad m => MonadThrowParser (FailParser e m) where throwMany = failParser . pure . Left
 
+-- FIXME: We should consider lifting MonadBranch here, but we need to add Parsert debugging toolset better than IO prints
+instance MonadBranch m => MonadBranch (FailParser e m) where
+    branched = wrapped %~ mapEitherT branched
 
 
 -------------------------
@@ -335,6 +337,30 @@ evalBacktracker = flip evalStateT (def :: Backtracker)
 
 type instance Token (StateT Backtracker m) = Token m
 instance Default Backtracker where def = Backtracker False
+
+
+---------------------------
+-- === BranchBreaker === --
+---------------------------
+
+-- === Definition === --
+
+-- | FIXME: BranchBreaker is only used as a layer between Parsert transformers and IO when used MonadBranch.
+--          We could remove it as soon as we introduce Parsert debugging / logging which could work with MonadBranch.
+
+newtype BranchBreaker m a = BranchBreaker (IdentityT m a) deriving (Functor, Applicative, Monad, MonadTrans, MonadIO)
+makeLenses ''BranchBreaker
+
+
+-- === Utils === --
+
+runBranchBreaker :: BranchBreaker m a -> m a
+runBranchBreaker = runIdentityT . unwrap
+
+
+-- === Instances === --
+
+instance Monad m => MonadBranch (BranchBreaker m) where branched = id
 
 
 
@@ -566,6 +592,13 @@ runTest5 = evalBacktracker
          $ evalStreamProvider (listStream "babbbaabab")
          $ evalOffsetRegister
          $ ((token 'b' *> (token 'x' <|> pure 'y') *> token 'z') <|> token 'b')
+
+runTest6 :: IO (Either (NonEmpty String) Char)
+runTest6 = evalBacktracker
+         $ runFailParser
+         $ evalStreamProvider (listStream "babbbaabab")
+         $ evalOffsetRegister
+         $ (try (token 'b' *> token 'z') <|> token 'b')
 
 -- main :: IO ()
 -- main = do
