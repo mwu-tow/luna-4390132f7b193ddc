@@ -8,7 +8,7 @@ import Luna.Manager.Command         (chooseCommand)
 
 
 main :: IO ()
-main = handleAll handleTopLvlError $ evalOptionsParserT chooseCommand
+main = handleAll handleTopLvlError $ evalOptionsParserT chooseCommand 
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()
 handleTopLvlError e = do

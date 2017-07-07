@@ -50,7 +50,7 @@ unzipFileWindows zipFile = do
     script <- downloadFromURL scriptPath
     let dir = directory zipFile
         name = basename zipFile
-    Shelly.shelly $ Shelly.cp script dir
+    -- Shelly.shelly $ Shelly.cp script dir
     Shelly.shelly $ Shelly.cd dir
     Shelly.shelly $ Shelly.cmd "cscript" (filename script) (filename zipFile)
     return name --checkon windows if it is possible to strip and unpack to different dir

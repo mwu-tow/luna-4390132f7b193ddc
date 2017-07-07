@@ -46,7 +46,7 @@ getDownloadPath = getTmpPath
 setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
 setTmpCwd = liftIO . System.setCurrentDirectory . encodeString =<< getTmpPath
 
-createSymLink :: MonadIO m => FilePath -> FilePath -> m ()
+createSymLink ::  MonadIO m => FilePath -> FilePath -> m ()
 createSymLink src dst = liftIO $  (System.createFileLink (encodeString src) (encodeString dst)) `catch` handler src dst where
     --TODO[SB->WD]: Can we do it nicer - to check if it already exist (not the target!)
     handler :: FilePath -> FilePath -> SomeException -> IO ()
