@@ -798,7 +798,7 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 Graph.disconnect loc $ inPortRef b [Port.Arg 2]
-        it "disconnects a deep self port" $ let
+        it "disconnects a self port behind an application" $ let
             initialCode = [r|
                 def main:
                     «0»node1 = foo
@@ -812,6 +812,20 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 Graph.disconnect loc $ inPortRef b [Port.Arg 1, Port.Self]
+        it "disconnects a deep self port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = foo . prepend 10 . prepend 20
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = prepend 10 . prepend 20
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Self, Port.Self]
         it "disconnects a deep application port" $ let
             initialCode = [r|
                 def main:
