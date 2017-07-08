@@ -36,7 +36,7 @@ import qualified LunaStudio.Data.Graph         as Graph
 import           LunaStudio.Data.LabeledTree
 import qualified LunaStudio.Data.Node          as Node
 import           LunaStudio.Data.NodeLoc       (NodeLoc (..))
-import           LunaStudio.Data.Port
+import           LunaStudio.Data.Port          hiding (head)
 import           LunaStudio.Data.TypeRep
 
 import qualified LunaStudio.API.Graph.Redo     as Redo

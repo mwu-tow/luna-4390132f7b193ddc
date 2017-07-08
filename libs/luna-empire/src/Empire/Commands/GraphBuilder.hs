@@ -55,8 +55,8 @@ import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
 import           LunaStudio.Data.Node            (NodeId)
 import qualified LunaStudio.Data.Node            as API
 import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
-import           LunaStudio.Data.Port            (InPort, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId, OutPortIndex (..),
-                                                  OutPortTree, OutPorts (..), Port (..), PortState (..))
+import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
+                                                  OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
 import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId)
@@ -151,7 +151,7 @@ buildNode nid = do
     meta      <- fromMaybe def <$> AST.readMeta marked
     name      <- getNodeName nid
     canEnter  <- ASTRead.isLambda ref
-    inports   <- buildInPorts nid ref
+    inports   <- buildInPorts nid ref []
     outports  <- buildOutPorts root
     code      <- getNodeCode nid
     return $ API.ExpressionNode nid expr name code inports outports meta canEnter
@@ -160,7 +160,7 @@ buildNodeTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildNodeTypecheckUpdate nid = do
   root     <- GraphUtils.getASTPointer nid
   ref      <- GraphUtils.getASTTarget  nid
-  inPorts  <- buildInPorts nid ref
+  inPorts  <- buildInPorts nid ref []
   outPorts <- buildOutPorts root
   return $ API.ExpressionUpdate nid inPorts outPorts
 
@@ -320,23 +320,18 @@ buildArgPorts ref = do
                           portsTypes
     return $ zipWith ($) psCons (fmap snd typed ++ repeat NotConnected)
 
-buildSelfPort' :: ASTOp m => Bool -> NodeRef -> m (Maybe InPort)
-buildSelfPort' seenAcc node = do
-    let buildActualSelf = do
-            tpRep     <- followTypeRep node
-            portState <- getPortState  node
-            return $ Just $ Port [Self] "self" tpRep portState
-    let potentialSelf = Just $ Port [Self] "self" TStar NotConnected
-
+buildSelfPort :: ASTOp m => NodeId -> InPortId -> NodeRef -> m (Maybe (InPortTree InPort))
+buildSelfPort nid currentPort node = do
+    let potentialSelf = Port currentPort "self" TStar NotConnected
     match node $ \case
-        (Acc t _)  -> IR.source t >>= buildSelfPort' True
-        (App t _)  -> IR.source t >>= buildSelfPort' seenAcc
-        Blank      -> return Nothing
-        (Var _)    -> if seenAcc then buildActualSelf else return potentialSelf
-        _          -> if seenAcc then buildActualSelf else return Nothing
-
-buildSelfPort :: ASTOp m => NodeRef -> m (Maybe InPort)
-buildSelfPort = buildSelfPort' False
+        Acc t _ -> do
+            target <- IR.source t
+            tree   <- buildInPorts nid target currentPort
+            return $ Just tree
+        Var _     -> return $ Just $ LabeledTree def potentialSelf
+        App f _   -> buildSelfPort nid currentPort =<< IR.source f
+        Grouped g -> buildSelfPort nid currentPort =<< IR.source g
+        _         -> return Nothing
 
 buildWholePort :: ASTOp m => NodeId -> NodeRef -> m InPort
 buildWholePort nid ref = do
@@ -350,13 +345,12 @@ followTypeRep ref = do
     tp <- IR.source =<< IR.getLayer @TypeLayer ref
     Print.getTypeRep tp
 
-buildInPorts :: ASTOp m => NodeId -> NodeRef -> m (InPortTree InPort)
-buildInPorts nid ref = do
-    selfPort <- buildSelfPort ref
+buildInPorts :: ASTOp m => NodeId -> NodeRef -> InPortId -> m (InPortTree InPort)
+buildInPorts nid ref currentPort = do
+    selfPort <- buildSelfPort nid (currentPort ++ [Self]) ref
     argPorts <- buildArgPorts ref
     whole    <- buildWholePort nid ref
-    return $ LabeledTree (InPorts (LabeledTree def <$> selfPort) (LabeledTree def <$> argPorts)) whole
-
+    return $ LabeledTree (InPorts selfPort def (LabeledTree def <$> argPorts)) whole
 
 buildDummyOutPort :: ASTOp m => NodeRef -> m (OutPortTree OutPort)
 buildDummyOutPort ref = do
@@ -412,7 +406,7 @@ buildOutputSidebar nid = do
     out      <- ASTRead.getLambdaOutputRef ref
     tp       <- followTypeRep out
     state    <- getPortState  out
-    return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing [])  $ Port [] "output" tp state
+    return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing Nothing [])  $ Port [] "output" tp state
 
 getOutputSidebarInputs :: ASTOp m => NodeId -> m (Maybe (OutPortRef, InPortRef))
 getOutputSidebarInputs outputEdge = do

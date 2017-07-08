@@ -13,11 +13,11 @@ import           Data.Binary                 (Binary)
 import           LunaStudio.Data.LabeledTree as X (LabeledTree (LabeledTree))
 import           LunaStudio.Data.PortDefault (PortDefault)
 import           LunaStudio.Data.TypeRep     (TypeRep)
-import           Prologue                    hiding (TypeRep)
+import           Prologue                    hiding (TypeRep, head)
 
 
-data InPortIndex = Self | Head | Arg Int                      deriving (Eq, Generic, NFData, Ord, Read, Show)
-data InPorts s   = InPorts { _self :: Maybe s, _args :: [s] } deriving (Default, Eq, Foldable, Functor, Generic, NFData, Show, Traversable)
+data InPortIndex = Self | Head | Arg Int                                        deriving (Eq, Generic, NFData, Ord, Read, Show)
+data InPorts s   = InPorts { _self :: Maybe s, _head :: Maybe s, _args :: [s] } deriving (Default, Eq, Foldable, Functor, Generic, NFData, Show, Traversable)
 type InPortId    = [InPortIndex]
 makeLenses ''InPorts
 
@@ -46,6 +46,7 @@ instance FromJSON s => FromJSON (OutPorts s)
 type instance Index   (InPorts s) = InPortIndex
 type instance IxValue (InPorts s) = s
 instance Ixed (InPorts s) where
+    ix Head    = head . _Just
     ix Self    = self . _Just
     ix (Arg i) = args . ix i
 
