@@ -110,7 +110,7 @@ import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
 import           LunaStudio.Data.Point            (Point)
-import           LunaStudio.Data.Port             (InPortIndex (..), OutPortId, getPortNumber)
+import           LunaStudio.Data.Port             (InPortIndex (..), OutPortId, getPortNumber, InPortId)
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.PortRef          as PortRef
@@ -593,8 +593,7 @@ connectPersistent :: ASTOp m => OutPortRef -> AnyPortRef -> m Connection
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst@(InPortRef (NodeLoc _ dstNodeId) dstPort)) = do
     case dstPort of
         []        -> makeWhole srcNodeId dstNodeId srcPort
-        [Self]    -> makeAcc   srcNodeId dstNodeId srcPort
-        [Arg num] -> makeApp   srcNodeId dstNodeId num srcPort
+        _         -> makeInternalConnection srcNodeId dstNodeId srcPort dstPort
     return $ Connection src dst
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (OutPortRef' dst@(OutPortRef d@(NodeLoc _ dstNodeId) dstPort)) = do
     case dstPort of
@@ -977,9 +976,7 @@ getOutEdges nodeId = do
 disconnectPort :: ASTOp m => InPortRef -> m ()
 disconnectPort (InPortRef (NodeLoc _ dstNodeId) dstPort) = case dstPort of
     []        -> setToNothing dstNodeId
-    [Self]    -> unAcc dstNodeId
-    [Arg num] -> unApp dstNodeId num
-    _         -> return ()
+    _         -> removeInternalConnection dstNodeId dstPort
 
 setToNothing :: ASTOp m => NodeId -> m ()
 setToNothing dst = do
@@ -997,31 +994,18 @@ setToNothing dst = do
             IR.putLayer @Marker nothing $ Just $ OutPortRef (NodeLoc def uid) []
         else GraphUtils.rewireNode dst nothing
 
-unAcc :: ASTOp m => NodeId -> m ()
-unAcc nodeId = do
-    dstAst     <- ASTRead.getTargetEdge nodeId
-    beg        <- Code.getASTTargetBeginning nodeId
-    ASTBuilder.removeAccessor dstAst beg
-
-unApp :: ASTOp m => NodeId -> Int -> m ()
-unApp nodeId pos = do
+removeInternalConnection :: ASTOp m => NodeId -> InPortId -> m ()
+removeInternalConnection nodeId port = do
     dstAst <- ASTRead.getTargetEdge nodeId
     beg    <- Code.getASTTargetBeginning nodeId
-    ASTBuilder.removeArgument dstAst beg pos
+    ASTBuilder.removeArgument dstAst beg port
 
-makeAcc :: ASTOp m => NodeId -> NodeId -> OutPortId -> m ()
-makeAcc src dst outPort = do
-    dstBeg     <- Code.getASTTargetBeginning dst
-    srcAst     <- ASTRead.getASTOutForPort src outPort
-    dstAst     <- ASTRead.getTargetEdge dst
-    ASTBuilder.makeAccessor srcAst dstAst dstBeg
-
-makeApp :: ASTOp m => NodeId -> NodeId -> Int -> OutPortId -> m ()
-makeApp src dst pos outPort = do
-    dstBeg     <- Code.getASTTargetBeginning dst
-    srcAst     <- ASTRead.getASTOutForPort src outPort
-    dstAst     <- ASTRead.getTargetEdge dst
-    ASTBuilder.applyFunction dstAst dstBeg srcAst pos
+makeInternalConnection :: ASTOp m => NodeId -> NodeId -> OutPortId -> InPortId -> m ()
+makeInternalConnection src dst outPort inPort = do
+    dstBeg <- Code.getASTTargetBeginning dst
+    srcAst <- ASTRead.getASTOutForPort src outPort
+    dstAst <- ASTRead.getTargetEdge dst
+    ASTBuilder.makeConnection dstAst dstBeg inPort srcAst
 
 makeWhole :: ASTOp m => NodeId -> NodeId -> OutPortId -> m ()
 makeWhole src dst outPort = do

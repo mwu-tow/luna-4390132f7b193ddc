@@ -756,6 +756,34 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
                 Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Arg 2])
+        it "connects to a deep self port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = Empty
+                    «1»b = prepend 10 . prepend 20
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»node1 = Empty
+                    «1»b = node1 . prepend 10 . prepend 20
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
+                Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Self, Port.Self])
+        it "connects to a deep application port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = Empty
+                    «1»b = node1 . prepend . prepend 20
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»node1 = Empty
+                    «1»b = node1 . prepend node1 . prepend 20
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
+                Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Self, Port.Arg 0])
         it "disconnects an application port" $ let
             initialCode = [r|
                 def main:
@@ -770,6 +798,34 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 Graph.disconnect loc $ inPortRef b [Port.Arg 2]
+        it "disconnects a deep self port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz (node1 . prepend 1) node1
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz (prepend 1) node1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Arg 1, Port.Self]
+        it "disconnects a deep application port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz (Empty . prepend node1 foo) node1
+                |]
+            expectedCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz (Empty . prepend _ foo) node1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Arg 1, Port.Arg 0]
         it "connects to application port multiple times" $ let
             initialCode = [r|
                 def main:
