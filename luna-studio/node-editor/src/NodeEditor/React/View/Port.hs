@@ -270,12 +270,13 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
               ]
             ) mempty
 
-argumentConstructor_ :: Ref App -> AnyPortRef -> Int -> ReactElementM ViewEventHandler ()
-argumentConstructor_ ref portRef numOfPorts = do
-    let offsetY = ((fromIntegral numOfPorts) * gridSize) + 19.0
+argumentConstructor_ :: Ref App -> AnyPortRef -> Int -> Bool -> ReactElementM ViewEventHandler ()
+argumentConstructor_ ref portRef numOfPorts isConnectionSource = do
+    let offsetY    = ((fromIntegral numOfPorts) * gridSize) + 19.0
+        hoverClass = if isConnectionSource then ["hover"] else []
     g_
         [ "key"       $= "argument-constructor"
-        , "className" $= Style.prefixFromList ["port", "port--i", "port--i--constructor"]
+        , "className" $= Style.prefixFromList (["port", "port--i", "port--i--constructor"] ++ hoverClass)
         ] $ do
         circle_
             [ "className" $= Style.prefix "port__shape"

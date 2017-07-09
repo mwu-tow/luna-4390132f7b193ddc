@@ -25,7 +25,6 @@ data ExpressionNode = ExpressionNode { _exprNodeId       :: NodeId
                                      , _code             :: Text
                                      , _inPorts          :: InPortTree  InPort
                                      , _outPorts         :: OutPortTree OutPort
-                                     , _acceptsArguments :: Bool
                                      , _nodeMeta         :: NodeMeta
                                      , _canEnter         :: Bool
                                      } deriving (Eq, Generic, NFData, Show, Typeable)
@@ -74,7 +73,6 @@ mkExprNode nid expr pos = ExpressionNode nid
                                          def
                                          (Port.LabeledTree (Port.InPorts (Just $ Port.LabeledTree def $ Port.Port [Port.Self] (Text.pack "") TStar Port.NotConnected) def) (Port.Port [] (Text.pack "") TStar Port.NotConnected))
                                          (Port.LabeledTree def $ Port.Port []          (Text.pack "") TStar Port.NotConnected)
-                                         False
                                          (NodeMeta.NodeMeta pos False def)
                                          False
 

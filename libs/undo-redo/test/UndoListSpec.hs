@@ -28,25 +28,25 @@ import qualified Data.Text.Lazy                as Text
 
 import           Prologue
 
+import           LunaStudio.API.Graph.AddNode  (Request (..))
+import qualified LunaStudio.API.Graph.AddNode  as AddNode
+import qualified LunaStudio.API.Graph.Result   as Result
+import qualified LunaStudio.API.Topic          as Topic
 import qualified LunaStudio.Data.Graph         as Graph
 import           LunaStudio.Data.LabeledTree
 import qualified LunaStudio.Data.Node          as Node
 import           LunaStudio.Data.NodeLoc       (NodeLoc (..))
 import           LunaStudio.Data.Port
 import           LunaStudio.Data.TypeRep
-import           LunaStudio.API.Graph.AddNode      (Request (..))
-import qualified LunaStudio.API.Graph.AddNode      as AddNode
-import qualified LunaStudio.API.Graph.Result       as Result
-import qualified LunaStudio.API.Topic              as Topic
 
+import qualified LunaStudio.API.Graph.Redo     as Redo
+import qualified LunaStudio.API.Graph.Undo     as Undo
+import qualified LunaStudio.API.Response       as Response
 import           LunaStudio.Data.Breadcrumb    (Breadcrumb (..))
 import           LunaStudio.Data.GraphLocation (GraphLocation (..))
 import           LunaStudio.Data.Library       (Library)
-import qualified LunaStudio.API.Graph.Redo         as Redo
-import qualified LunaStudio.API.Graph.Undo         as Undo
-import qualified LunaStudio.API.Response           as Response
 
-import           LunaStudio.API.Request            as Request
+import           LunaStudio.API.Request        as Request
 
 import           Undo                          (checkGuiId, handleMessage, run', withBus)
 import           UndoState                     (Undo (..), UndoMessage (..), UndoState (..))
@@ -59,7 +59,7 @@ generateGraphLocation = do
 generateNode :: IO Node.ExpressionNode
 generateNode = do
     nodeId <- UUID.nextRandom
-    return $ Node.ExpressionNode nodeId "3" (Just "3") "3" (LabeledTree def (Port [] "whole" TStar NotConnected)) (LabeledTree def (Port [] "" TStar NotConnected)) True def False
+    return $ Node.ExpressionNode nodeId "3" (Just "3") "3" (LabeledTree def (Port [] "whole" TStar NotConnected)) (LabeledTree def (Port [] "" TStar NotConnected)) def False
 
 emptyResult :: Result.Result
 emptyResult = Result.Result def def $ Graph.Graph def def def def def

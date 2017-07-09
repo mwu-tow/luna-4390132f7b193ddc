@@ -36,7 +36,7 @@ createNode parentPath nodePos expr = do
                       else Nothing
         defInPorts  = LabeledTree def $ Port [Arg 0] (Text.pack "") TStar NotConnected
         defOutPorts = LabeledTree def $ Port []      (Text.pack "") TStar NotConnected
-        empireNode  = Empire.ExpressionNode nid expr def def defInPorts defOutPorts False nodeMeta False
+        empireNode  = Empire.ExpressionNode nid expr def def defInPorts defOutPorts nodeMeta False
         node        = convert (parentPath, empireNode)
         nl          = NodeLoc parentPath nid
     localAddExpressionNode node

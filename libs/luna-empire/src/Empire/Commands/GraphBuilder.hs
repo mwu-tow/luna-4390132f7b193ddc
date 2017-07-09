@@ -154,8 +154,7 @@ buildNode nid = do
     inports   <- buildInPorts nid ref
     outports  <- buildOutPorts root
     code      <- getNodeCode nid
-    let acceptsArguments = True --TODO[PM->MK]
-    return $ API.ExpressionNode nid expr name code inports outports acceptsArguments meta canEnter
+    return $ API.ExpressionNode nid expr name code inports outports meta canEnter
 
 buildNodeTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildNodeTypecheckUpdate nid = do

@@ -29,28 +29,28 @@ import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.React.Model.IsNode            as X
 import           NodeEditor.React.Model.Node.SidebarNode  (InputNode, OutputNode)
-import           NodeEditor.React.Model.Port              (InPort, InPortTree, OutPort, OutPortTree)
+import           NodeEditor.React.Model.Port              (AnyPortId, InPort, InPortTree, OutPort, OutPortTree)
 import qualified NodeEditor.React.Model.Port              as Port
 import           NodeEditor.State.Collaboration           (ColorId)
 
 
-data ExpressionNode = ExpressionNode { _nodeLoc'                :: NodeLoc
-                                     , _name                    :: Maybe Text
-                                     , _expression              :: Text
-                                     , _inPorts                 :: InPortTree InPort
-                                     , _outPorts                :: OutPortTree OutPort
-                                     , _acceptsArguments        :: Bool
-                                     , _canEnter                :: Bool
-                                     , _position                :: Position
-                                     , _defaultVisualizer       :: Maybe Visualizer
-                                     , _visualizationsEnabled   :: Bool
-                                     , _code                    :: Text
-                                     , _value                   :: Maybe Value
-                                     , _zPos                    :: Int
-                                     , _isSelected              :: Bool
-                                     , _mode                    :: Mode
-                                     , _execTime                :: Maybe Integer
-                                     , _collaboration           :: Collaboration
+data ExpressionNode = ExpressionNode { _nodeLoc'               :: NodeLoc
+                                     , _name                   :: Maybe Text
+                                     , _expression             :: Text
+                                     , _inPorts                :: InPortTree InPort
+                                     , _outPorts               :: OutPortTree OutPort
+                                     , _halfConnectionPortId   :: Maybe AnyPortId
+                                     , _canEnter               :: Bool
+                                     , _position               :: Position
+                                     , _defaultVisualizer      :: Maybe Visualizer
+                                     , _visualizationsEnabled  :: Bool
+                                     , _code                   :: Text
+                                     , _value                  :: Maybe Value
+                                     , _zPos                   :: Int
+                                     , _isSelected             :: Bool
+                                     , _mode                   :: Mode
+                                     , _execTime               :: Maybe Integer
+                                     , _collaboration          :: Collaboration
                                      } deriving (Eq, Generic, NFData, Show)
 
 
@@ -92,7 +92,7 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- expression            -} (n ^. Empire.expression)
         {- inPorts               -} (convert <$> n ^. Empire.inPorts)
         {- outPorts              -} (convert <$> n ^. Empire.outPorts)
-        {- acceptsArguments      -} (n ^. Empire.acceptsArguments)
+        {- halfConnectionPortId  -} def
         {- canEnter              -} (n ^. Empire.canEnter)
         {- position              -} (n ^. Empire.position)
         {- defaultVisualizer     -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
@@ -113,7 +113,6 @@ instance Convertible ExpressionNode Empire.ExpressionNode where
         {- code             -} (n ^. code)
         {- inPorts          -} (convert <$> n ^. inPorts)
         {- outPorts         -} (convert <$> n ^. outPorts)
-        {- acceptsArguments -} (n ^. acceptsArguments)
         {- nodeMeta         -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
         {- canEnter         -} (n ^. canEnter)
 

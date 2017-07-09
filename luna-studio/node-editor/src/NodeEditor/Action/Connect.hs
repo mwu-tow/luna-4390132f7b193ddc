@@ -28,14 +28,14 @@ import           NodeEditor.Action.NodeDrag                 (startNodeDrag)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.Model              (createHalfConnectionModel, createHalfConnectionModel')
-import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, modifyNodeEditor)
+import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, modifyExpressionNode, modifyNodeEditor)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
 import           NodeEditor.Event.Mouse                     (mousePosition, workspacePosition)
 import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destination, Source))
 import           NodeEditor.React.Model.Connection          (ConnectionId, toValidEmpireConnection)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node                (Node (Expression))
-import           NodeEditor.React.Model.Node.ExpressionNode (isCollapsed)
+import           NodeEditor.React.Model.Node.ExpressionNode (halfConnectionPortId, isCollapsed)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), Connect (Connect), Mode (Click, Drag),
                                                              connectAction, connectIsArgumentConstructor, connectMode, connectSnappedPort,
@@ -45,7 +45,11 @@ import           React.Flux                                 (MouseEvent)
 
 
 instance Action (Command State) Connect where
-    begin action = beginActionWithKey    connectAction action >> actions . currentConnectAction ?= action
+    begin action = do
+        beginActionWithKey connectAction action
+        actions . currentConnectAction ?= action
+        modifyExpressionNode (action ^. connectSourcePort ^. PortRef.nodeLoc) $
+            halfConnectionPortId ?= (action ^. connectSourcePort . PortRef.portId)
     continue     = continueActionWithKey connectAction
     update       = updateActionWithKey   connectAction
     end action   = do
@@ -124,8 +128,9 @@ handleMouseUp evt action = when (action ^. connectMode == Drag) $ do
     else end action
 
 stopConnectingUnsafe :: Connect -> Command State ()
-stopConnectingUnsafe _ = do
+stopConnectingUnsafe action = do
     modifyNodeEditor $ NodeEditor.halfConnections .= def
+    modifyExpressionNode (action ^. connectSourcePort ^. PortRef.nodeLoc) $ halfConnectionPortId .= def
     actions . currentConnectAction .= Nothing
     removeActionFromState connectAction
     void $ updateAllPortsSelfVisibility
