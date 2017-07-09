@@ -39,7 +39,7 @@ data ExpressionNode = ExpressionNode { _nodeLoc'               :: NodeLoc
                                      , _expression             :: Text
                                      , _inPorts                :: InPortTree InPort
                                      , _outPorts               :: OutPortTree OutPort
-                                     , _halfConnectionPortId   :: Maybe AnyPortId
+                                     , _isNewArgConnSrc        :: Bool
                                      , _canEnter               :: Bool
                                      , _position               :: Position
                                      , _defaultVisualizer      :: Maybe Visualizer
@@ -92,7 +92,7 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- expression            -} (n ^. Empire.expression)
         {- inPorts               -} (convert <$> n ^. Empire.inPorts)
         {- outPorts              -} (convert <$> n ^. Empire.outPorts)
-        {- halfConnectionPortId  -} def
+        {- isNewArgConnSrc       -} False
         {- canEnter              -} (n ^. Empire.canEnter)
         {- position              -} (n ^. Empire.position)
         {- defaultVisualizer     -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)

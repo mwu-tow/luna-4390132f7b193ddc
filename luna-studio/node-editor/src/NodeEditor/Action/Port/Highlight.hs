@@ -4,12 +4,12 @@ module NodeEditor.Action.Port.Highlight
     , handleMouseLeave
     ) where
 
-import qualified Data.Set                                    as Set
-import           LunaStudio.Data.Port                        (AnyPortId (InPortId', OutPortId'), InPortIndex (Self))
-import           LunaStudio.Data.PortRef                     (AnyPortRef, nodeLoc, portId)
+import           Common.Prelude
+import qualified Data.Set                                   as Set
+import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'), InPortIndex (Self))
+import           LunaStudio.Data.PortRef                    (AnyPortRef, nodeLoc, portId)
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.Connect                  ()
-import           Common.Prelude
 import           NodeEditor.React.Model.Connection          (toValidEmpireConnection)
 import           NodeEditor.React.Model.Node.ExpressionNode (inPortAt, isCollapsed, outPortAt)
 import           NodeEditor.React.Model.Port                (Mode (Highlighted, Normal), mode)
@@ -46,6 +46,9 @@ handleMouseEnter portRef = do
                     InPortId'  pid -> inPortAt  pid . mode %= updateMode
 
 handleMouseLeave :: AnyPortRef -> Command State ()
-handleMouseLeave portRef = modifyExpressionNode (portRef ^. nodeLoc) $ case portRef ^. portId of
-    OutPortId' pid -> outPortAt pid . mode .= Normal
-    InPortId'  pid -> inPortAt  pid . mode .= Normal
+handleMouseLeave portRef = do
+    mayConnectSrc <- view (connectSourcePort) `fmap2` checkAction connectAction
+    unless (maybe False (== portRef) mayConnectSrc) $
+        modifyExpressionNode (portRef ^. nodeLoc) $ case portRef ^. portId of
+            OutPortId' pid -> outPortAt pid . mode .= Normal
+            InPortId'  pid -> inPortAt  pid . mode .= Normal

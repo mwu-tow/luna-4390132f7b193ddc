@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 module NodeEditor.Action.Command where
 
+import           Common.Prelude             hiding (gets)
 import           Control.Lens.Internal.Zoom
 import           Control.Monad.State
-import           Common.Prelude
 
 
 newtype Command a b = Command { unCommand :: StateT a IO b }

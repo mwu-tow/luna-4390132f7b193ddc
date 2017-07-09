@@ -22,6 +22,7 @@ import           Numeric                          (showFFloat)
 import           React.Flux                       hiding (view)
 import qualified React.Flux                       as React
 
+
 name :: JSString
 name = "port"
 
@@ -97,7 +98,8 @@ portAlias_ :: AnyPort -> ReactElementM ViewEventHandler ()
 portAlias_ p = do
     let portId    = p ^. Port.portId
         color     = convert $ p ^. Port.color
-        className = Style.prefixFromList $ ["port", "port--alias"] -- ++ modeClass
+        highlight = if isHighlighted p then ["hover"] else []
+        className = Style.prefixFromList $ ["port", "port--alias"] ++ highlight -- ++ modeClass
     g_
         [ "className" $= className ] $ do
         circle_
@@ -138,7 +140,8 @@ portSingle_ ref nl p = do
         portType  = toString $ p ^. Port.valueType
         isInput   = isInPort portId
         color     = convert $ p ^. Port.color
-        classes   = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] ++ if isHighlighted p then ["hover"] else []
+        highlight = if isHighlighted p then ["hover"] else []
+        classes   = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] ++ highlight
         r1 :: Double -> JSString
         r1 = jsShow2 . (+) nodeRadius
         r2 = jsShow2 nodeRadius'
@@ -147,7 +150,7 @@ portSingle_ ref nl p = do
                        " L0 "  <> r2   <> " A " <> r2   <> " " <> r2   <> " 1 0 " <> jsShow c <> " 0 -" <> r2   <> " Z "
     g_ [ "className" $= classes ] $ do
         text_
-            [ "className" $= Style.prefixFromList [ "port__type", "noselect" ]
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ highlight)
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 (-typeOffsetY1)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -209,7 +212,7 @@ portIO_ ref nl p numOfPorts = do
         [ "className" $= Style.prefixFromList classes
         ] $ do
         text_
-            [ "className" $= Style.prefixFromList [ "port__type", "noselect" ]
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ highlight)
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 ((lineHeight * fromIntegral num) - adjust)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -246,7 +249,7 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
         [ "className" $= Style.prefixFromList classes
         ] $ do
         text_
-            [ "className" $= Style.prefixFromList [ "port__type", "noselect" ]
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ highlight)
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= py
             , "dy"        $= "4px"
@@ -273,10 +276,10 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
 argumentConstructor_ :: Ref App -> AnyPortRef -> Int -> Bool -> ReactElementM ViewEventHandler ()
 argumentConstructor_ ref portRef numOfPorts isConnectionSource = do
     let offsetY    = ((fromIntegral numOfPorts) * gridSize) + 19.0
-        hoverClass = if isConnectionSource then ["hover"] else []
+        highlight = if isConnectionSource then ["hover"] else []
     g_
         [ "key"       $= "argument-constructor"
-        , "className" $= Style.prefixFromList (["port", "port--i", "port--i--constructor"] ++ hoverClass)
+        , "className" $= Style.prefixFromList (["port", "port--i", "port--i--constructor"] ++ highlight)
         ] $ do
         circle_
             [ "className" $= Style.prefix "port__shape"
@@ -294,52 +297,3 @@ argumentConstructor_ ref portRef numOfPorts isConnectionSource = do
               , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY ++ "px") ]
               ]
             ) mempty
-
-portSidebar_ :: Bool -> ReactElementM ViewEventHandler ()
-portSidebar_ isInput = do
-    let classes = Style.prefixFromList [ "port-sidebar", if isInput then "port-sidebar--i" else "port-sidebar--o" ]
-        key     = "portSidebar" <> if isInput then "Inputs" else "Outputs"
-    div_
-        [ "className" $= classes
-        , "key"       $= key
-        ] $
-        svg_ [] $ do
-            if isInput then do
-                g_
-                    [ "className" $= Style.prefixFromList [ "port", "port--self" ]
-                    ] $ do
-                    circle_
-                        [ "className" $= Style.prefix "port__shape"
-                        , "fill"      $= "orange"
-                        , "r"         $= "5"
-                        ] mempty
-                    circle_
-                        [ "className" $= Style.prefix "port__select"
-                        , "r"         $= "13"
-                        ] mempty
-                g_
-                    [ "className" $= Style.prefixFromList [ "port", "port--i" ]
-                    ] $ do
-                    circle_
-                        [ "className" $= Style.prefix "port__shape"
-                        , "fill"      $= "orange"
-                        , "r"         $= "3"
-                        , "cy"        $= "16"
-                        ] mempty
-                    circle_
-                        [ "className" $= Style.prefix "port__select"
-                        , "r"         $= "10.67"
-                        , "cy"        $= "16"
-                        ] mempty
-            else g_
-                    [ "className" $= Style.prefixFromList [ "port", "port--o" ]
-                    ] $ do
-                        circle_
-                            [ "className" $= Style.prefix "port__shape"
-                            , "fill"      $= "blue"
-                            , "r"         $= "3"
-                            ] mempty
-                        circle_
-                            [ "className" $= Style.prefix "port__select"
-                            , "r"         $= "10.67"
-                            ] mempty

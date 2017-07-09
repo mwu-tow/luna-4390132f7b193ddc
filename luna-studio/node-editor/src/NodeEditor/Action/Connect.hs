@@ -17,7 +17,7 @@ import           Control.Monad.Trans.Maybe                  (MaybeT (MaybeT), ru
 import           Data.ScreenPosition                        (ScreenPosition)
 import qualified JS.GoogleAnalytics                         as GA
 import qualified LunaStudio.Data.Connection                 as ConnectionAPI
-import           LunaStudio.Data.Port                       (AnyPortId (InPortId'), InPortIndex (Self))
+import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'), InPortIndex (Self))
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'))
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           NodeEditor.Action.Basic                    (connect, localAddConnection, localRemovePort, removeConnection,
@@ -28,15 +28,17 @@ import           NodeEditor.Action.NodeDrag                 (startNodeDrag)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.Model              (createHalfConnectionModel, createHalfConnectionModel')
-import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, modifyExpressionNode, modifyNodeEditor)
+import           NodeEditor.Action.State.NodeEditor         (getConnection, getExpressionNode, getNode, modifyExpressionNode,
+                                                             modifyNodeEditor)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
 import           NodeEditor.Event.Mouse                     (mousePosition, workspacePosition)
 import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destination, Source))
 import           NodeEditor.React.Model.Connection          (ConnectionId, toValidEmpireConnection)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node                (Node (Expression))
-import           NodeEditor.React.Model.Node.ExpressionNode (halfConnectionPortId, isCollapsed)
+import           NodeEditor.React.Model.Node.ExpressionNode (hasPort, inPortAt, isCollapsed, isNewArgConnSrc, outPortAt)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
+import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), Connect (Connect), Mode (Click, Drag),
                                                              connectAction, connectIsArgumentConstructor, connectMode, connectSnappedPort,
                                                              connectSourcePort, connectStartPos)
@@ -48,8 +50,13 @@ instance Action (Command State) Connect where
     begin action = do
         beginActionWithKey connectAction action
         actions . currentConnectAction ?= action
-        modifyExpressionNode (action ^. connectSourcePort ^. PortRef.nodeLoc) $
-            halfConnectionPortId ?= (action ^. connectSourcePort . PortRef.portId)
+        modifyExpressionNode (action ^. connectSourcePort . PortRef.nodeLoc) $ do
+            n <- get
+            if hasPort (action ^. connectSourcePort . PortRef.portId) n
+                then case action ^. connectSourcePort . PortRef.portId of
+                    InPortId'  pid -> inPortAt pid  . Port.mode .= Port.Highlighted
+                    OutPortId' pid -> outPortAt pid . Port.mode .= Port.Highlighted
+                else isNewArgConnSrc .= True
     continue     = continueActionWithKey connectAction
     update       = updateActionWithKey   connectAction
     end action   = do
@@ -57,7 +64,6 @@ instance Action (Command State) Connect where
         when (action ^. connectIsArgumentConstructor) $ case action ^. connectSourcePort of
             OutPortRef' outPortRef -> void $ localRemovePort outPortRef
             _                      -> return ()
-
 
 handleConnectionMouseDown :: MouseEvent -> ConnectionId -> ModifiedEnd -> Command State ()
 handleConnectionMouseDown evt connId modifiedEnd = do
@@ -130,9 +136,13 @@ handleMouseUp evt action = when (action ^. connectMode == Drag) $ do
 stopConnectingUnsafe :: Connect -> Command State ()
 stopConnectingUnsafe action = do
     modifyNodeEditor $ NodeEditor.halfConnections .= def
-    modifyExpressionNode (action ^. connectSourcePort ^. PortRef.nodeLoc) $ halfConnectionPortId .= def
     actions . currentConnectAction .= Nothing
     removeActionFromState connectAction
+    modifyExpressionNode (action ^. connectSourcePort . PortRef.nodeLoc) $ do
+        case action ^. connectSourcePort . PortRef.portId of
+            InPortId'  pid -> inPortAt pid  . Port.mode .= Port.Normal
+            OutPortId' pid -> outPortAt pid . Port.mode .= Port.Normal
+        isNewArgConnSrc .= False
     void $ updateAllPortsSelfVisibility
 
 connectToPort :: AnyPortRef -> Connect -> Command State ()

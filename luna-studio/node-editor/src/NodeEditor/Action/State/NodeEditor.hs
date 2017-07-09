@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies           #-}
 module NodeEditor.Action.State.NodeEditor where
 
-import           Common.Prelude
+import           Common.Prelude                              hiding (get)
 import           Control.Arrow                               ((&&&))
 import qualified Control.Monad.State                         as M
 import qualified Data.HashMap.Strict                         as HashMap
