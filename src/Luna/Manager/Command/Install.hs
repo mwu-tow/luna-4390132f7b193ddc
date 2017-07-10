@@ -144,7 +144,7 @@ downloadAndUnpack pkgPath installPath = do
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
 postInstallation appType installPath binPath appName = do
-    home <- getHomePath
+
     installConfig <- get @InstallConfig
     packageBin <- case currentHost of
         Linux   -> return $ installPath </> fromText (appName <> "AppImage")
@@ -157,22 +157,37 @@ postInstallation appType installPath binPath appName = do
             GuiApp   -> expand $ (fromText binPath) </> fromText (Text.append (mkSystemPkgName appName) ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
             BatchApp -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath) </> (fromText (mkSystemPkgName appName))
         Windows -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath)  </> (fromText ( appName))
-    localBin <- case currentHost of
-        Linux -> return $ home </> ".local/bin" </> fromText (mkSystemPkgName appName)
-        Darwin -> return $ "/usr/local/bin" </> fromText appName
-        -- Windows -> return $ "%WINDIR%/System32"-- do niczego chyba nie linkujemy dalej tylko robimy 'setx zmienna path by wyexportować'
+    -- localBin <- case currentHost of
+    --     Linux -> return $ home </> ".local/bin" </> fromText (mkSystemPkgName appName)
+    --     Darwin -> return $ "/usr/local/bin" </> fromText appName
+    --     -- Windows -> return $ "%WINDIR%/System32"-- do niczego chyba nie linkujemy dalej tylko robimy 'setx zmienna path by wyexportować'
     makeExecutable packageBin
-    linking packageBin currentBin localBin
+    linking packageBin currentBin
+    linkingLocalBin currentBin appName
     runServices installPath
 
-linking :: MonadInstall m => FilePath -> FilePath -> FilePath -> m ()
-linking packageBin currentBin localBin = do
-    Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
-    Shelly.shelly $ Shelly.mkdir_p $ parent localBin
-    createSymLink packageBin currentBin
-    createSymLink currentBin localBin
-    shell <- checkShell
-    exportPath' (parent localBin) shell -- rename export because it is not export to env
+linking :: MonadInstall m => FilePath -> FilePath -> m ()
+linking src dst = do
+    Shelly.shelly $ Shelly.mkdir_p $ parent dst
+    createSymLink src dst
+
+
+linkingLocalBin :: MonadInstall m => FilePath -> Text -> m ()
+linkingLocalBin currentBin appName = do
+    home <- getHomePath
+    case currentHost of
+        Linux -> do
+            let localBin = home </> ".local/bin" </> fromText (mkSystemPkgName appName)
+            linking currentBin localBin
+            shell <- checkShell
+            exportPath' (parent localBin) shell
+
+        Darwin -> do
+            let localBin = "/usr/local/bin" </> fromText appName
+            linking currentBin localBin
+            shell <- checkShell
+            exportPath' (parent localBin) shell
+        Windows -> return ()
 
 runServices :: MonadInstall m => FilePath -> m ()
 runServices installPath = case currentHost of
