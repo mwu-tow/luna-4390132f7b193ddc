@@ -83,7 +83,7 @@ instance HasPorts InputNode where
     outPortAt ((Projection i):t) = inputSidebarPorts . ix i . ix t
     outPortAt _                  = ignored
 
-class IsNode node => SidebarNode node where
+class (IsNode node, Typeable node, Eq node) => SidebarNode node where
     mode           :: Lens' node SidebarMode
     -- frozenState    :: Lens' node (Maybe (Height, Maybe AnyPortId))
     isInputSidebar :: node -> Bool

@@ -95,7 +95,10 @@ handlers ref portRef = [ onMouseDown  $ handleMouseDown  ref portRef
                        ]
 
 portAlias_ :: AnyPort -> ReactElementM ViewEventHandler ()
-portAlias_ p = do
+portAlias_ p = React.viewWithSKey portAlias "port-alias" p mempty
+
+portAlias :: ReactView AnyPort
+portAlias = React.defineView "port-alias" $ \p -> do
     let portId    = p ^. Port.portId
         color     = convert $ p ^. Port.color
         highlight = if isHighlighted p then ["hover"] else []
@@ -109,7 +112,10 @@ portAlias_ p = do
             ] mempty
 
 portSelf_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portSelf_ ref nl p = do
+portSelf_ ref nl p = React.viewWithSKey portSelf "port-self" (ref, nl, p) mempty
+
+portSelf :: ReactView (Ref App, NodeLoc, AnyPort)
+portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         color     = convert $ p ^. Port.color
@@ -134,7 +140,10 @@ portSelf_ ref nl p = do
             ]) mempty
 
 portSingle_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portSingle_ ref nl p = do
+portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
+
+portSingle :: ReactView (Ref App, NodeLoc, AnyPort)
+portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         portType  = toString $ p ^. Port.valueType
@@ -170,7 +179,10 @@ portSingle_ ref nl p = do
             ) mempty
 
 portIO_ :: Ref App -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
-portIO_ ref nl p numOfPorts = do
+portIO_ ref nl p numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, numOfPorts) mempty
+
+portIO :: ReactView (Ref App, NodeLoc, AnyPort, Int)
+portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         portType  = toString $ p ^. Port.valueType

@@ -21,6 +21,7 @@ import qualified NodeEditor.React.Event.NodeEditor          as NE
 import           NodeEditor.React.Model.App                 (App)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import qualified NodeEditor.React.Model.Node                as Node
+import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import           NodeEditor.React.Model.NodeEditor          (GraphStatus (..), NodeEditor)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
@@ -139,13 +140,15 @@ noGraph_ hideLogo msg =
                     ] mempty
             elemString msg
 
-dynamicStyles_ :: Matrix Double -> [ExpressionNode.ExpressionNode] -> ReactElementM ViewEventHandler ()
-dynamicStyles_ camera nodes = do
+dynamicStyles_ :: Matrix Double -> [ExpressionNode] -> ReactElementM ViewEventHandler ()
+dynamicStyles_ camera nodes = React.viewWithSKey dynamicStyles "dynamic-styles" (camera, nodes) mempty
+
+dynamicStyles :: ReactView (Matrix Double, [ExpressionNode])
+dynamicStyles = React.defineView "dynamic-styles" $ \(camera, nodes) -> do
     dynamicTransform_ camera
     dynamicTranslate_ $ convert camera
     dynamicScale_ $ convert camera
     forM_ nodes $ nodeDynamicStyles_ camera
-
 
 dynamicScale_ :: CameraScale -> ReactElementM ViewEventHandler ()
 dynamicScale_ cameraScale = React.viewWithSKey dynamicScale keyDynScale cameraScale mempty
