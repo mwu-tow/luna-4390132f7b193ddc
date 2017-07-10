@@ -7,6 +7,7 @@ import           LunaStudio.Data.PortDefault (PortDefault)
 import           LunaStudio.Data.PortRef     (InPortRef)
 import           NodeEditor.State.Action     (InitValue)
 import           React.Flux                  (KeyboardEvent, MouseEvent)
+import qualified React.Flux                  as R
 
 
 data Event = EditExpression                     NodeLoc
@@ -15,8 +16,10 @@ data Event = EditExpression                     NodeLoc
            | MouseDown            MouseEvent    NodeLoc
            | PortApplyString      KeyboardEvent InPortRef PortDefault
            | PortEditString                     InPortRef PortDefault
-           | PortInitSlider          MouseEvent InPortRef InitValue
+           | PortInitSlider       MouseEvent    InPortRef InitValue
            | PortSetPortDefault                 InPortRef PortDefault
            | Select               MouseEvent    NodeLoc
            | SetExpression                      NodeLoc Text
+           | MouseEnter                         NodeLoc
+           | MouseLeave                         NodeLoc
             deriving (Show, Generic, NFData, Typeable)

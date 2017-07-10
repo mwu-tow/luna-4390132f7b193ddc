@@ -36,7 +36,7 @@ import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destin
 import           NodeEditor.React.Model.Connection          (ConnectionId, toValidEmpireConnection)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node                (Node (Expression))
-import           NodeEditor.React.Model.Node.ExpressionNode (hasPort, inPortAt, isCollapsed, isNewArgConnSrc, outPortAt)
+import           NodeEditor.React.Model.Node.ExpressionNode (argConstructorHighlighted, hasPort, inPortAt, isCollapsed, outPortAt)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), Connect (Connect), Mode (Click, Drag),
@@ -56,7 +56,7 @@ instance Action (Command State) Connect where
                 then case action ^. connectSourcePort . PortRef.portId of
                     InPortId'  pid -> inPortAt pid  . Port.mode .= Port.Highlighted
                     OutPortId' pid -> outPortAt pid . Port.mode .= Port.Highlighted
-                else isNewArgConnSrc .= True
+                else argConstructorHighlighted .= True
     continue     = continueActionWithKey connectAction
     update       = updateActionWithKey   connectAction
     end action   = do
@@ -142,7 +142,7 @@ stopConnectingUnsafe action = do
         case action ^. connectSourcePort . PortRef.portId of
             InPortId'  pid -> inPortAt pid  . Port.mode .= Port.Normal
             OutPortId' pid -> outPortAt pid . Port.mode .= Port.Normal
-        isNewArgConnSrc .= False
+        argConstructorHighlighted .= False
     void $ updateAllPortsSelfVisibility
 
 connectToPort :: AnyPortRef -> Connect -> Command State ()

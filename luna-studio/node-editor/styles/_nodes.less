@@ -8,7 +8,7 @@
     position: absolute;
     width:    0;
     height:   0;
-    &:hover {
+    &.luna-hover {
         .luna-ctrl-icon {
             opacity: 1;
             &:hover {
@@ -148,7 +148,7 @@
 }
 
 .luna-node--collapsed .luna-port--i--constructor circle { cy: 19px !important }
-.luna-node:hover .luna-port--i--constructor { display: block !important }
+.luna-node.luna-hover .luna-port--i--constructor { display: block !important }
 
 // types
 
@@ -170,7 +170,7 @@
     }
 }
 
-.luna-node:hover .luna-port__type { display: inherit }
+.luna-node.luna-hover .luna-port__type { display: inherit }
 .luna-port:hover .luna-port__type { fill:    #fff }
 
 /////////////////////////////

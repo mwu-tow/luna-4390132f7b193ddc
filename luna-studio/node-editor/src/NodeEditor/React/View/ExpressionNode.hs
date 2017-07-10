@@ -21,7 +21,7 @@ import qualified NodeEditor.React.Event.Visualization                 as Visuali
 import           NodeEditor.React.Model.App                           (App)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countArgPorts, countOutPorts,
-                                                                       isCollapsed, returnsError)
+                                                                       inPortsList, isCollapsed, outPortsList, returnsError)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Model.Port                          (AnyPortId (InPortId'), InPortIndex (Self), isInPort, isOutAll,
@@ -43,6 +43,10 @@ import qualified NodeEditor.React.View.Style                          as Style
 import           React.Flux
 import qualified React.Flux                                           as React
 
+import           System.IO.Unsafe                                     (unsafePerformIO)
+
+traceShowMToStdout :: (Show a, Monad m) => a -> m ()
+traceShowMToStdout v = unsafePerformIO $ print v >> return (return ())
 
 name, objNameBody, objNamePorts, objNameDynStyles :: JSString
 name             = "node"
@@ -123,17 +127,24 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
             showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression    = n ^. Node.expression
+            highlight     = if n ^. Node.isMouseOver
+                         && (not $ n ^. Node.argConstructorHighlighted)
+                         && (not $ any Port.isHighlighted (inPortsList n))
+                         && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
                                                                        ++ (if returnsError n then ["node--error"] else [])
                                                                        ++ (if n ^. Node.isSelected then ["node--selected"] else [])
-                                                                       ++ (if hasSelf then ["node--has-self"] else ["node--no-self"]))
+                                                                       ++ (if hasSelf then ["node--has-self"] else ["node--no-self"])
+                                                                       ++ highlight)
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
+            , onMouseEnter  $ \e m -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
+            , onMouseLeave  $ \e m -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
             ] $ do
             div_
                 [ "className" $= Style.prefixFromList [ "node-translate","node__text", "noselect" ]
@@ -225,7 +236,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
             else do
                 ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
                 forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ \port -> portExpanded_ ref nodeLoc port
-            argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.isNewArgConnSrc)
+            argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorHighlighted)
 
 nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, maySearcher, nodesWithVis, subgraphs) mempty
