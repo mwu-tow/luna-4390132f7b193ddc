@@ -168,21 +168,19 @@ linking src dst = do
     createSymLink src dst
 
 
-linkingLocalBin :: MonadInstall m => FilePath -> Text -> m ()
+linkingLocalBin :: (MonadInstall m, MonadIO m) => FilePath -> Text -> m ()
 linkingLocalBin currentBin appName = do
     home <- getHomePath
     case currentHost of
         Linux -> do
             let localBin = home </> ".local/bin" </> fromText (mkSystemPkgName appName)
             linking currentBin localBin
-            shell <- checkShell
-            exportPath' (parent localBin) shell
+            exportPath' localBin
         Darwin -> do
             let localBin = "/usr/local/bin" </> fromText appName
             linking currentBin localBin
-            shell <- checkShell
-            exportPath' (parent localBin) shell
-        Windows -> return ()
+            exportPath' localBin
+        Windows -> exportPath' currentBin
 
 runServices :: MonadInstall m => FilePath -> AppType -> m ()
 runServices installPath appType = case currentHost of

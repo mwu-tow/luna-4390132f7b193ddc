@@ -11,7 +11,7 @@ import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 (filter)
 import Data.Text.IO (appendFile)
 import qualified Data.Text  as Text
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText)
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, parent)
 
 import Data.Maybe (listToMaybe)
 import Control.Monad.Raise
@@ -77,8 +77,15 @@ instance Exception UnrecognizedShellError where
 unrecognizedShellError :: SomeException
 unrecognizedShellError = toException UnrecognizedShellError
 
-exportPath' :: MonadIO m => FilePath -> Shell -> m ()
-exportPath' pathToExport shellType = flip handleAll (exportPath pathToExport shellType) $ \_ -> print "error occured, TODO[WD]"
+exportPath' :: MonadIO m => FilePath -> m ()
+exportPath' pathToExport = case currentHost of
+    Linux -> do
+        shellType <- checkShell
+        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "error occured, TODO[WD]"
+    Darwin -> do
+        shellType <- checkShell
+        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "error occured, TODO[WD]"
+    Windows -> exportPathWindows pathToExport
     -- | e == unrecognizedShellError  -> error "d"
     -- | e == bashConfigNotFoundError -> error "x"
     -- UnrecognizedShellError ->
@@ -104,6 +111,8 @@ exportPath pathToExport shellType = do
             liftIO $ appendFile (encodeString file) exportToAppend
         Unknown -> raise' (unrecognizedShellError)
 
+exportPathWindows :: MonadIO m => FilePath -> m ()
+exportPathWindows path = Shelly.shelly $ Shelly.appendToPath $ parent path -- $ Shelly.cmd "setx" "/M" "\"%PATH%;" (encodeString path) "\""
 
 makeExecutable :: MonadIO m => FilePath -> m ()
 makeExecutable file = case currentHost of
