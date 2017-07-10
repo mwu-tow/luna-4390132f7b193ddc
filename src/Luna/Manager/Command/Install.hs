@@ -112,16 +112,9 @@ makeLenses ''UnresolvedDepsError
 instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
-data ExecutableNotFound = ExecutableNotFound deriving (Show)
-instance Exception ExecutableNotFound where
-    displayException _ = "Couldn't find executable"
-
-executableNotFound :: SomeException
-executableNotFound = toException ExecutableNotFound
-
--- === Running === --
-
 type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
+
+-- === Utils === --
 
 prepareInstallPath :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m FilePath
 prepareInstallPath appType appPath appName appVersion = expand $ case currentHost of
@@ -149,14 +142,14 @@ postInstallation appType installPath binPath appName = do
     packageBin <- case currentHost of
         Linux   -> return $ installPath </> fromText (appName <> "AppImage")
         Darwin  -> return $ installPath </> fromText (mkSystemPkgName appName)
-        Windows -> return $ installPath </> fromText (mkSystemPkgName appName)
+        Windows -> return $ installPath </> fromText ((mkSystemPkgName appName) <> ".exe")
     currentBin <- case currentHost of
         Linux -> expand $ fromText binPath </> (installConfig ^. selectedBinPath)  </> fromText (mkSystemPkgName appName)
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
             GuiApp   -> expand $ fromText binPath </> fromText (Text.append (mkSystemPkgName appName) ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
             BatchApp -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText (mkSystemPkgName appName)
-        Windows -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText ( appName)
+        Windows -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText (appName <> ".exe")
     makeExecutable packageBin
     linking packageBin currentBin
     linkingLocalBin currentBin appName
@@ -191,14 +184,6 @@ runServices installPath appType = case currentHost of
         BatchApp -> return ()
     otherwise -> return ()
 
-
-installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
-installApp opts package = do
-    binPath     <- askLocation opts (package ^. resolvedAppType) (package ^. header . name)
-    installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  (package ^. header . name) $ showPretty (package ^. header . version)
-    downloadAndUnpack (package ^. desc . path) installPath
-    postInstallation (package ^. resolvedAppType) installPath binPath  (package ^. header . name)
-
 askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
@@ -209,6 +194,15 @@ askLocation opts appType appName = do
         $ question ("Select installation path for " <> appName) plainTextReader
         & defArg .~ Just (toTextIgnore pkgInstallDefPath) --TODO uzyć toText i złapać tryRight'
     return binPath
+
+installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
+installApp opts package = do
+    binPath     <- askLocation opts (package ^. resolvedAppType) (package ^. header . name)
+    installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  (package ^. header . name) $ showPretty (package ^. header . version)
+    downloadAndUnpack (package ^. desc . path) installPath
+    postInstallation (package ^. resolvedAppType) installPath binPath  (package ^. header . name)
+
+-- === Running === --
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
@@ -229,12 +223,10 @@ runInstaller opts = do
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
     let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
-    env <- Shelly.shelly $ Shelly.get_env_text "WINDOWS"
-    print $ env
+
     binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
     mapM_ (installApp opts) appsToInstall
     installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
-    print $ show installPath
     downloadAndUnpack (appPkgDesc ^. path) installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName
 
