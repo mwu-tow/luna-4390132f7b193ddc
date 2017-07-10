@@ -147,9 +147,11 @@ postInstallation appType installPath binPath appName = do
         Linux -> expand $ fromText binPath </> (installConfig ^. selectedBinPath)  </> fromText (mkSystemPkgName appName)
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
-            GuiApp   -> expand $ fromText binPath </> fromText (Text.append (mkSystemPkgName appName) ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
+            GuiApp   -> expand $ fromText binPath </> fromText ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
             BatchApp -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText (mkSystemPkgName appName)
-        Windows -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText (appName <> ".exe")
+        Windows -> case appType of
+            BatchApp -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText (appName <> ".exe")
+            GuiApp   -> expand $ fromText binPath </> fromText (mkSystemPkgName appName) </> (installConfig ^. selectedBinPath) </> fromText (appName <> ".exe")
     makeExecutable packageBin
     linking packageBin currentBin
     linkingLocalBin currentBin appName
