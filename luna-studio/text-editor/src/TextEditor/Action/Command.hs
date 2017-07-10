@@ -20,12 +20,6 @@ command f = do
     liftIO action
     put st
 
-pureCommand :: (a -> a) -> Command a ()
-pureCommand = modify
-
-ioCommand :: (a -> IO ()) -> Command a ()
-ioCommand f = gets f >>= liftIO
-
 runCommand :: Command a b -> a -> IO (b, a)
 runCommand cmd = runStateT $ unCommand cmd
 
