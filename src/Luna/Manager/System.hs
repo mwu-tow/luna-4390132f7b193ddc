@@ -16,6 +16,7 @@ import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText)
 import Data.Maybe (listToMaybe)
 import Control.Monad.Raise
 import Luna.Manager.System.Env
+import Luna.Manager.System.Host
 
 import qualified Shelly.Lifted as Shelly
 import Shelly.Lifted (MonadSh)
@@ -105,9 +106,14 @@ exportPath pathToExport shellType = do
 
 
 makeExecutable :: MonadIO m => FilePath -> m ()
-makeExecutable file = liftIO $ do
-    p <- getPermissions $ encodeString file
-    setPermissions (encodeString file) (p {executable = True})
+makeExecutable file = case currentHost of
+    Linux -> liftIO $ do
+        p <- getPermissions $ encodeString file
+        setPermissions (encodeString file) (p {executable = True})
+    Darwin -> liftIO $ do
+        p <- getPermissions $ encodeString file
+        setPermissions (encodeString file) (p {executable = True})
+    Windows -> return ()
 
 
 runServicesWindows :: MonadSh m => FilePath -> m ()
