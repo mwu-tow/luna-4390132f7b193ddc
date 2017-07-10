@@ -151,16 +151,12 @@ postInstallation appType installPath binPath appName = do
         Darwin  -> return $ installPath </> fromText (mkSystemPkgName appName)
         Windows -> return $ installPath </> fromText (mkSystemPkgName appName)
     currentBin <- case currentHost of
-        Linux -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath)  </> (fromText (mkSystemPkgName appName))
+        Linux -> expand $ fromText binPath </> (installConfig ^. selectedBinPath)  </> fromText (mkSystemPkgName appName)
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
-            GuiApp   -> expand $ (fromText binPath) </> fromText (Text.append (mkSystemPkgName appName) ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
-            BatchApp -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath) </> (fromText (mkSystemPkgName appName))
-        Windows -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath)  </> (fromText ( appName))
-    -- localBin <- case currentHost of
-    --     Linux -> return $ home </> ".local/bin" </> fromText (mkSystemPkgName appName)
-    --     Darwin -> return $ "/usr/local/bin" </> fromText appName
-    --     -- Windows -> return $ "%WINDIR%/System32"-- do niczego chyba nie linkujemy dalej tylko robimy 'setx zmienna path by wyexportować'
+            GuiApp   -> expand $ fromText binPath </> fromText (Text.append (mkSystemPkgName appName) ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
+            BatchApp -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText (mkSystemPkgName appName)
+        Windows -> expand $ fromText binPath </> (installConfig ^. selectedBinPath) </> fromText ( appName)
     makeExecutable packageBin
     linking packageBin currentBin
     linkingLocalBin currentBin appName
@@ -181,7 +177,6 @@ linkingLocalBin currentBin appName = do
             linking currentBin localBin
             shell <- checkShell
             exportPath' (parent localBin) shell
-
         Darwin -> do
             let localBin = "/usr/local/bin" </> fromText appName
             linking currentBin localBin
@@ -193,7 +188,7 @@ runServices :: MonadInstall m => FilePath -> AppType -> m ()
 runServices installPath appType = case currentHost of
     Windows -> case appType of
         GuiApp -> do
-            let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
+            let services = installPath </> fromText "services"
             Shelly.shelly $ runServicesWindows services
         BatchApp -> return ()
     otherwise -> return ()
