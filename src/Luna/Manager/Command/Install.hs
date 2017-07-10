@@ -96,7 +96,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
 
 instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & defaultBinPathGuiApp   .~ "C:\\ProgramFiles"
+        reconfig cfg = cfg & defaultBinPathGuiApp   .~ "C:\\Program Files"
 
 
 
@@ -147,30 +147,21 @@ postInstallation appType installPath binPath appName = do
     home <- getHomePath
     installConfig <- get @InstallConfig
     packageBin <- case currentHost of
-        Linux -> do
-            --remove case because appimage with systematic name
-            -- appimage <- installPath </> (fromText (mkSystemPkgName appName))
-            execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
-            appimage <- tryJust executableNotFound $ listToMaybe execList
-            makeExecutable appimage
-            return appimage
-        Darwin -> case appType of
-            GuiApp   -> return $ installPath </> (fromText (mkSystemPkgName appName))
-            BatchApp -> return $ installPath </> (fromText (mkSystemPkgName appName))
-        Windows -> case appType of
-            GuiApp   -> return $ installPath </> (fromText (mkSystemPkgName appName))
-            BatchApp -> return $ installPath </> (fromText (mkSystemPkgName appName))
+        Linux   -> return $ installPath </> fromText (appName <> "AppImage")
+        Darwin  -> return $ installPath </> fromText (mkSystemPkgName appName)
+        Windows -> return $ installPath </> fromText (mkSystemPkgName appName)
     currentBin <- case currentHost of
         Linux -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath)  </> (fromText (mkSystemPkgName appName))
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
-            GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
+            GuiApp   -> expand $ (fromText binPath) </> fromText (Text.append (mkSystemPkgName appName) ".app") </> "Contents" </> "MacOS" </> fromText (mkSystemPkgName appName)
             BatchApp -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath) </> (fromText (mkSystemPkgName appName))
         Windows -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath)  </> (fromText ( appName))
     localBin <- case currentHost of
-        Linux -> return $ home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
-        Darwin -> return $ "/usr/local/bin" </> (fromText appName)
-        Windows -> return $ "%WINDIR%/System32"-- do niczego chyba nie linkujemy dalej tylko robimy 'setx zmienna path by wyexportować'
+        Linux -> return $ home </> ".local/bin" </> fromText (mkSystemPkgName appName)
+        Darwin -> return $ "/usr/local/bin" </> fromText appName
+        -- Windows -> return $ "%WINDIR%/System32"-- do niczego chyba nie linkujemy dalej tylko robimy 'setx zmienna path by wyexportować'
+    makeExecutable packageBin
     linking packageBin currentBin localBin
     runServices installPath
 
@@ -179,7 +170,6 @@ linking packageBin currentBin localBin = do
     Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
     Shelly.shelly $ Shelly.mkdir_p $ parent localBin
     createSymLink packageBin currentBin
-    print "linkuje 1"
     createSymLink currentBin localBin
     shell <- checkShell
     exportPath' (parent localBin) shell -- rename export because it is not export to env
@@ -191,45 +181,11 @@ runServices installPath = case currentHost of
         Shelly.shelly $ runServicesWindows services
     otherwise -> return ()
 
-    -- case currentHost of
-    --     Linux -> do
-    --         --check bin dir in install path and symlink everything inside + chmod for linux
-    --         execList <- Shelly.shelly $  Shelly.findWhen (pure . Shelly.hasExt "AppImage") installPath --może inny sposób na przekazywanie ścieżki do executabla ??
-    --         appimage <- tryJust executableNotFound $ listToMaybe execList
-    --         makeExecutable appimage
-    --         currentAppimage <- expand $ (fromText binPath) </> (installConfig ^. selectedBinPath)  </> (fromText (mkSystemPkgName appName))
-    --         let localBin = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
-    --         Shelly.shelly $ Shelly.mkdir_p $ parent localBin
-    --         Shelly.shelly $ Shelly.mkdir_p $ parent currentAppimage
-    --         createSymLink appimage currentAppimage
-    --         createSymLink currentAppimage localBin
-    --         shell <- checkShell
-    --         exportPath (parent localBin) shell -- rename export because it is not export to env
-    --     Darwin  -> do
-    --         let localBin      = home </> ".local/bin" </> (fromText (mkSystemPkgName appName))
-    --             resourcesBin = case appType of
-    --                 GuiApp   -> installPath </> (fromText (mkSystemPkgName appName))
-    --                 BatchApp -> installPath </> (installConfig ^. selectedBinPath) </> (fromText (mkSystemPkgName appName))
-    --         currentBin <- case appType of
-    --             GuiApp   -> expand $ (fromText binPath) </> (fromText (Text.append (mkSystemPkgName appName) ".app")) </> "Contents" </> "MacOS" </> (fromText (mkSystemPkgName appName))
-    --             BatchApp -> expand $ (fromText binPath) </> (installConfig ^. selectedBinPath) </> (fromText (mkSystemPkgName appName))
-    --         Shelly.shelly $ Shelly.mkdir_p $ parent currentBin
-    --         createSymLink resourcesBin currentBin
-    --         createSymLink currentBin localBin
-    --         shell <- checkShell
-    --         exportPath (parent localBin) shell -- rename export because it is not export to env
-    --
-    --     Windows -> do
-    --         let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
-    --         Shelly.shelly $ runServicesWindows services
-    --         --copy shortcut to menu programs
 
 installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
 installApp opts package = do
     binPath     <- askLocation opts (package ^. resolvedAppType) (package ^. header . name)
     installPath <- prepareInstallPath (package ^. resolvedAppType) (convert binPath)  (package ^. header . name) $ showPretty (package ^. header . version)
-    print $ show binPath
-    print $ show installPath
     downloadAndUnpack (package ^. desc . path) installPath
     postInstallation (package ^. resolvedAppType) installPath binPath  (package ^. header . name)
 
