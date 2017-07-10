@@ -13,7 +13,6 @@ import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
 import           LunaStudio.Data.LabeledTree                          (LabeledTree (LabeledTree))
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
-import           LunaStudio.Data.PortRef                              (toAnyPortRef)
 import           NodeEditor.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
@@ -25,7 +24,7 @@ import           NodeEditor.React.Model.Node.ExpressionNode           (Expressio
                                                                        isCollapsed, returnsError)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
-import           NodeEditor.React.Model.Port                          (AnyPortId (InPortId'), InPortIndex (Arg, Self), isInPort, isOutAll,
+import           NodeEditor.React.Model.Port                          (AnyPortId (InPortId'), InPortIndex (Self), isInPort, isOutAll,
                                                                        withOut)
 import qualified NodeEditor.React.Model.Port                          as Port
 import           NodeEditor.React.Model.Searcher                      (Searcher)
@@ -226,7 +225,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
             else do
                 ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
                 forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ \port -> portExpanded_ ref nodeLoc port
-            argumentConstructor_ ref (toAnyPortRef nodeLoc $ InPortId' [Arg $ countArgPorts n]) (countArgPorts n) (n ^. Node.isNewArgConnSrc)
+            argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.isNewArgConnSrc)
 
 nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, maySearcher, nodesWithVis, subgraphs) mempty

@@ -17,7 +17,7 @@ import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position, move, x, y)
 import           LunaStudio.Data.Vector2                    (Vector2 (Vector2))
 import           NodeEditor.Data.Color                      (Color)
-import           NodeEditor.React.Model.Constants           (gridSize, lineHeight, nodeExpandedWidth, portRadius)
+import           NodeEditor.React.Model.Constants           (argumentConstructorShift, lineHeight, nodeExpandedWidth, portRadius)
 import           NodeEditor.React.Model.Layout              (Layout, inputSidebarPortPosition, outputSidebarPortPosition)
 import           NodeEditor.React.Model.Node                (ExpressionNode, Node (Expression), NodeLoc)
 import qualified NodeEditor.React.Model.Node                as Node
@@ -143,7 +143,7 @@ instance Convertible Connection Empire.Connection where
     convert = Empire.Connection <$> view src <*> view dst
 
 argumentConstructorPosition :: ExpressionNode -> Position
-argumentConstructorPosition n = n ^. position & y %~ (+ 2 * gridSize)
+argumentConstructorPosition n = n ^. position & y %~ (+ argumentConstructorShift)
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of

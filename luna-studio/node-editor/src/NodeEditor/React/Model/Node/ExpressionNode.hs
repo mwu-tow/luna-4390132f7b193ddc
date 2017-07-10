@@ -29,7 +29,7 @@ import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.React.Model.IsNode            as X
 import           NodeEditor.React.Model.Node.SidebarNode  (InputNode, OutputNode)
-import           NodeEditor.React.Model.Port              (AnyPortId, InPort, InPortTree, OutPort, OutPortTree)
+import           NodeEditor.React.Model.Port              (InPort, InPortTree, OutPort, OutPortTree)
 import qualified NodeEditor.React.Model.Port              as Port
 import           NodeEditor.State.Collaboration           (ColorId)
 

@@ -10,9 +10,9 @@ import qualified NodeEditor.Event.Mouse           as Mouse
 import qualified NodeEditor.Event.UI              as UI
 import qualified NodeEditor.React.Event.Port      as Port
 import           NodeEditor.React.Model.App       (App)
-import           NodeEditor.React.Model.Constants (gridSize, lineHeight, nodeRadius, nodeRadius')
+import           NodeEditor.React.Model.Constants (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius')
 import           NodeEditor.React.Model.Node      (NodeLoc)
-import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Self), IsAlias, IsOnly,
+import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsAlias, IsOnly,
                                                    Mode (Highlighted, Invisible), getPortNumber, isHighlighted, isInPort, isInvisible,
                                                    portAngleStart, portAngleStop)
 import qualified NodeEditor.React.Model.Port      as Port
@@ -285,9 +285,10 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
               ]
             ) mempty
 
-argumentConstructor_ :: Ref App -> AnyPortRef -> Int -> Bool -> ReactElementM ViewEventHandler ()
-argumentConstructor_ ref portRef numOfPorts isConnectionSource = do
-    let offsetY    = ((fromIntegral numOfPorts) * gridSize) + 19.0
+argumentConstructor_ :: Ref App -> NodeLoc -> Int -> Bool -> ReactElementM ViewEventHandler ()
+argumentConstructor_ ref nl numOfPorts isConnectionSource = do
+    let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
+        offsetY   = fromIntegral numOfPorts * gridSize + argumentConstructorShift
         highlight = if isConnectionSource then ["hover"] else []
     g_
         [ "key"       $= "argument-constructor"

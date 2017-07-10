@@ -210,8 +210,8 @@ toPosHalfConnection ne halfConnection = do
     let src    = halfConnection ^. Connection.from
         dstPos = halfConnection ^. Connection.dstPos
         pid    = src ^. PortRef.portId
-    node                 <- getNode (src ^. PortRef.nodeLoc) ne
-    (srcPos, t, c)  <-
+    node <- getNode (src ^. PortRef.nodeLoc) ne
+    (srcPos, t, c) <-
         if hasPort pid node then do
             port   <- getPort src ne
             srcPos <- Connection.halfConnectionSrcPosition node (convert port) dstPos (ne ^. layout)
