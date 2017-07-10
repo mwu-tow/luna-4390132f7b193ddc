@@ -25,12 +25,10 @@ expand path = do
             current <- getCurrentPath
             case encodeString fstEl of
                 "~/"      -> do
-                  print $ "expanded " <> (show $ Path.concat $ home : (tail dirs))
                   return $ Path.concat $ home : (tail dirs)
                 "./"      -> return $ Path.concat $ current : (tail dirs)
                 "../"     -> return $ Path.concat $ (Path.parent current) : (tail dirs)
                 "~\\"      -> do
-                  print $ "expanded " <> (show $ Path.concat $ home : (tail dirs))
                   return $ Path.concat $ home : (tail dirs)
                 ".\\"      -> return $ Path.concat $ current : (tail dirs)
                 "..\\"     -> return $ Path.concat $ (Path.parent current) : (tail dirs)
