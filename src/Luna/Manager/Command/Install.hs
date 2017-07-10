@@ -164,7 +164,7 @@ postInstallation appType installPath binPath appName = do
     makeExecutable packageBin
     linking packageBin currentBin
     linkingLocalBin currentBin appName
-    runServices installPath
+    runServices installPath appType
 
 linking :: MonadInstall m => FilePath -> FilePath -> m ()
 linking src dst = do
@@ -189,11 +189,13 @@ linkingLocalBin currentBin appName = do
             exportPath' (parent localBin) shell
         Windows -> return ()
 
-runServices :: MonadInstall m => FilePath -> m ()
-runServices installPath = case currentHost of
-    Windows -> do
-        let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
-        Shelly.shelly $ runServicesWindows services
+runServices :: MonadInstall m => FilePath -> AppType -> m ()
+runServices installPath appType = case currentHost of
+    Windows -> case appType of
+        GuiApp -> do
+            let services = installPath </> (fromText "services") --sama względna ścieżka do serwisów też do tego samego statea windows installation utils
+            Shelly.shelly $ runServicesWindows services
+        BatchApp -> return ()
     otherwise -> return ()
 
 
