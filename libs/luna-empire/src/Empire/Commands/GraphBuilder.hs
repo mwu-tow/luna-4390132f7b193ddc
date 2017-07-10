@@ -441,7 +441,7 @@ buildOutputSidebar nid = do
     out   <- ASTRead.getLambdaOutputRef ref
     tp    <- followTypeRep out
     state <- getPortState  out
-    return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing [])  $ Port [] "output" tp state
+    return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing [])  $ Port [] "output" tp Connected
 
 getOutputSidebarInputs :: GraphOp m => NodeId -> m (Maybe (OutPortRef, InPortRef))
 getOutputSidebarInputs outputEdge = do

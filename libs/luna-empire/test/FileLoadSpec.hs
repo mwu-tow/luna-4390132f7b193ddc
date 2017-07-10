@@ -938,3 +938,12 @@ spec = around withChannels $ parallel $ do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.disconnect (loc |> foo) (inPortRef output [])
+        it "preserves code after connecting & disconnecting lambda output" $ let
+            code = [r|
+                def main a:
+                    None
+                |]
+            in specifyCodeChange code code $ \loc -> do
+                (input, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.connect    loc (outPortRef input [Port.Projection 0]) (InPortRef' $ inPortRef output [])
+                Graph.disconnect loc (inPortRef output [])

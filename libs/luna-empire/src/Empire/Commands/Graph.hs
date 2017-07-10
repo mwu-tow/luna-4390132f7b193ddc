@@ -298,7 +298,7 @@ setOutputTo out = do
     blockEnd <- Code.getCurrentBlockEnd
     newSeq   <- reconnectOut oldSeq out blockEnd
     mapM_ (updateGraphSeq . Just)   newSeq
-    mapM_ Code.gossipLengthsChanged newSeq
+    mapM_ Code.gossipUsesChanged newSeq
 
 updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
