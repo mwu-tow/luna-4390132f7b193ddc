@@ -21,6 +21,7 @@ import           Empire.ASTOp                       (GraphOp, match)
 import           Empire.ASTOps.Deconstruct          (deconstructApp, extractArguments, dumpAccessors)
 import           Empire.ASTOps.Remove               (removeSubtree)
 import qualified Empire.ASTOps.Read                 as ASTRead
+import qualified Empire.ASTOps.Print                as ASTPrint
 import qualified Empire.Commands.Code               as Code
 import           Empire.Data.AST                    (EdgeRef, NodeRef, astExceptionFromException,
                                                      astExceptionToException)
@@ -64,7 +65,7 @@ rewireApplication fun arg' pos = do
 
 replaceEdgeSource :: GraphOp m => EdgeRef -> Delta -> NodeRef -> m ()
 replaceEdgeSource edge beg newSrc = do
-    newCode <- getTgtCode newSrc
+    newCode <- ASTPrint.printFullExpression newSrc
     oldSrc  <- IR.source edge
     oldLen  <- IR.getLayer @SpanLength oldSrc
     Code.applyDiff beg (beg + oldLen) newCode
@@ -202,12 +203,6 @@ getCurrentAccTarget = curry $ unfoldM $ \(edge, codeBeg) -> do
         App f _ -> passThrough f
         Acc t _ -> passThrough t
         _       -> return $ Left (edge, codeBeg)
-
-getTgtCode :: GraphOp m => NodeRef -> m Text
-getTgtCode ref = IR.matchExpr ref $ \case
-    Var n -> return $ convert n
-    Blank -> return "_"
-    _     -> throwM $ SelfPortNotExistantException ref
 
 ensureHasSelf :: GraphOp m => EdgeRef -> Delta -> m ()
 ensureHasSelf e beg = IR.source e >>= flip IR.matchExpr `id` \case

@@ -266,17 +266,39 @@ putInSequence ref code meta = do
     when shouldUpdate (updateGraphSeq $ Just newS)
     Code.gossipLengthsChanged newS
 
-updateNodeSequenceWithOutput :: GraphOp m => Maybe NodeRef -> m ()
-updateNodeSequenceWithOutput outputRef = do
-    newSeq <- makeCurrentSeq outputRef
-    updateGraphSeq newSeq
+addOutputAtEnd :: GraphOp m => NodeRef -> NodeRef -> Delta -> m NodeRef
+addOutputAtEnd initial out blockEnd = do
+    indentBy <- Code.getCurrentIndentationLength
+    code     <- ASTPrint.printFullExpression out
+    seq      <- IR.generalize <$> IR.seq initial out
+    Code.insertAt blockEnd ("\n" <> Text.replicate (fromIntegral indentBy) " " <> code)
+    setSeqOffsets seq 0 (indentBy + 1)
+    return seq
 
-makeCurrentSeq :: GraphOp m => Maybe NodeRef -> m (Maybe NodeRef)
-makeCurrentSeq out = do
-  allNodes    <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
-  sortedRefs  <- AST.sortByPosition allNodes
-  let withOut = fmap head $ group $ sortedRefs ++ toList out
-  AST.makeSeq withOut
+reconnectOut :: GraphOp m => NodeRef -> NodeRef -> Delta -> m (Maybe NodeRef)
+reconnectOut seq out blockEnd = IR.matchExpr seq $ \case
+    IR.Seq l r -> do
+        right <- IR.source r
+        IR.matchExpr right $ \case
+            IR.Marked _ _ -> Just <$> addOutputAtEnd seq out blockEnd
+            _             -> do
+                len <- IR.getLayer @SpanLength right
+                ASTBuilder.replaceEdgeSource r (blockEnd - len) out
+                return Nothing
+    IR.Marked _ _ -> Just <$> addOutputAtEnd seq out blockEnd
+    _             -> do
+        len  <- IR.getLayer @SpanLength seq
+        code <- ASTPrint.printFullExpression out
+        Code.applyDiff (blockEnd - len) blockEnd code
+        return $ Just out
+
+setOutputTo :: GraphOp m => NodeRef -> m ()
+setOutputTo out = do
+    oldSeq   <- use $ Graph.breadcrumbHierarchy . BH.body
+    blockEnd <- Code.getCurrentBlockEnd
+    newSeq   <- reconnectOut oldSeq out blockEnd
+    mapM_ (updateGraphSeq . Just)   newSeq
+    mapM_ Code.gossipLengthsChanged newSeq
 
 updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
@@ -935,14 +957,11 @@ setToNothing :: GraphOp m => NodeId -> m ()
 setToNothing dst = do
     (_, out) <- GraphBuilder.getEdgePortMapping
     let disconnectOutputEdge = out == dst
-    nothing <- IR.generalize <$> IR.cons_ "None"
+        nothingExpr          = "None"
+    nothing <- IR.generalize <$> IR.cons_ (convert nothingExpr)
+    IR.putLayer @SpanLength nothing $ convert $ Text.length nothingExpr
     if disconnectOutputEdge
-        then do
-            updateNodeSequenceWithOutput (Just nothing)
-            let item = BH.ExprItem Map.empty nothing
-            uid <- liftIO $ UUID.nextRandom
-            Graph.breadcrumbHierarchy . BH.children . at uid ?= BH.ExprChild item
-            IR.putLayer @Marker nothing $ Just $ OutPortRef (NodeLoc def uid) []
+        then setOutputTo nothing
         else GraphUtils.rewireNode dst nothing
 
 unAcc :: GraphOp m => NodeId -> m ()
@@ -976,4 +995,4 @@ makeWhole src dst outPort = do
     (_, out) <- GraphBuilder.getEdgePortMapping
     let connectToOutputEdge = out == dst
     srcAst   <- ASTRead.getASTOutForPort src outPort
-    if connectToOutputEdge then updateNodeSequenceWithOutput (Just srcAst) else GraphUtils.rewireNode dst srcAst
+    if connectToOutputEdge then setOutputTo srcAst else GraphUtils.rewireNode dst srcAst

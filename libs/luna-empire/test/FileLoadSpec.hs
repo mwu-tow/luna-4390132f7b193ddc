@@ -908,12 +908,29 @@ spec = around withChannels $ parallel $ do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
                 Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 0])
 
-        xit "updates code after disconnecting lambda output" $ let
+        it "updates code after connecting lambda output" $ let
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: baz = bar a b
+                                a + b
+                                baz
+                    c = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                Just foo    <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
+                u1 <- mkUUID
+                Graph.addNode (loc |> foo) u1 "baz = bar a b" $ atXPos (-10.0)
+                Graph.connect (loc |> foo) (outPortRef u1 []) (InPortRef' $ inPortRef output [])
+
+        it "updates code after disconnecting lambda output" $ let
             expectedCode = [r|
                 def main:
                     pi = 3.14
                     foo = a: b: a + b
-                            None
+                                None
                     c = 4
                     bar = foo 8 c
                 |]
