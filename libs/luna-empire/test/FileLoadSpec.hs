@@ -627,7 +627,7 @@ spec = around withChannels $ parallel $ do
                 def main:
                     pi = 3.14
                     foo = a: b: d = 8
-                                   a + b
+                                a + b
                     c = 4
                     bar = foo 8 c
                 |]

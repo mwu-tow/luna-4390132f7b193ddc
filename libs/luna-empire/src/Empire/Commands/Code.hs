@@ -281,7 +281,7 @@ getCurrentIndentationLength :: GraphOp m => m Delta
 getCurrentIndentationLength = do
       o <- getCurrentBlockBeginning
       c <- use Graph.code
-      return $ fromIntegral $ Text.length $ Text.takeWhileEnd (/= '\n') $ Text.take (fromIntegral o) c
+      return $ fromIntegral $ Text.length $ removeMarkers $ Text.takeWhileEnd (/= '\n') $ Text.take (fromIntegral o) c
 
 propagateLengths :: GraphOp m => NodeRef -> m ()
 propagateLengths node = do
