@@ -89,9 +89,13 @@ prepareLambdaChild nodeCache marked ref = do
     portMapping <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
     lambdaBody  <- ASTRead.getFirstNonLambdaRef ref
     ASTBuilder.attachNodeMarkersForArgs (fst portMapping) [] ref
+    oldBH       <- use Graph.breadcrumbHierarchy
+    let workingBH = BH.LamItem portMapping marked def lambdaBody
+    Graph.breadcrumbHierarchy .= workingBH
     children    <- lambdaChildren nodeCache lambdaBody
-    newBody     <- ASTRead.getFirstNonLambdaRef ref
-    return $ BH.LamItem portMapping marked children newBody
+    BH.LamItem mapping self _ body <- use Graph.breadcrumbHierarchy
+    Graph.breadcrumbHierarchy .= oldBH
+    return $ BH.LamItem mapping self children body
 
 prepareExprChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
 prepareExprChild nodeCache marked ref = do
