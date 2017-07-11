@@ -288,9 +288,6 @@ class JSON:
     def toText: case self of
         JSONString s: s
 
-    def toList: case self of
-        JSONArray a: a
-
     def lookupReal key: self . lookup key . fromJust . toReal
 
     def lookupText key: self . lookup key . fromJust . toText
