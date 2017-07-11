@@ -29,6 +29,7 @@ import qualified Data.Yaml as Yaml
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, basename, hasExtension, parent)
 import Shelly.Lifted (toTextIgnore)
 import qualified Shelly.Lifted as Shelly
+import System.IO (hFlush, stdout)
 import Luna.Manager.Archive
 
 
@@ -120,8 +121,8 @@ prepareInstallPath :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m
 prepareInstallPath appType appPath appName appVersion = expand $ case currentHost of
     Linux   -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
     Windows -> case appType of
-      GuiApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
-      BatchApp -> appPath </> convert appName </> convert appVersion
+        GuiApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+        BatchApp -> appPath </> convert appName </> convert appVersion
     Darwin  -> case appType of
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
@@ -132,15 +133,18 @@ downloadAndUnpack pkgPath installPath = do
     Shelly.shelly $ Shelly.mkdir_p installPath
     tmp <- getTmpPath
     pkg <- downloadWithProgressBar pkgPath tmp
+    putStrLn "Unpacking archive"
     unpacked <- unpackArchive pkg
+    liftIO $ hFlush stdout
+    putStrLn "Copying files"
     Shelly.shelly $ copyDir unpacked installPath
+    liftIO $ hFlush stdout
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
 postInstallation appType installPath binPath appName = do
-
     installConfig <- get @InstallConfig
     packageBin <- case currentHost of
-        Linux   -> return $ installPath </> fromText (appName <> "AppImage")
+        Linux   -> return $ installPath </> fromText (appName <> ".AppImage")
         Darwin  -> return $ installPath </> fromText (mkSystemPkgName appName)
         Windows -> return $ installPath </> fromText ((mkSystemPkgName appName) <> ".exe")
     currentBin <- case currentHost of
