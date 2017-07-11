@@ -11,7 +11,7 @@ import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
 import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
-import           LunaStudio.Data.LabeledTree                          (LabeledTree (LabeledTree))
+import qualified LunaStudio.Data.LabeledTree                          as LabeledTree
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
 import           NodeEditor.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified NodeEditor.Event.Mouse                               as Mouse
@@ -202,10 +202,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                                               port
                                               (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
                                               (withOut isOutAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
-                                              (case (n ^. Node.inPorts) of
-                                                  LabeledTree _ a -> case (a ^. Port.state) of
-                                                      Port.Connected -> True
-                                                      _              -> False )
+                                              (n ^. Node.inPorts . LabeledTree.value . Port.state == Port.Connected)
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]
@@ -235,7 +232,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                 ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
             else do
                 ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
-                forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ \port -> portExpanded_ ref nodeLoc port
+                forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ portExpanded_ ref nodeLoc
             argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorHighlighted)
 
 nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
