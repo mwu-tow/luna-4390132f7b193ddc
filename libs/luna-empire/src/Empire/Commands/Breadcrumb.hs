@@ -16,14 +16,17 @@ import           Data.Maybe                      (maybe)
 import qualified Data.Map                        as Map
 import qualified Data.UUID.V4                    as UUID
 
-import           Empire.ASTOp                      (putNewIR, runAliasAnalysis, runASTOp)
+import           Empire.ASTOp                      (putNewIR, putNewIRCls, runAliasAnalysis, runASTOp)
 import           Empire.ASTOps.BreadcrumbHierarchy as ASTBreadcrumb
+import           Empire.ASTOps.Parse               as ASTParse
+import           Empire.ASTOps.Read                as ASTRead
 import           Empire.Commands.AST               (classFunctions)
 import           Empire.Commands.Code              (functionBlockStartRef, propagateLengths)
 import           Empire.Data.AST                   (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.BreadcrumbHierarchy   (navigateTo, replaceAt)
 import qualified Empire.Data.BreadcrumbHierarchy   as BH
 import qualified Empire.Data.Graph                 as Graph
+import           Empire.Data.Layers                (SpanLength)
 import qualified Empire.Data.Library               as Library
 
 import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (..))
@@ -48,23 +51,22 @@ makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph
 makeGraphCls fun lastUUID = do
     pmState   <- liftIO Graph.defaultPMState
     nodeCache <- use Graph.nodeCache
-    (funName, IR.Rooted ir ref, fileOffset, blockLength) <- runASTOp $ IR.matchExpr fun $ \case
+    (funName, IR.Rooted ir ref, fileOffset) <- runASTOp $ IR.matchExpr fun $ \case
         IR.ASGRootedFunction n root -> do
             offset <- functionBlockStartRef fun
-            LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
-            return (nameToString n, root, offset, len)
+            return (nameToString n, root, offset)
     let ast   = Graph.AST ir pmState
     uuid <- maybe (liftIO $ UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromMaybeM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
     let bh = BH.LamItem portMapping ref def ref
-        graph = Graph.Graph ast bh 0 def def def fileOffset blockLength
+        graph = Graph.Graph ast bh 0 def def def fileOffset 0
     Graph.clsFuns . at uuid ?= (funName, graph)
     withRootedFunction uuid $ do
         runASTOp $ do
             propagateLengths ref
             LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan ref
-            Graph.fileOffset += off
+            Graph.bodyOffset .= off
         runAliasAnalysis
         runASTOp $ do
             ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeCache ref
@@ -102,12 +104,26 @@ withRootedFunction uuid act = do
                       in graph & Graph.code .~ clsCode
                                & Graph.codeMarkers .~ clsMarkers
                                & Graph.parseError .~ clsParseError
-    (res, newGraph) <- liftIO $ runEmpire env properGraph act
-    let newClsGraph = clsGraph & Graph.clsFuns . ix uuid . _2 .~ newGraph
-                               & Graph.clsCodeMarkers .~ newGraph ^. Graph.codeMarkers
-                               & Graph.code           .~ newGraph ^. Graph.code
-                               & Graph.clsParseError  .~ newGraph ^. Graph.parseError
-    put newClsGraph
+    ((res, len), newGraph) <- liftIO $ runEmpire env properGraph $ do
+        a <- act
+        len <- runASTOp $ do
+            ref <- ASTRead.getCurrentASTRef
+            IR.getLayer @SpanLength ref
+        return (a, len)
+    Graph.clsFuns . ix uuid . _2 .= newGraph
+    funName <- use $ Graph.clsFuns . ix uuid . _1
+    runASTOp $ do
+        cls <- use Graph.clsClass
+        funs <- classFunctions cls
+        forM funs $ \fun -> IR.matchExpr fun $ \case
+            IR.ASGRootedFunction name _ -> do
+                when (nameToString name == funName) $ do
+                    LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
+                    let bodyLen = newGraph ^. Graph.bodyOffset + len
+                    IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off bodyLen))
+    Graph.clsCodeMarkers .= newGraph ^. Graph.codeMarkers
+    Graph.code           .= newGraph ^. Graph.code
+    Graph.clsParseError  .= newGraph ^. Graph.parseError
     return res
 
 zoomBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Command Library.Library a

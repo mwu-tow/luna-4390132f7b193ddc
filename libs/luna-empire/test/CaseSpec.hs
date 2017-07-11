@@ -47,7 +47,7 @@ import           EmpireUtils
 
 
 spec :: Spec
-spec = around withChannels $ id $ do
+spec = around withChannels $ parallel $ do
     describe "case" $ do
         xit "creates case node" $ \env -> do
             u1 <- mkUUID

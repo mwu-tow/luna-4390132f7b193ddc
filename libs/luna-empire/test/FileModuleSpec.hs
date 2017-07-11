@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE TupleSections     #-}
@@ -37,7 +38,7 @@ import           EmpireUtils
 import           Text.RawString.QQ              (r)
 
 
-code = [r|def foo:
+multiFunCode = [r|def foo:
     5
 
 def bar:
@@ -76,13 +77,13 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ do
+spec = around withChannels $ parallel $ do
     describe "multi-module files" $ do
         it "shows functions at file top-level" $ \env -> do
             nodes <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 nodes <- Graph.getNodes loc
                 return nodes
             length nodes `shouldBe` 3
@@ -91,58 +92,92 @@ spec = around withChannels $ do
             length uniquePositions `shouldBe` 3
         it "adds function at top-level" $ \env -> do
             u1 <- mkUUID
-            nodes <- evalEmp env $ do
+            (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 Graph.addNode loc u1 "quux" def
-                Graph.getNodes loc
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def quux:
+                    None
+
+                def foo:
+                    5
+
+                def bar:
+                    "bar"
+
+                def main:
+                    print bar
+                |]
         it "adds function at top-level as def" $ \env -> do
             u1 <- mkUUID
-            nodes <- evalEmp env $ do
+            (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 Graph.addNode loc u1 "def quux" def
-                Graph.getNodes loc
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def quux:
+                    None
+
+                def foo:
+                    5
+
+                def bar:
+                    "bar"
+
+                def main:
+                    print bar
+                |]
         it "enters just added function" $ \env -> do
             u1 <- mkUUID
             nodes <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 n <- Graph.addNode loc u1 "quux" def
                 Graph.getNodes (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
             length nodes `shouldBe` 0
         it "removes function at top-level" $ \env -> do
-            nodes <- evalEmp env $ do
+            (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 nodes <- Graph.getNodes loc
                 let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
                 Graph.removeNodes loc [bar ^. Node.nodeId]
-                Graph.getNodes loc
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "foo") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def main:
+                    print bar
+                |]
         it "adds and removes function" $ \env -> do
             u1 <- mkUUID
-            nodes <- evalEmp env $ do
+            (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 n <- Graph.addNode loc u1 "def quux" def
                 Graph.removeNodes loc [n ^. Node.nodeId]
-                Graph.getNodes loc
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "foo") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isNothing
+            normalizeQQ code `shouldBe` normalizeQQ multiFunCode
         it "decodes breadcrumbs in function" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
                     def main:
@@ -200,16 +235,16 @@ spec = around withChannels $ do
             evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 Graph.substituteCode "TestPath" 13 14 "10" (Just 14)
         it "shows proper function offsets without imports" $ \env -> do
             offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc code
+                Graph.loadCode loc multiFunCode
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
-            sort offsets `shouldBe` [0, 16, 36]
+            sort offsets `shouldBe` [0, 19, 42]
         it "shows proper function offsets with imports" $ \env -> do
             offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -217,7 +252,7 @@ spec = around withChannels $ do
                 Graph.loadCode loc codeWithImport
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
-            sort offsets `shouldBe` [12, 28, 48]
+            sort offsets `shouldBe` [12, 31, 54]
         it "adds node in a function with at least two nodes" $
             let initialCode = [r|
                     def foo:
@@ -241,7 +276,30 @@ spec = around withChannels $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
                 Graph.addNode loc u1 "5" (atXPos (-50))
-        xit "adds node in a function with one node" $
+        it "adds node in a function with at least two nodes in a file without markers" $
+            let initialCode = [r|
+                    def foo:
+                        5
+                    def bar:
+                        "bar"
+                    def main:
+                        c = 4
+                        print bar
+                    |]
+                expectedCode = [r|
+                    def foo:
+                        5
+                    def bar:
+                        "bar"
+                    def main:
+                        node1 = 5
+                        c = 4
+                        print bar
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                Graph.addNode loc u1 "5" (atXPos (-50))
+        it "adds node in a function with one node" $
             let initialCode = [r|
                     def foo:
                         «0»5

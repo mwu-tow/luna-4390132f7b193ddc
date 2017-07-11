@@ -147,11 +147,16 @@ addNodeCondTC tc loc@(GraphLocation f _) uuid expr meta
 
 addFunNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addFunNode loc uuid expr meta = withUnit loc $ do
-    parse <- fst <$> ASTParse.runFunHackParser expr
+    (parse, code) <- ASTParse.runFunHackParser expr
     runASTOp $ AST.writeMeta parse meta
     name <- runASTOp $ IR.matchExpr parse $ \case
         IR.ASGRootedFunction name _ -> return $ nameToString name
     klass <- use Graph.clsClass
+    runASTOp $ do
+        funs <- AST.classFunctions klass
+        firstFunctionPosition <- Code.functionBlockStartRef (head funs)
+        Code.insertAt firstFunctionPosition code
+        return ()
     runASTOp $ IR.matchExpr klass $ \case
         IR.Unit _ _ cls -> do
             cls' <- IR.source cls
@@ -364,6 +369,8 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
         funs <- use Graph.clsFuns
         let funsUUIDs = Map.fromList $ map (\(k, (n,g)) -> (k, n)) $ Map.assocs funs
             funsToRemove = catMaybes $ map (flip Map.lookup funsUUIDs) nodeIds
+
+        let graphsToRemove = Map.elems $ Map.filterWithKey (\a _ -> a `elem` nodeIds) funs
         Graph.clsFuns .= Map.filterWithKey (\a _ -> a `notElem` nodeIds) funs
 
         klass <- use Graph.clsClass
@@ -378,8 +385,14 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                             IR.matchExpr fun $ \case
                                 IR.ASGRootedFunction name _ -> return $ if convert name `elem` funsToRemove then Left link else Right link
                 let (toRemove, left) = partitionEithers funs
+                spans <- forM toRemove $ \candidate -> do
+                    ref <- IR.source candidate
+                    start <- Code.functionBlockStartRef ref
+                    LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan ref
+                    return (start, start + len)
+                forM (reverse spans) $ uncurry Code.removeAt
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize left)
-                mapM_ (IR.deleteSubtree <=< IR.source) toRemove
+                mapM (IR.deleteSubtree <=< IR.source) toRemove
         return ()
 removeNodes loc@(GraphLocation file _) nodeIds = do
     withTC loc False $ runASTOp $ mapM removeNodeNoTC nodeIds
@@ -761,14 +774,14 @@ markNode nodeId = do
 
 loadCode :: GraphLocation -> Text -> Empire ()
 loadCode loc@(GraphLocation file _) code = do
-    (ir, IR.Rooted main ref, exprMap) <- liftIO $ ASTParse.runProperParser code
-    activeFiles . at file . traverse . Library.body . Graph.clsClass .= ir
+    (unit, IR.Rooted ir ref, exprMap) <- liftIO $ ASTParse.runProperParser code
+    activeFiles . at file . traverse . Library.body . Graph.clsClass .= unit
     activeFiles . at file . traverse . Library.body . Graph.clsCodeMarkers .= (coerce exprMap)
     activeFiles . at file . traverse . Library.body . Graph.code .= code
     funs <- use $ activeFiles . at file . traverse . Library.body . Graph.clsFuns
     let funsUUIDs = Map.fromList $ map (\(k, (n,g)) -> (n, k)) $ Map.assocs funs
     activeFiles . at file . traverse . Library.body . Graph.clsFuns .= Map.empty
-    withUnit (GraphLocation file (Breadcrumb [])) $ putNewIRCls main
+    withUnit (GraphLocation file (Breadcrumb [])) $ putNewIRCls ir
     functions <- withUnit loc $ do
         klass <- use Graph.clsClass
         runASTOp $ do
@@ -873,7 +886,8 @@ readRangeProper ref = do
 readRange :: GraphOp m => NodeRef -> m (Int, Int)
 readRange ref = do
     LeftSpacedSpan (SpacedSpan offset len) <- readRangeProper ref
-    return (fromIntegral offset, fromIntegral $ offset + len)
+    fileOffset <- fromMaybe 0 <$> Code.getOffsetRelativeToFile ref
+    return (fromIntegral (fileOffset), fromIntegral (fileOffset + len))
 
 readCodeSpan :: GraphOp m => NodeRef -> m (LeftSpacedSpan Delta)
 readCodeSpan ref = view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref

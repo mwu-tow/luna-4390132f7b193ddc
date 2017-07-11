@@ -83,10 +83,10 @@ applyDiff (fromIntegral -> start) (fromIntegral -> end) code = do
     Graph.code .= newCode
     return newCode
 
-insertAt :: MonadState Graph m => Delta -> Text -> m Text
+insertAt :: (MonadState state m, Graph.HasCode state) => Delta -> Text -> m Text
 insertAt at code = applyDiff at at code
 
-removeAt :: MonadState Graph m => Delta -> Delta -> m ()
+removeAt :: (MonadState state m, Graph.HasCode state) => Delta -> Delta -> m ()
 removeAt from to = void $ applyDiff from to ""
 
 getAt :: MonadState Graph m => Delta -> Delta -> m Text
@@ -187,7 +187,10 @@ getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
 getAllBeginningsOf ref = do
     succs <- toList <$> IR.getLayer @IR.Succs ref
     case succs of
-        [] -> fmap (\x -> [x]) $ use Graph.fileOffset
+        [] -> fmap pure $ do
+            fo <- use Graph.fileOffset
+            bo <- use Graph.bodyOffset
+            return $ fo + bo
         _  -> fmap concat $ forM succs $ \s -> do
             off  <- getOffsetRelativeToTarget s
             begs <- getAllBeginningsOf =<< IR.readTarget s
