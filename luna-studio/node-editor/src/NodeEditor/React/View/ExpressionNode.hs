@@ -143,7 +143,7 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
-            , onMouseEnter  $ \e m -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
+            , onMouseEnter  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
             , onMouseLeave  $ \e m -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
             ] $ do
             div_
