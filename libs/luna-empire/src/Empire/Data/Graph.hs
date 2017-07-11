@@ -56,7 +56,6 @@ data Graph = Graph { _ast                   :: AST Graph
                    , _parseError            :: Maybe SomeASTException
                    , _fileOffset            :: Delta
                    , _bodyOffset            :: Delta
-                   , _blockLength           :: Delta
                    } deriving Show
 
 data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph

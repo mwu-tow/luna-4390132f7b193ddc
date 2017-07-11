@@ -51,17 +51,16 @@ makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph
 makeGraphCls fun lastUUID = do
     pmState   <- liftIO Graph.defaultPMState
     nodeCache <- use Graph.nodeCache
-    (funName, IR.Rooted ir ref, fileOffset, blockLength) <- runASTOp $ IR.matchExpr fun $ \case
+    (funName, IR.Rooted ir ref, fileOffset) <- runASTOp $ IR.matchExpr fun $ \case
         IR.ASGRootedFunction n root -> do
             offset <- functionBlockStartRef fun
-            LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
-            return (nameToString n, root, offset, len)
+            return (nameToString n, root, offset)
     let ast   = Graph.AST ir pmState
     uuid <- maybe (liftIO $ UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromMaybeM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
     let bh = BH.LamItem portMapping ref def ref
-        graph = Graph.Graph ast bh 0 def def def fileOffset 0 blockLength
+        graph = Graph.Graph ast bh 0 def def def fileOffset 0
     Graph.clsFuns . at uuid ?= (funName, graph)
     withRootedFunction uuid $ do
         runASTOp $ do
@@ -112,7 +111,6 @@ withRootedFunction uuid act = do
             IR.getLayer @SpanLength ref
         return (a, len)
     Graph.clsFuns . ix uuid . _2 .= newGraph
-    Graph.clsFuns . ix uuid . _2 . Graph.blockLength .= len
     funName <- use $ Graph.clsFuns . ix uuid . _1
     runASTOp $ do
         cls <- use Graph.clsClass
@@ -137,7 +135,5 @@ zoomBreadcrumb (Breadcrumb []) _actG actC = do
     put $ set Library.body state newLib
     return res
 zoomBreadcrumb breadcrumb@(Breadcrumb (Definition uuid : rest)) actG _actC =
-    zoom Library.body $ do
-        a <- withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) actG
-        return a
+    zoom Library.body $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) actG
 zoomBreadcrumb breadcrumb _ _ = throwM $ BH.BreadcrumbDoesNotExistException breadcrumb
