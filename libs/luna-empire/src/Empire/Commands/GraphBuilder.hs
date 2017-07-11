@@ -4,26 +4,7 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
 
-module Empire.Commands.GraphBuilder (
-    buildConnections
-  , buildMonads
-  , buildNode
-  , buildNodeTypecheckUpdate
-  , buildNodes
-  , buildEdgeNodes
-  , buildGraph
-  , buildInputSidebar
-  , buildInputSidebarTypecheckUpdate
-  , buildOutputSidebarTypecheckUpdate
-  , decodeBreadcrumbs
-  , getEdgePortMapping
-  , getNodeIdSequence
-  , getNodeSeq
-  , getInPortDefault
-  , getDefault
-  , getNodeName
-  , nodeConnectedToOutput
-  ) where
+module Empire.Commands.GraphBuilder where
 
 import           Control.Monad.State             hiding (when)
 import           Data.Foldable                   (toList)
@@ -142,6 +123,12 @@ buildEdgeNodes = getEdgePortMapping >>= \p -> case p of
 getEdgePortMapping :: (MonadIO m, ASTOp m) => m (Maybe (NodeId, NodeId))
 getEdgePortMapping = preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
 
+aliasPortName :: Text
+aliasPortName = "alias"
+
+selfPortName :: Text
+selfPortName = "self"
+
 buildNode :: ASTOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
     root      <- GraphUtils.getASTPointer nid
@@ -151,7 +138,7 @@ buildNode nid = do
     meta      <- fromMaybe def <$> AST.readMeta marked
     name      <- getNodeName nid
     canEnter  <- ASTRead.isLambda ref
-    inports   <- buildInPorts nid ref []
+    inports   <- buildInPorts nid ref [] aliasPortName
     outports  <- buildOutPorts root
     code      <- getNodeCode nid
     return $ API.ExpressionNode nid expr name code inports outports meta canEnter
@@ -160,7 +147,7 @@ buildNodeTypecheckUpdate :: ASTOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildNodeTypecheckUpdate nid = do
   root     <- GraphUtils.getASTPointer nid
   ref      <- GraphUtils.getASTTarget  nid
-  inPorts  <- buildInPorts nid ref []
+  inPorts  <- buildInPorts nid ref [] aliasPortName
   outPorts <- buildOutPorts root
   return $ API.ExpressionUpdate nid inPorts outPorts
 
@@ -322,34 +309,34 @@ buildArgPorts ref = do
 
 buildSelfPort :: ASTOp m => NodeId -> InPortId -> NodeRef -> m (Maybe (InPortTree InPort))
 buildSelfPort nid currentPort node = do
-    let potentialSelf = Port currentPort "self" TStar NotConnected
+    let potentialSelf = Port currentPort selfPortName TStar NotConnected
     match node $ \case
         Acc t _ -> do
             target <- IR.source t
-            tree   <- buildInPorts nid target currentPort
+            tree   <- buildInPorts nid target currentPort selfPortName
             return $ Just tree
         Var _     -> return $ Just $ LabeledTree def potentialSelf
         App f _   -> buildSelfPort nid currentPort =<< IR.source f
         Grouped g -> buildSelfPort nid currentPort =<< IR.source g
         _         -> return Nothing
 
-buildWholePort :: ASTOp m => NodeId -> NodeRef -> m InPort
-buildWholePort nid ref = do
+buildWholePort :: ASTOp m => NodeId -> InPortId -> Text -> NodeRef -> m InPort
+buildWholePort nid currentPort portName ref = do
     tp    <- followTypeRep ref
     pid   <- ASTRead.getNodeId ref
     state <- if pid == Just nid then return NotConnected else getPortState ref
-    return $ Port [] "base" tp state
+    return $ Port currentPort portName tp state
 
 followTypeRep :: ASTOp m => NodeRef -> m TypeRep
 followTypeRep ref = do
     tp <- IR.source =<< IR.getLayer @TypeLayer ref
     Print.getTypeRep tp
 
-buildInPorts :: ASTOp m => NodeId -> NodeRef -> InPortId -> m (InPortTree InPort)
-buildInPorts nid ref currentPort = do
+buildInPorts :: ASTOp m => NodeId -> NodeRef -> InPortId -> Text -> m (InPortTree InPort)
+buildInPorts nid ref currentPort portName = do
     selfPort <- buildSelfPort nid (currentPort ++ [Self]) ref
     argPorts <- buildArgPorts ref
-    whole    <- buildWholePort nid ref
+    whole    <- buildWholePort nid currentPort portName ref
     return $ LabeledTree (InPorts selfPort def (LabeledTree def <$> argPorts)) whole
 
 buildDummyOutPort :: ASTOp m => NodeRef -> m (OutPortTree OutPort)

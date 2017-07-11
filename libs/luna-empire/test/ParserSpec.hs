@@ -44,7 +44,7 @@ spec = around withChannels $ do
                 (node ^. Node.outPorts)  `shouldBe`
                     LabeledTree def (Port.Port [] "node1" TStar Port.NotConnected)
                 (node ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "Vector x y z")
+                      Port.Port []           "alias" TStar (Port.WithDefault $ Expression "Vector x y z")
                     , Port.Port [Port.Arg 0] "x"    TStar (Port.WithDefault (Expression "x"))
                     , Port.Port [Port.Arg 1] "y"    TStar (Port.WithDefault (Expression "y"))
                     , Port.Port [Port.Arg 2] "z"    TStar (Port.WithDefault (Expression "z"))
