@@ -96,6 +96,20 @@ spec = around withChannels $ parallel $ do
             res `shouldBe` [
                     (outPortRef u1 [], inPortRef u2 [Port.Arg 1, Port.Arg 0])
                 ]
+        it "dumps proper ports for self" $ \env -> do
+            u1 <- mkUUID
+            u2 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = 1" def
+                Graph.addNode top u2 "bar = foo . baz" $ def & position . Position.x .~ 20.0
+                Graph.getNodes top
+            withResult res $ \nodes -> do
+                let Just bar = find (\a -> view Node.nodeId a == u2) nodes
+                (bar ^.. Node.inPorts . traverse) `shouldMatchList` [
+                      Port.Port []                     "alias" TStar (Port.WithDefault $ Expression "foo . baz")
+                    , Port.Port [Port.Self]            "self"  TStar Port.Connected
+                    , Port.Port [Port.Self, Port.Self] "self"  TStar Port.NotConnected
+                    ]
         it "returns connections for deeply nested uses of node in self position" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID

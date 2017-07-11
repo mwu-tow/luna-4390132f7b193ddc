@@ -296,13 +296,13 @@ extractPortInfo n = do
     fromType <- extractArgTypes tp
     return $ mergePortInfo applied fromType
 
-buildArgPorts :: ASTOp m => NodeRef -> m [InPort]
-buildArgPorts ref = do
+buildArgPorts :: ASTOp m => InPortId -> NodeRef -> m [InPort]
+buildArgPorts currentPort ref = do
     typed <- extractPortInfo ref
     names <- getPortsNames ref
     let portsTypes = fmap fst typed ++ List.replicate (length names - length typed) TStar
         psCons = zipWith3 Port
-                          (pure . Arg <$> [(0::Int)..])
+                          ((currentPort <>) . pure . Arg <$> [(0::Int)..])
                           (map Text.pack $ names ++ (("arg" ++) . show <$> [0..]))
                           portsTypes
     return $ zipWith ($) psCons (fmap snd typed ++ repeat NotConnected)
@@ -335,7 +335,7 @@ followTypeRep ref = do
 buildInPorts :: ASTOp m => NodeId -> NodeRef -> InPortId -> Text -> m (InPortTree InPort)
 buildInPorts nid ref currentPort portName = do
     selfPort <- buildSelfPort nid (currentPort ++ [Self]) ref
-    argPorts <- buildArgPorts ref
+    argPorts <- buildArgPorts currentPort ref
     whole    <- buildWholePort nid currentPort portName ref
     return $ LabeledTree (InPorts selfPort def (LabeledTree def <$> argPorts)) whole
 
