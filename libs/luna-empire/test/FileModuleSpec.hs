@@ -299,7 +299,7 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
                 Graph.addNode loc u1 "5" (atXPos (-50))
-        xit "adds node in a function with one node" $
+        it "adds node in a function with one node" $
             let initialCode = [r|
                     def foo:
                         «0»5
