@@ -9,6 +9,7 @@ module NodeEditor.Action.Node
     , snapCoord
     , setMouseOver
     , unsetMouseOver
+    , showFullError
     ) where
 
 import           Common.Prelude
@@ -19,7 +20,7 @@ import           NodeEditor.Action.Searcher                 (editExpression)
 import           NodeEditor.Action.Searcher                 (editName)
 import           NodeEditor.Action.State.NodeEditor         (modifyExpressionNode)
 import           NodeEditor.React.Model.Node                (NodeLoc)
-import           NodeEditor.React.Model.Node.ExpressionNode (isMouseOver)
+import           NodeEditor.React.Model.Node.ExpressionNode (isMouseOver, fullError)
 import           NodeEditor.State.Global                    (State)
 
 
@@ -28,3 +29,6 @@ setMouseOver nl = modifyExpressionNode nl $ isMouseOver .= True
 
 unsetMouseOver :: NodeLoc -> Command State ()
 unsetMouseOver nl = modifyExpressionNode nl $ isMouseOver .= False
+
+showFullError :: NodeLoc -> Command State ()
+showFullError nl = modifyExpressionNode nl $ fullError .= True

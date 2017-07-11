@@ -153,7 +153,7 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
                 nodeName_ ref nodeLoc (n ^. Node.name) mayVisVisible maySearcher
                 nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_  ref n
-            when showValue $ nodeValue_ n
+            when showValue $ nodeValue_ ref n
             nodePorts_ ref n
 
 nodeDynamicStyles_ :: Matrix Double -> ExpressionNode -> ReactElementM ViewEventHandler ()

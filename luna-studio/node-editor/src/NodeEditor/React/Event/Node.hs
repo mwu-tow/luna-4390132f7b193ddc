@@ -22,4 +22,5 @@ data Event = EditExpression                     NodeLoc
            | SetExpression                      NodeLoc Text
            | MouseEnter                         NodeLoc
            | MouseLeave                         NodeLoc
+           | ShowFullError                      NodeLoc
             deriving (Show, Generic, NFData, Typeable)
