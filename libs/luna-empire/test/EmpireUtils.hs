@@ -14,6 +14,7 @@ module EmpireUtils (
     , top
     , (|>)
     , (|>-)
+    , (|>=)
     , mkUUID
     , withChannels
     , emptyGraphLocation
@@ -93,6 +94,10 @@ infixl 5 |>
 infixl 5 |>-
 (|>-) :: GraphLocation -> (NodeId, Int) -> GraphLocation
 (|>-) (GraphLocation file bc) it = GraphLocation file $ Breadcrumb $ (++ [uncurry Arg it]) $ coerce bc
+
+infixl 5 |>=
+(|>=) :: GraphLocation -> NodeId -> GraphLocation
+(|>=) (GraphLocation file bc) it = GraphLocation file $ Breadcrumb $ (++ [Definition it]) $ coerce bc
 
 withChannels :: (CommunicationEnv -> IO a) -> IO a
 withChannels = bracket createChannels (const $ return ())

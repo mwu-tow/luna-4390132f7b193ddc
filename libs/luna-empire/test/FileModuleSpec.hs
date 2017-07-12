@@ -366,3 +366,28 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
                 Graph.addNode loc u1 "5" (atXPos (-50))
+        xit "adds node in two functions" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                u1 <- mkUUID
+                Graph.addNode (loc |>= foo) u1 "5" (atXPos (-10))
+                let Just main = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "main") nodes
+                u2 <- mkUUID
+                Graph.addNode (loc |>= main) u2 "1" (atXPos (-10))
+                Graph.getCode loc
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    node1 = 5
+                    5
+
+                def bar:
+                    "bar"
+
+                def main:
+                    node1 = 1
+                    print bar
+                |]
