@@ -114,7 +114,7 @@ runParser expr = do
         return (unwrap' res, exprMap)
 
 prepareInput :: Text.Text -> Text.Text
-prepareInput expr = Text.concat ["def ", varName, ":\n    None\n\n"]
+prepareInput expr = Text.concat ["def ", varName, ":\n    None"]
     where
         stripped = Text.strip expr
         varName  = case Text.splitOn " " stripped of
@@ -125,7 +125,7 @@ prepareInput expr = Text.concat ["def ", varName, ":\n    None\n\n"]
 runFunHackParser :: Text.Text -> Command ClsGraph (NodeRef, Text.Text)
 runFunHackParser expr = do
     let input = prepareInput expr
-    parse <- runFunParser $ Text.strip input
+    parse <- runFunParser input
     return (fst parse, input)
 
 runFunParser :: Text.Text -> Command ClsGraph (NodeRef, Parser.MarkedExprMap)

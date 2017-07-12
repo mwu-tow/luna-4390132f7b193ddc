@@ -113,6 +113,52 @@ spec = around withChannels $ parallel $ do
                 def main:
                     print bar
                 |]
+        it "adds function at top-level as third function" $ \env -> do
+            u1 <- mkUUID
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                Graph.addNode loc u1 "quux" $ set NodeMeta.position (Position.fromTuple (200,0)) def
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            length nodes `shouldBe` 4
+            find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def bar:
+                    "bar"
+
+                def quux:
+                    None
+
+                def main:
+                    print bar
+                |]
+        it "adds function at top-level as last function" $ \env -> do
+            u1 <- mkUUID
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                Graph.addNode loc u1 "quux" $ set NodeMeta.position (Position.fromTuple (500,0)) def
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            length nodes `shouldBe` 4
+            find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def bar:
+                    "bar"
+
+                def main:
+                    print bar
+
+                def quux:
+                    None
+                |]
         it "adds function at top-level as def" $ \env -> do
             u1 <- mkUUID
             (nodes, code) <- evalEmp env $ do

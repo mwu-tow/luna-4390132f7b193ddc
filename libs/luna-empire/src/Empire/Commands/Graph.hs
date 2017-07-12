@@ -74,8 +74,8 @@ import           Empire.Prelude                   hiding (toList)
 import qualified Safe
 import qualified System.IO                        as IO
 
-import           Empire.Data.AST                  (InvalidConnectionException (..), NodeRef, NotInputEdgeException (..), SomeASTException,
-                                                   astExceptionFromException, astExceptionToException)
+import           Empire.Data.AST                  (InvalidConnectionException (..), EdgeRef, NodeRef, NotInputEdgeException (..),
+                                                   SomeASTException, astExceptionFromException, astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
 import           Empire.Data.Graph                (ClsGraph, Graph, NodeCache(..), portMappingMap, nodeIdMap)
 import qualified Empire.Data.Graph                as Graph
@@ -146,6 +146,48 @@ addNodeCondTC tc loc@(GraphLocation f _) uuid expr meta
         resendCode loc
         return node
 
+findPreviousFunction :: ClassOp m => NodeMeta -> [NodeRef] -> m (Maybe NodeRef)
+findPreviousFunction newMeta functions = do
+    functionWithPositions <- forM functions $ \fun -> do
+        meta <- fromMaybe def <$> AST.readMeta fun
+        return (fun, Position.toTuple $ meta ^. NodeMeta.position)
+    let newMetaX = newMeta ^. NodeMeta.position . Position.x
+        functionsToTheLeft = filter (\(f, (x, y)) -> x < newMetaX) functionWithPositions
+        nearestNode = Safe.headMay $ reverse $ sortOn (view $ _2 . _1) functionsToTheLeft
+    return $ fmap (view _1) nearestNode
+
+putNewFunctionRef :: ClassOp m => EdgeRef -> Maybe NodeRef -> [EdgeRef] -> m [EdgeRef]
+putNewFunctionRef newFunction Nothing                    functions  = return (newFunction : functions)
+putNewFunctionRef newFunction (Just _)                   []         = return [newFunction]
+putNewFunctionRef newFunction pf@(Just previousFunction) (fun:funs) = do
+    fun' <- IR.source fun
+    if fun' == previousFunction
+        then return (fun:newFunction:funs)
+        else putNewFunctionRef newFunction pf funs >>= return . (fun:)
+
+insertFunAfter :: ClassOp m => Maybe NodeRef -> NodeRef -> Text -> m ()
+insertFunAfter previousFunction function code = do
+    let defaultFunSpace = 2
+    case previousFunction of
+        Nothing -> do
+            klass <- use Graph.clsClass
+            funs <- AST.classFunctions klass
+            funBlockStart <- Code.functionBlockStartRef (head funs)
+            LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan (head funs)
+            off' <- if (off /= 0) then return off else do
+                IR.putLayer @CodeSpan (head funs) $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace len))
+                return defaultFunSpace
+            Code.insertAt funBlockStart $ code <> Text.replicate (fromIntegral off') "\n"
+            LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
+            IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off funLen))
+        Just pf -> do
+            funBlockStart <- Code.functionBlockStartRef pf
+            LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan pf
+            Code.insertAt (funBlockStart+len) $ Text.replicate (fromIntegral defaultFunSpace) "\n" <> code
+            LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
+            IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace funLen))
+
+
 addFunNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addFunNode loc uuid expr meta = withUnit loc $ do
     (parse, code) <- ASTParse.runFunHackParser expr
@@ -155,16 +197,18 @@ addFunNode loc uuid expr meta = withUnit loc $ do
     klass <- use Graph.clsClass
     runASTOp $ do
         funs <- AST.classFunctions klass
-        firstFunctionPosition <- Code.functionBlockStartRef (head funs)
-        Code.insertAt firstFunctionPosition code
-        return ()
-    runASTOp $ IR.matchExpr klass $ \case
-        IR.Unit _ _ cls -> do
-            cls' <- IR.source cls
-            Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
-            l <- IR.unsafeGeneralize <$> IR.link parse cls'
-            IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls %~ (l:)
+        previousFunction <- findPreviousFunction meta funs
+        IR.matchExpr klass $ \case
+            IR.Unit _ _ cls -> do
+                cls' <- IR.source cls
+                Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
+                l <- IR.unsafeGeneralize <$> IR.link parse cls''
+                links <- IR.matchExpr cls' $ \case
+                    IR.ClsASG _ _ _ decls -> return decls
+                newFuns <- putNewFunctionRef l previousFunction links
+                IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
 
+        insertFunAfter previousFunction parse code
     funs <- use Graph.clsFuns
     (uuid, graph) <- makeGraphCls parse Nothing
 
