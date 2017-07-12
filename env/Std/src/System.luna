@@ -1,0 +1,72 @@
+import Std.Base
+
+class PipeRequest:
+    Inherit
+    UseHandle FileHandle
+    CreatePipe
+    NoStream
+
+class FileHandle:
+    def isOpen: primHIsOpen self
+    def isClosed: primHIsClosed self
+    def close: primHClose self
+    def getContents: primHGetContents self
+    def getLine: primHGetLine self
+    def putText t: primHPutText self t
+
+class ProcessHandle:
+    def waitForProcess: primWaitForProcess self
+
+class ProcessResults:
+    ProcessResults (Maybe FileHandle) (Maybe FileHandle) (Maybe FileHandle) ProcessHandle
+
+    def getContentsFromStdOut: case self of
+        ProcessResults hin hout herr ph: hout . map .getContents
+
+    def getContentsFromStdErr: case self of
+        ProcessResults hin hout herr ph: herr . map .getContents
+
+    def putTextToStdIn: case self of
+        ProcessResults hin hout herr ph: hin . maybe None .putText
+
+    def waitForProcess: case self of
+        ProcessResults hin hout herr ph: ph . waitForProcess
+
+class ProcessDescription:
+    ProcessDescription Text (List Text) (Maybe PipeRequest) (Maybe PipeRequest) (Maybe PipeRequest)
+
+    def run: primRunProcess self
+
+class Process:
+    Process
+
+    def readProcessWithExitCode path args stdin:
+        cp = ProcessDescription path args (Just CreatePipe) (Just CreatePipe) (Just CreatePipe)
+        pr = cp . run
+        out = pr . getContentsFromStdOut
+        err = pr . getContentsFromStdErr
+        ex  = pr . waitForProcess
+        Triple out err ex
+
+
+class ExitCode:
+    ExitSuccess
+    ExitFailure Int
+
+    def toInt: case self of
+        ExitSuccess: 0
+        ExitFailure e: e
+
+    def exitSuccess: case self of
+        ExitSuccess: True
+        ExitFailure e: False
+
+    def exitFailure: case self of
+        ExitFailure e: True
+        ExitSuccess: False
+
+    def toText: case self of
+        ExitSuccess: "ExitSuccess"
+        ExitFailure e: "ExitFailure " + e.toText
+
+    def shortRep: self . toText

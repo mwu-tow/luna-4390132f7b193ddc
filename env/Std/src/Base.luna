@@ -2,13 +2,13 @@ class Bool:
     True
     False
 
-    def toString: case self of
+    def toText: case self of
         True:  "True"
         False: "False"
 
     def toJSON: JSONBool self
 
-    def shortRep: self . toString
+    def shortRep: self . toText
 
 def if_then_else pred ifTrue ifFalse: case pred of
     True:  ifTrue
@@ -27,7 +27,7 @@ def seq a b:
 class None:
     None
 
-    def toString: "None"
+    def toText: "None"
 
     def toJSON: JSONNull
 
@@ -42,6 +42,38 @@ class Pair a b:
 
     def second: case self of
         Pair a b: b
+
+    def map f: Pair (f self.first) (f self.second)
+
+    def toText: case self of
+        Pair a b: "Pair " + a.toText + " " + b.toText
+
+    def shortRep: case self of
+        Pair a b: "(" + a.shortRep + ", " + b.shortRep + ")"
+
+class Triple a b c:
+    Triple a b c
+
+    def toJSON: case self of
+        Triple a b c: JSONArray (Prepend a.toJSON (Prepend b.toJSON (Prepend c.toJSON Empty)))
+
+    def first: case self of
+        Triple a b c: a
+
+    def second: case self of
+        Triple a b c: b
+
+    def third: case self of
+        Triple a b c: c
+
+    def map f: Triple (f self.first) (f self.second) (f self.third)
+
+    def toText: case self of
+        Triple a b c: "Triple " + a.toText + " " + b.toText + " " + c.toText
+
+    def shortRep: case self of
+        Triple a b c: "(" + a.shortRep + ", " + b.shortRep + ", " + c.shortRep + ")"
+
 
 class Maybe a:
     Nothing
@@ -62,7 +94,7 @@ class Maybe a:
         Just a: a
         Nothing: defVal
 
-    def maybe f defVal: case self of
+    def maybe defVal f: case self of
         Just a: f a
         Nothing: defVal
 
@@ -73,6 +105,14 @@ class Maybe a:
     def isNothing: case self of
         Nothing: True
         Just a: False
+
+    def map f: case self of
+        Nothing: Nothing
+        Just a: Just (f a)
+
+    def toText: case self of
+        Just a: "Just " + a.toText
+        Nothing: "Nothing"
 
     def shortRep: case self of
         Just a: "Just " + a.shortRep
@@ -299,22 +339,3 @@ def every time act:
     current = act
     future  = delayAsync time (every time act)
     Stream current future.read
-
-class Point:
-    Point Real Real
-
-    def toJSON: case self of
-        Point x y: JSONObject (Tip . insert "x" (JSONNumber x) . insert "y" (JSONNumber y))
-
-    def move _x _y: case self of
-        Point x y: Point (x + _x) (y + _y)
-
-class Circle:
-    Circle Point Real Text
-    def toJSON: case self of
-        Circle center radius color: JSONObject (Tip . insert "center" center.toJSON . insert "radius" radius.toJSON . insert "color" color.toJSON)
-
-    def move x y: case self of
-        Circle c r col: Circle (c . move x y) r col
-
-    def shortRep: "Circle"
