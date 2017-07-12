@@ -36,7 +36,7 @@ data AppType = BatchApp | GuiApp deriving (Show, Generic, Eq)
 -- Core
 data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                          } deriving (Show, Generic, Eq)
 data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap, _appType :: AppType } deriving (Show, Generic, Eq)
-data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: URIPath                         } deriving (Show, Generic, Eq)
+data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: Text                         } deriving (Show, Generic, Eq)
 data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                         } deriving (Show, Generic, Eq)
 type VersionMap    = Map Version (Map SysDesc PackageDesc)
 

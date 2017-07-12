@@ -31,6 +31,18 @@ unpackArchive file = case currentHost of
         case ext of
             "AppImage" -> return file
             "gz"       -> Shelly.shelly $ unpackTarGzUnix file
+            "rpm"      -> Shelly.shelly $ do
+                let name = basename file
+                    dir = directory file
+                    fullFilename = filename file
+                Shelly.mkdir_p $ dir </> name
+                Shelly.cp_r file $ dir </> name
+                Shelly.cd $ dir </> name
+                print $ show fullFilename
+                unpackRPM $ dir </> name </> fullFilename
+                Shelly.rm fullFilename
+                return $ dir </> name
+
 
 
 unpackTarGzUnix :: Shelly.MonadSh m => FilePath -> m FilePath
@@ -38,8 +50,9 @@ unpackTarGzUnix file = do
     let dir = directory file
         name = basename file
     Shelly.cd dir
-    Shelly.cmd  "tar" "-xpzf" file "--strip=1" name
-    return name
+    Shelly.mkdir_p name
+    Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+    return $ dir </> name
 
 -- TODO: download unzipper if missing
 unzipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath
@@ -54,3 +67,6 @@ unzipFileWindows zipFile = do
     Shelly.shelly $ Shelly.cd dir
     Shelly.shelly $ Shelly.cmd "cscript" (filename script) (filename zipFile)
     return name --checkon windows if it is possible to strip and unpack to different dir
+
+unpackRPM :: Shelly.MonadSh m => FilePath -> m ()
+unpackRPM file = Shelly.cmd "rpm2cpio" file "|" "cpio" "-idmv"
