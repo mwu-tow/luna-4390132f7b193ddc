@@ -83,11 +83,11 @@ outPortTreeLeafs :: OutPortTree (Port i) -> [Port i]
 outPortTreeLeafs (LabeledTree (OutPorts []) p) = [p]
 outPortTreeLeafs (LabeledTree (OutPorts ps) _) = concatMap outPortTreeLeafs ps
 
-inPortTreeLeafs :: InPortTree (Port i) -> [Port i]
-inPortTreeLeafs (LabeledTree (InPorts Nothing []) p) = if p ^. state == Connected then [p] else []
-inPortTreeLeafs (LabeledTree (InPorts mps     ps) _) = concatMap inPortTreeLeafs' $ maybeToList mps <> ps where
+inPortTreeLeafs :: Bool -> InPortTree (Port i) -> [Port i]
+inPortTreeLeafs forceTop (LabeledTree (InPorts Nothing []) p) = if p ^. state == Connected || forceTop then [p] else []
+inPortTreeLeafs _        (LabeledTree (InPorts mps     ps) _) = concatMap inPortTreeLeafs' $ maybeToList mps <> ps where
     inPortTreeLeafs' (LabeledTree (InPorts Nothing []) p') = [p']
-    inPortTreeLeafs' (LabeledTree (InPorts mps'    ps') _) = concatMap inPortTreeLeafs $ maybeToList mps' <> ps'
+    inPortTreeLeafs' (LabeledTree (InPorts mps'    ps') _) = concatMap inPortTreeLeafs' $ maybeToList mps' <> ps'
 
 
 instance Convertible InPort  AnyPort where convert = fmap InPortId'
