@@ -87,8 +87,8 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 return nodes
             length nodes `shouldBe` 3
-            -- nodes are layouted by default
-            let uniquePositions = Set.toList $ Set.fromList $ map (view (Node.nodeMeta . NodeMeta.position)) nodes
+            -- nodes are layouted in a left-to-right manner
+            let uniquePositions = Set.toList $ Set.fromList $ map (view (Node.nodeMeta . NodeMeta.position . Position.x)) nodes
             length uniquePositions `shouldBe` 3
         it "adds function at top-level" $ \env -> do
             u1 <- mkUUID

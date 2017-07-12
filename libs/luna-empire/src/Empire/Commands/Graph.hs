@@ -85,6 +85,7 @@ import qualified Empire.Data.Library              as Library
 import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis)
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
+import           LunaStudio.Data.Constants        (gapBetweenNodes)
 import           LunaStudio.Data.Connection       (Connection (..))
 import qualified LunaStudio.Data.Graph            as APIGraph
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
@@ -818,13 +819,15 @@ autolayoutTopLevel :: GraphLocation -> Empire ()
 autolayoutTopLevel loc = do
     withUnit loc $ runASTOp $ do
         clsFuns <- use Graph.clsFuns
-        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, _)) -> do
+        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, graph)) -> do
             f    <- ASTRead.getFunByName name
             meta <- AST.readMeta f
-            return $ if meta /= def then Nothing else Just id
+            let fileOffset = graph ^. Graph.fileOffset
+            return $ if meta /= def then Nothing else Just (id, fileOffset)
 
-        nodes <- view APIGraph.nodes <$> GraphBuilder.buildClassGraph
-        let autolayout = Autolayout.autolayoutNodes needLayout nodes []
+        let sortedNeedLayout = sortOn snd needLayout
+            positions  = map (Position.fromTuple . (,0)) [0,gapBetweenNodes..]
+            autolayout = zipWith (\(id, _) pos -> (id,pos)) sortedNeedLayout positions
         mapM_ (uncurry setNodePositionCls) autolayout
 
 printMarkedExpression :: GraphOp m => NodeRef -> m Text
