@@ -126,14 +126,11 @@ withRootedFunction uuid act = do
     Graph.clsParseError  .= newGraph ^. Graph.parseError
     return res
 
+zoomBreadcrumb' :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Command Graph.ClsGraph a
+zoomBreadcrumb' (Breadcrumb []) _actG actC = actC
+zoomBreadcrumb' breadcrumb@(Breadcrumb (Definition uuid : rest)) actG _actC =
+    withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) actG
+zoomBreadcrumb' breadcrumb _ _ = throwM $ BH.BreadcrumbDoesNotExistException breadcrumb
+
 zoomBreadcrumb :: Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Command Library.Library a
-zoomBreadcrumb (Breadcrumb []) _actG actC = do
-    env   <- ask
-    lib   <- get
-    let newLib = lib & Library.body . Graph.clsFuns .~ Map.empty
-    (res, state) <- liftIO $ runEmpire env (lib ^. Library.body) actC
-    put $ set Library.body state newLib
-    return res
-zoomBreadcrumb breadcrumb@(Breadcrumb (Definition uuid : rest)) actG _actC =
-    zoom Library.body $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) actG
-zoomBreadcrumb breadcrumb _ _ = throwM $ BH.BreadcrumbDoesNotExistException breadcrumb
+zoomBreadcrumb = zoom Library.body .:. zoomBreadcrumb'

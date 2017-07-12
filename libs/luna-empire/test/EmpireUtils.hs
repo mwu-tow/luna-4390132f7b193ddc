@@ -43,7 +43,7 @@ import           LunaStudio.Data.Node          (ExpressionNode, NodeId, nodeId)
 import qualified Empire.Commands.Graph         as Graph (connect, getNodes, loadCode)
 import           Empire.Commands.Library       (createLibrary, listLibraries, withLibrary)
 import           Empire.Data.AST               ()
-import           Empire.Data.Graph             (AST (..), Graph)
+import           Empire.Data.Graph             (AST (..), Graph, ClsGraph)
 import qualified Empire.Data.Library           as Library (body, path)
 import           Empire.Empire                 (CommunicationEnv (..), Empire, Env, Error, InterpreterEnv (..), runEmpire)
 import           Luna.IR                       (AnyExpr, Link')
@@ -77,7 +77,7 @@ graphIDs loc = do
     let ids = map (^. nodeId) nodes
     return ids
 
-extractGraph :: InterpreterEnv -> Graph
+extractGraph :: InterpreterEnv -> ClsGraph
 extractGraph (InterpreterEnv _ _ _ g _ _ _) = g
 
 withResult :: a -> (a -> IO b) -> IO b

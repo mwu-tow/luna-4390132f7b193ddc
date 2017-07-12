@@ -386,7 +386,6 @@ buildInPorts nid ref = do
     whole    <- buildWholePort nid ref
     return $ LabeledTree (InPorts (LabeledTree def <$> selfPort) (LabeledTree def <$> argPorts)) whole
 
-
 buildDummyOutPort :: GraphOp m => NodeRef -> m (OutPortTree OutPort)
 buildDummyOutPort ref = do
     tp <- followTypeRep ref

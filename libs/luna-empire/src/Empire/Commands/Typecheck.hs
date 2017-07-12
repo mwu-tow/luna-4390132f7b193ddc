@@ -22,7 +22,7 @@ import           LunaStudio.Data.NodeValue        (NodeValue (..), Visualization
 
 import           Empire.ASTOp                     (runASTOp, runTypecheck)
 import qualified Empire.ASTOps.Read               as ASTRead
-import           Empire.Commands.Breadcrumb       (zoomInternalBreadcrumb)
+import           Empire.Commands.Breadcrumb       (zoomBreadcrumb')
 import qualified Empire.Commands.GraphBuilder     as GraphBuilder
 import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.BreadcrumbHierarchy  (topLevelIDs)
@@ -58,18 +58,8 @@ runInterpreter imports = runASTOp $ do
         Left e  -> return Nothing
         Right r -> return $ Just r
 
-reportError :: GraphLocation -> NodeId -> Maybe APIError.Error -> Command InterpreterEnv ()
-reportError loc nid err = do
-    cachedErr <- uses errorsCache $ Map.lookup nid
-    when (cachedErr /= err) $ do
-        errorsCache %= Map.alter (const err) nid
-        valuesCache %= Map.delete nid
-        case err of
-            Just e  -> Publisher.notifyResultUpdate loc nid (NodeError e)     0
-            Nothing -> Publisher.notifyResultUpdate loc nid (NodeValue "" Nothing) 0
-
-updateNodes :: GraphLocation -> Command InterpreterEnv ()
-updateNodes loc@(GraphLocation _ br) = zoom graph $ zoomInternalBreadcrumb br $ do
+updateNodes :: GraphLocation -> Command Graph ()
+updateNodes loc@(GraphLocation _ br) = do
      (inEdge, outEdge) <- use $ Graph.breadcrumbHierarchy . BH.portMapping
      (updates, errors) <- runASTOp $ do
          sidebarUpdates <- (\x y -> [x, y]) <$> GraphBuilder.buildInputSidebarTypecheckUpdate  inEdge
@@ -90,12 +80,12 @@ updateMonads loc@(GraphLocation _ br) = return ()--zoom graph $ zoomBreadcrumb b
     {-newMonads <- runASTOp GraphBuilder.buildMonads-}
     {-Publisher.notifyMonadsUpdate loc newMonads-}
 
-updateValues :: GraphLocation -> Interpreter.LocalScope -> Command InterpreterEnv ()
+updateValues :: GraphLocation -> Interpreter.LocalScope -> Command Graph ()
 updateValues loc scope = do
-    childrenMap <- use $ graph . Graph.breadcrumbHierarchy . BH.children
+    childrenMap <- use $ Graph.breadcrumbHierarchy . BH.children
     let allNodes = Map.assocs $ view BH.self <$> childrenMap
     env     <- ask
-    allVars <- zoom graph $ runASTOp $ fmap catMaybes $ forM allNodes $ \(nid, tgt) -> do
+    allVars <- runASTOp $ fmap catMaybes $ forM allNodes $ \(nid, tgt) -> do
         pointer <- ASTRead.getASTPointer nid
         IR.matchExpr pointer $ \case
             IR.Unify{} -> Just . (nid,) <$> ASTRead.getVarNode pointer
@@ -135,16 +125,16 @@ getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
     processClass (Class _ methods) = convert <$> Map.keys methods
 
 run :: GraphLocation -> Command InterpreterEnv ()
-run loc = do
+run loc@(GraphLocation _ br) = do
     std     <- use imports
     cln     <- use cleanUp
     threads <- use listeners
-    liftIO $ print $ Map.keys $ std ^. importedClasses
-    zoom graph $ runTC std
-    updateNodes  loc
-    {-updateMonads loc-}
-    liftIO cln
-    liftIO $ mapM killThread threads
     listeners .= []
-    scope <- zoom graph $ runInterpreter std
-    mapM_ (updateValues loc) scope
+    zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
+        runTC std
+        updateNodes  loc
+        {-updateMonads loc-}
+        liftIO cln
+        liftIO $ mapM killThread threads
+        scope <- runInterpreter std
+        mapM_ (updateValues loc) scope

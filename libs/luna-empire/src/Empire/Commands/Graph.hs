@@ -917,7 +917,7 @@ markerCodeSpan loc index = withGraph loc $ runASTOp $ do
 
 -- internal
 
-runTC :: GraphLocation -> Bool -> Command Graph ()
+runTC :: GraphLocation -> Bool -> Command ClsGraph ()
 runTC loc flush = do
     g <- get
     Publisher.requestTC loc g flush
@@ -928,9 +928,7 @@ printNodeLine nodeId = GraphUtils.getASTPointer nodeId >>= ASTPrint.printExpress
 withTC' :: GraphLocation -> Bool -> Command Graph a -> Command ClsGraph a -> Empire a
 withTC' loc@(GraphLocation file bs) flush actG actC = do
     res <- withGraph' loc actG actC
-    case bs of
-        Breadcrumb []      -> return ()
-        Breadcrumb (d : _) -> withGraph' (GraphLocation file (Breadcrumb [d])) (runTC loc flush) (return ())
+    withGraph' (GraphLocation file def) (return ()) (runTC loc flush)
     return res
 
 withTCUnit :: GraphLocation -> Bool -> Command ClsGraph a -> Empire a

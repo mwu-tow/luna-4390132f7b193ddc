@@ -125,7 +125,7 @@ type instance Pass.Outputs    IR.Event InitPass = '[IR.New IR.// IR.AnyExpr, IR.
 
 type instance Pass.Preserves        InitPass = '[]
 
-defaultPMState :: IO (PMState Graph)
+defaultPMState :: IO (PMState a)
 defaultPMState = mdo
     flip evalStateT undefined $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs

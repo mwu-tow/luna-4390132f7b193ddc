@@ -27,7 +27,7 @@ import           System.FilePath.Manip            ()
 
 
 import           Empire.Data.AST                      (SomeASTException)
-import           Empire.Data.Graph                    (Graph, ast)
+import           Empire.Data.Graph                    (ClsGraph, Graph, ast)
 import qualified Empire.Data.Graph                    as Graph
 import           LunaStudio.API.AsyncUpdate           (AsyncUpdate (..))
 import qualified LunaStudio.API.Control.EmpireStarted as EmpireStarted
@@ -105,7 +105,7 @@ prepareStdlib = do
     (cleanup, std) <- Typecheck.createStdlib $ lunaroot ++ "/Std/"
     return (std, Typecheck.getSymbolMap std, cleanup)
 
-startTCWorker :: Empire.CommunicationEnv -> MVar (GraphLocation, Graph, Bool) -> MVar Empire.SymbolMap -> Bus ()
+startTCWorker :: Empire.CommunicationEnv -> MVar (GraphLocation, ClsGraph, Bool) -> MVar Empire.SymbolMap -> Bus ()
 startTCWorker env reqs scopeVar = liftIO $ do
     (Scope std, symbolMap, cleanup) <- prepareStdlib
     putMVar scopeVar symbolMap
@@ -115,7 +115,7 @@ startTCWorker env reqs scopeVar = liftIO $ do
         (loc, g, flush) <- liftIO $ takeMVar reqs
         when flush
             Typecheck.flushCache
-        Empire.graph .= (g & Graph.ast . Graph.pmState .~ pmState)
+        Empire.graph .= (g & Graph.clsAst . Graph.pmState .~ pmState)
         liftIO performGC
         catchAll (Typecheck.run loc) print
 
