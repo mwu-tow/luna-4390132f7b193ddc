@@ -121,8 +121,8 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                      (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
                   forM_ visualizations $ nodeVisualization_ ref
 
-              forM_ input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
-              forM_ output $ sidebar_ ref Nothing
+              withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
+              withJust output $ sidebar_ ref Nothing
 
               planeCanvas_ mempty
         GraphLoading   -> noGraph_ True "Loading..."

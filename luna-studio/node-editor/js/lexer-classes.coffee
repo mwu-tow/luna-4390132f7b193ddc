@@ -1,53 +1,51 @@
 # https://github.com/atom/template-syntax/blob/master/stylesheets/base.less
 lunaClasses = {
+        # --- Entities ---
+        BlockStart  : 'entity.lambda'
+        Group       : 'entity.group'
 
-        # Layout      :
-        # BOF         :
-        # EOF         :
-        # EOL         :
-        # Terminator  :
-        # BlockStart  :
-        # Block       :
-        # Group       :
-        Marker      : 'marker'
+        # --- Variables ---
+        Ident       : 'variable'
+        Var         : 'variable.regular'
+        Cons        : 'variable.constructor'
+        Wildcard    : 'variable.wildcard'
 
-        # Ident       :
-        Var         : 'variable'
-        Cons        : 'constant'
-        Wildcard    : 'variable'
-
+        # --- Keywords ---
         Keyword     : 'keyword'
-        KwAll       : 'keyword.control'
-        KwCase      : 'keyword.control'
-        KwClass     : 'meta.class'
-        KwDef       : 'meta.class'
-        KwImport    : 'meta.import'
-        KwOf        : 'keyword.control'
-
+        KwCase      : 'keyword.control.case'
+        KwOf        : 'keyword.control.of'
+        KwClass     : 'keyword.definition.class'
+        KwDef       : 'keyword.definition.function'
+        KwImport    : 'keyword.definition.import'
         Operator    : 'keyword.operator'
-        Modifier    : 'keyword.other.special-method'
-        Accessor    : 'keyword.other.special-method'
-        # Assignment  :
-        # TypeApp     :
-        # Merge       :
-        # Range       :
-        # Anything    :
+        Modifier    : 'keyword.operator.modifier'
+        Accessor    : 'keyword.operator.accessor'
+        Assignment  : 'keyword.operator.assignment'
+        Range       : 'keyword.operator.range'
+        Anything    : 'keyword.operator.anything'
 
+        # --- Literals ---
         Literal     : 'constant'
         Number      : 'constant.numeric'
-        # Quote       :
+        List        : 'constant.list'
+
+        # --- Strings ---
         Str         : 'string'
+        Block       : 'string.escape'
+        Quote       : 'string.quote'
         StrEsc      : 'constant.character.escape'
-        List        : 'storage'
-        StrWrongEsc : 'invalid.illegal'
 
-        # Control     :
-        Disabled    : 'disabled'
+        # --- Invalid ---
+        Unknown     : 'invalid.unknown'
+        StrWrongEsc : 'invalid.constant.character.escape'
 
+        # --- Comments ---
         Comment     : 'comment'
-        # Doc         :
+        Disabled    : 'comment.disabled'
+        Doc         : 'comment.doc'
 
-        # Unknown     :
+        # --- Helpers ---
+        Marker      : 'helper.marker'
     }
 
 module.exports =
