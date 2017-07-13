@@ -12,7 +12,8 @@ import Prologue hiding (FilePath)
 
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename)
 import qualified Shelly.Lifted as Shelly
-import           Shelly.Lifted (MonadSh)
+import           Shelly.Lifted (MonadSh, (-|-))
+import qualified System.Process.Typed as Process
 import qualified Data.Text as Text
 default (Text.Text)
 
@@ -37,10 +38,9 @@ unpackArchive file = case currentHost of
                     fullFilename = filename file
                 Shelly.mkdir_p $ dir </> name
                 Shelly.cp_r file $ dir </> name
-                Shelly.cd $ dir </> name
                 print $ show fullFilename
-                unpackRPM $ dir </> name </> fullFilename
-                Shelly.rm fullFilename
+                unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                -- Shelly.rm fullFilename
                 return $ dir </> name
 
 
@@ -68,5 +68,8 @@ unzipFileWindows zipFile = do
     Shelly.shelly $ Shelly.cmd "cscript" (filename script) (filename zipFile)
     return name --checkon windows if it is possible to strip and unpack to different dir
 
-unpackRPM :: Shelly.MonadSh m => FilePath -> m ()
-unpackRPM file = Shelly.cmd "rpm2cpio" file "|" "cpio" "-idmv"
+unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
+unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " ++ (encodeString file) ++ " | cpio -idmv"
+    -- do
+    -- let fullcmd = Shelly.toTextIgnore file <> " | cpio -idmv"
+    -- Shelly.cmd "rpm2cpio " fullcmd

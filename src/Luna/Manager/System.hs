@@ -119,6 +119,7 @@ makeExecutable file = case currentHost of
     Linux -> liftIO $ do
         p <- getPermissions $ encodeString file
         setPermissions (encodeString file) (p {executable = True})
+        print "permissions set"
     Darwin -> liftIO $ do
         p <- getPermissions $ encodeString file
         setPermissions (encodeString file) (p {executable = True})
