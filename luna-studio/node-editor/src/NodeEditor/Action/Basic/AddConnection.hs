@@ -2,10 +2,10 @@ module NodeEditor.Action.Basic.AddConnection where
 
 import           Common.Prelude
 import           Control.Monad                      (filterM)
-import           LunaStudio.Data.PortRef            (AnyPortRef (InPortRef'), InPortRef, OutPortRef, dstNodeLoc, dstPortId)
-import           NodeEditor.Action.Basic.UpdateNode (updatePortSelfVisibility)
+import           LunaStudio.Data.PortRef            (AnyPortRef (InPortRef', OutPortRef'), InPortRef, OutPortRef, dstNodeLoc, dstPortId)
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.Command          (Command)
+import           NodeEditor.Action.State.Model      (updatePortMode)
 import           NodeEditor.Action.State.Model      (createConnectionModel)
 import qualified NodeEditor.Action.State.NodeEditor as NodeEditor
 import           NodeEditor.React.Model.Connection  (ConnectionId)
@@ -28,5 +28,6 @@ localAddConnection src' dst' = do
     mayConn <- createConnectionModel src' dst'
     withJust mayConn $ \conn -> do
         NodeEditor.addConnection conn
-        when ([Self] == dst' ^. dstPortId) . void . updatePortSelfVisibility $ dst' ^. dstNodeLoc
+        updatePortMode $ OutPortRef' src'
+        updatePortMode $ InPortRef'  dst'
     return $ isJust mayConn

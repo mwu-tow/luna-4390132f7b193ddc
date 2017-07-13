@@ -26,6 +26,8 @@ type IsOnly  = Bool
 
 data Mode = Normal
           | Invisible
+          | Inactive
+          | TypeNotMatched
           | Highlighted
           | Moved Position
           | NameEdit

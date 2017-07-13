@@ -13,8 +13,8 @@ import           NodeEditor.React.Model.App       (App)
 import           NodeEditor.React.Model.Constants (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius')
 import           NodeEditor.React.Model.Node      (NodeLoc)
 import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsAlias, IsOnly,
-                                                   Mode (Highlighted, Invisible), getPortNumber, isHighlighted, isInPort, isInvisible,
-                                                   portAngleStart, portAngleStop)
+                                                   Mode (..), getPortNumber, isHighlighted, isInPort, isInvisible, isSelf, portAngleStart,
+                                                   portAngleStop)
 import qualified NodeEditor.React.Model.Port      as Port
 import           NodeEditor.React.Store           (Ref, dispatch)
 import qualified NodeEditor.React.View.Style      as Style
@@ -37,6 +37,13 @@ typeOffsetY  = 20.5
 
 selectAreaWidth :: Double
 selectAreaWidth = 8
+
+modeClass :: Mode -> [String]
+modeClass Invisible      = ["port--invisible"]
+modeClass Inactive       = ["port--inactive"]
+modeClass TypeNotMatched = ["port--type-not-matched"]
+modeClass Highlighted    = ["hover"]
+modeClass _               = []
 
 jsShow2 :: Double -> JSString
 jsShow2 a = convert $ showFFloat (Just 2) a "" -- limit Double to two decimal numbers
@@ -101,8 +108,7 @@ portAlias :: ReactView AnyPort
 portAlias = React.defineView "port-alias" $ \p -> do
     let portId    = p ^. Port.portId
         color     = convert $ p ^. Port.color
-        highlight = if isHighlighted p then ["hover"] else []
-        className = Style.prefixFromList $ ["port", "port--alias"] ++ highlight -- ++ modeClass
+        className = Style.prefixFromList $ ["port", "port--alias"] ++ (modeClass $ p ^. Port.mode) -- ++ modeClass
     g_
         [ "className" $= className ] $ do
         circle_
@@ -119,11 +125,7 @@ portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         color     = convert $ p ^. Port.color
-        modeClass = case p ^. Port.mode of
-            Highlighted -> ["hover"]
-            Invisible   -> ["port--invisible"]
-            _           -> []
-        className    = Style.prefixFromList $ ["port", "port--self"] ++ modeClass
+        className    = Style.prefixFromList $ ["port", "port--self"] ++ (modeClass $ p ^. Port.mode)
         portHandlers = if isInvisible p then [] else handlers ref portRef
     g_
         [ "className" $= className ] $ do
@@ -149,8 +151,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
         portType  = toString $ p ^. Port.valueType
         isInput   = isInPort portId
         color     = convert $ p ^. Port.color
-        highlight = if isHighlighted p then ["hover"] else []
-        classes   = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] ++ highlight
+        classes   = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] ++ (modeClass $ p ^. Port.mode)
         r1 :: Double -> JSString
         r1 = jsShow2 . (+) nodeRadius
         r2 = jsShow2 nodeRadius'
@@ -159,7 +160,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
                        " L0 "  <> r2   <> " A " <> r2   <> " " <> r2   <> " 1 0 " <> jsShow c <> " 0 -" <> r2   <> " Z "
     g_ [ "className" $= classes ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ highlight)
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ])
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 (-typeOffsetY1)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -189,9 +190,8 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
         isInput   = isInPort portId
         num       = getPortNumber portId
         color     = convert $ p ^. Port.color
-        highlight = if isHighlighted p then ["hover"] else []
-        classes   = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] ++ highlight
-                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] ++ highlight
+        classes   = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] ++ (modeClass $ p ^. Port.mode)
+                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] ++ (modeClass $ p ^. Port.mode)
         svgFlag1  = if isInput then "1"  else "0"
         svgFlag2  = if isInput then "0"  else "1"
         mode      = if isInput then -1.0 else 1.0
@@ -224,7 +224,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
         [ "className" $= Style.prefixFromList classes
         ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ highlight)
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ (modeClass $ p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 ((lineHeight * fromIntegral num) - adjust)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -244,7 +244,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
             ) mempty
 
 portIOExpanded_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf_ ref nl p else do
+portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p else do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         portType  = toString $ p ^. Port.valueType
@@ -254,14 +254,13 @@ portIOExpanded_ ref nl p = if p ^. Port.portId == InPortId' [Self] then portSelf
         color     = convert $ p ^. Port.color
         px        = jsShow2 (if isInput then (-nodePropertiesWidth/2) else nodePropertiesWidth/2)
         py        = jsShow2 (lineHeight * fromIntegral (num + n))
-        highlight = if isHighlighted p then ["hover"] else []
-        classes   =  if isInput then [ "port", "port--i", "port--i--" <> show (num + 1)] ++ highlight
-                                else [ "port", "port--o", "port--o--" <> show (num + 1)] ++ highlight
+        classes   =  if isInput then [ "port", "port--i", "port--i--" <> show (num + 1)] ++ (modeClass $ p ^. Port.mode)
+                                else [ "port", "port--o", "port--o--" <> show (num + 1)] ++ (modeClass $ p ^. Port.mode)
     g_
         [ "className" $= Style.prefixFromList classes
         ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ highlight)
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ (modeClass $ p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= py
             , "dy"        $= "4px"

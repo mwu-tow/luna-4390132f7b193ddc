@@ -22,7 +22,8 @@ import qualified LunaStudio.Data.NodeSearcher                as NS
 import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType)
 import           LunaStudio.Data.Port                        (_WithDefault)
 import           LunaStudio.Data.PortDefault                 (PortDefault)
-import           LunaStudio.Data.PortRef                     (AnyPortRef, InPortRef)
+import           LunaStudio.Data.PortRef                     (AnyPortRef (..), InPortRef (..), OutPortRef (..))
+import qualified LunaStudio.Data.PortRef                     as PortRef
 import           LunaStudio.Data.Position                    (Position)
 import           LunaStudio.Data.TypeRep                     (TypeRep)
 import qualified NodeEditor.Action.Batch                     as Batch
@@ -39,13 +40,13 @@ import           NodeEditor.React.Model.Connection           (Connection, Connec
                                                               toConnectionsMap)
 import           NodeEditor.React.Model.Layout               (Layout, Scene)
 import qualified NodeEditor.React.Model.Layout               as Scene
-import           NodeEditor.React.Model.Node                 (InputNode, Node (Expression, Input, Output), NodeLoc, OutputNode, nodeLoc,
-                                                              outPortsList, toNodesMap)
+import           NodeEditor.React.Model.Node                 (InputNode, Node (Expression, Input, Output), NodeLoc, OutputNode, inPortAt,
+                                                              inPortsList, nodeLoc, outPortAt, outPortsList, toNodesMap)
 import           NodeEditor.React.Model.Node.ExpressionNode  (ExpressionNode, isSelected)
 import qualified NodeEditor.React.Model.Node.ExpressionNode  as ExpressionNode
 import           NodeEditor.React.Model.NodeEditor           (GraphStatus, NodeEditor, VisualizationBackup)
 import qualified NodeEditor.React.Model.NodeEditor           as NE
-import           NodeEditor.React.Model.Port                 (state)
+import           NodeEditor.React.Model.Port                 (InPort, OutPort, state)
 import qualified NodeEditor.React.Model.Port                 as Port
 import           NodeEditor.React.Model.Searcher             (Searcher)
 import qualified NodeEditor.React.Model.Searcher             as Searcher
@@ -260,6 +261,20 @@ instance NodeEditorElementId ConnectionId where
 
 getPort :: NE.GetPort a b => a -> Command State (Maybe b)
 getPort portRef = NE.getPort portRef <$> getNodeEditor
+
+modifyInPort :: Monoid r => InPortRef -> M.State InPort r -> Command State r
+modifyInPort portRef action = modifyExpressionNode (portRef ^. PortRef.nodeLoc) $ zoom (inPortAt $ portRef ^. PortRef.dstPortId) action
+
+modifyInPortsForNode :: Monoid r => NodeLoc -> M.State InPort r -> Command State ()
+modifyInPortsForNode nl action = withJustM (getExpressionNode nl) $ \n -> do
+    mapM_ (flip modifyInPort action) (map (InPortRef nl . view Port.portId) $ inPortsList n)
+
+modifyOutPort :: Monoid r => OutPortRef -> M.State OutPort r -> Command State r
+modifyOutPort portRef action = modifyExpressionNode (portRef ^. PortRef.nodeLoc) $ zoom (outPortAt $ portRef ^. PortRef.srcPortId) action
+
+modifyOutPortsForNode :: Monoid r => NodeLoc -> M.State OutPort r -> Command State ()
+modifyOutPortsForNode nl action = withJustM (getExpressionNode nl) $ \n -> do
+    mapM_ (flip modifyOutPort action) (map (OutPortRef nl . view Port.portId) $ outPortsList n)
 
 getPortDefault :: InPortRef -> Command State (Maybe PortDefault)
 getPortDefault portRef = maybe Nothing (\mayPort -> mayPort ^? state . _WithDefault) <$> (NE.getPort portRef <$> getNodeEditor)

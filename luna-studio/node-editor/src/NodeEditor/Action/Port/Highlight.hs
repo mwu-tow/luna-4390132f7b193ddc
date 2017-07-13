@@ -7,53 +7,51 @@ module NodeEditor.Action.Port.Highlight
 import           Common.Prelude
 import qualified Data.Set                                   as Set
 import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'), InPortIndex (Self))
-import           LunaStudio.Data.PortRef                    (AnyPortRef, nodeLoc, portId)
+import           LunaStudio.Data.PortRef                    (AnyPortRef (..), nodeLoc, portId)
+import qualified LunaStudio.Data.TypeRep                    as TypeRep
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.Connect                  ()
-import           NodeEditor.React.Model.Connection          (toValidEmpireConnection)
-import           NodeEditor.React.Model.Node.ExpressionNode (argConstructorHighlighted, hasPort, inPortAt, isCollapsed, outPortAt)
-import           NodeEditor.React.Model.Port                (Mode (Highlighted, Normal), mode)
-import           NodeEditor.State.Action                    (actionsBlockingPortHighlight, connectAction, connectSourcePort)
-
 import           NodeEditor.Action.State.Action             (checkAction, runningActions)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, modifyExpressionNode)
+import           NodeEditor.Action.State.Model              (calculatePortMode)
+import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getPort, modifyExpressionNode)
+import           NodeEditor.React.Model.Connection          (toValidEmpireConnection)
+import           NodeEditor.React.Model.Node.ExpressionNode (argConstructorMode, hasPort, inPortAt, isCollapsed, outPortAt)
+import           NodeEditor.React.Model.Port                (Mode (..), mode, valueType)
+import           NodeEditor.State.Action                    (actionsBlockingPortHighlight, connectAction, connectSourcePort)
 import           NodeEditor.State.Global                    (State)
 
 
 handleMouseEnter :: AnyPortRef -> Command State ()
 handleMouseEnter portRef = do
-    let nl     = portRef ^. nodeLoc
-    let anyPid = portRef ^. portId
-    mayNode <- getExpressionNode nl
-    withJust mayNode $ \node -> do
-        mayConnectAction <- checkAction connectAction
-        case (view connectSourcePort <$> mayConnectAction) of
-            Just src -> when (isJust $ toValidEmpireConnection src portRef) $
-                modifyExpressionNode nl $ if hasPort anyPid node
-                    then case anyPid of
-                        OutPortId' pid -> outPortAt pid . mode .= Highlighted
-                        InPortId'  pid -> inPortAt  pid . mode .= Highlighted
-                    else argConstructorHighlighted .= True
+    actions <- Set.fromList <$> runningActions
+    let notBlocked = Set.null (Set.intersection actions actionsBlockingPortHighlight)
+    when notBlocked $ modifyExpressionNode (portRef ^. nodeLoc) $ do
+        n <- get
+        let pid = portRef ^. portId
+            updateMode m = case m of
+                Normal         -> Highlighted
+                Invisible      -> Invisible
+                Inactive       -> Inactive
+                TypeNotMatched -> Highlighted
+                Highlighted    -> Highlighted
+                Moved pos      -> Moved pos
+                NameEdit       -> NameEdit
+            portModeLens = if not $ hasPort pid n
+                then argConstructorMode
+                else case pid of
+                    OutPortId' outpid -> outPortAt outpid . mode
+                    InPortId'  inpid  -> inPortAt  inpid  . mode
+        portModeLens %= updateMode
 
-            Nothing  -> do
-                actions <- Set.fromList <$> runningActions
-                let notBlocked = Set.null (Set.intersection actions actionsBlockingPortHighlight)
-                    highlight' = notBlocked && (anyPid /= InPortId' [Self] || (not . isCollapsed $ node))
-                    updateMode mode' = case (highlight', mode') of
-                        (True,  _)           -> Highlighted
-                        (False, Highlighted) -> Normal
-                        _                    -> mode'
-                modifyExpressionNode nl $ if hasPort anyPid node
-                    then case anyPid of
-                        OutPortId' pid -> outPortAt pid . mode %= updateMode
-                        InPortId'  pid -> inPortAt  pid . mode %= updateMode
-                    else argConstructorHighlighted .= True
+
 handleMouseLeave :: AnyPortRef -> Command State ()
 handleMouseLeave portRef = do
-    mayConnectSrc <- view (connectSourcePort) `fmap2` checkAction connectAction
-    unless (maybe False (== portRef) mayConnectSrc) $
-        modifyExpressionNode (portRef ^. nodeLoc) $ get >>= \node -> if hasPort (portRef ^. portId) node
-            then case portRef ^. portId of
-                OutPortId' pid -> outPortAt pid . mode .= Normal
-                InPortId'  pid -> inPortAt  pid . mode .= Normal
-            else argConstructorHighlighted .= False
+    let nl  = portRef ^. nodeLoc
+        pid = portRef ^. portId
+    mayPortMode <- getExpressionNode nl >>= mapM (flip calculatePortMode pid)
+    withJust (mayPortMode) $ \m -> modifyExpressionNode nl $ do
+        portModeLens <- get >>= \n -> do
+            return $ if not $ hasPort pid n then argConstructorMode else case pid of
+                OutPortId' outpid -> outPortAt outpid . mode
+                InPortId'  inpid  -> inPortAt  inpid  . mode
+        portModeLens .= m

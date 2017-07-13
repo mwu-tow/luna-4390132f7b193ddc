@@ -79,33 +79,46 @@ instance Binary AnyPortId
 instance Binary i => Binary (Port i)
 instance Binary PortState
 
-isInPort :: AnyPortId -> Bool
-isInPort (InPortId' _) = True
-isInPort _             = False
+class PortId a where
+    isInPort     :: a -> Bool
+    isOutPort    :: a -> Bool
+    isSelf       :: a -> Bool
+    isArg        :: a -> Bool
+    isProjection :: a -> Bool
+    isAll        :: a -> Bool
 
-isOutPort :: AnyPortId -> Bool
-isOutPort (OutPortId' _) = True
-isOutPort _              = False
+instance PortId InPortId where
+    isInPort        = const True
+    isOutPort       = const False
+    isSelf (Self:_) = True
+    isSelf _        = False
+    isArg (Arg _:_) = True
+    isArg _         = False
+    isProjection    = const False
+    isAll           = null
 
-isSelf :: InPortId -> Bool
-isSelf (Self:_) = True
-isSelf _        = False
+instance PortId OutPortId where
+    isInPort  = const False
+    isOutPort = const True
+    isSelf    = const False
+    isArg     = const False
+    isProjection (Projection _:_) = True
+    isProjection _                = False
+    isAll     = null
 
-isInAll :: InPortId -> Bool
-isInAll [] = True
-isInAll _  = False
-
-isArg :: InPortId -> Bool
-isArg (Arg _:_) = True
-isArg _         = False
-
-isOutAll :: OutPortId -> Bool
-isOutAll [] = True
-isOutAll _  = False
-
-isProjection :: OutPortId -> Bool
-isProjection (Projection _:_) = True
-isProjection _                = False
+instance PortId AnyPortId where
+    isInPort     (InPortId'  pid) = isInPort     pid
+    isInPort     (OutPortId' pid) = isInPort     pid
+    isOutPort    (InPortId'  pid) = isOutPort    pid
+    isOutPort    (OutPortId' pid) = isOutPort    pid
+    isSelf       (InPortId'  pid) = isSelf       pid
+    isSelf       (OutPortId' pid) = isSelf       pid
+    isArg        (InPortId'  pid) = isArg        pid
+    isArg        (OutPortId' pid) = isArg        pid
+    isProjection (InPortId'  pid) = isProjection pid
+    isProjection (OutPortId' pid) = isProjection pid
+    isAll        (InPortId'  pid) = isAll        pid
+    isAll        (OutPortId' pid) = isAll        pid
 
 withOut :: (OutPortId -> Bool) -> AnyPortId -> Bool
 withOut = anyOf _OutPortId'

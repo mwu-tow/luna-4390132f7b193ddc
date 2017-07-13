@@ -49,3 +49,8 @@ instance ToJSON ConstructorRep
 toConstructorRep :: TypeRep -> Maybe ConstructorRep
 toConstructorRep (TCons c f) = ConstructorRep (convert c) <$> mapM toConstructorRep f
 toConstructorRep _           = Nothing
+
+matchTypes :: TypeRep -> TypeRep -> Bool
+matchTypes TStar _ = True
+matchTypes _ TStar = True
+matchTypes t1 t2 = t1 == t2

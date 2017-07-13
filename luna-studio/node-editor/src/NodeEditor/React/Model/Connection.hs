@@ -125,13 +125,12 @@ containsPortRef (InPortRef'  inPortRef)  conn = conn ^. dst == inPortRef
 containsPortRef (OutPortRef' outPortRef) conn = conn ^. src == outPortRef
 
 toValidEmpireConnection :: AnyPortRef -> AnyPortRef -> Maybe Empire.Connection
-toValidEmpireConnection (OutPortRef' src') (InPortRef' dst')     =
-    if src' ^. PortRef.srcNodeLoc /= dst' ^. PortRef.dstNodeLoc
-    then Just $ Empire.Connection src' dst'
-    else Nothing
+toValidEmpireConnection (OutPortRef' src') (InPortRef' dst')     = Just $ Empire.Connection src' dst'
 toValidEmpireConnection dst'@(InPortRef' _) src'@(OutPortRef' _) = toValidEmpireConnection src' dst'
 toValidEmpireConnection _ _                                      = Nothing
 
+canConnect :: AnyPortRef -> AnyPortRef -> Bool
+canConnect = isJust .: toValidEmpireConnection
 
 instance Convertible PosConnection HalfConnection where
     convert = HalfConnection <$> OutPortRef' . view src <*> view dstPos <*> view mode

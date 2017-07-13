@@ -10,7 +10,7 @@ import           Data.Curve                                 (CurveSegment, getPo
 import qualified Data.Curve                                 as Curve
 import           Data.Timestamp                             (Timestamp)
 import           LunaStudio.Data.Position                   (distance)
-import           NodeEditor.Action.Basic                    (connect, updateAllPortsSelfVisibility)
+import           NodeEditor.Action.Basic                    (connect, updateAllPortsMode)
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.ConnectionPen.SmoothLine (addPointToCurve, beginCurve, curveToSvgPath)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
@@ -40,7 +40,7 @@ startConnecting evt timestamp = do
     pos <- workspacePosition evt
     let curve = beginCurve pos timestamp
     begin $ PenConnect curve Nothing
-    updateAllPortsSelfVisibility
+    updateAllPortsMode
     modifyNodeEditor $ NodeEditor.connectionPen ?= ConnectionPen (curveToSvgPath curve) (Color 1)
 
 connectProcessSegment :: CurveSegment -> PenConnect -> Command State ()
@@ -74,5 +74,5 @@ stopConnecting state = do
     unless ((head $ curve ^. Curve.segments) ^. Curve.approved) $
         connectProcessSegment (head $ curve ^. Curve.segments) state
     modifyNodeEditor $ NodeEditor.connectionPen .= Nothing
-    updateAllPortsSelfVisibility
     removeActionFromState penConnectAction
+    updateAllPortsMode

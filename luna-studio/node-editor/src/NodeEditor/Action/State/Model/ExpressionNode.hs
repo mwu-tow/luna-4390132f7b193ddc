@@ -4,16 +4,21 @@ import           Common.Prelude
 import           Control.Monad                              (filterM)
 import qualified JS.Node                                    as JS
 import           LunaStudio.Data.Geometry                   (isPointInCircle, isPointInRectangle)
-import           LunaStudio.Data.PortRef                    (InPortRef (InPortRef), toAnyPortRef)
+import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), toAnyPortRef)
+import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position)
+import           LunaStudio.Data.TypeRep                    (TypeRep, matchTypes)
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.State.Action             (checkIfActionPerfoming)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNodes, getScene, inGraph)
-import           NodeEditor.React.Model.Connection          (toValidEmpireConnection)
+import           NodeEditor.Action.State.NodeEditor         (getConnectionsToNode, getExpressionNode, getExpressionNodes, getPort, getScene,
+                                                             inGraph, modifyExpressionNode)
+import           NodeEditor.React.Model.Connection          (canConnect, dst, toValidEmpireConnection)
 import           NodeEditor.React.Model.Constants           (nodeRadius)
-import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, NodeLoc, hasPort, isCollapsed, nodeId, nodeLoc, nodeLoc,
-                                                             position, position, zPos)
-import           NodeEditor.React.Model.Port                (AnyPortId (InPortId'), InPortIndex (Self))
+import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, NodeLoc, argConstructorMode, countArgPorts, hasPort, inPortAt,
+                                                             inPortsList, isCollapsed, nodeId, nodeLoc, outPortAt, outPortsList, position,
+                                                             position, zPos)
+import           NodeEditor.React.Model.Port                (AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), Mode (..),
+                                                             isOutPort, isSelf, mode, portId, valueType)
 import           NodeEditor.State.Action                    (connectSourcePort, penConnectAction)
 import           NodeEditor.State.Global                    (State, actions, currentConnectAction)
 
@@ -35,20 +40,71 @@ getNodeAtPosition p = do
         then return Nothing
         else return $ Just $ maximumBy (\node1 node2 -> compare (node1 ^. zPos) (node2 ^. zPos)) nodes ^. nodeLoc
 
+updateAllPortsMode :: Command State ()
+updateAllPortsMode = getExpressionNodes >>= mapM_ updatePortsModeForNode'
+
+updatePortsModeForNode :: NodeLoc -> Command State ()
+updatePortsModeForNode nl = withJustM (getExpressionNode nl) $ updatePortsModeForNode'
+
+updatePortsModeForNode' :: ExpressionNode -> Command State ()
+updatePortsModeForNode' n = do
+    mapM_ (updatePortMode' n . OutPortId') . map (view portId) $ outPortsList n
+    mapM_ (updatePortMode' n . InPortId')  . map (view portId) $ inPortsList  n
+    updatePortMode' n $ InPortId' [Arg $ countArgPorts n]
 
 
-shouldDisplayPortSelf :: ExpressionNode -> Command State Bool
-shouldDisplayPortSelf node = do
-    let selfId = InPortId' [Self]
-    if not $ hasPort selfId node
-        then return False
+updatePortMode :: AnyPortRef -> Command State ()
+updatePortMode portRef = do
+    let nl  = portRef ^. PortRef.nodeLoc
+        pid = portRef ^. PortRef.portId
+    withJustM (getExpressionNode nl) $ flip updatePortMode' pid
+
+updatePortMode' :: ExpressionNode -> AnyPortId -> Command State ()
+updatePortMode' n pid = do
+    let nl = n ^. nodeLoc
+    portMode <- calculatePortMode n pid
+    modifyExpressionNode nl $ if not $ hasPort pid n
+        then argConstructorMode .= portMode
+        else case pid of
+            InPortId'  pid -> inPortAt  pid . mode .= portMode
+            OutPortId' pid -> outPortAt pid . mode .= portMode
+
+calculatePortMode :: ExpressionNode -> AnyPortId -> Command State Mode
+calculatePortMode node pid = if isSelf pid then calculatePortSelfMode node else do
+    let nl      = node ^. nodeLoc
+        portRef = toAnyPortRef nl pid
+    penConnecting <- checkIfActionPerfoming penConnectAction
+    mayConnectSrc <- view connectSourcePort `fmap2` use (actions . currentConnectAction)
+    if      penConnecting && isOutPort pid then return Inactive
+    else if penConnecting                  then return Normal
+    else flip (maybe (return Normal)) mayConnectSrc $ \connectSrc ->
+        if      connectSrc == portRef               then return Highlighted
+        else if not $ canConnect connectSrc portRef then return Inactive
+        else if not $ hasPort pid node              then return Normal
         else do
-            let nl = node ^. nodeLoc
-            penConnecting    <- checkIfActionPerfoming penConnectAction
-            mayConnectAction <- use $ actions . currentConnectAction
-            let connectToSelfPossible = isJust . join $
-                    (toValidEmpireConnection (toAnyPortRef nl selfId) . view connectSourcePort) <$> mayConnectAction
-                isSource = (view connectSourcePort <$> mayConnectAction) == Just (toAnyPortRef nl selfId)
-            if (not . isCollapsed $ node) || penConnecting || connectToSelfPossible || isSource
-                then return True
-                else inGraph $ InPortRef nl [Self]
+            mayConnectSrcType <- view valueType `fmap2` getPort connectSrc
+            let mayPortValueType :: Maybe TypeRep
+                mayPortValueType = case pid of
+                    OutPortId' outpid -> node ^? outPortAt outpid . valueType
+                    InPortId'  inpid  -> node ^? inPortAt  inpid  . valueType
+            return $ case (mayConnectSrcType, mayPortValueType) of
+                (Nothing, _)       -> Normal
+                (_, Nothing)       -> TypeNotMatched
+                (Just t1, Just t2) -> if matchTypes t1 t2 then Normal else TypeNotMatched
+
+
+calculatePortSelfMode :: ExpressionNode -> Command State Mode
+calculatePortSelfMode node = do
+    let nl           = node ^. nodeLoc
+        notCollapsed = not $ isCollapsed node
+    penConnecting <- checkIfActionPerfoming penConnectAction
+    isConnDst     <- any (isSelf . view (dst . PortRef.dstPortId)) <$> getConnectionsToNode nl
+    mayConnectSrc <- view connectSourcePort `fmap2` use (actions . currentConnectAction)
+    let (connectToSelfPossible, isConnectSrc) = maybe (False, False)
+                                                      ( \src -> ( canConnect src . toAnyPortRef nl $ InPortId' [Self]
+                                                                , src ^. PortRef.nodeLoc == nl && isSelf (src ^. PortRef.portId) ) )
+                                                      mayConnectSrc
+    return $ if notCollapsed || penConnecting || isConnDst then Normal
+        else if connectToSelfPossible                      then TypeNotMatched
+        else if isConnectSrc                               then Highlighted
+                                                           else Invisible
