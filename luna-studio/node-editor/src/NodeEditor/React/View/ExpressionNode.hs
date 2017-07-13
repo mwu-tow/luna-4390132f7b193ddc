@@ -24,8 +24,7 @@ import           NodeEditor.React.Model.Node.ExpressionNode           (Expressio
                                                                        inPortsList, isCollapsed, outPortsList, returnsError)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
-import           NodeEditor.React.Model.Port                          (AnyPortId (InPortId'), InPortIndex (Self), isAll, isInPort, isSelf,
-                                                                       withOut)
+import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
 import qualified NodeEditor.React.Model.Port                          as Port
 import           NodeEditor.React.Model.Searcher                      (Searcher)
 import qualified NodeEditor.React.Model.Searcher                      as Searcher
@@ -144,7 +143,7 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
             , onMouseEnter  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
-            , onMouseLeave  $ \e m -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
+            , onMouseLeave  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
             ] $ do
             div_
                 [ "className" $= Style.prefixFromList [ "node-translate","node__text", "noselect" ]

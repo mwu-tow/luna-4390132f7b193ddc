@@ -4,15 +4,15 @@ import           Common.Prelude
 import           Control.Monad                              (filterM)
 import qualified JS.Node                                    as JS
 import           LunaStudio.Data.Geometry                   (isPointInCircle, isPointInRectangle)
-import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), toAnyPortRef)
+import           LunaStudio.Data.PortRef                    (AnyPortRef, toAnyPortRef)
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position)
 import           LunaStudio.Data.TypeRep                    (TypeRep, matchTypes)
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.State.Action             (checkIfActionPerfoming)
 import           NodeEditor.Action.State.NodeEditor         (getConnectionsToNode, getExpressionNode, getExpressionNodes, getPort, getScene,
-                                                             inGraph, modifyExpressionNode)
-import           NodeEditor.React.Model.Connection          (canConnect, dst, toValidEmpireConnection)
+                                                             modifyExpressionNode)
+import           NodeEditor.React.Model.Connection          (canConnect, dst)
 import           NodeEditor.React.Model.Constants           (nodeRadius)
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, NodeLoc, argConstructorMode, countArgPorts, hasPort, inPortAt,
                                                              inPortsList, isCollapsed, nodeId, nodeLoc, outPortAt, outPortsList, position,
@@ -66,8 +66,8 @@ updatePortMode' n pid = do
     modifyExpressionNode nl $ if not $ hasPort pid n
         then argConstructorMode .= portMode
         else case pid of
-            InPortId'  pid -> inPortAt  pid . mode .= portMode
-            OutPortId' pid -> outPortAt pid . mode .= portMode
+            InPortId'  inpid  -> inPortAt  inpid  . mode .= portMode
+            OutPortId' outpid -> outPortAt outpid . mode .= portMode
 
 calculatePortMode :: ExpressionNode -> AnyPortId -> Command State Mode
 calculatePortMode node pid = if isSelf pid then calculatePortSelfMode node else do

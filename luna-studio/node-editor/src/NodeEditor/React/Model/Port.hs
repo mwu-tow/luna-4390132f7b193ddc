@@ -91,8 +91,8 @@ inPortTreeLeafs inPortTree  = inPortTreeLeafs' inPortTree where
     inPortTreeLeafs' (LabeledTree (InPorts Nothing _ []) p) = [p]
     inPortTreeLeafs' (LabeledTree (InPorts maySelf _ ps) _) = maybe [] findSelf maySelf <> concatMap inPortTreeLeafs' ps
 
-    findSelf (LabeledTree (InPorts (Just self) _ _) p) = if p ^. state == Connected then [p] else findSelf self
-    findSelf (LabeledTree (InPorts Nothing     _ _) p) = [p]
+    findSelf (LabeledTree (InPorts (Just self') _ _) p) = if p ^. state == Connected then [p] else findSelf self'
+    findSelf (LabeledTree (InPorts Nothing      _ _) p) = [p]
 
 
 instance Convertible InPort  AnyPort where convert = fmap InPortId'

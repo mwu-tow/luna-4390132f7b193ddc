@@ -6,18 +6,15 @@ module NodeEditor.Action.Port.Highlight
 
 import           Common.Prelude
 import qualified Data.Set                                   as Set
-import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'), InPortIndex (Self))
+import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'))
 import           LunaStudio.Data.PortRef                    (AnyPortRef (..), nodeLoc, portId)
-import qualified LunaStudio.Data.TypeRep                    as TypeRep
 import           NodeEditor.Action.Command                  (Command)
-import           NodeEditor.Action.Connect                  ()
-import           NodeEditor.Action.State.Action             (checkAction, runningActions)
+import           NodeEditor.Action.State.Action             (runningActions)
 import           NodeEditor.Action.State.Model              (calculatePortMode)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getPort, modifyExpressionNode)
-import           NodeEditor.React.Model.Connection          (toValidEmpireConnection)
-import           NodeEditor.React.Model.Node.ExpressionNode (argConstructorMode, hasPort, inPortAt, isCollapsed, outPortAt)
-import           NodeEditor.React.Model.Port                (Mode (..), mode, valueType)
-import           NodeEditor.State.Action                    (actionsBlockingPortHighlight, connectAction, connectSourcePort)
+import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, modifyExpressionNode)
+import           NodeEditor.React.Model.Node.ExpressionNode (argConstructorMode, hasPort, inPortAt, outPortAt)
+import           NodeEditor.React.Model.Port                (Mode (..), mode)
+import           NodeEditor.State.Action                    (actionsBlockingPortHighlight)
 import           NodeEditor.State.Global                    (State)
 
 

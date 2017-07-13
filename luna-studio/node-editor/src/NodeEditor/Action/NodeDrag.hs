@@ -11,7 +11,6 @@ import           Control.Arrow
 import qualified Data.Map                                   as Map
 import           LunaStudio.Data.Geometry                   (snap)
 import           LunaStudio.Data.NodeLoc                    (NodeLoc)
-import           LunaStudio.Data.Port                       (InPortIndex (Self))
 import           LunaStudio.Data.PortRef                    (InPortRef (InPortRef), OutPortRef (OutPortRef))
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position, move, vector)
@@ -24,15 +23,13 @@ import           NodeEditor.Action.State.NodeEditor         (getConnection, getE
 import           NodeEditor.Event.Mouse                     (workspacePosition)
 import           NodeEditor.React.Model.Connection          (Mode (Dimmed, Highlighted), dst, src)
 import qualified NodeEditor.React.Model.Connection          as Connection
-
 import           NodeEditor.React.Model.Node.ExpressionNode (inPortAt, inPortAt, inPortsList, isSelected, nodeLoc, outPortAt, position)
 import           NodeEditor.React.Model.NodeEditor          (halfConnections, toPosConnection)
-import           NodeEditor.React.Model.Port                (ensureVisibility, isSelf, mode, portId)
+import           NodeEditor.React.Model.Port                (isSelf, mode, portId)
 import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), NodeDrag (NodeDrag), nodeDragAction,
                                                              nodeDragNodeLoc, nodeDragNodesStartPos, nodeDragSnappedConnIdAndPrevMode,
                                                              nodeDragStartPos)
-
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.State.Global                    (State)

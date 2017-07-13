@@ -1,20 +1,18 @@
 module NodeEditor.Action.Basic.UpdateNode where
 
 import           Common.Prelude
-import           Control.Monad                              (filterM)
 import           LunaStudio.Data.Node                       (NodeTypecheckerUpdate, tcNodeId)
 import qualified LunaStudio.Data.Node                       as Empire
-import           LunaStudio.Data.Port                       (InPortIndex (Self))
 import           NodeEditor.Action.Basic.AddNode            (localAddExpressionNode, localAddInputNode, localAddOutputNode)
 import           NodeEditor.Action.Basic.Scene              (updateScene)
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.State.Model              (calculatePortSelfMode)
 import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
-import           NodeEditor.React.Model.Node                (ExpressionNode, InputNode, NodeLoc, NodePath, OutputNode, inPortAt, nodeLoc)
+import           NodeEditor.React.Model.Node                (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
 import           NodeEditor.React.Model.Node.ExpressionNode (inPortsList, isSelected, nodeType)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import qualified NodeEditor.React.Model.Node.SidebarNode    as SidebarNode
-import           NodeEditor.React.Model.Port                (Mode (Invisible), ensureVisibility, isSelf, mode, portId)
+import           NodeEditor.React.Model.Port                (isSelf, mode, portId)
 import           NodeEditor.State.Global                    (State)
 
 

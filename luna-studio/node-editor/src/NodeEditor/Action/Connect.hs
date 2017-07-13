@@ -17,10 +17,8 @@ import           Control.Monad.Trans.Maybe                  (MaybeT (MaybeT), ru
 import           Data.ScreenPosition                        (ScreenPosition)
 import qualified JS.GoogleAnalytics                         as GA
 import qualified LunaStudio.Data.Connection                 as ConnectionAPI
-import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'), InPortIndex (Self))
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'))
 import qualified LunaStudio.Data.PortRef                    as PortRef
-import qualified LunaStudio.Data.TypeRep                    as TypeRep
 import           NodeEditor.Action.Basic                    (connect, localAddConnection, localRemovePort, removeConnection,
                                                              updateAllPortsMode)
 import qualified NodeEditor.Action.Batch                    as Batch
@@ -29,16 +27,14 @@ import           NodeEditor.Action.NodeDrag                 (startNodeDrag)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.Model              (createHalfConnectionModel, createHalfConnectionModel')
-import           NodeEditor.Action.State.NodeEditor         (getConnection, getExpressionNodes, getNode, getPort, modifyExpressionNode,
-                                                             modifyInPortsForNode, modifyNodeEditor, modifyOutPortsForNode)
+import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, modifyNodeEditor)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
 import           NodeEditor.Event.Mouse                     (mousePosition, workspacePosition)
 import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destination, Source))
 import           NodeEditor.React.Model.Connection          (ConnectionId, toValidEmpireConnection)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node                (Node (Expression))
-import qualified NodeEditor.React.Model.Node                as Node
-import           NodeEditor.React.Model.Node.ExpressionNode (argConstructorMode, hasPort, inPortAt, isCollapsed, outPortAt)
+import           NodeEditor.React.Model.Node.ExpressionNode (isCollapsed)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), Connect (Connect), Mode (Click, Drag),
@@ -129,7 +125,7 @@ handleMouseUp evt action = when (action ^. connectMode == Drag) $ do
     else end action
 
 stopConnectingUnsafe :: Connect -> Command State ()
-stopConnectingUnsafe action = do
+stopConnectingUnsafe _ = do
     modifyNodeEditor $ NodeEditor.halfConnections .= def
     actions . currentConnectAction .= Nothing
     removeActionFromState connectAction

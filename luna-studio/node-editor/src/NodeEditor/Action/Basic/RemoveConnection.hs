@@ -8,7 +8,7 @@ import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.Command          (Command)
 import           NodeEditor.Action.State.Model      (updatePortMode)
 import           NodeEditor.Action.State.NodeEditor (getConnection, getConnectionsBetweenNodes, getConnectionsContainingNode,
-                                                     getConnectionsContainingNodes, inGraph)
+                                                     getConnectionsContainingNodes)
 import qualified NodeEditor.Action.State.NodeEditor as NodeEditor
 import           NodeEditor.React.Model.Connection  (ConnectionId, connectionId, dst, src)
 import           NodeEditor.State.Global            (State)

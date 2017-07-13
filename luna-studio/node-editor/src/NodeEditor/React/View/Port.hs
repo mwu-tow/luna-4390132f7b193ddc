@@ -13,7 +13,7 @@ import           NodeEditor.React.Model.App       (App)
 import           NodeEditor.React.Model.Constants (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius')
 import           NodeEditor.React.Model.Node      (NodeLoc)
 import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsAlias, IsOnly,
-                                                   Mode (..), getPortNumber, isHighlighted, isInPort, isInvisible, isSelf, portAngleStart,
+                                                   Mode (..), getPortNumber, isInPort, isInvisible, isSelf, portAngleStart,
                                                    portAngleStop)
 import qualified NodeEditor.React.Model.Port      as Port
 import           NodeEditor.React.Store           (Ref, dispatch)

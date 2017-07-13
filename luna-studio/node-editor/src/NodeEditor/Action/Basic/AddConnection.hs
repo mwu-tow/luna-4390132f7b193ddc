@@ -2,7 +2,7 @@ module NodeEditor.Action.Basic.AddConnection where
 
 import           Common.Prelude
 import           Control.Monad                      (filterM)
-import           LunaStudio.Data.PortRef            (AnyPortRef (InPortRef', OutPortRef'), InPortRef, OutPortRef, dstNodeLoc, dstPortId)
+import           LunaStudio.Data.PortRef            (AnyPortRef (InPortRef', OutPortRef'), InPortRef, OutPortRef)
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.Command          (Command)
 import           NodeEditor.Action.State.Model      (updatePortMode)
@@ -10,7 +10,6 @@ import           NodeEditor.Action.State.Model      (createConnectionModel)
 import qualified NodeEditor.Action.State.NodeEditor as NodeEditor
 import           NodeEditor.React.Model.Connection  (ConnectionId)
 import           NodeEditor.React.Model.Node        (NodeLoc)
-import           NodeEditor.React.Model.Port        (InPortIndex (Self))
 import           NodeEditor.State.Global            (State)
 
 
