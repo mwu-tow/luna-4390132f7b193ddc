@@ -443,9 +443,12 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                 spans <- forM toRemove $ \candidate -> do
                     ref <- IR.source candidate
                     start <- Code.functionBlockStartRef ref
-                    LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan ref
-                    return (start, start + len)
-                forM (reverse spans) $ uncurry Code.removeAt
+                    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan ref
+                    return (start - off, start + len)
+                forM (reverse spans) $ \(start, end) -> do
+                    let removedCharacters = end - start
+                    Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off > end then off - removedCharacters else off)
+                    Code.removeAt start end
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize left)
                 mapM (IR.deleteSubtree <=< IR.source) toRemove
     resendCode loc

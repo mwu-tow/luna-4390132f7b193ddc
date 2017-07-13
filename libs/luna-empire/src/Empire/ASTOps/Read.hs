@@ -185,8 +185,7 @@ getMarkerNode ref = match ref $ \case
 getASTTarget :: GraphOp m => NodeId -> m NodeRef
 getASTTarget nodeId = do
     ref   <- getASTRef nodeId
-    succs <- toList <$> IR.getLayer @IR.Succs ref
-    if null succs then return ref else getTargetFromMarked ref
+    getTargetFromMarked ref
 
 getCurrentASTTarget :: GraphOp m => m NodeRef
 getCurrentASTTarget = do
