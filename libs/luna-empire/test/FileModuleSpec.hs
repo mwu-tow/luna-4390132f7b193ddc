@@ -431,3 +431,19 @@ spec = around withChannels $ id $ do
                 code <- Graph.getCode loc
                 return (offsets, code)
             offsets `shouldMatchList` [("foo",0), ("bar",36), ("main",59)]
+        it "maintains proper function file offsets after adding a function" $ \env -> do
+            (offsets, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                u1 <- mkUUID
+                Graph.addNode loc u1 "aaa" (atXPos 150)
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                offsets <- Graph.withUnit loc $ do
+                    funs <- use Graph.clsFuns
+                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                code <- Graph.getCode loc
+                return (offsets, code)
+            offsets `shouldMatchList` [("foo",0), ("bar",19), ("aaa",42), ("main",61)]

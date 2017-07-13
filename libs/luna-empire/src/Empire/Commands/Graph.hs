@@ -168,7 +168,7 @@ putNewFunctionRef newFunction pf@(Just previousFunction) (fun:funs) = do
         then return (fun:newFunction:funs)
         else putNewFunctionRef newFunction pf funs >>= return . (fun:)
 
-insertFunAfter :: ClassOp m => Maybe NodeRef -> NodeRef -> Text -> m ()
+insertFunAfter :: ClassOp m => Maybe NodeRef -> NodeRef -> Text -> m Int
 insertFunAfter previousFunction function code = do
     let defaultFunSpace = 2
     case previousFunction of
@@ -180,16 +180,19 @@ insertFunAfter previousFunction function code = do
             off' <- if (off /= 0) then return off else do
                 IR.putLayer @CodeSpan (head funs) $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace len))
                 return defaultFunSpace
-            Code.insertAt funBlockStart $ code <> Text.replicate (fromIntegral off') "\n"
+            let indentedCode = code <> Text.replicate (fromIntegral off') "\n"
+            Code.insertAt funBlockStart indentedCode
             LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
             IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off funLen))
+            return $ Text.length indentedCode
         Just pf -> do
             funBlockStart <- Code.functionBlockStartRef pf
             LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan pf
-            Code.insertAt (funBlockStart+len) $ Text.replicate (fromIntegral defaultFunSpace) "\n" <> code
+            let indentedCode = Text.replicate (fromIntegral defaultFunSpace) "\n" <> code
+            Code.insertAt (funBlockStart+len) indentedCode
             LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
             IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace funLen))
-
+            return $ Text.length indentedCode
 
 addFunNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addFunNode loc uuid expr meta = withUnit loc $ do
@@ -198,7 +201,7 @@ addFunNode loc uuid expr meta = withUnit loc $ do
     name <- runASTOp $ IR.matchExpr parse $ \case
         IR.ASGRootedFunction name _ -> return $ nameToString name
     klass <- use Graph.clsClass
-    runASTOp $ do
+    (insertedCharacters, codePosition) <- runASTOp $ do
         funs <- AST.classFunctions klass
         previousFunction <- findPreviousFunction meta funs
         IR.matchExpr klass $ \case
@@ -211,11 +214,15 @@ addFunNode loc uuid expr meta = withUnit loc $ do
                 newFuns <- putNewFunctionRef l previousFunction links
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
 
-        insertFunAfter previousFunction parse code
-    funs <- use Graph.clsFuns
-    (uuid, graph) <- makeGraphCls parse Nothing
+        insertedCharacters <- insertFunAfter previousFunction parse code
+        codePosition       <- Code.functionBlockStartRef parse
 
-    runASTOp $ GraphBuilder.buildClassNode uuid name
+        return (fromIntegral insertedCharacters, codePosition)
+
+    Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off >= codePosition then off + insertedCharacters else off)
+    (uuid', graph) <- makeGraphCls parse (Just uuid)
+
+    runASTOp $ GraphBuilder.buildClassNode uuid' name
 
 addNodeNoTC :: GraphLocation -> NodeId -> Text -> Maybe Text -> NodeMeta -> Command Graph ExpressionNode
 addNodeNoTC loc uuid input name meta = do
