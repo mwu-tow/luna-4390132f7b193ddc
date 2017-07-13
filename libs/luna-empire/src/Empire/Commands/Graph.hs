@@ -413,6 +413,8 @@ addPortWithConnections loc portRef connectTo = withTC loc False $ do
     return newPorts
 
 addSubgraph :: GraphLocation -> [ExpressionNode] -> [Connection] -> Empire [ExpressionNode]
+addSubgraph loc@(GraphLocation _ (Breadcrumb [])) nodes _ =
+    forM nodes $ \n -> addFunNode loc (n ^. Node.nodeId) (n ^. Node.code) (n ^. Node.nodeMeta)
 addSubgraph loc nodes conns = withTC loc False $ do
     newNodes <- forM nodes $ \n -> addNodeNoTC loc (n ^. Node.nodeId) (n ^. Node.expression) (n ^. Node.name) (n ^. Node.nodeMeta)
     forM_ conns $ \(Connection src dst) -> connectNoTC loc src (InPortRef' dst)

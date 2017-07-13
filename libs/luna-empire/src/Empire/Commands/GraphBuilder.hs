@@ -70,10 +70,12 @@ import           Empire.Data.AST                 (NodeRef, NotAppException (..),
                                                   astExceptionToException)
 import           Empire.Data.Layers              (Marker, SpanLength, TypeLayer)
 import           Empire.Empire
-
+import           Data.Text.Span                  (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Luna.IR                         as IR
 import qualified Luna.IR.Term.Literal            as Lit
 import           Luna.IR.Term.Uni
+import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
+import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import qualified OCI.IR.Combinators              as IR
 
 isDefinition :: BreadcrumbItem -> Bool
@@ -113,7 +115,11 @@ buildClassNode :: ClassOp m => NodeId -> String -> m API.ExpressionNode
 buildClassNode uuid name = do
     f    <- ASTRead.getFunByName name
     meta <- fromMaybe def <$> AST.readMeta f
-    return $ API.ExpressionNode uuid "" True (Just $ convert name) "" (LabeledTree (InPorts Nothing []) (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) meta True
+    codeStart <- Code.functionBlockStartRef f
+    LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan f
+    fileCode <- use Graph.code
+    let code = Code.removeMarkers $ Text.take (fromIntegral len) $ Text.drop (fromIntegral codeStart) fileCode
+    return $ API.ExpressionNode uuid "" True (Just $ convert name) code (LabeledTree (InPorts Nothing []) (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) meta True
 
 buildNodes :: GraphOp m => m [API.ExpressionNode]
 buildNodes = do
