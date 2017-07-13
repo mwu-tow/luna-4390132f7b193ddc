@@ -139,7 +139,10 @@ addNode = addNodeCondTC True
 
 addNodeCondTC :: Bool -> GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNodeCondTC tc loc@(GraphLocation f _) uuid expr meta
-    | GraphLocation _ (Breadcrumb []) <- loc = addFunNode loc uuid expr meta
+    | GraphLocation _ (Breadcrumb []) <- loc = do
+        node <- addFunNode loc uuid expr meta
+        resendCode loc
+        return node
     | otherwise = do
         let runner = if tc then withTC loc False else withGraph loc
         node <- runner $ addNodeNoTC loc uuid expr Nothing meta
@@ -438,7 +441,7 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                 forM (reverse spans) $ uncurry Code.removeAt
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize left)
                 mapM (IR.deleteSubtree <=< IR.source) toRemove
-        return ()
+    resendCode loc
 removeNodes loc@(GraphLocation file _) nodeIds = do
     withTC loc False $ runASTOp $ mapM removeNodeNoTC nodeIds
     resendCode loc
@@ -572,7 +575,7 @@ updateExprMap new old = do
 
 resendCode :: GraphLocation -> Empire ()
 resendCode loc@(GraphLocation file _) = do
-    code <- fmap Code.removeMarkers $ withGraph loc $ use Graph.code
+    code <- fmap Text.pack $ getCode loc
     Publisher.notifyCodeUpdate file
                                (Code.deltaToPoint 0 code)
                                (Code.deltaToPoint (fromIntegral $ Text.length code) code)
