@@ -255,7 +255,7 @@ getOffset ref = do
 
 getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do
-    tgt           <- ASTRead.getCurrentASTTarget
+    tgt           <- ASTRead.getCurrentASTTarget'
     Just defBegin <- getOffsetRelativeToFile tgt
     off           <- getFirstNonLambdaOffset tgt
     return $ defBegin <> off

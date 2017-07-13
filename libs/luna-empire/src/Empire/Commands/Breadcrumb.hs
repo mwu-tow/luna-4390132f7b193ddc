@@ -12,7 +12,7 @@ import           Control.Monad.Except            (throwError)
 import           Control.Monad.Reader            (ask)
 import           Control.Monad.State             (get, put)
 import           Data.Coerce                     (coerce)
-import           Data.Maybe                      (maybe)
+import           Data.Maybe                      (listToMaybe, maybe)
 import qualified Data.Map                        as Map
 import qualified Data.UUID.V4                    as UUID
 
@@ -112,15 +112,20 @@ withRootedFunction uuid act = do
         return (a, len)
     Graph.clsFuns . ix uuid . _2 .= newGraph
     funName <- use $ Graph.clsFuns . ix uuid . _1
-    runASTOp $ do
+    diffs <- runASTOp $ do
         cls <- use Graph.clsClass
         funs <- classFunctions cls
         forM funs $ \fun -> IR.matchExpr fun $ \case
             IR.ASGRootedFunction name _ -> do
-                when (nameToString name == funName) $ do
-                    LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
+                if (nameToString name == funName) then do
+                    LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
                     let bodyLen = newGraph ^. Graph.bodyOffset + len
                     IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off bodyLen))
+                    return $ Just $ bodyLen - prevLen
+                    else return Nothing
+    let diff = fromMaybe (error "function not in AST?") $ listToMaybe $ catMaybes diffs
+        funOffset = properGraph ^. Graph.fileOffset
+    Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\a -> if a > funOffset then a + diff else a)
     Graph.clsCodeMarkers .= newGraph ^. Graph.codeMarkers
     Graph.code           .= newGraph ^. Graph.code
     Graph.clsParseError  .= newGraph ^. Graph.parseError

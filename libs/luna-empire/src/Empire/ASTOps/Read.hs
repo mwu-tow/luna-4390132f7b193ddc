@@ -184,13 +184,20 @@ getMarkerNode ref = match ref $ \case
 
 getASTTarget :: GraphOp m => NodeId -> m NodeRef
 getASTTarget nodeId = do
-    ref <- getASTRef nodeId
-    getTargetFromMarked ref
+    ref   <- getASTRef nodeId
+    succs <- toList <$> IR.getLayer @IR.Succs ref
+    if null succs then return ref else getTargetFromMarked ref
 
 getCurrentASTTarget :: GraphOp m => m NodeRef
 getCurrentASTTarget = do
     ref <- use $ Graph.breadcrumbHierarchy . BH.self
     getTargetFromMarked ref
+
+getCurrentASTTarget' :: GraphOp m => m NodeRef
+getCurrentASTTarget' = do
+    ref <- use $ Graph.breadcrumbHierarchy . BH.self
+    succs <- toList <$> IR.getLayer @IR.Succs ref
+    if null succs then return ref else getTargetFromMarked ref
 
 getASTVar :: GraphOp m => NodeId -> m NodeRef
 getASTVar nodeId = do

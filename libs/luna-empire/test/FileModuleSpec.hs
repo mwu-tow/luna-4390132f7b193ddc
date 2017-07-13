@@ -77,7 +77,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ parallel $ do
+spec = around withChannels $ id $ do
     describe "multi-module files" $ do
         it "shows functions at file top-level" $ \env -> do
             nodes <- evalEmp env $ do
@@ -366,7 +366,7 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
                 Graph.addNode loc u1 "5" (atXPos (-50))
-        xit "adds node in two functions" $ \env -> do
+        it "adds node in two functions" $ \env -> do
             code <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
@@ -375,10 +375,34 @@ spec = around withChannels $ parallel $ do
                 let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
                 u1 <- mkUUID
                 Graph.addNode (loc |>= foo) u1 "5" (atXPos (-10))
-                let Just main = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "main") nodes
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
                 u2 <- mkUUID
-                Graph.addNode (loc |>= main) u2 "1" (atXPos (-10))
-                Graph.getCode loc
+                Graph.addNode (loc |>= bar) u2 "1" (atXPos (-10))
+                Graph.withUnit loc $ use Graph.code
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                def foo:
+                    «3»node1 = 5
+                    «0»5
+                def bar:
+                    «4»node1 = 1
+                    «1»"bar"
+                def main:
+                    «2»print bar
+                |]
+        it "maintains proper block start info after adding node" $ \env -> do
+            (starts, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                u1 <- mkUUID
+                Graph.addNode (loc |>= foo) u1 "5" (atXPos (-10))
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                starts <- Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
+                code <- Graph.getCode loc
+                return (starts, code)
             normalizeQQ code `shouldBe` normalizeQQ [r|
                 def foo:
                     node1 = 5
@@ -388,6 +412,22 @@ spec = around withChannels $ parallel $ do
                     "bar"
 
                 def main:
-                    node1 = 1
                     print bar
                 |]
+            starts `shouldMatchList` [0, 36, 59]
+        it "maintains proper function file offsets after adding node" $ \env -> do
+            (offsets, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                u1 <- mkUUID
+                Graph.addNode (loc |>= foo) u1 "5" (atXPos (-10))
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                offsets <- Graph.withUnit loc $ do
+                    funs <- use Graph.clsFuns
+                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                code <- Graph.getCode loc
+                return (offsets, code)
+            offsets `shouldMatchList` [("foo",0), ("bar",36), ("main",59)]
