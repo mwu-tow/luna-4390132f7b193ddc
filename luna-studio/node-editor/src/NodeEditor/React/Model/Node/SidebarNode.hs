@@ -71,7 +71,7 @@ instance HasNodeLoc OutputNode where
     nodeLoc = outputNodeLoc
 
 instance HasPorts OutputNode where
-    inPortsList  = Port.inPortTreeLeafs True . view outputSidebarPorts
+    inPortsList  = Port.inPortTreeLeafs . view outputSidebarPorts
     outPortsList = const def
     inPortAt pid = outputSidebarPorts . ix pid
     outPortAt    = const ignored

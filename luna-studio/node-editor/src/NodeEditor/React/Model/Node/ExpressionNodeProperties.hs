@@ -36,7 +36,7 @@ instance HasNodeLoc NodeProperties where
     nodeLoc = nodeLoc'
 
 instance HasPorts NodeProperties where
-    inPortsList = Port.inPortTreeLeafs False . view inPorts
+    inPortsList = Port.inPortTreeLeafs . view inPorts
     outPortsList = Port.outPortTreeLeafs . view outPorts
     inPortAt  pid = inPorts . ix pid
     outPortAt pid = outPorts . ix pid
