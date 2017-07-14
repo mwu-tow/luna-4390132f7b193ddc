@@ -24,7 +24,9 @@ default-extensions:
   - TemplateHaskell
 
 ghc-options:
-    -Wall -O2
+    - -O2
+    - -Wall
+    # - -DDEBUG_PERF
 
 #
 # ACHTUNG! Zmieniasz tu - zmien w interactive

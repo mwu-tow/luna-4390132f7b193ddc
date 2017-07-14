@@ -70,6 +70,7 @@ import qualified Data.Text.IO                     as Text
 import           Data.Text.Position               (Delta)
 import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Data.UUID.V4                     as UUID (nextRandom)
+import           Debug
 import           Empire.ASTOp                     (ASTOp, putNewIR, runASTOp, runAliasAnalysis)
 import qualified Empire.ASTOps.Builder            as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
@@ -110,7 +111,7 @@ import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
 import           LunaStudio.Data.Point            (Point)
-import           LunaStudio.Data.Port             (InPortIndex (..), OutPortId, getPortNumber, InPortId)
+import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.PortRef          as PortRef
@@ -118,7 +119,6 @@ import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
 import qualified OCI.IR.Combinators               as IR (replace, replaceSource, substitute)
 import qualified Safe
-
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True
@@ -686,22 +686,22 @@ dumpGraphViz :: GraphLocation -> Empire ()
 dumpGraphViz loc = withGraph loc $ return ()
 
 autolayoutNodes :: ASTOp m => [NodeId] -> m ()
-autolayoutNodes nids = do
-    nodes <- GraphBuilder.buildNodes
-    conns <- GraphBuilder.buildConnections
+autolayoutNodes nids = timeIt "autolayoutNodes" $ do
+    nodes <- GraphBuilder.buildNodes       <!!> "buildNodes"
+    conns <- GraphBuilder.buildConnections <!!> "buildConnections"
     let autolayout = Autolayout.autolayoutNodes nids nodes conns
-    mapM_ (uncurry setNodePositionAST) autolayout
+    mapM_ (uncurry setNodePositionAST) autolayout <!!> "setNodePositionsAST"
 
 openFile :: FilePath -> Empire ()
 openFile path = do
-    code <- liftIO $ Text.readFile path
-    Library.createLibrary Nothing path code
+    code <- liftIO (Text.readFile path)     <!!> "readFile"
+    Library.createLibrary Nothing path code <!!> "createLibrary"
     let loc = GraphLocation path $ Breadcrumb []
     result <- handle (\(e :: SomeASTException) -> return $ Left e) $ fmap Right $ do
         withGraph loc $ do
             Graph.parseError .= Nothing
-            loadCode code
-        autolayout loc
+            loadCode code <!!> "loadCode"
+        autolayout loc    <!!> "autolayout"
     case result of
         Left e -> withGraph loc $ Graph.parseError ?= e
         _      -> return ()

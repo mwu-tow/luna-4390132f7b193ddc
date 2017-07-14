@@ -1,10 +1,10 @@
-module Unsafe.Debug where
+module Debug.Unsafe where
 
+import           Control.Concurrent
+import           Data.Time.Clock    (diffUTCTime, getCurrentTime)
 import           Prologue
+import           System.CPUTime
 import           System.IO.Unsafe
-import           Data.Time.Clock  (diffUTCTime, getCurrentTime)
-import System.CPUTime
-import Control.Concurrent
 
 debugPrint :: (Show a, Monad m) => a -> m ()
 debugPrint = unsafeLiftIO . print
@@ -33,18 +33,4 @@ timeIt' name action = do
         putStrLn $ "<< " <> name
                  <> " CPU " <> show ((cpuEnd - cpuStart) `div` 1000000000) <> "ms"
                  <> " Wall " <> show (diffUTCTime end start)
-    return r
-
-
-timeIt :: MonadIO m => String -> m a -> m a
-timeIt name action = do
-    putStrLn $ ">> " <> name
-    cpuStart <- liftIO getCPUTime
-    start    <- liftIO getCurrentTime
-    r <- action
-    cpuEnd <- liftIO getCPUTime
-    end    <- liftIO getCurrentTime
-    putStrLn $ "<< " <> name
-            <> " CPU " <> show ((cpuEnd - cpuStart) `div` 1000000000) <> "ms"
-            <> " Wall " <> show (diffUTCTime end start)
     return r
