@@ -129,12 +129,18 @@ downloadAndUnpackDependency appName resolvedPackage = do
     print $ show downloadedPkg
     unpacked <- unpackArchive downloadedPkg
     print $ show unpacked
-    Shelly.shelly $ Shelly.mkdir_p $ pkgFolderPath
-    Shelly.shelly $ copyDir unpacked pkgFolderPath
+    Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
 
-runApm :: Shelly.MonadSh m => FilePath -> FilePath -> m ()
-runApm apmPath atomHomePath = do
+runApm :: (MonadIO m, Shelly.MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
+runApm apmPath atomHomePath onigurumaPath = do
+    print $ show apmPath
+    print $ show atomHomePath
     Shelly.cd atomHomePath
+    let nodeModulesAtomHome = atomHomePath </> "node_modules"
+        onigurumaAtomHome = atomHomePath </> "node_modules" </> "oniguruma"
+    Shelly.mkdir_p nodeModulesAtomHome
+    -- Shelly.rm_rf onigurumaAtomHome
+    Shelly.cp_r onigurumaPath nodeModulesAtomHome
     Shelly.setenv "ATOM_HOME" $ Shelly.toTextIgnore atomHomePath
     Shelly.cmd apmPath "install" "."
 
@@ -164,28 +170,36 @@ createAppimage appName = do
     Shelly.shelly $ do
         Shelly.cp logoFile $ tmpAppDirPath </> fromText (appName <> ".png")
         Shelly.cp desktopFile $ tmpAppDirPath </> fromText (appName <> ".desktop")
-        print $ "aPPimage desktop file is:  " <> (show $ tmpAppDirPath </> fromText (appName <> ".desktop"))
         copyDir srcPkgPath dstPkgPath
         copyDir srcLibPath dstLibPath
-    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|/||g\" luna-studio.desktop"
     appWrapper <- downloadWithProgressBar "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
-    print $ "sciezka do wrapper " <> show appWrapper
     let dstWrapper = (dstPkgPath </> fromText (appName <> ".wrapper"))
-    print $ show dstWrapper
     Shelly.shelly $ Shelly.mv appWrapper dstWrapper
     makeExecutable dstWrapper
-    print $ "s|Exec=$XAPP|Exec=$XAPP.wrapper|g akjnhbalo;jrhb;pamnfbsafglnhakdg'pakejrhaklm"
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" ++ (convert appName) ++ "|Exec=" ++ (convert appName) ++".wrapper|g\" " ++ (convert appName) ++ ".desktop"
-    print $ "run generate type 2 appimage al;hjbaoi;jrmba;'ldgh'ajtrhpa,d;gv'blaepjhanbaz,mdgbal'ohi;o"
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "generate_type2_appimage"
 
 
 
 createPkg :: MonadCreatePackage m => ResolvedPackageMap -> m ()
 createPkg resolvedApp = do
+    pkgConfig <- get @PackageConfig
     runStackBuild (resolvedApp ^. appName) $ fromText (resolvedApp ^. appDesc . path)
     copyFromRepository (resolvedApp ^. appName) $ fromText (resolvedApp ^. appDesc . path)
     mapM_ (downloadAndUnpackDependency (resolvedApp ^. appName)) (resolvedApp ^. pkgsToPack)
+    let studio = pkgConfig ^. studioName
+    case (resolvedApp ^. appName) of
+        studio -> do
+            apmPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "atom" </> "usr" </> "share" </> "atom" </> "resources" </> "app" </> "apm" </> "bin" </> "apm"
+            onigurumaPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "atom" </> "usr" </> "share" </> "atom" </> "resources" </> "app" </> "node_modules" </> "oniguruma"
+            atomHomePath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "luna-atom" </> "packages" </> fromText (resolvedApp ^. appName)
+            atomDirInStudio <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> fromText (pkgConfig ^. studioFolderName) </> "atom"
+            Shelly.shelly $ Shelly.mkdir_p atomHomePath
+            Shelly.shelly $ copyDir atomDirInStudio atomHomePath
+            Shelly.shelly $ runApm apmPath atomHomePath onigurumaPath
+        otherwise -> return ()
+    mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> fromText (resolvedApp ^. appName)
+    Shelly.shelly $ Shelly.cp "./executables/run"  mainAppDir
     createAppimage (resolvedApp ^. appName)
 
 
@@ -200,7 +214,6 @@ runCreatingPackage opts = do
         resolvedMap = map (\(name,pkgDesc) -> ResolvedPackageMap name pkgDesc $ snd $ resolve repo pkgDesc) pkgMap -- TODO zrób to bezpiecznie!
 
     mapM_ createPkg resolvedMap
-    print $ show resolvedMap
 
 
     return ()

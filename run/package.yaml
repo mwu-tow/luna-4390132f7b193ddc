@@ -1,0 +1,19 @@
+name:               run
+version:            0.1.0.0
+author:             New Byte Order <contact@newbyteorder.com>
+maintainer:         New Byte Order <contact@newbyteorder.com>
+
+dependencies:
+  - base
+  - bytestring
+  - directory
+  - filepath
+  - exceptions
+  - path
+  - split
+  - text
+  - typed-process
+
+executables:
+  run:
+    main:             Main.hs

@@ -70,6 +70,3 @@ unzipFileWindows zipFile = do
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
 unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " ++ (encodeString file) ++ " | cpio -idmv"
-    -- do
-    -- let fullcmd = Shelly.toTextIgnore file <> " | cpio -idmv"
-    -- Shelly.cmd "rpm2cpio " fullcmd

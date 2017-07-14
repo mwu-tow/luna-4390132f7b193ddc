@@ -30,7 +30,7 @@ import Filesystem.Path.CurrentOS (encodeString)
 --        - We should keep sha of whole yaml and keep it separate on server, so yamls could be cached locally and we can check if they are up to date with VERY low bandwich
 
 -- === Definition === --
-data AppType = BatchApp | GuiApp deriving (Show, Generic, Eq)
+data AppType = BatchApp | GuiApp | Lib deriving (Show, Generic, Eq)
 
 
 -- Core
