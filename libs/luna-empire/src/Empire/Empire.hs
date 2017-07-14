@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Empire.Empire where
@@ -47,7 +48,7 @@ data CommunicationEnv = CommunicationEnv { _updatesChan   :: TChan AsyncUpdate
                                          -- FIXME[MK]: Yeah, let's use 3-tuples, way to code!
                                          , _typecheckChan :: MVar (GraphLocation, ClsGraph, Bool)
                                          , _scopeVar      :: MVar SymbolMap
-                                         }
+                                         } deriving Generic
 makeLenses ''CommunicationEnv
 
 instance Show CommunicationEnv where
