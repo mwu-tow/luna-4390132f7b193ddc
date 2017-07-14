@@ -32,9 +32,12 @@ exportToken token =
 
 setLexer :: (String -> IO [LexerGUIToken String]) -> IO (IO ())
 setLexer lexer = do
-    wrappedCallback <- syncCallback1' $ toJSValListOf . concatMap exportToken <=< lexer . pFromJSVal
+    wrappedCallback <- syncCallback1' $ \v -> timeIt "lexerJSCalback" $ do
+        let val = pFromJSVal v
+        r   <- lexer val                        <!!>  "run lexer"
+        toJSValListOf (concatMap exportToken r) <!!> "serialize"
     setLexer' wrappedCallback
     return $ unsetLexer >> releaseCallback wrappedCallback
 
 installLexer :: IO (IO ())
-installLexer = setLexer $ return . Lexer.runGUILexer
+installLexer = setLexer $ timeIt "runGUILexer" . return . Lexer.runGUILexer

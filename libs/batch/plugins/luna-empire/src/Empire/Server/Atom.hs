@@ -21,6 +21,7 @@ import qualified LunaStudio.API.Atom.SetProject as SetProject
 import           LunaStudio.API.Request         (Request (..))
 import qualified LunaStudio.API.Response        as Response
 
+import           Debug
 import qualified Empire.Commands.Graph          as Graph
 import           Empire.Data.AST                (SomeASTException)
 import qualified Empire.Data.Graph              as Graph
@@ -30,6 +31,7 @@ import           Empire.Server.Server           (errorMessage, replyFail, replyO
 import qualified System.Log.MLogger             as Logger
 import           ZMQ.Bus.Trans                  (BusT (..))
 
+
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
 
@@ -37,7 +39,7 @@ handleSetProject :: Request SetProject.Request -> StateT Env BusT ()
 handleSetProject a = return ()
 
 handleOpenFile :: Request OpenFile.Request -> StateT Env BusT ()
-handleOpenFile req@(Request _ _ (OpenFile.Request path)) = do
+handleOpenFile req@(Request _ _ (OpenFile.Request path)) = timeIt "handleOpenFile" $ do
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
     result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Graph.openFile path
