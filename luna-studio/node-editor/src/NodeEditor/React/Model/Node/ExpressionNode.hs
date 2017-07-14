@@ -129,7 +129,7 @@ instance HasNodeLoc ExpressionNode where
     nodeLoc = nodeLoc'
 
 instance HasPorts ExpressionNode where
-    inPortsList = Port.inPortTreeLeafs . view inPorts
+    inPortsList = Port.inPortTreeLeafs False . view inPorts
     outPortsList = Port.outPortTreeLeafs . view outPorts
     inPortAt  pid = inPorts . ix pid
     outPortAt pid = outPorts . ix pid
