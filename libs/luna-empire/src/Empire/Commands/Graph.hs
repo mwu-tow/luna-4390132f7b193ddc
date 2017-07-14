@@ -730,7 +730,7 @@ dumpGraphViz loc = withGraph loc $ return ()
 
 autolayoutNodes :: GraphOp m => [NodeId] -> m ()
 autolayoutNodes nids = do
-    nodes <- GraphBuilder.buildNodes
+    nodes <- GraphBuilder.buildNodesForAutolayout
     conns <- GraphBuilder.buildConnections
     let autolayout = Autolayout.autolayoutNodes nids nodes conns
     mapM_ (uncurry setNodePositionAST) autolayout

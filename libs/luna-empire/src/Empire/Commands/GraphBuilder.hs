@@ -39,12 +39,14 @@ import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
 import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
 import           LunaStudio.Data.Node            (NodeId)
 import qualified LunaStudio.Data.Node            as API
+import qualified LunaStudio.Data.NodeMeta        as NodeMeta
 import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
 import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
                                                   OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
 import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId)
+import           LunaStudio.Data.Position        (Position)
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TStar))
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
@@ -158,6 +160,18 @@ aliasPortName = "alias"
 
 selfPortName :: Text
 selfPortName = "self"
+
+buildNodesForAutolayout :: GraphOp m => m [(NodeId, Position)]
+buildNodesForAutolayout = do
+    allNodeIds <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
+    nodes      <- mapM buildNodeForAutolayout allNodeIds
+    return nodes
+
+buildNodeForAutolayout :: GraphOp m => NodeId -> m (NodeId, Position)
+buildNodeForAutolayout nid = do
+    marked    <- ASTRead.getASTRef nid
+    meta      <- fromMaybe def <$> AST.readMeta marked
+    return (nid, meta ^. NodeMeta.position)
 
 buildNode :: GraphOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
