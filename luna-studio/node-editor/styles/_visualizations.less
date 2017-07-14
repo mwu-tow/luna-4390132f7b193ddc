@@ -1,4 +1,4 @@
-.luna-node__results {
+.luna-node__short-value-positioner {
     color:          @colorTextMinor;
     display:        flex;
     flex-direction: column;
@@ -8,10 +8,16 @@
 }
 
 .luna-node__short-value {
-    width:         200rem;
-    margin-bottom: 16rem;
-    margin-top:   -5rem;
-    text-align:    center;
+    width:              200rem;
+    margin-bottom:      16rem;
+    margin-top:        -5rem;
+    text-align:         center;
+    max-height:         45rem;
+    display:           -webkit-box; //---------------
+    -webkit-line-clamp: 3;          // 3-line text
+    -webkit-box-orient: vertical;   // with ellipsis
+    overflow-y:         hidden;     //---------------
+    overflow-x:         visible;
 }
 
 .luna-visualization-container {
@@ -21,8 +27,8 @@
 }
 .luna-visualization-cover {
     position: absolute;
-    height: 100%;
-    width: 100%;
+    height:   100%;
+    width:    100%;
 }
 
 
