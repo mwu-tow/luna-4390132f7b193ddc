@@ -64,16 +64,31 @@ import           Data.Foldable                    (toList)
 import           Data.List                        (elemIndex, group, sortOn)
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
-import           Data.Maybe                       (fromMaybe, listToMaybe, maybeToList)
+import           Data.Maybe                       (fromMaybe, maybeToList)
 import qualified Data.Set                         as Set
 import           Data.Text                        (Text)
 import qualified Data.Text                        as Text
 import qualified Data.Text.IO                     as Text
+import           Data.Text.Position               (Delta)
+import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Data.UUID.V4                     as UUID (nextRandom)
-import           Empire.Prelude                   hiding (toList)
-import qualified Safe
-import qualified System.IO                        as IO
-
+import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis)
+import qualified Empire.ASTOps.Builder            as ASTBuilder
+import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
+import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy)
+import qualified Empire.ASTOps.Modify             as ASTModify
+import qualified Empire.ASTOps.Parse              as ASTParse
+import qualified Empire.ASTOps.Print              as ASTPrint
+import qualified Empire.ASTOps.Read               as ASTRead
+import qualified Empire.Commands.AST              as AST
+import qualified Empire.Commands.Autolayout       as Autolayout
+import           Empire.Commands.Breadcrumb       (makeGraph, makeGraphCls, withBreadcrumb)
+import           Empire.Commands.Code             (addExprMapping, getNextExprMarker, getExprMap, setExprMap)
+import qualified Empire.Commands.Code             as Code
+import qualified Empire.Commands.GraphBuilder     as GraphBuilder
+import qualified Empire.Commands.GraphUtils       as GraphUtils
+import qualified Empire.Commands.Library          as Library
+import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.AST                  (InvalidConnectionException (..), EdgeRef, NodeRef, NotInputEdgeException (..),
                                                    SomeASTException, astExceptionFromException, astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
@@ -81,8 +96,14 @@ import           Empire.Data.Graph                (ClsGraph, Graph, NodeCache(..
 import qualified Empire.Data.Graph                as Graph
 import           Empire.Data.Layers               (Marker, SpanLength, SpanOffset)
 import qualified Empire.Data.Library              as Library
-
-import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis)
+import           Empire.Empire
+import           Empire.Prelude                   hiding (toList)
+import qualified Luna.IR                          as IR
+import qualified Luna.IR.Term.Core                as Term
+import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
+import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
+import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
+import qualified Luna.Syntax.Text.Parser.Marker   as Luna
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Constants        (gapBetweenNodes)
@@ -96,42 +117,14 @@ import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
 import           LunaStudio.Data.Point            (Point)
-import           LunaStudio.Data.Port             (InPortIndex (..), OutPortId, getPortNumber)
+import           LunaStudio.Data.Port             (InPortIndex (..), OutPortId, getPortNumber, InPortId)
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.PortRef          as PortRef
 import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
-
-import qualified Empire.ASTOps.Builder            as ASTBuilder
-import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy)
-import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
-import qualified Empire.ASTOps.Modify             as ASTModify
-import qualified Empire.ASTOps.Parse              as ASTParse
-import qualified Empire.ASTOps.Print              as ASTPrint
-import qualified Empire.ASTOps.Read               as ASTRead
-import qualified Empire.ASTOps.Remove             as ASTRemove
-import qualified Empire.Commands.AST              as AST
-import qualified Empire.Commands.Autolayout       as Autolayout
-import           Empire.Commands.Breadcrumb       (makeGraph, makeGraphCls, withBreadcrumb)
-import           Empire.Commands.Code             (addExprMapping, getNextExprMarker, getExprMap, setExprMap)
-import qualified Empire.Commands.Code             as Code
-import qualified Empire.Commands.GraphBuilder     as GraphBuilder
-import qualified Empire.Commands.GraphUtils       as GraphUtils
-import qualified Empire.Commands.Library          as Library
-import qualified Empire.Commands.Publisher        as Publisher
-import           Empire.Empire
-
-import           Data.Text.Position               (Delta)
-import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
-import qualified Luna.IR                          as IR
-import qualified Luna.IR.Term.Core                as Term
 import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, narrowTerm, replace)
-import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
-import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
-import qualified Luna.Syntax.Text.Parser.Marker   as Luna
-import qualified OCI.IR.Combinators               as IR (replace, replaceSource, substitute)
+import qualified Safe
 
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
@@ -643,8 +636,7 @@ connectPersistent :: GraphOp m => OutPortRef -> AnyPortRef -> m Connection
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst@(InPortRef (NodeLoc _ dstNodeId) dstPort)) = do
     case dstPort of
         []        -> makeWhole srcNodeId dstNodeId srcPort
-        [Self]    -> makeAcc   srcNodeId dstNodeId srcPort
-        [Arg num] -> makeApp   srcNodeId dstNodeId num srcPort
+        _         -> makeInternalConnection srcNodeId dstNodeId srcPort dstPort
     return $ Connection src dst
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (OutPortRef' dst@(OutPortRef d@(NodeLoc _ dstNodeId) dstPort)) = do
     case dstPort of
@@ -1024,8 +1016,7 @@ getOutEdges nodeId = do
 disconnectPort :: GraphOp m => InPortRef -> m ()
 disconnectPort (InPortRef (NodeLoc _ dstNodeId) dstPort) = case dstPort of
     []        -> setToNothing dstNodeId
-    [Self]    -> unAcc dstNodeId
-    [Arg num] -> unApp dstNodeId num
+    _         -> removeInternalConnection dstNodeId dstPort
 
 setToNothing :: GraphOp m => NodeId -> m ()
 setToNothing dst = do
@@ -1038,31 +1029,18 @@ setToNothing dst = do
         then setOutputTo nothing
         else GraphUtils.rewireNode dst nothing
 
-unAcc :: GraphOp m => NodeId -> m ()
-unAcc nodeId = do
-    dstAst     <- ASTRead.getTargetEdge nodeId
-    beg        <- Code.getASTTargetBeginning nodeId
-    ASTBuilder.removeAccessor dstAst beg
-
-unApp :: GraphOp m => NodeId -> Int -> m ()
-unApp nodeId pos = do
+removeInternalConnection :: GraphOp m => NodeId -> InPortId -> m ()
+removeInternalConnection nodeId port = do
     dstAst <- ASTRead.getTargetEdge nodeId
     beg    <- Code.getASTTargetBeginning nodeId
-    ASTBuilder.removeArgument dstAst beg pos
+    ASTBuilder.removeArgument dstAst beg port
 
-makeAcc :: GraphOp m => NodeId -> NodeId -> OutPortId -> m ()
-makeAcc src dst outPort = do
-    dstBeg     <- Code.getASTTargetBeginning dst
-    srcAst     <- ASTRead.getASTOutForPort src outPort
-    dstAst     <- ASTRead.getTargetEdge dst
-    ASTBuilder.makeAccessor srcAst dstAst dstBeg
-
-makeApp :: GraphOp m => NodeId -> NodeId -> Int -> OutPortId -> m ()
-makeApp src dst pos outPort = do
-    dstBeg     <- Code.getASTTargetBeginning dst
-    srcAst     <- ASTRead.getASTOutForPort src outPort
-    dstAst     <- ASTRead.getTargetEdge dst
-    ASTBuilder.applyFunction dstAst dstBeg srcAst pos
+makeInternalConnection :: GraphOp m => NodeId -> NodeId -> OutPortId -> InPortId -> m ()
+makeInternalConnection src dst outPort inPort = do
+    dstBeg <- Code.getASTTargetBeginning dst
+    srcAst <- ASTRead.getASTOutForPort src outPort
+    dstAst <- ASTRead.getTargetEdge dst
+    ASTBuilder.makeConnection dstAst dstBeg inPort srcAst
 
 makeWhole :: GraphOp m => NodeId -> NodeId -> OutPortId -> m ()
 makeWhole src dst outPort = do

@@ -5,10 +5,14 @@ module NodeEditor.Action.State.Model
     , getConnectionsIntersectingSegment
     , getIntersectingConnections
     , getNodeAtPosition
-    , shouldDisplayPortSelf
+    , calculatePortSelfMode
+    , calculatePortMode
+    , updatePortMode
+    , updatePortsModeForNode
+    , updateAllPortsMode
     ) where
 
-import           NodeEditor.Action.State.Model.Connection     (createConnectionModel, createHalfConnectionModel,
-                                                                createHalfConnectionModel', getConnectionsIntersectingSegment,
-                                                                getIntersectingConnections)
-import           NodeEditor.Action.State.Model.ExpressionNode (getNodeAtPosition, shouldDisplayPortSelf)
+import           NodeEditor.Action.State.Model.Connection     (createConnectionModel, createHalfConnectionModel, createHalfConnectionModel',
+                                                               getConnectionsIntersectingSegment, getIntersectingConnections)
+import           NodeEditor.Action.State.Model.ExpressionNode (calculatePortMode, calculatePortSelfMode, getNodeAtPosition,
+                                                               updateAllPortsMode, updatePortMode, updatePortsModeForNode)

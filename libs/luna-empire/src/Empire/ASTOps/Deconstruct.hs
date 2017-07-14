@@ -1,12 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Empire.ASTOps.Deconstruct (
-    deconstructApp
-  , extractArguments
-  , extractAppArguments
-  , extractLamArguments
-  , dumpAccessors
-  ) where
+module Empire.ASTOps.Deconstruct where
 
 import           Empire.Prelude
 
@@ -29,9 +23,15 @@ deconstructApp app' = match app' $ \case
 
 extractFun :: GraphOp m => NodeRef -> m NodeRef
 extractFun app = match app $ \case
-    App a _ -> do
-        extractFun =<< IR.source a
+    App a _   -> extractFun =<< IR.source a
+    Grouped g -> extractFun =<< IR.source g
     _ -> return app
+
+extractSelf :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+extractSelf ref = match ref $ \case
+    Acc s n   -> Just <$> IR.source s
+    Grouped g -> extractSelf =<< IR.source g
+    _         -> return Nothing
 
 data ExtractFilter = FApp | FLam
 

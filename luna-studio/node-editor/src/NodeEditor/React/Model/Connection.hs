@@ -17,7 +17,7 @@ import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position, move, x, y)
 import           LunaStudio.Data.Vector2                    (Vector2 (Vector2))
 import           NodeEditor.Data.Color                      (Color)
-import           NodeEditor.React.Model.Constants           (gridSize, lineHeight, nodeExpandedWidth, portRadius)
+import           NodeEditor.React.Model.Constants           (argumentConstructorShift, lineHeight, nodeExpandedWidth, portRadius)
 import           NodeEditor.React.Model.Layout              (Layout, inputSidebarPortPosition, outputSidebarPortPosition)
 import           NodeEditor.React.Model.Node                (ExpressionNode, Node (Expression), NodeLoc)
 import qualified NodeEditor.React.Model.Node                as Node
@@ -125,13 +125,12 @@ containsPortRef (InPortRef'  inPortRef)  conn = conn ^. dst == inPortRef
 containsPortRef (OutPortRef' outPortRef) conn = conn ^. src == outPortRef
 
 toValidEmpireConnection :: AnyPortRef -> AnyPortRef -> Maybe Empire.Connection
-toValidEmpireConnection (OutPortRef' src') (InPortRef' dst')     =
-    if src' ^. PortRef.srcNodeLoc /= dst' ^. PortRef.dstNodeLoc
-    then Just $ Empire.Connection src' dst'
-    else Nothing
+toValidEmpireConnection (OutPortRef' src') (InPortRef' dst')     = Just $ Empire.Connection src' dst'
 toValidEmpireConnection dst'@(InPortRef' _) src'@(OutPortRef' _) = toValidEmpireConnection src' dst'
 toValidEmpireConnection _ _                                      = Nothing
 
+canConnect :: AnyPortRef -> AnyPortRef -> Bool
+canConnect = isJust .: toValidEmpireConnection
 
 instance Convertible PosConnection HalfConnection where
     convert = HalfConnection <$> OutPortRef' . view src <*> view dstPos <*> view mode
@@ -142,8 +141,8 @@ toPosConnection src' dst' = PosConnection src' dst' <$> view srcPos <*> view dst
 instance Convertible Connection Empire.Connection where
     convert = Empire.Connection <$> view src <*> view dst
 
-portPhantomPosition :: ExpressionNode -> Position
-portPhantomPosition n = n ^. position & y %~ (+ 2 * gridSize)
+argumentConstructorPosition :: ExpressionNode -> Position
+argumentConstructorPosition n = n ^. position & y %~ (+ argumentConstructorShift)
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of

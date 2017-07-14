@@ -1,20 +1,18 @@
 module NodeEditor.Action.Basic.UpdateNode where
 
 import           Common.Prelude
-import           Control.Monad                              (filterM)
 import           LunaStudio.Data.Node                       (NodeTypecheckerUpdate, tcNodeId)
 import qualified LunaStudio.Data.Node                       as Empire
-import           LunaStudio.Data.Port                       (InPortIndex (Self))
 import           NodeEditor.Action.Basic.AddNode            (localAddExpressionNode, localAddInputNode, localAddOutputNode)
 import           NodeEditor.Action.Basic.Scene              (updateScene)
 import           NodeEditor.Action.Command                  (Command)
-import           NodeEditor.Action.State.Model              (shouldDisplayPortSelf)
+import           NodeEditor.Action.State.Model              (calculatePortSelfMode)
 import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
-import           NodeEditor.React.Model.Node                (ExpressionNode, InputNode, NodeLoc, NodePath, OutputNode, inPortAt, nodeLoc)
-import           NodeEditor.React.Model.Node.ExpressionNode (isSelected, nodeType)
+import           NodeEditor.React.Model.Node                (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
+import           NodeEditor.React.Model.Node.ExpressionNode (inPortsList, isSelected, nodeType)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import qualified NodeEditor.React.Model.Node.SidebarNode    as SidebarNode
-import           NodeEditor.React.Model.Port                (Mode (Invisible), ensureVisibility, mode)
+import           NodeEditor.React.Model.Port                (isSelf, mode, portId)
 import           NodeEditor.State.Global                    (State)
 
 
@@ -55,18 +53,19 @@ localUpdateExpressionNode' :: Bool -> ExpressionNode -> Command State Bool
 localUpdateExpressionNode' preventPorts node = NodeEditor.getExpressionNode (node ^. nodeLoc) >>= \case
     Nothing       -> return False
     Just prevNode -> do
-        portSelfVis <- shouldDisplayPortSelf node
-        let selected    = prevNode ^. isSelected
-            mode'       = prevNode ^. ExpressionNode.mode
-            inPorts     = if preventPorts then prevNode ^. ExpressionNode.inPorts  else node ^. ExpressionNode.inPorts
-            outPorts    = if preventPorts then prevNode ^. ExpressionNode.outPorts else node ^. ExpressionNode.outPorts
-            (selfMode :: Mode -> Mode) = if portSelfVis then ensureVisibility else const Invisible
-        NodeEditor.addExpressionNode $ node & isSelected                   .~ selected
-                                            & ExpressionNode.mode          .~ mode'
-                                            & ExpressionNode.inPorts       .~ inPorts
-                                            & ExpressionNode.outPorts      .~ outPorts
-                                            & inPortAt [Self] . mode       %~ selfMode
-        NodeEditor.updateVisualizationsForNode (node ^. nodeLoc) $ node ^. nodeType
+        let selected      = prevNode ^. isSelected
+            mode'         = prevNode ^. ExpressionNode.mode
+            inPorts       = if preventPorts then prevNode ^. ExpressionNode.inPorts  else node ^. ExpressionNode.inPorts
+            outPorts      = if preventPorts then prevNode ^. ExpressionNode.outPorts else node ^. ExpressionNode.outPorts
+            n             = node & isSelected                   .~ selected
+                                 & ExpressionNode.mode          .~ mode'
+                                 & ExpressionNode.inPorts       .~ inPorts
+                                 & ExpressionNode.outPorts      .~ outPorts
+            mayPortSelfId = find isSelf . map (view portId) $ inPortsList n
+            updatePortSelfMode n' selfPid m = n' & inPortAt selfPid . mode .~ m
+        updatedNode <- maybe (return n) (\sPid -> updatePortSelfMode n sPid <$> calculatePortSelfMode n) mayPortSelfId
+        NodeEditor.addExpressionNode updatedNode
+        NodeEditor.updateVisualizationsForNode (updatedNode ^. nodeLoc) $ updatedNode ^. nodeType
         return True
 
 localUpdateOrAddExpressionNode :: ExpressionNode -> Command State ()
@@ -87,19 +86,3 @@ localUpdateNodeTypecheck path update = do
             SidebarNode.outputSidebarPorts .= convert `fmap` inPorts
         Empire.InputSidebarUpdate _ outPorts -> NodeEditor.modifyInputNode nl $
             SidebarNode.inputSidebarPorts .= convert `fmap2` outPorts
-
-updateAllPortsSelfVisibility :: Command State ()
-updateAllPortsSelfVisibility = do
-    nls <- map (view nodeLoc) <$> NodeEditor.getExpressionNodes
-    void $ updatePortSelfVisibilityForIds nls
-
-updatePortSelfVisibilityForIds :: [NodeLoc] -> Command State [NodeLoc]
-updatePortSelfVisibilityForIds = filterM updatePortSelfVisibility
-
-updatePortSelfVisibility :: NodeLoc -> Command State Bool
-updatePortSelfVisibility nid = NodeEditor.getExpressionNode nid >>=
-    maybe (return False) ( \node -> do
-        vis <- shouldDisplayPortSelf node
-        NodeEditor.modifyExpressionNode nid $ inPortAt [Self] . mode %= if vis then ensureVisibility else const Invisible
-        return True
-        )

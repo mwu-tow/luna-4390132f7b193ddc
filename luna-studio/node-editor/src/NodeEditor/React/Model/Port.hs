@@ -26,6 +26,8 @@ type IsOnly  = Bool
 
 data Mode = Normal
           | Invisible
+          | Inactive
+          | TypeNotMatched
           | Highlighted
           | Moved Position
           | NameEdit
@@ -83,11 +85,14 @@ outPortTreeLeafs :: OutPortTree (Port i) -> [Port i]
 outPortTreeLeafs (LabeledTree (OutPorts []) p) = [p]
 outPortTreeLeafs (LabeledTree (OutPorts ps) _) = concatMap outPortTreeLeafs ps
 
-inPortTreeLeafs :: Bool -> InPortTree (Port i) -> [Port i]
-inPortTreeLeafs forceTop (LabeledTree (InPorts Nothing []) p) = if p ^. state == Connected || forceTop then [p] else []
-inPortTreeLeafs _        (LabeledTree (InPorts mps     ps) _) = concatMap inPortTreeLeafs' $ maybeToList mps <> ps where
-    inPortTreeLeafs' (LabeledTree (InPorts Nothing []) p') = [p']
-    inPortTreeLeafs' (LabeledTree (InPorts mps'    ps') _) = concatMap inPortTreeLeafs' $ maybeToList mps' <> ps'
+inPortTreeLeafs :: InPortTree (Port i) -> [Port i]
+inPortTreeLeafs (LabeledTree (InPorts Nothing     _ []) p) = if p ^. state == Connected then [p] else []
+inPortTreeLeafs inPortTree  = inPortTreeLeafs' inPortTree where
+    inPortTreeLeafs' (LabeledTree (InPorts Nothing _ []) p) = [p]
+    inPortTreeLeafs' (LabeledTree (InPorts maySelf _ ps) _) = maybe [] findSelf maySelf <> concatMap inPortTreeLeafs' ps
+
+    findSelf (LabeledTree (InPorts (Just self') _ _) p) = if p ^. state == Connected then [p] else findSelf self'
+    findSelf (LabeledTree (InPorts Nothing      _ _) p) = [p]
 
 
 instance Convertible InPort  AnyPort where convert = fmap InPortId'

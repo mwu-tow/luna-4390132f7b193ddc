@@ -40,6 +40,9 @@ handle (UI (NodeEvent (Node.PortEditString            portRef portDef)))    = Ju
 handle (UI (NodeEvent (Node.PortApplyString      kevt portRef portDef)))    = Just $ when (Keys.withoutMods kevt Keys.enter) $ setPortDefault portRef portDef
 handle (UI (NodeEvent (Node.PortSetPortDefault        portRef portDef)))    = Just $ setPortDefault portRef portDef
 handle (UI (NodeEvent (Node.PortInitSlider       _    portRef sliderInit))) = Just $ PortControl.startMoveSlider portRef sliderInit
+handle (UI (NodeEvent (Node.MouseEnter                nl))) = Just $ Node.setMouseOver nl
+handle (UI (NodeEvent (Node.MouseLeave                nl))) = Just $ Node.unsetMouseOver nl
+handle (UI (NodeEvent (Node.ShowFullError             nl))) = Just $ Node.showFullError nl
 handle _ = Nothing
 
 

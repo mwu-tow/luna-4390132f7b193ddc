@@ -1,13 +1,13 @@
 --TODO[LJK, PM]: Review names in this module
 module NodeEditor.Action.Basic.SetNodeMode where
 
+import           Common.Prelude
 import           NodeEditor.Action.Basic.Merge              (localUnmerge)
-import           NodeEditor.Action.Basic.UpdateNode         (updatePortSelfVisibilityForIds)
 import qualified NodeEditor.Action.Batch                    as Batch
 import           NodeEditor.Action.Command                  (Command)
+import           NodeEditor.Action.State.Model              (updatePortsModeForNode)
 import           NodeEditor.Action.State.NodeEditor         (getSelectedNodes)
 import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
-import           Common.Prelude
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, Mode, isExpandedFunction, isMode, mode, nodeLoc)
 import           NodeEditor.State.Global                    (State)
 
@@ -35,4 +35,4 @@ toggleNodesMode allNewMode newMode nodes = do
         return $ node & mode .~ if allNewMode then def else newMode
     let nodeLocs = map (view nodeLoc) updatedNodes
     forM_ updatedNodes $ \node -> NodeEditor.addExpressionNode node
-    void $ updatePortSelfVisibilityForIds nodeLocs
+    mapM_ updatePortsModeForNode nodeLocs

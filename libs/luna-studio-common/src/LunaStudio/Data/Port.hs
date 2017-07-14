@@ -13,11 +13,11 @@ import           Data.Binary                 (Binary)
 import           LunaStudio.Data.LabeledTree as X (LabeledTree (LabeledTree))
 import           LunaStudio.Data.PortDefault (PortDefault)
 import           LunaStudio.Data.TypeRep     (TypeRep)
-import           Prologue                    hiding (TypeRep)
+import           Prologue                    hiding (TypeRep, head)
 
 
-data InPortIndex = Self | Arg Int                             deriving (Eq, Generic, NFData, Ord, Read, Show)
-data InPorts s   = InPorts { _self :: Maybe s, _args :: [s] } deriving (Default, Eq, Foldable, Functor, Generic, NFData, Show, Traversable)
+data InPortIndex = Self | Head | Arg Int                                        deriving (Eq, Generic, NFData, Ord, Read, Show)
+data InPorts s   = InPorts { _self :: Maybe s, _head :: Maybe s, _args :: [s] } deriving (Default, Eq, Foldable, Functor, Generic, NFData, Show, Traversable)
 type InPortId    = [InPortIndex]
 makeLenses ''InPorts
 
@@ -46,6 +46,7 @@ instance FromJSON s => FromJSON (OutPorts s)
 type instance Index   (InPorts s) = InPortIndex
 type instance IxValue (InPorts s) = s
 instance Ixed (InPorts s) where
+    ix Head    = head . _Just
     ix Self    = self . _Just
     ix (Arg i) = args . ix i
 
@@ -78,33 +79,46 @@ instance Binary AnyPortId
 instance Binary i => Binary (Port i)
 instance Binary PortState
 
-isInPort :: AnyPortId -> Bool
-isInPort (InPortId' _) = True
-isInPort _             = False
+class PortId a where
+    isInPort     :: a -> Bool
+    isOutPort    :: a -> Bool
+    isSelf       :: a -> Bool
+    isArg        :: a -> Bool
+    isProjection :: a -> Bool
+    isAll        :: a -> Bool
 
-isOutPort :: AnyPortId -> Bool
-isOutPort (OutPortId' _) = True
-isOutPort _              = False
+instance PortId InPortId where
+    isInPort        = const True
+    isOutPort       = const False
+    isSelf (Self:_) = True
+    isSelf _        = False
+    isArg (Arg _:_) = True
+    isArg _         = False
+    isProjection    = const False
+    isAll           = null
 
-isSelf :: InPortId -> Bool
-isSelf (Self:_) = True
-isSelf _        = False
+instance PortId OutPortId where
+    isInPort  = const False
+    isOutPort = const True
+    isSelf    = const False
+    isArg     = const False
+    isProjection (Projection _:_) = True
+    isProjection _                = False
+    isAll     = null
 
-isInAll :: InPortId -> Bool
-isInAll [] = True
-isInAll _  = False
-
-isArg :: InPortId -> Bool
-isArg (Arg _:_) = True
-isArg _         = False
-
-isOutAll :: OutPortId -> Bool
-isOutAll [] = True
-isOutAll _  = False
-
-isProjection :: OutPortId -> Bool
-isProjection (Projection _:_) = True
-isProjection _                = False
+instance PortId AnyPortId where
+    isInPort     (InPortId'  pid) = isInPort     pid
+    isInPort     (OutPortId' pid) = isInPort     pid
+    isOutPort    (InPortId'  pid) = isOutPort    pid
+    isOutPort    (OutPortId' pid) = isOutPort    pid
+    isSelf       (InPortId'  pid) = isSelf       pid
+    isSelf       (OutPortId' pid) = isSelf       pid
+    isArg        (InPortId'  pid) = isArg        pid
+    isArg        (OutPortId' pid) = isArg        pid
+    isProjection (InPortId'  pid) = isProjection pid
+    isProjection (OutPortId' pid) = isProjection pid
+    isAll        (InPortId'  pid) = isAll        pid
+    isAll        (OutPortId' pid) = isAll        pid
 
 withOut :: (OutPortId -> Bool) -> AnyPortId -> Bool
 withOut = anyOf _OutPortId'

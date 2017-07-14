@@ -48,6 +48,12 @@ instance HasNodeLoc AnyPortRef where
         setNodeLoc (OutPortRef' outPortRef) nl = OutPortRef' $ outPortRef & nodeLoc .~ nl
         setNodeLoc (InPortRef'  inPortRef ) nl = InPortRef'  $ inPortRef  & nodeLoc .~ nl
 
+class    PortId a         where toAnyPortRef :: NodeLoc -> a -> AnyPortRef
+instance PortId InPortId  where toAnyPortRef = InPortRef'  .: InPortRef
+instance PortId OutPortId where toAnyPortRef = OutPortRef' .: OutPortRef
+instance PortId AnyPortId where toAnyPortRef nl (InPortId'  pid) = toAnyPortRef nl pid
+                                toAnyPortRef nl (OutPortId' pid) = toAnyPortRef nl pid
+
 {-# DEPRECATED nodeId "Use nodeLoc" #-}
 nodeId :: Lens' AnyPortRef NodeId
 nodeId = nodeLoc . NodeLoc.nodeId
@@ -61,7 +67,3 @@ dstNodeId = dstNodeLoc . NodeLoc.nodeId
 
 srcNodeId :: Lens' OutPortRef NodeId
 srcNodeId = srcNodeLoc . NodeLoc.nodeId
-
-toAnyPortRef :: NodeLoc -> AnyPortId -> AnyPortRef
-toAnyPortRef nl (InPortId' pid)  = InPortRef'  $ InPortRef  nl pid
-toAnyPortRef nl (OutPortId' pid) = OutPortRef' $ OutPortRef nl pid

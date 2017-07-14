@@ -34,23 +34,25 @@ import qualified NodeEditor.React.Model.Port              as Port
 import           NodeEditor.State.Collaboration           (ColorId)
 
 
-data ExpressionNode = ExpressionNode { _nodeLoc'                :: NodeLoc
-                                     , _name                    :: Maybe Text
-                                     , _expression              :: Text
-                                     , _isDefinition            :: Bool
-                                     , _canEnter                :: Bool
-                                     , _inPorts                 :: InPortTree InPort
-                                     , _outPorts                :: OutPortTree OutPort
-                                     , _position                :: Position
-                                     , _defaultVisualizer       :: Maybe Visualizer
-                                     , _visualizationsEnabled   :: Bool
-                                     , _code                    :: Text
-                                     , _value                   :: Maybe Value
-                                     , _zPos                    :: Int
-                                     , _isSelected              :: Bool
-                                     , _mode                    :: Mode
-                                     , _execTime                :: Maybe Integer
-                                     , _collaboration           :: Collaboration
+data ExpressionNode = ExpressionNode { _nodeLoc'                  :: NodeLoc
+                                     , _name                      :: Maybe Text
+                                     , _expression                :: Text
+                                     , _inPorts                   :: InPortTree InPort
+                                     , _outPorts                  :: OutPortTree OutPort
+                                     , _argConstructorMode        :: Port.Mode
+                                     , _canEnter                  :: Bool
+                                     , _position                  :: Position
+                                     , _defaultVisualizer         :: Maybe Visualizer
+                                     , _visualizationsEnabled     :: Bool
+                                     , _code                      :: Text
+                                     , _value                     :: Maybe Value
+                                     , _zPos                      :: Int
+                                     , _isSelected                :: Bool
+                                     , _isMouseOver               :: Bool
+                                     , _mode                      :: Mode
+                                     , _isErrorExpanded           :: Bool
+                                     , _execTime                  :: Maybe Integer
+                                     , _collaboration             :: Collaboration
                                      } deriving (Eq, Generic, NFData, Show)
 
 
@@ -87,35 +89,36 @@ makePrisms ''Mode
 
 instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
     convert (path, n) = ExpressionNode
-        {- nodeLoc               -} (NodeLoc path $ n ^. Empire.nodeId)
-        {- name                  -} (n ^. Empire.name)
-        {- expression            -} (n ^. Empire.expression)
-        {- isDefinition          -} (n ^. Empire.isDefinition)
-        {- canEnter              -} (n ^. Empire.canEnter)
-        {- inPorts               -} (convert <$> n ^. Empire.inPorts)
-        {- outPorts              -} (convert <$> n ^. Empire.outPorts)
-        {- position              -} (n ^. Empire.position)
-        {- defaultVisualizer     -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
-        {- visualizationsEnabled -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
-        {- code                  -} (n ^. Empire.code)
-        {- value                 -} def
-        {- zPos                  -} def
-        {- isSelected            -} False
-        {- mode                  -} def
-        {- execTime              -} def
-        {- collaboration         -} def
+        {- nodeLoc                   -} (NodeLoc path $ n ^. Empire.nodeId)
+        {- name                      -} (n ^. Empire.name)
+        {- expression                -} (n ^. Empire.expression)
+        {- inPorts                   -} (convert <$> n ^. Empire.inPorts)
+        {- outPorts                  -} (convert <$> n ^. Empire.outPorts)
+        {- argConstructorHighlighted -} def
+        {- canEnter                  -} (n ^. Empire.canEnter)
+        {- position                  -} (n ^. Empire.position)
+        {- defaultVisualizer         -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
+        {- visualizationsEnabled     -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
+        {- code                      -} (n ^. Empire.code)
+        {- value                     -} def
+        {- zPos                      -} def
+        {- isSelected                -} False
+        {- isMouseOver               -} False
+        {- mode                      -} def
+        {- isErrorExpanded           -} False
+        {- execTime                  -} def
+        {- collaboration             -} def
 
 instance Convertible ExpressionNode Empire.ExpressionNode where
     convert n = Empire.ExpressionNode
-        {- exprNodeId   -} (n ^. nodeId)
-        {- expression   -} (n ^. expression)
-        {- isDefinition -} (n ^. isDefinition)
-        {- name         -} (n ^. name)
-        {- code         -} (n ^. code)
-        {- inPorts      -} (convert <$> n ^. inPorts)
-        {- outPorts     -} (convert <$> n ^. outPorts)
-        {- nodeMeta     -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
-        {- canEnter     -} (n ^. canEnter)
+        {- exprNodeId -} (n ^. nodeId)
+        {- expression -} (n ^. expression)
+        {- name       -} (n ^. name)
+        {- code       -} (n ^. code)
+        {- inPorts    -} (convert <$> n ^. inPorts)
+        {- outPorts   -} (convert <$> n ^. outPorts)
+        {- nodeMeta   -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
+        {- canEnter   -} (n ^. canEnter)
 
 instance Default Mode where def = Collapsed
 
@@ -123,7 +126,7 @@ instance HasNodeLoc ExpressionNode where
     nodeLoc = nodeLoc'
 
 instance HasPorts ExpressionNode where
-    inPortsList = Port.inPortTreeLeafs False . view inPorts
+    inPortsList = Port.inPortTreeLeafs . view inPorts
     outPortsList = Port.outPortTreeLeafs . view outPorts
     inPortAt  pid = inPorts . ix pid
     outPortAt pid = outPorts . ix pid

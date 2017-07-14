@@ -8,7 +8,7 @@
     position: absolute;
     width:    0;
     height:   0;
-    &:hover {
+    &.luna-hover {
         .luna-ctrl-icon {
             opacity: 1;
             &:hover {
@@ -46,8 +46,8 @@
     display:        flex;
     align-items:    center;
     flex-direction: column;
-    height: 24px;
-    line-height: 24px;
+    height:         24px;
+    line-height:    24px;
     &::selection {
         background: none;
     }
@@ -79,9 +79,9 @@
     text-overflow: ellipsis;
     white-space:   nowrap;
     .luna-searcher__input {
-        width: 448px;
-        transform: translate(-40px, -4px);
-        height: 20px;
+        width:          448px;
+        transform:      translate(-40px, -4px);
+        height:         20px;
         padding-bottom: 4px;
     }
     .luna-searcher__results {
@@ -129,15 +129,26 @@
     }
 }
 
-.luna-port--i--phantom {
-    fill: #2b2f34;
-    stroke: #181b1f;
-    stroke-width: 3px;
-    cy: 19px;
-    stroke: round;
-    r: 5px;
-    display: none !important;
+.luna-port--i--constructor {
+    display: none;
+    &.luna-hover {
+        display: block;
+    }
+    &:hover {
+        .luna-port__shape {
+            fill: #fff;
+        }
+    }
+    circle {
+        fill:         #2b2f34;
+        stroke:       #181b1f;
+        stroke-width: 3px;
+        r:            5px;
+    }
 }
+
+.luna-node--collapsed .luna-port--i--constructor circle { cy: 19px !important }
+.luna-node.luna-hover .luna-port--i--constructor { display: block !important }
 
 // types
 
@@ -147,6 +158,9 @@
     display:     none;
     fill:        @colorText;
     text-anchor: end;
+    &.luna-hover {
+        display: block;
+    }
 }
 
 .luna-port--o,
@@ -156,8 +170,8 @@
     }
 }
 
-.luna-node:hover .luna-port__type { display: inherit }
-.luna-port:hover .luna-port__type { fill: #fff }
+.luna-node.luna-hover .luna-port__type { display: inherit }
+.luna-port:hover .luna-port__type { fill:    #fff }
 
 /////////////////////////////
 //      node expanded      //
@@ -182,8 +196,9 @@
     .luna-port--self circle {
         cx: -80px;
     }
-    .luna-port--i--phantom {
-        cx: -80px;
+    .luna-port--i--constructor circle {
+        cx:          -80px;
+        stroke-width: 0;
     }
     .luna-port--o {
         .luna-port__type {
@@ -224,13 +239,13 @@
 /////////////////////////////
 
 .luna-node__controls {
-    padding:               12rem 12rem 12rem 4rem;
-    overflow:              hidden;
-    background:            @colorNodeBackground;
-    border-radius:         3rem;
-    line-height:           16rem;
-    display:               flex;
-    flex-direction:        column;
+    padding:        12rem 12rem 12rem 4rem;
+    overflow:       hidden;
+    background:     @colorNodeBackground;
+    border-radius:  3rem;
+    line-height:    16rem;
+    display:        flex;
+    flex-direction: column;
     //display:               grid;
     //grid-template-rows:    16rem;
     //grid-template-columns: auto auto;

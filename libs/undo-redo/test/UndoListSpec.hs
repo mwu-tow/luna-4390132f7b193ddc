@@ -28,25 +28,25 @@ import qualified Data.Text.Lazy                as Text
 
 import           Prologue
 
+import           LunaStudio.API.Graph.AddNode  (Request (..))
+import qualified LunaStudio.API.Graph.AddNode  as AddNode
+import qualified LunaStudio.API.Graph.Result   as Result
+import qualified LunaStudio.API.Topic          as Topic
 import qualified LunaStudio.Data.Graph         as Graph
 import           LunaStudio.Data.LabeledTree
 import qualified LunaStudio.Data.Node          as Node
 import           LunaStudio.Data.NodeLoc       (NodeLoc (..))
-import           LunaStudio.Data.Port
+import           LunaStudio.Data.Port          hiding (head)
 import           LunaStudio.Data.TypeRep
-import           LunaStudio.API.Graph.AddNode      (Request (..))
-import qualified LunaStudio.API.Graph.AddNode      as AddNode
-import qualified LunaStudio.API.Graph.Result       as Result
-import qualified LunaStudio.API.Topic              as Topic
 
+import qualified LunaStudio.API.Graph.Redo     as Redo
+import qualified LunaStudio.API.Graph.Undo     as Undo
+import qualified LunaStudio.API.Response       as Response
 import           LunaStudio.Data.Breadcrumb    (Breadcrumb (..))
 import           LunaStudio.Data.GraphLocation (GraphLocation (..))
 import           LunaStudio.Data.Library       (Library)
-import qualified LunaStudio.API.Graph.Redo         as Redo
-import qualified LunaStudio.API.Graph.Undo         as Undo
-import qualified LunaStudio.API.Response           as Response
 
-import           LunaStudio.API.Request            as Request
+import           LunaStudio.API.Request        as Request
 
 import           Undo                          (checkGuiId, handleMessage, run', withBus)
 import           UndoState                     (Undo (..), UndoMessage (..), UndoState (..))

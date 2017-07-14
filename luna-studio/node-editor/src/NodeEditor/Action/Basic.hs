@@ -91,16 +91,16 @@ module NodeEditor.Action.Basic
     , toggleSelectedNodesUnfold
     , unselectAll
     , unsetFile
-    , updateAllPortsSelfVisibility
+    , updateAllPortsMode
     , updateClient
     , updateCollaboration
     , updateConnection
     , updateGraph
     , updateNodeZOrder
-    , updatePortSelfVisibility
-    , updatePortSelfVisibilityForIds
     , updateScene
     , updateNodeValueAndVisualization
+    , updatePortMode
+    , updatePortsModeForNode
     ) where
 
 import           NodeEditor.Action.Basic.AddConnection       (connect, localAddConnection, localAddConnections)
@@ -140,8 +140,7 @@ import           NodeEditor.Action.Basic.UpdateConnection    (localUpdateConnect
 import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpressionNode, localUpdateExpressionNodePreventingPorts,
                                                               localUpdateExpressionNodes, localUpdateInputNode, localUpdateNodeTypecheck,
                                                               localUpdateOrAddExpressionNode, localUpdateOrAddExpressionNodePreventingPorts,
-                                                              localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode,
-                                                              updateAllPortsSelfVisibility, updatePortSelfVisibility,
-                                                              updatePortSelfVisibilityForIds)
+                                                              localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
 import           NodeEditor.Action.Basic.UpdateSearcherHints (localClearSearcherHints, localSetSearcherHints, localUpdateSearcherHints)
+import           NodeEditor.Action.State.Model               (updateAllPortsMode, updatePortMode, updatePortsModeForNode)

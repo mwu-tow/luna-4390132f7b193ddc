@@ -78,6 +78,7 @@ countArguments expr = IR.matchExpr expr $ \case
     App          f _ -> (+ 1) <$> (countArguments =<< IR.source f)
     LeftSection  f _ -> return 2
     RightSection f _ -> return 1
+    Grouped      g   -> countArguments =<< IR.source g
     _                -> return 0
 
 getArgumentOf :: GraphOp m => NodeRef -> Delta -> m (EdgeRef, Delta)
@@ -91,6 +92,10 @@ getArgumentOf fun beg = IR.matchExpr fun $ \case
     RightSection f a -> do
         off <- Code.getOffsetRelativeToTarget a
         return (a, beg + off)
+    Grouped g -> do
+        off <- Code.getOffsetRelativeToTarget g
+        g'  <- IR.source g
+        getArgumentOf g' (beg + off)
     f -> error $ show f
 
 getOrCreateArgument :: GraphOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
@@ -101,6 +106,9 @@ getOrCreateArgument currentFun codeBegin currentArgument neededArgument
     | otherwise = do
         fun <- IR.source currentFun
         IR.matchExpr fun $ \case
+            Grouped g -> do
+                foff <- Code.getOffsetRelativeToTarget g
+                getOrCreateArgument g (codeBegin + foff) currentArgument neededArgument
             App f a -> do
                 foff <- Code.getOffsetRelativeToTarget f
                 getOrCreateArgument f (codeBegin + foff) (pred currentArgument) neededArgument
@@ -143,6 +151,9 @@ dropBlankArgumentsAtTailPosition :: GraphOp m => EdgeRef -> Delta -> m ()
 dropBlankArgumentsAtTailPosition e beg = do
     head <- IR.source e
     IR.matchExpr head $ \case
+        Grouped g -> do
+            off <- Code.getOffsetRelativeToTarget g
+            dropBlankArgumentsAtTailPosition g (beg + off)
         App f a -> do
             arg <- IR.source a
             isB <- ASTRead.isBlank arg
@@ -161,18 +172,24 @@ dropBlankArgumentsAtTailPosition e beg = do
                 dropBlankArgumentsAtTailPosition e beg
         _ -> return ()
 
-applyFunction :: GraphOp m => EdgeRef -> Delta -> NodeRef -> Int -> m ()
-applyFunction funE beg arg pos = do
-    argCount    <- countArguments =<< IR.source funE
-    (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) pos
-    replaceEdgeSource edge beg arg
-
-removeArgument :: GraphOp m => EdgeRef -> Delta -> Int -> m ()
-removeArgument funE beg pos = do
+removeAppArgument :: GraphOp m => EdgeRef -> Delta -> Int -> m ()
+removeAppArgument funE beg pos = do
     bl <- IR.generalize <$> IR.blank
     IR.putLayer @SpanLength bl 1
     applyFunction funE beg bl pos
     dropBlankArgumentsAtTailPosition funE beg
+
+removeArgument :: GraphOp m => EdgeRef -> Delta -> Port.InPortId -> m ()
+removeArgument funE beg [Port.Self]  = void $ removeAccessor   funE beg
+removeArgument funE beg [Port.Arg i] = removeAppArgument funE beg i
+removeArgument funE beg (Port.Arg i : rest) = do
+    argCount    <- countArguments =<< IR.source funE
+    (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) i
+    removeArgument edge beg rest
+removeArgument funE beg (Port.Self : rest) = do
+    (edge, beg) <- getCurrentAccTarget funE beg
+    removeArgument edge beg rest
+removeArgument _ _ _ = return ()
 
 data SelfPortNotExistantException = SelfPortNotExistantException NodeRef
     deriving (Show)
@@ -201,7 +218,7 @@ getCurrentAccTarget = curry $ unfoldM $ \(edge, codeBeg) -> do
     ref <- IR.source edge
     IR.matchExpr ref $ \case
         App f _ -> passThrough f
-        Acc t _ -> passThrough t
+        Acc t _ -> Left . (t,) . (+ codeBeg) <$> Code.getOffsetRelativeToTarget t
         _       -> return $ Left (edge, codeBeg)
 
 ensureHasSelf :: GraphOp m => EdgeRef -> Delta -> m ()
@@ -230,6 +247,26 @@ makeAccessor target naming exprBegin = do
     (edge, tgtBegin) <- getCurrentAccTarget naming exprBegin
     replaceEdgeSource edge tgtBegin target
 
+applyFunction :: GraphOp m => EdgeRef -> Delta -> NodeRef -> Int -> m ()
+applyFunction funE beg arg pos = do
+    argCount    <- countArguments =<< IR.source funE
+    (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) pos
+    replaceEdgeSource edge beg arg
+
+makeConnection :: GraphOp m => EdgeRef -> Delta -> Port.InPortId -> NodeRef -> m ()
+makeConnection funE beg [] arg = do
+    replaceEdgeSource funE beg arg
+makeConnection funE beg (Port.Self : rest) arg = do
+    ensureHasSelf funE beg
+    (edge, beg) <- getCurrentAccTarget funE beg
+    makeConnection edge beg rest arg
+makeConnection funE beg (Port.Arg i : rest) arg = do
+    argCount <- countArguments =<< IR.source funE
+    (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) i
+    makeConnection edge beg rest arg
+makeConnection _ _ _ _ = return ()
+
+
 data SelfPortNotConnectedException = SelfPortNotConnectedException NodeRef
     deriving (Show)
 
@@ -237,32 +274,27 @@ instance Exception SelfPortNotConnectedException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-removeAccessor' :: GraphOp m => EdgeRef -> Delta -> m Bool
-removeAccessor' ed beg = do
+removeAccessor :: GraphOp m => EdgeRef -> Delta -> m ()
+removeAccessor ed beg = do
     expr <- IR.source ed
     IR.matchExpr expr $ \case
         App f _ -> do
             off <- Code.getOffsetRelativeToTarget f
-            removeAccessor' f $ beg + off
+            removeAccessor f $ beg + off
         Acc t n -> do
             off <- Code.getOffsetRelativeToTarget t
-            handled <- removeAccessor' t $ beg + off
-            when (not handled) $ do
-                length <- IR.getLayer @SpanLength expr
-                v      <- IR.generalize <$> IR.var n
-                let n' = convert n
-                IR.putLayer @SpanLength v $ fromIntegral $ Text.length n'
-                Code.applyDiff beg (beg + length) n'
-                IR.replaceSource v ed
-                IR.deleteSubtree expr
-                Code.gossipLengthsChangedBy (fromIntegral (Text.length n') - length) =<< IR.readTarget ed
-            return True
-        _ -> return False
-
-removeAccessor :: GraphOp m => EdgeRef -> Delta -> m ()
-removeAccessor e beg = do
-    handled <- removeAccessor' e beg
-    when (not handled) $ throwM . SelfPortNotConnectedException =<< IR.source e
+            length <- IR.getLayer @SpanLength expr
+            v      <- IR.generalize <$> IR.var n
+            let n' = convert n
+            IR.putLayer @SpanLength v $ fromIntegral $ Text.length n'
+            Code.applyDiff beg (beg + length) n'
+            IR.replaceSource v ed
+            IR.deleteSubtree expr
+            Code.gossipLengthsChangedBy (fromIntegral (Text.length n') - length) =<< IR.readTarget ed
+        Grouped g -> do
+            off <- Code.getOffsetRelativeToTarget g
+            removeAccessor g (beg + off)
+        _ -> return ()
 
 detachNodeMarkers :: GraphOp m => NodeRef -> m ()
 detachNodeMarkers ref' = do

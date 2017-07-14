@@ -8,20 +8,21 @@ import           LunaStudio.Data.Geometry           (snap)
 import           LunaStudio.Data.LabeledTree        (LabeledTree (LabeledTree))
 import qualified LunaStudio.Data.Node               as Empire
 import           LunaStudio.Data.NodeMeta           (NodeMeta (NodeMeta))
-import           LunaStudio.Data.Port               (InPortIndex (Arg, Self), Port (Port), PortState (NotConnected))
+import           LunaStudio.Data.Port               (InPortIndex (Arg), Port (Port), PortState (NotConnected))
 import           LunaStudio.Data.Position           (Position)
 import           LunaStudio.Data.TypeRep            (TypeRep (TStar))
 import           NodeEditor.Action.Basic.FocusNode  (focusNode)
 import           NodeEditor.Action.Basic.SelectNode (selectNode)
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.Command          (Command)
-import           NodeEditor.Action.State.Model      (shouldDisplayPortSelf)
+import           NodeEditor.Action.State.Model      (calculatePortSelfMode)
 import           NodeEditor.Action.State.NodeEditor (getSelectedNodes)
 import           NodeEditor.Action.State.NodeEditor (addInputNode, addOutputNode)
 import qualified NodeEditor.Action.State.NodeEditor as NodeEditor
 import           NodeEditor.Action.UUID             (getUUID)
-import           NodeEditor.React.Model.Node        (ExpressionNode, InputNode, NodeLoc (NodeLoc), NodePath, OutputNode, inPortAt, nodeLoc)
-import           NodeEditor.React.Model.Port        (Mode (Invisible), ensureVisibility, mode)
+import           NodeEditor.React.Model.Node        (ExpressionNode, InputNode, NodeLoc (NodeLoc), NodePath, OutputNode, inPortAt,
+                                                     inPortsList, nodeLoc)
+import           NodeEditor.React.Model.Port        (isSelf, mode, portId)
 import           NodeEditor.State.Global            (State)
 
 
@@ -49,9 +50,9 @@ localAddExpressionNodes = mapM_ localAddExpressionNode
 
 localAddExpressionNode :: ExpressionNode -> Command State ()
 localAddExpressionNode node = do
-    selfPortVis <- shouldDisplayPortSelf node
-    let selfMode = if selfPortVis then ensureVisibility else const Invisible
-        node' = node & inPortAt [Self] . mode %~ selfMode
+    let mayPortSelfId            = find isSelf . map (view portId) $ inPortsList node
+        updatePortSelf selfPid m = node & inPortAt selfPid . mode .~ m
+    node' <- maybe (return node) (\selfPid -> updatePortSelf selfPid <$> calculatePortSelfMode node) mayPortSelfId
     NodeEditor.addExpressionNode node'
     focusNode $ node ^. nodeLoc
 

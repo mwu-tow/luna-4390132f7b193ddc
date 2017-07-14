@@ -30,7 +30,7 @@ import           NodeEditor.React.View.Port              (handleClick, handleMou
 import           NodeEditor.React.View.Searcher          (searcher_)
 import           NodeEditor.React.View.Style             (plainPath_, plainRect_)
 import qualified NodeEditor.React.View.Style             as Style
-import           React.Flux                              hiding (view)
+import           React.Flux                              as React hiding (view)
 
 name :: SidebarNode node => node -> JSString
 name node = "sidebarPorts" <> if isInputSidebar node then "Inputs" else "Outputs"
@@ -52,7 +52,10 @@ portHandlers ref MoveConnect False _ portRef =
 portHandlers _ _ _ _ _ = []
 
 sidebar_ :: SidebarNode node => Ref App -> Maybe Searcher -> node ->  ReactElementM ViewEventHandler ()
-sidebar_ ref maySearcher node = do
+sidebar_ ref maySearcher node = React.viewWithSKey sidebar (name node) (ref, maySearcher, node) mempty
+
+sidebar :: SidebarNode node => ReactView (Ref App, Maybe Searcher, node)
+sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
     let ports         = SidebarNode.portsList node
         nodeLoc       = node ^. SidebarNode.nodeLoc
         mode          = node ^. SidebarNode.mode
@@ -67,8 +70,7 @@ sidebar_ ref maySearcher node = do
                                 MoveConnect -> portHandlers ref mode False False portRef
                             where portRef = OutPortRef' (OutPortRef nodeLoc [Projection (countProjectionPorts node)])
     div_
-        [ "key"         $= name node
-        , "className"   $= Style.prefixFromList classes
+        [ "className"   $= Style.prefixFromList classes
         , onDoubleClick $ \e _ -> [stopPropagation e]
         , onMouseDown   $ \e _ -> [stopPropagation e]
         , onMouseMove   $ \e m -> stopPropagation e : (dispatch ref $ UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc)

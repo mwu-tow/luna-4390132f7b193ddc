@@ -35,7 +35,7 @@ searcher =  React.defineView name $ \(ref, s) -> do
     let mode        = s ^. Searcher.mode
         -- nodePos     = s ^. Searcher.position
         -- nodePreview = convert . (NodeLoc.empty,) <$> (s ^. Searcher.selectedNode)
-        className   = Style.prefixFromList ( "input" : "searcher" : ( case mode of
+        className   = "native-key-bindings " <> Style.prefixFromList ( "input" : "searcher" : ( case mode of
             Searcher.Command  {} -> [ "searcher--command"]
             Searcher.Node     {} -> [ "searcher--node" ]
             Searcher.NodeName {} -> [ "searcher--node-name"]

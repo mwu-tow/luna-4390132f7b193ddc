@@ -17,11 +17,10 @@ import           Control.Monad.Trans.Maybe                  (MaybeT (MaybeT), ru
 import           Data.ScreenPosition                        (ScreenPosition)
 import qualified JS.GoogleAnalytics                         as GA
 import qualified LunaStudio.Data.Connection                 as ConnectionAPI
-import           LunaStudio.Data.Port                       (AnyPortId (InPortId'), InPortIndex (Self))
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'))
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           NodeEditor.Action.Basic                    (connect, localAddConnection, localRemovePort, removeConnection,
-                                                             updateAllPortsSelfVisibility)
+                                                             updateAllPortsMode)
 import qualified NodeEditor.Action.Batch                    as Batch
 import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.NodeDrag                 (startNodeDrag)
@@ -37,23 +36,26 @@ import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node                (Node (Expression))
 import           NodeEditor.React.Model.Node.ExpressionNode (isCollapsed)
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
+import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), Connect (Connect), Mode (Click, Drag),
-                                                             connectAction, connectIsPortPhantom, connectMode, connectSnappedPort,
+                                                             connectAction, connectIsArgumentConstructor, connectMode, connectSnappedPort,
                                                              connectSourcePort, connectStartPos)
 import           NodeEditor.State.Global                    (State, actions, currentConnectAction)
 import           React.Flux                                 (MouseEvent)
 
 
 instance Action (Command State) Connect where
-    begin action = beginActionWithKey    connectAction action >> actions . currentConnectAction ?= action
+    begin action = do
+        beginActionWithKey connectAction action
+        actions . currentConnectAction ?= action
+        updateAllPortsMode
     continue     = continueActionWithKey connectAction
     update       = updateActionWithKey   connectAction
     end action   = do
         stopConnectingUnsafe action
-        when (action ^. connectIsPortPhantom) $ case action ^. connectSourcePort of
+        when (action ^. connectIsArgumentConstructor) $ case action ^. connectSourcePort of
             OutPortRef' outPortRef -> void $ localRemovePort outPortRef
             _                      -> return ()
-
 
 handleConnectionMouseDown :: MouseEvent -> ConnectionId -> ModifiedEnd -> Command State ()
 handleConnectionMouseDown evt connId modifiedEnd = do
@@ -65,7 +67,7 @@ handleConnectionMouseDown evt connId modifiedEnd = do
         startConnecting mousePos portRef (Just connId) False Drag
 
 startConnecting :: ScreenPosition -> AnyPortRef -> Maybe ConnectionId -> Bool -> Mode -> Command State ()
-startConnecting screenMousePos anyPortRef mayModifiedConnId isPortPhantom connectMode' = do
+startConnecting screenMousePos anyPortRef mayModifiedConnId isArgumentConstructor connectMode' = do
     let nodeLoc = anyPortRef ^. PortRef.nodeLoc
         portId  = anyPortRef ^. PortRef.portId
     mousePos <- translateToWorkspace screenMousePos
@@ -73,23 +75,22 @@ startConnecting screenMousePos anyPortRef mayModifiedConnId isPortPhantom connec
         node <- MaybeT $ getNode nodeLoc
         let shouldDoNodeDrag = case node of
                 Expression node' -> isNothing mayModifiedConnId
-                                 && portId == InPortId' [Self]
+                                 && Port.isSelf portId
                                  && isCollapsed node'
                 _                -> False
         if shouldDoNodeDrag
         then lift $ when (connectMode' == Drag) $ startNodeDrag mousePos nodeLoc True
         else do
             halfConnectionModel <- MaybeT $ createHalfConnectionModel anyPortRef mousePos
-            let action = Connect screenMousePos anyPortRef (isJust mayModifiedConnId) Nothing isPortPhantom connectMode'
+            let action = Connect screenMousePos anyPortRef (isJust mayModifiedConnId) Nothing isArgumentConstructor connectMode'
             lift $ do
                 withJust mayModifiedConnId removeConnection
                 begin action
-                void $ updateAllPortsSelfVisibility
                 modifyNodeEditor $ do
                     withJust mayModifiedConnId $ \connId ->
                         NodeEditor.connections . at connId .= Nothing
                     NodeEditor.halfConnections .= [halfConnectionModel]
-    when (isNothing maySuccess && isPortPhantom) $ case anyPortRef of
+    when (isNothing maySuccess && isArgumentConstructor) $ case anyPortRef of
         OutPortRef' outPortRef -> void $ localRemovePort outPortRef
         _                      -> return ()
 
@@ -128,12 +129,12 @@ stopConnectingUnsafe _ = do
     modifyNodeEditor $ NodeEditor.halfConnections .= def
     actions . currentConnectAction .= Nothing
     removeActionFromState connectAction
-    void $ updateAllPortsSelfVisibility
+    updateAllPortsMode
 
 connectToPort :: AnyPortRef -> Connect -> Command State ()
 connectToPort dst action = do
     withJust (toValidEmpireConnection dst $ action ^. connectSourcePort) $ \newConn -> do
-        case (action ^. connectIsPortPhantom, action ^. connectSourcePort) of
+        case (action ^. connectIsArgumentConstructor, action ^. connectSourcePort) of
             (True, OutPortRef' outPortRef) -> do
                 void . localAddConnection outPortRef $ newConn ^. ConnectionAPI.dst
                 Batch.addPort outPortRef $ Just $ newConn ^. ConnectionAPI.dst

@@ -69,7 +69,7 @@ spec = around withChannels $ parallel $ do
                 return (node, graph)
             withResult res $ \(node, graph) -> do
                 (node ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "base" TStar (Port.WithDefault $ Expression "map x: x")
+                      Port.Port []           "alias" TStar (Port.WithDefault $ Expression "map x: x")
                     , Port.Port [Port.Self]  "self" TStar Port.NotConnected
                     , Port.Port [Port.Arg 0] "arg0" TStar (Port.WithDefault (Expression "x: x"))
                     ]

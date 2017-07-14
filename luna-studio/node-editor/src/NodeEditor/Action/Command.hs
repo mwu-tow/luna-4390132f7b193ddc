@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 module NodeEditor.Action.Command where
 
+import           Common.Prelude             hiding (gets)
 import           Control.Lens.Internal.Zoom
 import           Control.Monad.State
-import           Common.Prelude
 
 
 newtype Command a b = Command { unCommand :: StateT a IO b }
@@ -19,12 +19,6 @@ command f = do
     (action, st) <- gets f
     liftIO action
     put st
-
-pureCommand :: (a -> a) -> Command a ()
-pureCommand = modify
-
-ioCommand :: (a -> IO ()) -> Command a ()
-ioCommand f = gets f >>= liftIO
 
 runCommand :: Command a b -> a -> IO (b, a)
 runCommand cmd = runStateT $ unCommand cmd

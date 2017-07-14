@@ -75,12 +75,12 @@ makeLenses ''PenDisconnect
 
 data Mode = Drag | Click deriving (Eq, Generic, Show, Typeable)
 
-data Connect = Connect { _connectStartPos       :: ScreenPosition
-                       , _connectSourcePort     :: AnyPortRef
-                       , _connectIsConnModified :: Bool
-                       , _connectSnappedPort    :: Maybe AnyPortRef
-                       , _connectIsPortPhantom  :: Bool
-                       , _connectMode           :: Mode
+data Connect = Connect { _connectStartPos              :: ScreenPosition
+                       , _connectSourcePort            :: AnyPortRef
+                       , _connectIsConnModified        :: Bool
+                       , _connectSnappedPort           :: Maybe AnyPortRef
+                       , _connectIsArgumentConstructor :: Bool
+                       , _connectMode                  :: Mode
                        } deriving (Eq, Generic, Show, Typeable)
 
 makeLenses ''Connect
@@ -89,7 +89,7 @@ data PortDrag = PortDrag { _portDragStartPos              :: ScreenPosition
                          , _portDragPortStartPosInSidebar :: Position
                          , _portDragStartPortRef          :: OutPortRef
                          , _portDragActPortRef            :: OutPortRef
-                         , _portDragIsPortPhantom         :: Bool
+                         , _portDragIsArgumentConstructor :: Bool
                          , _portDragMode                  :: Mode
                          } deriving (Eq, Generic, Show, Typeable)
 

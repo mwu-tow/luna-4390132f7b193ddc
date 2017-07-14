@@ -46,13 +46,14 @@ dependencies:
   - lens
   - luna-studio-common
   - mtl
-  - prologue
   - placeholders
+  - prologue
   - react-flux
   - text
+  - time
   - transformers
-  - uuid-types
   - unordered-containers
+  - uuid-types
 
 
 

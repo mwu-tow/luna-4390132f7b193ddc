@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.React.View.Style where
 
-import           Data.List           (intercalate)
 import           Common.Prelude
-import           React.Flux
+import           Data.List      (intercalate)
+import           React.Flux     as React
 
 prefix :: JSString -> JSString
 prefix a = (<>) "luna-" a
@@ -30,19 +30,19 @@ errorMark_ = div_
     ] $ div_ mempty
 
 plainRect_ :: JSString -> Double -> Double -> Double -> Double -> ReactElementM ViewEventHandler ()
-plainRect_ key w h x y =
-    rect_ [ "key"    $= key
-          , "width"  $= fromString (show w)
+plainRect_ key w h x y = React.viewWithSKey plainRect key (w, h, x, y) mempty
+
+plainRect :: ReactView (Double, Double, Double, Double)
+plainRect = React.defineView "plain-rect" $ \(w, h, x, y) -> do
+    rect_ [ "width"  $= fromString (show w)
           , "height" $= fromString (show h)
           , "x"      $= fromString (show x)
           , "y"      $= fromString (show y)
           ] mempty
 
 plainPath_ :: JSString -> JSString -> ReactElementM ViewEventHandler ()
-plainPath_ c d = path_ [ "className" $= c, "d" $= d ] mempty
+plainPath_ c d = React.viewWithSKey plainPath "plain-path" (c, d) mempty
 
-
--- TODO[JK]: Not used args
-portSelectablePath :: JSString -> Double -> Double -> Double -> ReactElementM ViewEventHandler ()
-portSelectablePath c _x _y r = path_ [ "className" $= c, "d" $= fromString d ] mempty
-    where d = "M 20 0 A " <> show r <> " " <> show r <> " 0 0 1 20 16 L 10 16 A " <> show r <> " " <> show r <> " 0 0 1 10 0 Z"
+plainPath :: ReactView (JSString, JSString)
+plainPath = React.defineView "plain-path" $ \(c, d) ->
+    path_ [ "className" $= c, "d" $= d ] mempty

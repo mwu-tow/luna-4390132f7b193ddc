@@ -11,9 +11,8 @@ import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
 import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
-import           LunaStudio.Data.LabeledTree                          (LabeledTree (LabeledTree))
+import qualified LunaStudio.Data.LabeledTree                          as LabeledTree
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
-import           LunaStudio.Data.PortRef                              (toAnyPortRef)
 import           NodeEditor.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
@@ -22,11 +21,10 @@ import qualified NodeEditor.React.Event.Visualization                 as Visuali
 import           NodeEditor.React.Model.App                           (App)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countArgPorts, countOutPorts,
-                                                                       isCollapsed, returnsError)
+                                                                       inPortsList, isCollapsed, outPortsList, returnsError)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
-import           NodeEditor.React.Model.Port                          (AnyPortId (InPortId'), InPortIndex (Arg, Self), isInPort, isOutAll,
-                                                                       withOut)
+import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
 import qualified NodeEditor.React.Model.Port                          as Port
 import           NodeEditor.React.Model.Searcher                      (Searcher)
 import qualified NodeEditor.React.Model.Searcher                      as Searcher
@@ -37,13 +35,17 @@ import           NodeEditor.React.View.ExpressionNode.Properties      (nodePrope
 import           NodeEditor.React.View.Field                          (multilineField_)
 import           NodeEditor.React.View.Monad                          (monads_)
 import           NodeEditor.React.View.Plane                          (planeMonads_, svgPlanes_)
-import           NodeEditor.React.View.Port                           (portExpanded_, portPhantom_, port_)
+import           NodeEditor.React.View.Port                           (argumentConstructor_, portExpanded_, port_)
 import           NodeEditor.React.View.Searcher                       (searcher_)
 import           NodeEditor.React.View.Style                          (errorMark_, selectionMark_)
 import qualified NodeEditor.React.View.Style                          as Style
 import           React.Flux
 import qualified React.Flux                                           as React
 
+import           System.IO.Unsafe                                     (unsafePerformIO)
+
+traceShowMToStdout :: (Show a, Monad m) => a -> m ()
+traceShowMToStdout v = unsafePerformIO $ print v >> return (return ())
 
 name, objNameBody, objNamePorts, objNameDynStyles :: JSString
 name             = "node"
@@ -115,26 +117,33 @@ node :: ReactView (Ref App, ExpressionNode, Maybe Searcher, Set NodeLoc)
 node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
     Node.Expanded (Node.Function fs) -> nodeContainer_ ref maySearcher relatedNodesWithVis $ Map.elems fs
     _ -> do
-        let nodeId          = n ^. Node.nodeId
-            nodeLoc         = n ^. Node.nodeLoc
-            nodeLimit       = 10000::Int
-            zIndex          = n ^. Node.zPos
-            z               = if isCollapsed n then zIndex else zIndex + nodeLimit
-            hasSelf         = any (\p -> (Port.isSelf $ p ^. Port.portId) && (not $ Port.isInvisible p)) $ Node.inPortsList n
-            mayVisVisible   = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
-            showValue       = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
-            expression      = n ^. Node.expression
+        let nodeId        = n ^. Node.nodeId
+            nodeLoc       = n ^. Node.nodeLoc
+            nodeLimit     = 10000::Int
+            zIndex        = n ^. Node.zPos
+            z             = if isCollapsed n then zIndex else zIndex + nodeLimit
+            hasSelf       = any (\p -> (Port.isSelf $ p ^. Port.portId) && (not $ Port.isInvisible p)) $ Node.inPortsList n
+            mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
+            showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
+            expression    = n ^. Node.expression
+            highlight     = if n ^. Node.isMouseOver
+                         && (n ^. Node.argConstructorMode /= Port.Highlighted)
+                         && (not $ any Port.isHighlighted (inPortsList n))
+                         && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
                                                                        ++ (if returnsError n then ["node--error"] else [])
                                                                        ++ (if n ^. Node.isSelected then ["node--selected"] else [])
-                                                                       ++ (if hasSelf then ["node--has-self"] else ["node--no-self"]))
+                                                                       ++ (if hasSelf then ["node--has-self"] else ["node--no-self"])
+                                                                       ++ highlight)
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
+            , onMouseEnter  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
+            , onMouseLeave  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
             ] $ do
             div_
                 [ "className" $= Style.prefixFromList [ "node-translate","node__text", "noselect" ]
@@ -143,7 +152,7 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
                 nodeName_ ref nodeLoc (n ^. Node.name) mayVisVisible maySearcher
                 nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_  ref n
-            when showValue $ nodeValue_ n
+            when showValue $ nodeValue_ ref n
             nodePorts_ ref n
 
 nodeDynamicStyles_ :: Matrix Double -> ExpressionNode -> ReactElementM ViewEventHandler ()
@@ -184,19 +193,15 @@ nodePorts_ ref model = React.viewWithSKey nodePorts objNamePorts (ref, model) me
 
 nodePorts :: ReactView (Ref App, ExpressionNode)
 nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
-    let nodeId             = n ^. Node.nodeId
-        nodeLoc            = n ^. Node.nodeLoc
-        nodePorts'         = Node.portsList n
-        ports p =
-            forM_ p $ \port -> port_ ref
-                                     nodeLoc
-                                     port
-                                     (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
-                                     (withOut isOutAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
-                                     (case (n ^. Node.inPorts) of
-                                         LabeledTree _ a -> case (a ^. Port.state) of
-                                             Port.Connected -> True
-                                             _              -> False )
+    let nodeId     = n ^. Node.nodeId
+        nodeLoc    = n ^. Node.nodeLoc
+        nodePorts' = Node.portsList n
+        ports p    = forM_ p $ \port -> port_ ref
+                                              nodeLoc
+                                              port
+                                              (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
+                                              (withOut isAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
+                                              (n ^. Node.inPorts . LabeledTree.value . Port.state == Port.Connected)
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]
@@ -222,12 +227,12 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
             , "key"       $= "nodeTransform"
             ] $ do
             if isCollapsed n then do
-                ports $ filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts'
-                ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
+                ports $ filter (not . isSelf . (^. Port.portId)) nodePorts'
+                ports $ filter       (isSelf . (^. Port.portId)) nodePorts'
             else do
-                ports $ filter (\port -> (port ^. Port.portId) == InPortId' [Self]) nodePorts'
-                forM_  (filter (\port -> (port ^. Port.portId) /= InPortId' [Self]) nodePorts') $ \port -> portExpanded_ ref nodeLoc port
-            portPhantom_ ref $ toAnyPortRef nodeLoc $ InPortId' [Arg $ countArgPorts n]
+                ports $ filter (      isSelf . (^. Port.portId)) nodePorts'
+                forM_  (filter (not . isSelf . (^. Port.portId)) nodePorts') $ portExpanded_ ref nodeLoc
+            argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted)
 
 nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, maySearcher, nodesWithVis, subgraphs) mempty

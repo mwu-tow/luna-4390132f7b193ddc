@@ -13,8 +13,10 @@ import           Control.Applicative       as X
 import           Control.Lens              as X
 import           Control.Monad             as X (MonadPlus, join, mplus, mzero, unless, void, when, (<=<), (>=>))
 import           Control.Monad.IO.Class    as X (MonadIO, liftIO)
+import           Control.Monad.State       as X (get)
 import           Control.Monad.Trans       as X (MonadTrans, lift)
 import qualified Control.Monad.Trans.Maybe as MaybeT
+import           Control.Monad.Trans.State as X (gets)
 import           Data.Char                 as X
 import           Data.Default              as X
 import           Data.Either               as X (isLeft, isRight)

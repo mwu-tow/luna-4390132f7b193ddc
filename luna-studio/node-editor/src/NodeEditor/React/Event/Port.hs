@@ -7,7 +7,6 @@ import           LunaStudio.Data.PortRef (AnyPortRef)
 import           React.Flux              (MouseEvent)
 
 
-
 data Event = Click         MouseEvent AnyPortRef
            | MouseDown     MouseEvent AnyPortRef
            | MouseEnter    AnyPortRef

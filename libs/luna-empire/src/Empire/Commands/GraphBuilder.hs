@@ -4,61 +4,17 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
 
-module Empire.Commands.GraphBuilder (
-    buildConnections
-  , buildMonads
-  , buildNode
-  , buildNodeTypecheckUpdate
-  , buildNodes
-  , buildEdgeNodes
-  , buildGraph
-  , buildClassGraph
-  , buildClassNode
-  , buildInputSidebar
-  , buildInputSidebarTypecheckUpdate
-  , buildOutputSidebarTypecheckUpdate
-  , decodeBreadcrumbs
-  , getEdgePortMapping
-  , getNodeIdSequence
-  , getNodeSeq
-  , getInPortDefault
-  , getDefault
-  , getNodeName
-  , nodeConnectedToOutput
-  ) where
 
-import           Data.Foldable                   (toList)
-import           Empire.Prelude                  hiding (toList)
+module Empire.Commands.GraphBuilder where
 
 import           Control.Monad.State             hiding (when)
-
+import           Data.Foldable                   (toList)
 import qualified Data.List                       as List
 import qualified Data.Map                        as Map
-import           Data.Maybe                      (catMaybes, fromJust, fromMaybe, isJust, maybeToList)
+import           Data.Maybe                      (catMaybes, fromMaybe, maybeToList)
 import           Data.Text                       (Text)
 import qualified Data.Text                       as Text
-import qualified Data.UUID.V4                    as UUID (nextRandom)
-
-import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               (Graph)
-import qualified Empire.Data.Graph               as Graph
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem, Named (..))
-import qualified LunaStudio.Data.Breadcrumb      as Breadcrumb
-
-import qualified LunaStudio.Data.Graph           as API
-import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
-import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
-import           LunaStudio.Data.Node            (NodeId)
-import qualified LunaStudio.Data.Node            as API
-import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
-import qualified LunaStudio.Data.NodeLoc         as NodeLoc
-import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
-                                                  OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
-import qualified LunaStudio.Data.Port            as Port
-import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
-import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), dstNodeId, srcNodeId)
-import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar))
-
+import           Data.Text.Span                  (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import           Empire.ASTOp                    (ClassOp, GraphOp, match, runASTOp)
 import qualified Empire.ASTOps.Deconstruct       as ASTDeconstruct
 import qualified Empire.ASTOps.Print             as Print
@@ -66,14 +22,30 @@ import qualified Empire.ASTOps.Read              as ASTRead
 import qualified Empire.Commands.AST             as AST
 import qualified Empire.Commands.Code            as Code
 import qualified Empire.Commands.GraphUtils      as GraphUtils
-import           Empire.Data.AST                 (NodeRef, NotAppException (..), NotUnifyException, astExceptionFromException,
-                                                  astExceptionToException)
+import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
+import qualified Empire.Data.BreadcrumbHierarchy as BH
+import           Empire.Data.Graph               (Graph)
+import qualified Empire.Data.Graph               as Graph
 import           Empire.Data.Layers              (Marker, SpanLength, TypeLayer)
 import           Empire.Empire
-import           Data.Text.Span                  (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
+import           Empire.Prelude                  hiding (toList)
 import qualified Luna.IR                         as IR
 import qualified Luna.IR.Term.Literal            as Lit
 import           Luna.IR.Term.Uni
+import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem, Named (..))
+import qualified LunaStudio.Data.Breadcrumb      as Breadcrumb
+import qualified LunaStudio.Data.Graph           as API
+import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
+import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
+import           LunaStudio.Data.Node            (NodeId)
+import qualified LunaStudio.Data.Node            as API
+import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
+import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
+                                                  OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
+import qualified LunaStudio.Data.Port            as Port
+import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
+import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId)
+import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TStar))
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import qualified OCI.IR.Combinators              as IR
@@ -119,7 +91,7 @@ buildClassNode uuid name = do
     LeftSpacedSpan (SpacedSpan _ len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan f
     fileCode <- use Graph.code
     let code = Code.removeMarkers $ Text.take (fromIntegral len) $ Text.drop (fromIntegral codeStart) fileCode
-    return $ API.ExpressionNode uuid "" True (Just $ convert name) code (LabeledTree (InPorts Nothing []) (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) meta True
+    return $ API.ExpressionNode uuid "" True (Just $ convert name) code (LabeledTree def (Port [] "base" TStar NotConnected)) (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected)) meta True
 
 buildNodes :: GraphOp m => m [API.ExpressionNode]
 buildNodes = do
@@ -181,6 +153,12 @@ buildEdgeNodes = do
 getEdgePortMapping :: (MonadIO m, GraphOp m) => m (NodeId, NodeId)
 getEdgePortMapping = use $ Graph.breadcrumbHierarchy . BH.portMapping
 
+aliasPortName :: Text
+aliasPortName = "alias"
+
+selfPortName :: Text
+selfPortName = "self"
+
 buildNode :: GraphOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
     root      <- GraphUtils.getASTPointer nid
@@ -190,7 +168,7 @@ buildNode nid = do
     meta      <- fromMaybe def <$> AST.readMeta marked
     name      <- getNodeName nid
     canEnter  <- ASTRead.isLambda ref
-    inports   <- buildInPorts nid ref
+    inports   <- buildInPorts nid ref [] aliasPortName
     outports  <- buildOutPorts root
     code      <- getNodeCode nid
     return $ API.ExpressionNode nid expr False name code inports outports meta canEnter
@@ -199,7 +177,7 @@ buildNodeTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildNodeTypecheckUpdate nid = do
   root     <- GraphUtils.getASTPointer nid
   ref      <- GraphUtils.getASTTarget  nid
-  inPorts  <- buildInPorts nid ref
+  inPorts  <- buildInPorts nid ref [] aliasPortName
   outPorts <- buildOutPorts root
   return $ API.ExpressionUpdate nid inPorts outPorts
 
@@ -344,53 +322,48 @@ extractPortInfo n = do
     fromType <- extractArgTypes tp
     return $ mergePortInfo applied fromType
 
-buildArgPorts :: GraphOp m => NodeRef -> m [InPort]
-buildArgPorts ref = do
+buildArgPorts :: GraphOp m => InPortId -> NodeRef -> m [InPort]
+buildArgPorts currentPort ref = do
     typed <- extractPortInfo ref
     names <- getPortsNames ref
     let portsTypes = fmap fst typed ++ List.replicate (length names - length typed) TStar
         psCons = zipWith3 Port
-                          (pure . Arg <$> [(0::Int)..])
+                          ((currentPort <>) . pure . Arg <$> [(0::Int)..])
                           (map Text.pack $ names ++ (("arg" ++) . show <$> [0..]))
                           portsTypes
     return $ zipWith ($) psCons (fmap snd typed ++ repeat NotConnected)
 
-buildSelfPort' :: GraphOp m => Bool -> NodeRef -> m (Maybe InPort)
-buildSelfPort' seenAcc node = do
-    let buildActualSelf = do
-            tpRep     <- followTypeRep node
-            portState <- getPortState  node
-            return $ Just $ Port [Self] "self" tpRep portState
-    let potentialSelf = Just $ Port [Self] "self" TStar NotConnected
-
+buildSelfPort :: GraphOp m => NodeId -> InPortId -> NodeRef -> m (Maybe (InPortTree InPort))
+buildSelfPort nid currentPort node = do
+    let potentialSelf = Port currentPort selfPortName TStar NotConnected
     match node $ \case
-        (Acc t _)  -> IR.source t >>= buildSelfPort' True
-        (App t _)  -> IR.source t >>= buildSelfPort' seenAcc
-        Blank      -> return Nothing
-        (Var _)    -> if seenAcc then buildActualSelf else return potentialSelf
-        _          -> if seenAcc then buildActualSelf else return Nothing
+        Acc t _ -> do
+            target <- IR.source t
+            tree   <- buildInPorts nid target currentPort selfPortName
+            return $ Just tree
+        Var _     -> return $ Just $ LabeledTree def potentialSelf
+        App f _   -> buildSelfPort nid currentPort =<< IR.source f
+        Grouped g -> buildSelfPort nid currentPort =<< IR.source g
+        _         -> return Nothing
 
-buildSelfPort :: GraphOp m => NodeRef -> m (Maybe InPort)
-buildSelfPort = buildSelfPort' False
-
-buildWholePort :: GraphOp m => NodeId -> NodeRef -> m InPort
-buildWholePort nid ref = do
+buildWholePort :: GraphOp m => NodeId -> InPortId -> Text -> NodeRef -> m InPort
+buildWholePort nid currentPort portName ref = do
     tp    <- followTypeRep ref
     pid   <- ASTRead.getNodeId ref
     state <- if pid == Just nid then return NotConnected else getPortState ref
-    return $ Port [] "base" tp state
+    return $ Port currentPort portName tp state
 
 followTypeRep :: GraphOp m => NodeRef -> m TypeRep
 followTypeRep ref = do
     tp <- IR.source =<< IR.getLayer @TypeLayer ref
     Print.getTypeRep tp
 
-buildInPorts :: GraphOp m => NodeId -> NodeRef -> m (InPortTree InPort)
-buildInPorts nid ref = do
-    selfPort <- buildSelfPort ref
-    argPorts <- buildArgPorts ref
-    whole    <- buildWholePort nid ref
-    return $ LabeledTree (InPorts (LabeledTree def <$> selfPort) (LabeledTree def <$> argPorts)) whole
+buildInPorts :: GraphOp m => NodeId -> NodeRef -> InPortId -> Text -> m (InPortTree InPort)
+buildInPorts nid ref currentPort portName = do
+    selfPort <- buildSelfPort nid (currentPort ++ [Self]) ref
+    argPorts <- buildArgPorts currentPort ref
+    whole    <- buildWholePort nid currentPort portName ref
+    return $ LabeledTree (InPorts selfPort def (LabeledTree def <$> argPorts)) whole
 
 buildDummyOutPort :: GraphOp m => NodeRef -> m (OutPortTree OutPort)
 buildDummyOutPort ref = do
@@ -446,7 +419,7 @@ buildOutputSidebar nid = do
     out   <- ASTRead.getLambdaOutputRef ref
     tp    <- followTypeRep out
     state <- getPortState  out
-    return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing [])  $ Port [] "output" tp state
+    return $ API.OutputSidebar nid $ LabeledTree (Port.InPorts Nothing Nothing [])  $ Port [] "output" tp state
 
 getOutputSidebarInputs :: GraphOp m => NodeId -> m (Maybe (OutPortRef, InPortRef))
 getOutputSidebarInputs outputEdge = do
@@ -467,18 +440,20 @@ resolveInput = IR.getLayer @Marker
 
 deepResolveInputs :: GraphOp m => NodeId -> NodeRef -> InPortRef -> m [(OutPortRef, InPortRef)]
 deepResolveInputs nid ref portRef@(InPortRef loc id) = do
-    portResolution  <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
-    let currentPortConn = (, portRef) <$> portResolution
+    currentPortResolution <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
+    let currentPortConn = (, portRef) <$> currentPortResolution
     args      <- reverse <$> ASTDeconstruct.extractAppArguments ref
     argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id ++ [Arg i]))
-    return $ currentPortConn ++ concat argsConns
+    head      <- ASTDeconstruct.extractFun ref
+    self      <- ASTDeconstruct.extractSelf head
+    headConns <- case (self, head == ref) of
+        (Just s, _) -> deepResolveInputs nid s    (InPortRef loc (id ++ [Self]))
+        (_, False)  -> deepResolveInputs nid head (InPortRef loc (id ++ [Head]))
+        _           -> return []
+    return $ concat [currentPortConn, headConns, concat argsConns]
 
 getNodeInputs :: GraphOp m => NodeId -> m [(OutPortRef, InPortRef)]
 getNodeInputs nid = do
     let loc = NodeLoc def nid
     ref      <- ASTRead.getASTTarget   nid
-    self     <- ASTRead.getSelfNodeRef ref
-    selfIn   <- catMaybes . toList <$> mapM resolveInput self
-    posConns <- deepResolveInputs nid ref (InPortRef loc [])
-    let selfConn  = (, InPortRef loc [Self]) <$> selfIn
-    return $ selfConn ++ posConns
+    deepResolveInputs nid ref (InPortRef loc [])

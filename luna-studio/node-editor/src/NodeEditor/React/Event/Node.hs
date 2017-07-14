@@ -15,8 +15,11 @@ data Event = EditExpression                     NodeLoc
            | MouseDown            MouseEvent    NodeLoc
            | PortApplyString      KeyboardEvent InPortRef PortDefault
            | PortEditString                     InPortRef PortDefault
-           | PortInitSlider          MouseEvent InPortRef InitValue
+           | PortInitSlider       MouseEvent    InPortRef InitValue
            | PortSetPortDefault                 InPortRef PortDefault
            | Select               MouseEvent    NodeLoc
            | SetExpression                      NodeLoc Text
+           | MouseEnter                         NodeLoc
+           | MouseLeave                         NodeLoc
+           | ShowFullError                      NodeLoc
             deriving (Show, Generic, NFData, Typeable)

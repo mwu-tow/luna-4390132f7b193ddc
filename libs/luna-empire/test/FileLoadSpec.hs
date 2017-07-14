@@ -179,7 +179,8 @@ spec = around withChannels $ parallel $ do
                 c ^. Node.code `shouldBe` "3"
                 c ^. Node.canEnter `shouldBe` False
                 connections `shouldMatchList` [
-                      (outPortRef (pi ^. Node.nodeId) [], inPortRef (anon ^. Node.nodeId) [Port.Arg 0])
+                      (outPortRef (pi ^. Node.nodeId)  [], inPortRef (anon ^. Node.nodeId) [Port.Arg 0])
+                    , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "does not duplicate nodes on edit" $ \env -> do
             res <- evalEmp env $ do
@@ -196,8 +197,10 @@ spec = around withChannels $ parallel $ do
                 length cNodes `shouldBe` 1
                 let [cNode] = cNodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
+                    Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
                 connections `shouldMatchList` [
                       (outPortRef (cNode ^. Node.nodeId) [], inPortRef (bar ^. Node.nodeId) [Port.Arg 1])
+                    , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "double modification gives proper value" $ \env -> do
             res <- evalEmp env $ do
@@ -216,9 +219,11 @@ spec = around withChannels $ parallel $ do
                 length cNodes `shouldBe` 1
                 let [cNode] = cNodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
+                    Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
                 cNode ^. Node.code `shouldBe` "334"
                 connections `shouldMatchList` [
                       (outPortRef (cNode ^. Node.nodeId) [], inPortRef (bar ^. Node.nodeId) [Port.Arg 1])
+                    , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "modifying two expressions give proper values" $ \env -> do
             res <- evalEmp env $ do
@@ -237,10 +242,12 @@ spec = around withChannels $ parallel $ do
                 length cNodes `shouldBe` 1
                 let [cNode] = cNodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
+                    Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
                 cNode ^. Node.code `shouldBe` "34"
                 bar ^. Node.code `shouldBe` "foo 18 c"
                 connections `shouldMatchList` [
                       (outPortRef (cNode ^. Node.nodeId) [], inPortRef (bar ^. Node.nodeId) [Port.Arg 1])
+                    , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "adding an expression works" $ \env -> do
             res <- evalEmp env $ do
@@ -257,8 +264,10 @@ spec = around withChannels $ parallel $ do
                 d ^. Node.code `shouldBe` "10"
                 let Just c = find (\node -> node ^. Node.name == Just "c") nodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
+                    Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
                 connections `shouldMatchList` [
                       (outPortRef (c ^. Node.nodeId) [], inPortRef (bar ^. Node.nodeId) [Port.Arg 1])
+                    , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "unparseable expression does not sabotage whole file" $ \env -> do
             res <- evalEmp env $ do
@@ -275,11 +284,13 @@ spec = around withChannels $ parallel $ do
                     Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
                     Just c = find (\node -> node ^. Node.name == Just "c") nodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
+                    Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
                 pi ^. Node.code `shouldBe` "5"
                 c ^. Node.code `shouldBe` "4"
                 bar ^. Node.code `shouldBe` "foo 8 c"
                 connections `shouldMatchList` [
                       (outPortRef (c ^. Node.nodeId) [], inPortRef (bar ^. Node.nodeId) [Port.Arg 1])
+                    , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "enters lambda written in file" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
@@ -810,6 +821,34 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
                 Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Arg 2])
+        it "connects to a deep self port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = Empty
+                    «1»b = prepend 10 . prepend 20
+                |]
+            expectedCode = [r|
+                def main:
+                    node1 = Empty
+                    b = node1 . prepend 10 . prepend 20
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
+                Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Self, Port.Self])
+        it "connects to a deep application port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = Empty
+                    «1»b = node1 . prepend . prepend 20
+                |]
+            expectedCode = [r|
+                def main:
+                    node1 = Empty
+                    b = node1 . prepend node1 . prepend 20
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
+                Graph.connect loc (outPortRef a []) (InPortRef' $ inPortRef b [Port.Self, Port.Arg 0])
         it "disconnects an application port" $ let
             initialCode = [r|
                 def main:
@@ -824,6 +863,48 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 Graph.disconnect loc $ inPortRef b [Port.Arg 2]
+        it "disconnects a self port behind an application" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz (node1 . prepend 1) node1
+                |]
+            expectedCode = [r|
+                def main:
+                    node1 = foo
+                    b = succ baz (prepend 1) node1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Arg 1, Port.Self]
+        it "disconnects a deep self port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = foo . prepend 10 . prepend 20
+                |]
+            expectedCode = [r|
+                def main:
+                    node1 = foo
+                    b = prepend 10 . prepend 20
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Self, Port.Self]
+        it "disconnects a deep application port" $ let
+            initialCode = [r|
+                def main:
+                    «0»node1 = foo
+                    «1»b = succ baz (Empty . prepend node1 foo) node1
+                |]
+            expectedCode = [r|
+                def main:
+                    node1 = foo
+                    b = succ baz (Empty . prepend _ foo) node1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.disconnect loc $ inPortRef b [Port.Arg 1, Port.Arg 0]
         it "connects to application port multiple times" $ let
             initialCode = [r|
                 def main:
