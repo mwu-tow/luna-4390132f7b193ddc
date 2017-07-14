@@ -25,6 +25,9 @@ import qualified LunaStudio.Data.Node           as Node
 import           LunaStudio.Data.NodeMeta       (NodeMeta(..))
 import qualified LunaStudio.Data.NodeMeta       as NodeMeta
 import qualified LunaStudio.Data.Position       as Position
+import           LunaStudio.Data.TypeRep        (TypeRep(TStar))
+import           LunaStudio.Data.Port           (Port(..), PortState(..))
+import           LunaStudio.Data.PortDefault    (PortDefault(..))
 
 import           Luna.Prelude                   (forM, normalizeQQ)
 import           Empire.Empire
@@ -77,7 +80,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ id $ do
+spec = around withChannels $ parallel $ do
     describe "multi-module files" $ do
         it "shows functions at file top-level" $ \env -> do
             nodes <- evalEmp env $ do
@@ -184,13 +187,15 @@ spec = around withChannels $ id $ do
                 |]
         it "enters just added function" $ \env -> do
             u1 <- mkUUID
-            nodes <- evalEmp env $ do
+            graph <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
                 n <- Graph.addNode loc u1 "quux" def
-                Graph.getNodes (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
-            length nodes `shouldBe` 0
+                Graph.getGraph (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
+            length (graph ^. Graph.nodes) `shouldBe` 0
+            let Just (Node.OutputSidebar _ ports) = graph ^. Graph.outputSidebar
+            toListOf traverse ports `shouldBe` [Port [] "output" TStar (WithDefault (Expression "None"))]
         it "removes function at top-level" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
