@@ -9,7 +9,31 @@
 /////////////////////////////
 
 @colorBackground:      #181b1f;
-@colorTextMinor:       #38454a;
+
+.backgroundBase() {
+    background: @colorBackground;
+}
+.background(@n, @i:1, @j:1) when (@i =< @n) {
+    .print() when (@n = @i) { background: lighten(@colorBackground, @j * 8%) }
+    .background(@n, (@i + 1), (@j * 1.44));
+    .print;
+}
+.color(@n, @i:1, @j:1) when (@i =< @n) {
+    .print() when (@n = @i) { color: lighten(@colorBackground, @j * 8%) }
+    .color(@n, (@i + 1), (@j * 1.44));
+    .print;
+}
+.fill(@n, @i:1, @j:1) when (@i =< @n) {
+    .print() when (@n = @i) { fill: lighten(@colorBackground, @j * 8%) }
+    .fill(@n, (@i + 1), (@j * 1.44));
+    .print;
+}
+.stroke(@n, @i:1, @j:1) when (@i =< @n) {
+    .print() when (@n = @i) { stroke: lighten(@colorBackground, @j * 8%) }
+    .stroke(@n, (@i + 1), (@j * 1.44));
+    .print;
+}
+@colorTextMinor:       #68858a;
 
 @colorSelect:          orange;
 @colorText:            #ccc;

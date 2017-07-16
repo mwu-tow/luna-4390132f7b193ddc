@@ -1,29 +1,29 @@
 .luna-node__short-value-positioner {
-    color:          @colorTextMinor;
     display:        flex;
     flex-direction: column;
     align-items:    center;
-    font-size:      10rem;
-    line-height:    16rem;
 }
 
 .luna-node__short-value {
-    width:              200rem;
+    .color(5);
+    font-size:          10rem;
+    line-height:        16rem;
     margin-bottom:      16rem;
     margin-top:        -5rem;
-    text-align:         center;
     max-height:         45rem;
+    text-align:         center;
+    width:              200rem;
+
     display:           -webkit-box; //---------------
     -webkit-line-clamp: 3;          // 3-line text
     -webkit-box-orient: vertical;   // with ellipsis
     overflow-y:         hidden;     //---------------
-    overflow-x:         visible;
 }
 
 .luna-visualization-container {
     position:   relative;
     width:      300px;
-    background: @colorBackground;
+    .backgroundBase;
 }
 .luna-visualization-cover {
     position: absolute;
@@ -49,7 +49,7 @@
 }
 .luna-visualization--active {
     .luna-visualization-container {
-        background:    @colorBackground;
+        .backgroundBase;
         border-radius: @borderRadiusPx;
     }
     .luna-visualization-cover {

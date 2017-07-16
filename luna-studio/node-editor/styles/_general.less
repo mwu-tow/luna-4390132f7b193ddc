@@ -30,7 +30,7 @@ body { height: 100%; overflow: auto; }
 body,
 atom-workspace .luna-studio {
     font:                   12px/15px @fontDefault;
-    background:             @colorBackground;
+    .backgroundBase;
     font-weight:            300;
     font-variant-ligatures: contextual;
 }
@@ -97,7 +97,7 @@ atom-workspace .luna-studio {
     flex:          none;
     line-height:   16px;
     padding:       0 8px;
-    background:    @colorBreadcrumbs;
+    .background(1);
     border-radius: 100px;
 }
 
@@ -105,13 +105,13 @@ atom-workspace .luna-studio {
     float:   left;
     padding: 4px;
     cursor:  pointer;
-    color:   @colorBreadcrumbsText;
+    .color(8);
     &:not(:last-child) {
-        color: @colorBreadcrumbsTextInactive;
+        .color(6);
         &::after {
             cursor:      default;
             content:     ">";
-            color:       #444;
+            .color(4);
             margin-left: 8px;
             position:    relative;
             top:         1px;
@@ -125,11 +125,11 @@ atom-workspace .luna-studio {
 }
 
 .luna-graph {
-    background: @colorBackground;//#1a1a1a;
+    .backgroundBase; //#1a1a1a;
     position:   relative;
     flex:       none;
     overflow:   inherit;
-    color:      @colorName;
+    .color(8);
     width:      100%;
     height:     100%;
 }
