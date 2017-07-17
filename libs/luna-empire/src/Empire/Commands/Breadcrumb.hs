@@ -1,7 +1,8 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE ViewPatterns      #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module Empire.Commands.Breadcrumb where
 
@@ -39,7 +40,8 @@ import           Data.Text.Span                  (LeftSpacedSpan(..), SpacedSpan
 import           Empire.Commands.Library         (withLibrary)
 import           Empire.Empire                   (Command, CommunicationEnv, Empire, runEmpire)
 
-import qualified Luna.IR as IR
+import qualified Luna.IR              as IR
+import qualified OCI.IR.Combinators   as IR
 
 withBreadcrumb :: FilePath -> Breadcrumb BreadcrumbItem -> Command Graph.Graph a -> Command Graph.ClsGraph a -> Empire a
 withBreadcrumb file breadcrumb actG actC = withLibrary file $ zoomBreadcrumb breadcrumb actG actC
@@ -121,6 +123,9 @@ withRootedFunction uuid act = do
                     LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
                     let bodyLen = newGraph ^. Graph.bodyOffset + len
                     IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off bodyLen))
+                    Just (funExpr :: IR.Expr IR.ASGRootedFunction) <- IR.narrow fun
+                    let newRooted = IR.Rooted (newGraph ^. Graph.ast . Graph.ir) (newGraph ^. Graph.breadcrumbHierarchy . BH.self)
+                    IR.modifyExprTerm funExpr $ wrapped . IR.termASGRootedFunction_body .~ newRooted
                     return $ Just $ bodyLen - prevLen
                     else return Nothing
     let diff = fromMaybe (error "function not in AST?") $ listToMaybe $ catMaybes diffs

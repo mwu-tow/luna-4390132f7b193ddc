@@ -128,7 +128,6 @@ getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
 
 recomputeCurrentScope :: Command InterpreterEnv Imports
 recomputeCurrentScope = do
-    print "RECOMPUTE"
     imps <- use imports
     f    <- zoom graph $ runModuleTypecheck imps
     fileScope ?= f
