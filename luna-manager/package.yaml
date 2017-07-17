@@ -94,3 +94,16 @@ executables:
     main:          Main.hs
     source-dirs:   src
     other-modules: Paths_luna_manager
+  luna-studio-runner:
+    main: StudioRunner.hs
+    source-dirs: src
+    dependencies:
+        - base
+        - bytestring
+        - directory
+        - filepath
+        - exceptions
+        - path
+        - split
+        - text
+        - typed-process

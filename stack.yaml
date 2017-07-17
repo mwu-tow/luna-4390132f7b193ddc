@@ -3,8 +3,7 @@ ghc-options: {'*': -threaded}
 local-bin-path:
   ./executables
 packages:
-- location: ./manager
-- location: ./run
+- location: ./luna-manager
 - extra-dep: true
   location: {commit: 64179d2492e68016fb34d09b6faf966f3b9f91bd, git: 'https://github.com/luna/prologue.git'}
 - extra-dep: true

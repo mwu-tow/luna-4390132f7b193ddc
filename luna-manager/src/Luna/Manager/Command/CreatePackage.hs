@@ -2,24 +2,24 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Luna.Manager.Command.CreatePackage where
 
-import Prologue hiding (FilePath)
 
-import           Luna.Manager.System.Host
-import           Luna.Manager.System.Env
-import           Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable)
+
+import           Control.Lens.Aeson
+import           Control.Monad.Raise
+import           Control.Monad.State.Layered
+import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, parent)
 import           Luna.Manager.Archive
+import           Luna.Manager.Command.Options (MakePackageOpts)
 import           Luna.Manager.Component.Repository as Repo
 import           Luna.Manager.Network
-import           Luna.Manager.Command.Options (MakePackageOpts)
-import qualified Luna.Manager.Command.Options as Opts
-
-import Control.Lens.Aeson
-import Control.Monad.Raise
-import Control.Monad.State.Layered
+import           Luna.Manager.System (makeExecutable)
+import           Luna.Manager.System.Env
+import           Luna.Manager.System.Host
+import           Luna.Manager.System.Path
+import           Prologue hiding (FilePath)
 import qualified Data.Map as Map
 import qualified Data.Yaml as Yaml
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString)
+import qualified Luna.Manager.Command.Options as Opts
 import qualified Shelly.Lifted as Shelly
 import qualified System.Process.Typed as Process
 
@@ -124,12 +124,14 @@ downloadAndUnpackDependency appName resolvedPackage = do
     pkgConfig <- get @PackageConfig
     let depName = resolvedPackage ^. header . name
     pkgFolderPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName </> fromText depName
-    print $ show pkgFolderPath
+    atomAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName </> "Atom.app"
     downloadedPkg <- downloadFromURL $ resolvedPackage ^. desc . path
-    print $ show downloadedPkg
     unpacked <- unpackArchive downloadedPkg
-    print $ show unpacked
-    Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
+    case currentHost of
+        Linux -> Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
+        Darwin -> case depName of
+            "atom" -> Shelly.shelly $ Shelly.cmd "mv" unpacked atomAppPath --TODO moze atompowinien byc oznaczony jako gui app i inaczej kopiowany?
+            otherwise -> Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
 
 runApm :: (MonadIO m, Shelly.MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
 runApm apmPath atomHomePath onigurumaPath = do
@@ -139,10 +141,10 @@ runApm apmPath atomHomePath onigurumaPath = do
     let nodeModulesAtomHome = atomHomePath </> "node_modules"
         onigurumaAtomHome = atomHomePath </> "node_modules" </> "oniguruma"
     Shelly.mkdir_p nodeModulesAtomHome
-    -- Shelly.rm_rf onigurumaAtomHome
     Shelly.cp_r onigurumaPath nodeModulesAtomHome
     Shelly.setenv "ATOM_HOME" $ Shelly.toTextIgnore atomHomePath
     Shelly.cmd apmPath "install" "."
+
 
 createAppimage :: MonadCreatePackage m => Text -> m ()
 createAppimage appName = do
@@ -179,6 +181,30 @@ createAppimage appName = do
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" ++ (convert appName) ++ "|Exec=" ++ (convert appName) ++".wrapper|g\" " ++ (convert appName) ++ ".desktop"
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "generate_type2_appimage"
 
+apmPath :: MonadCreatePackage m => FilePath -> Text -> m FilePath
+apmPath defaultPackagePath appName = case currentHost of
+    Linux  -> expand $ defaultPackagePath </> fromText appName </> "atom" </> "usr" </> "share" </> "atom" </> "resources" </> "app" </> "apm" </> "bin" </> "apm"
+    Darwin -> expand $ defaultPackagePath </> fromText appName </> "Atom.app" </> "Contents" </> "Resources" </> "app" </> "apm" </> "bin" </> "apm"
+
+onigurumaPath :: MonadCreatePackage m => FilePath -> Text -> m FilePath
+onigurumaPath defaultPackagePath appName = case currentHost of
+    Linux  -> expand $ defaultPackagePath </> fromText appName </> "atom" </> "usr" </> "share" </> "atom" </> "resources" </> "app" </> "node_modules" </> "oniguruma"
+    Darwin -> expand $ defaultPackagePath </> fromText appName </> "Atom.app" </> "Contents" </> "Resources" </> "app" </> "node_modules" </> "oniguruma"
+
+linkLibs :: MonadIO m => FilePath -> m ()
+linkLibs binPath = do
+    -- Shelly.cd binPath
+    -- dylibs <- Process.runProcess $ Process.setWorkingDir (encodeString binPath) $ Process.shell "`otool -L ./luna-empire | grep \"/usr/local/opt\" | awk -F' ' '{ print $1 }'`"
+    -- print dylibs
+    -- Shelly.setenv "DYLIBS" dylibs
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./broker"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./bus-logger"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./luna-empire-invoker"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./luna-empire-logger"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./luna-empire"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./request-monitor"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./undo-redo"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./ws-connector"
 
 
 createPkg :: MonadCreatePackage m => ResolvedPackageMap -> m ()
@@ -190,17 +216,23 @@ createPkg resolvedApp = do
     let studio = pkgConfig ^. studioName
     case (resolvedApp ^. appName) of
         studio -> do
-            apmPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "atom" </> "usr" </> "share" </> "atom" </> "resources" </> "app" </> "apm" </> "bin" </> "apm"
-            onigurumaPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "atom" </> "usr" </> "share" </> "atom" </> "resources" </> "app" </> "node_modules" </> "oniguruma"
-            atomHomePath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "luna-atom" </> "packages" </> fromText (resolvedApp ^. appName)
+            apm             <- apmPath (pkgConfig ^. defaultPackagePath) (resolvedApp ^. appName)
+            oniguruma       <- onigurumaPath (pkgConfig ^. defaultPackagePath) (resolvedApp ^. appName)
+            atomHomePath    <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "luna-atom" </> "packages" </> fromText (resolvedApp ^. appName)
             atomDirInStudio <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> fromText (pkgConfig ^. studioFolderName) </> "atom"
             Shelly.shelly $ Shelly.mkdir_p atomHomePath
             Shelly.shelly $ copyDir atomDirInStudio atomHomePath
-            Shelly.shelly $ runApm apmPath atomHomePath onigurumaPath
+            Shelly.shelly $ runApm apm atomHomePath oniguruma
         otherwise -> return ()
     mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> fromText (resolvedApp ^. appName)
-    Shelly.shelly $ Shelly.cp "./executables/run"  mainAppDir
-    createAppimage (resolvedApp ^. appName)
+    Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
+    case currentHost of
+        Linux  -> createAppimage (resolvedApp ^. appName)
+        Darwin -> do
+            Shelly.shelly $ Shelly.cp ((parent mainAppDir) </> "zmq" </> "libzmq.5.dylib") ((parent mainAppDir) </> "luna" </> "bin")
+            Shelly.shelly $ linkLibs $ (parent mainAppDir) </> "luna" </> "bin"
+            Shelly.shelly $ createTarGzUnix (parent mainAppDir) (resolvedApp ^. appName)
+            return ()
 
 
 

@@ -5,6 +5,7 @@
 
 module Main where
 
+import Prelude
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString.Lazy  (unpack)
@@ -19,6 +20,9 @@ import System.IO
 import qualified  System.FilePath.Windows as Win
 import Data.Maybe (fromMaybe)
 import Path (parent, parseAbsFile, toFilePath)
+
+import           Luna.Manager.System.Host
+
 import qualified Data.Text as T
 default (T.Text)
 
@@ -86,14 +90,14 @@ frameworksMacOS = liftIO $ do
 
 backendDirMacOS :: IO FilePath
 backendDirMacOS = liftIO $ do
-    resources <- resourcesMacOS
-    backend <- prepPathNoHome [resources, current, lunaFolderName, supervisorFolderName]
+    resources <- mainDirMacOS
+    backend <- prepPathNoHome [resources, lunaFolderName, supervisorFolderName]
     return backend
 
 supervisordMacOS :: IO FilePath
 supervisordMacOS = liftIO $ do
-    resources   <- resourcesMacOS
-    supervisord <- prepPathNoHome [resources, current, supervisordFolderName, supervisordBin]
+    resources   <- mainDirMacOS
+    supervisord <- prepPathNoHome [resources, supervisordFolderName, supervisordBin]
     return supervisord
 
 atomMacOS :: IO FilePath
@@ -152,12 +156,12 @@ runLinux = do
 --MacOS
 copyLunaStudioMacOS :: IO ()
 copyLunaStudioMacOS = do
-  resources <- resourcesMacOS
+  resources <- mainDirMacOS
 
   atomHome <- lunaAtomHome
 
   createDirectoryIfMissing True atomHome
-  studioHomePath <- prepPathNoHome [resources, version, studioHome, "*"]
+  studioHomePath <- prepPathNoHome [resources, studioHome, "*"]
   runProcess_ $ shell ("cp -R " ++ studioHomePath ++ " " ++ atomHome)
 
 checkLunaHomeMacOS :: IO ()
@@ -174,8 +178,10 @@ runLunaEmpireMacOS = do
   lunaSupervisor <- backendDirMacOS
   supervisord    <- supervisordMacOS
   logs <- logsDir
+  print lunaSupervisor
+  print supervisord
   createDirectoryIfMissing True logs
-  runProcess_ $ setWorkingDir lunaSupervisor $ shell supervisord
+  runProcess_ $ setWorkingDir lunaSupervisor $ shell (supervisord  ++" -c supervisord-mac.conf")
 
 
 runMacOS :: IO ()
@@ -243,8 +249,10 @@ runWindows = do
 
 
 main :: IO ()
-main = do
-    currentDirr <- scriptDir
-    Environment.setEnv "LUNAATOM" currentDirr
-    checkLunaHome
-    runLunaEmpire
+main = case currentHost of
+    Linux -> do
+        currentDirr <- scriptDir
+        Environment.setEnv "LUNAATOM" currentDirr
+        checkLunaHome
+        runLunaEmpire
+    Darwin -> runMacOS

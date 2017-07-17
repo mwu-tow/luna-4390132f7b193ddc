@@ -145,7 +145,7 @@ postInstallation appType installPath binPath appName = do
     installConfig <- get @InstallConfig
     packageBin <- case currentHost of
         Linux   -> return $ installPath </> fromText (appName <> ".AppImage")
-        Darwin  -> return $ installPath </> fromText (mkSystemPkgName appName)
+        Darwin  -> return $ installPath </> fromText appName
         Windows -> return $ installPath </> fromText ((mkSystemPkgName appName) <> ".exe")
     currentBin <- case currentHost of
         Linux -> expand $ fromText binPath </> (installConfig ^. selectedBinPath)  </> fromText (mkSystemPkgName appName)
@@ -159,7 +159,22 @@ postInstallation appType installPath binPath appName = do
     makeExecutable packageBin
     linking packageBin currentBin
     linkingLocalBin currentBin appName
+    copyResources appType installPath appName
     runServices installPath appType
+
+copyResources :: MonadInstall m => AppType -> FilePath -> Text -> m ()
+copyResources appType installPath appName = case currentHost of
+    Linux -> return ()
+    Darwin -> case appType of
+        GuiApp -> do
+            let packageLogo = installPath </> "luna" </> "resources" </> "logo.png"
+                packageInfoPlist = installPath </> "luna" </> "resources" </> "Info.plist"
+                appLogo = parent installPath </> fromText (mkSystemPkgName appName <> ".png")
+                appInfoPlist = (parent $ parent installPath) </> "Info.plist"
+            Shelly.shelly $ Shelly.cp packageLogo appLogo
+            Shelly.shelly $ Shelly.cp packageInfoPlist appInfoPlist
+        BatchApp -> return ()
+
 
 linking :: MonadInstall m => FilePath -> FilePath -> m ()
 linking src dst = do

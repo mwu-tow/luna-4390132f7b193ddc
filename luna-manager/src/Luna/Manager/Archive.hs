@@ -10,7 +10,7 @@ import Luna.Manager.System.Host
 
 import Prologue hiding (FilePath)
 
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename)
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
 import qualified Shelly.Lifted as Shelly
 import           Shelly.Lifted (MonadSh, (-|-))
 import qualified System.Process.Typed as Process
@@ -70,3 +70,10 @@ unzipFileWindows zipFile = do
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
 unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " ++ (encodeString file) ++ " | cpio -idmv"
+
+createTarGzUnix :: Shelly.MonadSh m => FilePath  -> Text -> m FilePath
+createTarGzUnix folder appName = do
+    let name =  (parent folder) </> Shelly.fromText (appName <> ".tar.gz")
+    Shelly.cd $ parent folder
+    Shelly.cmd "tar" "-cpzf" name $ dirname folder
+    return name
