@@ -50,6 +50,9 @@ data Command = Cancel
              -- undo/redo
              | Undo
              | Redo
+             -- mock-monads
+             | MockAddMonad
+             | MockClearMonads
              deriving (Bounded, Eq, Enum, FromJSON, Generic, NFData, Read, Show, Typeable)
 
 data ShortcutEvent = Event
