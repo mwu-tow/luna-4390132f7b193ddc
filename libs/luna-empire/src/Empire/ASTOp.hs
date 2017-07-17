@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE LambdaCase                 #-}
 
 module Empire.ASTOp (
     ASTOp
@@ -23,6 +24,7 @@ module Empire.ASTOp (
   , runPass
   , runPM
   , runTypecheck
+  , runModuleTypecheck
   , match
   ) where
 
@@ -43,7 +45,7 @@ import           Empire.Empire        (Command)
 import           Data.Event           (Emitters, type (//))
 import           Data.Graph.Class     (MonadRefLookup(..), Net)
 import           Data.TypeDesc        (getTypeDesc)
-import           Luna.IR              hiding (Marker, get, put, match)
+import           Luna.IR              as IR hiding (Marker, get, put, match)
 import           Luna.IR.Layer.Succs  (Succs)
 import           OCI.Pass.Class       (Inputs, Outputs, Preserves, KnownPass)
 import           OCI.IR.Class         (Import)
@@ -69,6 +71,11 @@ import qualified Control.Monad.State.Dependent.Old as DepOld
 import           Luna.Pass.Data.ExprMapping
 import           Luna.Builtin.Data.Module          (Imports (..))
 import           Luna.Pass.Resolution.Data.CurrentTarget (CurrentTarget (TgtNone))
+import qualified Luna.Pass.UnitCompilation.ModuleProcessing as ModuleTC
+import qualified Luna.Pass.Sourcing.UnitLoader              as UnitLoader
+import           Luna.IR.Term.World                         (WorldExpr)
+import           Luna.IR.Term.Unit                          (UnitSet)
+import           Luna.Syntax.Text.Parser.Errors             (Invalids)
 
 import           GHC.Stack
 
@@ -234,6 +241,30 @@ runTypecheck imports = do
         passSt <- DepState.get @Pass.State
         return (st, passSt)
     put $ newG & Graph.ast .~ AST st passSt
+
+runModuleTypecheck :: Imports -> Command ClsGraph Imports
+runModuleTypecheck imps = do
+    unit <- use Graph.clsClass
+    g <- get
+    AST ir pmState <- use Graph.clsAst
+    let evalIR = flip runStateT g
+               . withVis
+               . dropLogs
+               . DepState.evalDefStateT @Cache
+               . flip evalIRBuilder ir
+               . flip evalPassManager pmState
+    (res, newG) <- liftIO $ evalIR $ do
+        Pass.setAttr (getTypeDesc @WorldExpr)                 $ error "Data not provided: WorldExpr"
+        Pass.setAttr (getTypeDesc @UnitLoader.UnitsToLoad)    $ error "Data not provided: UnitsToLoad"
+        Pass.setAttr (getTypeDesc @UnitLoader.SourcesManager) $ error "Data not provided: SourcesManager"
+        Pass.setAttr (getTypeDesc @UnitSet)                   $ error "Data not provided: UnitSet"
+        Pass.setAttr (getTypeDesc @Invalids)                  $ (mempty :: Invalids)
+        Pass.eval' $ do
+            cls <- IR.matchExpr unit $ \case
+                IR.Unit _ _ c -> IR.source c
+            UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
+        snd <$> ModuleTC.processModule' imps def (IR.unsafeGeneralize unit)
+    return res
 
 putNewIR :: IR -> Command Graph ()
 putNewIR ir = do

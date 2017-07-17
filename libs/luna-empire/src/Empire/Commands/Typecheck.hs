@@ -19,10 +19,12 @@ import qualified LunaStudio.Data.Error            as APIError
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
 import           LunaStudio.Data.Node             (NodeId)
 import           LunaStudio.Data.NodeValue        (NodeValue (..), VisualizationValue (..))
+import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..))
 
-import           Empire.ASTOp                     (runASTOp, runTypecheck)
+import           Empire.ASTOp                     (runASTOp, runTypecheck, runModuleTypecheck)
 import qualified Empire.ASTOps.Read               as ASTRead
 import           Empire.Commands.Breadcrumb       (zoomBreadcrumb')
+import           Empire.Commands.AST              as AST
 import qualified Empire.Commands.GraphBuilder     as GraphBuilder
 import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.BreadcrumbHierarchy  (topLevelIDs)
@@ -33,7 +35,7 @@ import           Empire.Empire
 
 import           Luna.Builtin.Data.Class          (Class (..))
 import           Luna.Builtin.Data.LunaEff        (runError, runIO)
-import           Luna.Builtin.Data.Module         (Imports (..), importedClasses)
+import           Luna.Builtin.Data.Module         (Imports (..), importedClasses, unionImports)
 import           Luna.Builtin.Prim                (SingleRep (..), ValueRep (..), getReps)
 import qualified Luna.Compilation                 as Compilation
 import qualified Luna.IR                          as IR
@@ -124,17 +126,36 @@ getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
     classes   = processClass <$> Map.mapKeys convert clss
     processClass (Class _ methods) = convert <$> Map.keys methods
 
+recomputeCurrentScope :: Command InterpreterEnv Imports
+recomputeCurrentScope = do
+    print "RECOMPUTE"
+    imps <- use imports
+    f    <- zoom graph $ runModuleTypecheck imps
+    fileScope ?= f
+    return f
+
+getCurrentScope :: Command InterpreterEnv Imports
+getCurrentScope = do
+    fs   <- use fileScope
+    case fs of
+        Just f -> return f
+        _      -> recomputeCurrentScope
+
 run :: GraphLocation -> Command InterpreterEnv ()
 run loc@(GraphLocation _ br) = do
-    std     <- use imports
-    cln     <- use cleanUp
-    threads <- use listeners
+    std        <- use imports
+    cln        <- use cleanUp
+    threads    <- use listeners
+    scope      <- getCurrentScope
+    let imps = unionImports std scope
     listeners .= []
-    zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
-        runTC std
-        updateNodes  loc
-        {-updateMonads loc-}
-        liftIO cln
-        liftIO $ mapM killThread threads
-        scope <- runInterpreter std
-        mapM_ (updateValues loc) scope
+    case br of
+        Breadcrumb [] -> void $ recomputeCurrentScope
+        _             -> zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
+            runTC imps
+            updateNodes  loc
+            {-updateMonads loc-}
+            liftIO cln
+            liftIO $ mapM killThread threads
+            scope <- runInterpreter imps
+            mapM_ (updateValues loc) scope
