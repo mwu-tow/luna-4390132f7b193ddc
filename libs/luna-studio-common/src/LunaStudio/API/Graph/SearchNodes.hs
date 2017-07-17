@@ -1,6 +1,7 @@
 module LunaStudio.API.Graph.SearchNodes where
 
 import           Data.Binary                   (Binary)
+import           Data.Map                      (Map)
 import qualified LunaStudio.API.Graph.Request  as G
 import qualified LunaStudio.API.Request        as R
 import qualified LunaStudio.API.Response       as Response
@@ -14,7 +15,8 @@ import           Prologue
 data Request = Request { _location :: GraphLocation
                        } deriving (Eq, Generic, NFData, Show)
 
-data Result  = Result  { _nodeSearcherData :: Items ExpressionNode
+data Result  = Result  { _globalFunctions :: [Text]
+                       , _globalClasses   :: Map Text [Text]
                        } deriving (Eq, Generic, NFData, Show)
 
 makeLenses ''Request

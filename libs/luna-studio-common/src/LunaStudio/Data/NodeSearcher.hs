@@ -3,7 +3,8 @@ module LunaStudio.Data.NodeSearcher
     , module LunaStudio.Data.NodeSearcher
     ) where
 
-import qualified Data.Map.Lazy           as Map
+import           Data.Map                (Map)
+import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.UUID.Types         as UUID
 import           LunaStudio.Data.Node    (ExpressionNode, mkExprNode)
@@ -18,3 +19,8 @@ entry name = (name, Element $ mockNode name)
 
 methodEntry :: Text -> [Text] -> (Text, Item ExpressionNode)
 methodEntry className methodList = (className, Group (Map.fromList $ entry <$> methodList) $ mockNode className)
+
+prepareNSData :: [Text] -> Map Text [Text] -> Items ExpressionNode
+prepareNSData functions classesMap = Map.fromList $ functionsList <> methodsList where
+    functionsList = entry <$> functions
+    methodsList   = (uncurry methodEntry) <$> Map.toList classesMap

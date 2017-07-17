@@ -98,7 +98,7 @@ import           System.FilePath                        ((</>))
 import qualified System.Log.MLogger                     as Logger
 import           ZMQ.Bus.Trans                          (BusT (..))
 
-import           GHC.Stack (whoCreated, renderStack)
+import           GHC.Stack                              (renderStack, whoCreated)
 
 
 logger :: Logger.Logger
@@ -212,12 +212,6 @@ getSrcPortByNodeId nid = OutPortRef (NodeLoc def nid) []
 
 getDstPortByNodeLoc :: NodeLoc -> AnyPortRef
 getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
-
-prepareNSData :: Empire.SymbolMap -> NS.Items ExpressionNode
-prepareNSData sMap = Map.fromList $ functionsList <> methodsList where
-    functionsList = NS.entry <$> sMap ^. Empire.functions
-    classesMap = sMap ^. Empire.classes
-    methodsList = (uncurry NS.methodEntry) <$> Map.toList classesMap
 
 
 -- Handlers
@@ -369,7 +363,7 @@ handleRenamePort = modifyGraph inverse action replyResult where --FIXME[pm] impl
 
 handleSearchNodes :: Request SearchNodes.Request -> StateT Env BusT ()
 handleSearchNodes = modifyGraph defInverse action replyResult where
-    action _ = SearchNodes.Result . prepareNSData <$> (liftIO . readMVar =<< view Empire.scopeVar)
+    action _ = (\sMap -> SearchNodes.Result (sMap ^. Empire.functions) (sMap ^. Empire.classes)) <$> (liftIO . readMVar =<< view Empire.scopeVar)
 
 handleSetNodeExpression :: Request SetNodeExpression.Request -> StateT Env BusT ()-- fixme [SB] returns Result with no new informations and change node expression has addNode+removeNodes
 handleSetNodeExpression = modifyGraph inverse action replyResult where
