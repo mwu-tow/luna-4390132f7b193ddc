@@ -53,6 +53,7 @@ module Empire.Commands.Graph
     , withGraph'
     , withUnit
     , runTC
+    , getName
     ) where
 
 import           Control.Arrow                    ((&&&))
@@ -67,6 +68,7 @@ import qualified Data.Map                         as Map
 import           Data.Maybe                       (fromMaybe, maybeToList)
 import qualified Data.Set                         as Set
 import           Data.Text                        (Text)
+import           Data.Text.Strict.Lens            (packed)
 import qualified Data.Text                        as Text
 import qualified Data.Text.IO                     as Text
 import           Data.Text.Position               (Delta)
@@ -997,6 +999,9 @@ markerCodeSpan loc index = withGraph loc $ runASTOp $ do
     readRange ref
 
 -- internal
+
+getName :: GraphLocation -> NodeId -> Empire (Maybe Text)
+getName loc nid = withGraph' loc (runASTOp $ GraphBuilder.getNodeName nid) $ use (Graph.clsFuns . ix nid . _1 . packed . re _Just)
 
 runTC :: GraphLocation -> Bool -> Command ClsGraph ()
 runTC loc flush = do

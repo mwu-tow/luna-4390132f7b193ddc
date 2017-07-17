@@ -354,8 +354,8 @@ handleRemovePort = modifyGraph inverse action replyResult where
 handleRenameNode :: Request RenameNode.Request -> StateT Env BusT ()
 handleRenameNode = modifyGraph inverse action replyResult where
     inverse (RenameNode.Request location nodeId name) = do
-        prevName <- Graph.withGraph location $ runASTOp $ getNodeName nodeId
-        return $ RenameNode.Inverse $ maybe "" id  prevName
+        prevName <- Graph.getName location nodeId
+        return $ RenameNode.Inverse $ fromMaybe "" prevName
     action (RenameNode.Request location nodeId name) = withDefaultResult location $
         Graph.renameNode location nodeId name
 
