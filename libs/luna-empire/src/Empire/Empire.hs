@@ -16,6 +16,8 @@ import           LunaStudio.Data.PortDefault   (PortValue)
 import           LunaStudio.Data.Project       (ProjectId)
 import           LunaStudio.Data.TypeRep       (TypeRep)
 import           Luna.Builtin.Data.Module      (Imports)
+import           Luna.Builtin.Data.Function    (Function)
+import           OCI.IR.Name                   (Name)
 
 import           Control.Concurrent.STM.TChan  (TChan)
 import           Control.Concurrent.MVar       (MVar)
@@ -57,6 +59,7 @@ instance Show CommunicationEnv where
 data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _nodesCache  :: Map NodeId ExpressionNode
                                      , _errorsCache :: Map NodeId APIError.Error
+                                     , _fileScope   :: Maybe Imports
                                      , _graph       :: ClsGraph
                                      , _cleanUp     :: IO ()
                                      , _listeners   :: [ThreadId]
