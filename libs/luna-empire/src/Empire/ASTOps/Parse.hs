@@ -13,6 +13,7 @@ module Empire.ASTOps.Parse (
   , runFunHackParser
   , runReparser
   , runProperParser
+  , runProperVarParser
   ) where
 
 import           Data.Convert
@@ -87,7 +88,6 @@ runProperParser code = do
     runPM $ do
         parserBoilerplate
         attachEmpireLayers
-        -- putStrLn $ Text.unpack code
         IR.setAttr (getTypeDesc @Source.Source) $ (convert code :: Source.Source)
         (unit, root) <- Pass.eval' @ParserPass $ do
             Parsing.parsingPassM Parsing.unit' `catchAll` (\e -> throwM $ SomeParserException e)
@@ -96,6 +96,18 @@ runProperParser code = do
             return (unwrap' res, root)
         Just exprMap <- unsafeCoerce <$> IR.unsafeGetAttr (getTypeDesc @Parser.MarkedExprMap)
         return (unit, root, exprMap)
+
+runProperVarParser :: Text.Text -> IO NodeRef
+runProperVarParser code = do
+    runPM $ do
+        parserBoilerplate
+        attachEmpireLayers
+        IR.setAttr (getTypeDesc @Source.Source) $ (convert code :: Source.Source)
+        var <- Pass.eval' @ParserPass $ do
+            Parsing.parsingPassM Parsing.var `catchAll` (\e -> throwM $ SomeParserException e)
+            res  <- IR.getAttr @Parser.ParsedExpr
+            return (unwrap' res)
+        return var
 
 runParser :: Text.Text -> Command Graph (NodeRef, Parser.MarkedExprMap)
 runParser expr = do

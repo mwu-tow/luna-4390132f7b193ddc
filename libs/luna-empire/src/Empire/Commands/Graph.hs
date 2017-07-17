@@ -718,12 +718,42 @@ decodeLocation loc@(GraphLocation file crumbs) = case crumbs of
             withGraph (functionLocation loc) $ GraphBuilder.decodeBreadcrumbs definitionsIDs crumbs
 
 renameNode :: GraphLocation -> NodeId -> Text -> Empire ()
-renameNode loc nid name = do
-    withTC loc False $ runASTOp $ do
-        v <- ASTRead.getASTVar nid
-        ASTModify.renameVar v $ convert name
-        Code.replaceAllUses v name
-    resendCode loc
+renameNode loc nid name
+    | GraphLocation _ (Breadcrumb []) <- loc = do
+        withUnit loc $ do
+            let stripped = Text.strip name
+            _ <- liftIO $ ASTParse.runProperVarParser stripped
+            oldName <- use $ Graph.clsFuns . ix nid . _1
+            Graph.clsFuns %= Map.adjust (_1 .~ (Text.unpack stripped)) nid
+            runASTOp $ do
+                fun <- ASTRead.getFunByName oldName
+                Just (fun' :: IR.Expr (IR.ASGRootedFunction)) <- IR.narrow fun
+                IR.modifyExprTerm fun' $ wrapped . IR.termASGRootedFunction_name .~ convert stripped
+
+                -- self <- use $ Graph.clsFuns . ix nid . _2 . Graph.breadcrumbHierarchy . BH.self
+                -- propagateLengths self
+
+                LeftSpacedSpan (SpacedSpan off oldLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan fun
+                let lengthDiff = fromIntegral (Text.length stripped - length oldName)
+                    newLen = oldLen + lengthDiff
+                IR.putLayer @CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off newLen))
+
+                Graph.clsFuns . ix nid . _2 . Graph.bodyOffset += lengthDiff
+                g <- preuse (Graph.clsFuns . ix nid . _2) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Breadcrumb.Definition nid])
+                let funOffset = g ^. Graph.fileOffset
+                Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off > funOffset then off + lengthDiff else off)
+
+                functionStart <- Code.functionBlockStartRef fun
+                let functionNameStart = functionStart + 4 -- "def "
+                    functionNameEnd   = functionNameStart + fromIntegral (length oldName)
+                Code.applyDiff functionNameStart functionNameEnd stripped
+        resendCode loc
+    | otherwise = do
+        withTC loc False $ runASTOp $ do
+            v <- ASTRead.getASTVar nid
+            ASTModify.renameVar v $ convert name
+            Code.replaceAllUses v name
+        resendCode loc
 
 dumpGraphViz :: GraphLocation -> Empire ()
 dumpGraphViz loc = withGraph loc $ return ()

@@ -1,7 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
-{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE QuasiQuotes               #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TupleSections             #-}
 
 module FileModuleSpec (spec) where
 
@@ -10,6 +11,7 @@ import qualified Data.Map                       as Map
 import qualified Data.Set                       as Set
 import qualified Data.Text                      as Text
 import           Empire.ASTOp                   (runASTOp)
+import           Empire.ASTOps.Parse            (SomeParserException)
 import qualified Empire.Commands.AST            as AST
 import qualified Empire.Commands.Code           as Code
 import qualified Empire.Commands.Graph          as Graph
@@ -34,7 +36,7 @@ import           Empire.Empire
 import           Empire.Prelude
 
 import           Test.Hspec                     (Expectation, Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
-                                                 shouldNotBe, shouldSatisfy, shouldStartWith, xit)
+                                                 shouldNotBe, shouldSatisfy, shouldStartWith, shouldThrow, xit)
 
 import           EmpireUtils
 
@@ -211,6 +213,94 @@ spec = around withChannels $ parallel $ do
             normalizeQQ code `shouldBe` normalizeQQ [r|
                 def foo:
                     5
+
+                def main:
+                    print bar
+                |]
+        it "renames function at top-level" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            find (\n -> n ^. Node.name == Just "qwerty") nodes `shouldSatisfy` isJust
+            find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def qwerty:
+                    "bar"
+
+                def main:
+                    print bar
+                |]
+        it "renames function at top-level and inserts a node" $ \env -> do
+            u1 <- mkUUID
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
+                Graph.addNode (loc |>= bar ^. Node.nodeId) u1 "1" (atXPos (-10))
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            find (\n -> n ^. Node.name == Just "qwerty") nodes `shouldSatisfy` isJust
+            find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def qwerty:
+                    node1 = 1
+                    "bar"
+
+                def main:
+                    print bar
+                |]
+        it "renames function at top-level and inserts a node in another function" $ \env -> do
+            u1 <- mkUUID
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                let Just main = find (\n -> n ^. Node.name == Just "main") nodes
+                Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
+                Graph.addNode (loc |>= main ^. Node.nodeId) u1 "1" (atXPos (-10))
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def qwerty:
+                    "bar"
+
+                def main:
+                    node1 = 1
+                    print bar
+                |]
+        it "fails at renaming function to illegal name" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                Graph.renameNode loc (bar ^. Node.nodeId) ")" `catch` (\(_e :: SomeParserException) -> return ())
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isJust
+            normalizeQQ code `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+
+                def bar:
+                    "bar"
 
                 def main:
                     print bar
@@ -467,3 +557,19 @@ spec = around withChannels $ parallel $ do
                 code <- Graph.getCode loc
                 return (offsets, code)
             offsets `shouldMatchList` [("foo",0), ("main",19)]
+        it "maintains proper function file offsets after renaming a function" $ \env -> do
+            u1 <- mkUUID
+            (offsets, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                offsets <- Graph.withUnit loc $ do
+                    funs <- use Graph.clsFuns
+                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                code <- Graph.getCode loc
+                return (offsets, code)
+            offsets `shouldMatchList` [("foo", 0), ("qwerty", 19), ("main", 45)]
