@@ -114,13 +114,12 @@ runParser expr = do
         return (unwrap' res, exprMap)
 
 prepareInput :: Text.Text -> Text.Text
-prepareInput expr = Text.concat ["def ", varName, ":\n    None"]
+prepareInput expr = Text.concat [header, ":\n    None"]
     where
         stripped = Text.strip expr
-        varName  = case Text.splitOn " " stripped of
-            [var]      -> var
-            [def, var] -> var
-            _          -> ""
+        header   = case Text.splitOn " " stripped of
+            (def:var:args) -> Text.intercalate " " (def:var:args)
+            i              -> Text.concat i
 
 runFunHackParser :: Text.Text -> Command ClsGraph (NodeRef, Text.Text)
 runFunHackParser expr = do

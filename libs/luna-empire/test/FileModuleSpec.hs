@@ -93,18 +93,18 @@ spec = around withChannels $ parallel $ do
             -- nodes are layouted in a left-to-right manner
             let uniquePositions = Set.toList $ Set.fromList $ map (view (Node.nodeMeta . NodeMeta.position . Position.x)) nodes
             length uniquePositions `shouldBe` 3
-        it "adds function at top-level" $ \env -> do
+        it "adds function at top-level with arguments" $ \env -> do
             u1 <- mkUUID
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.addNode loc u1 "quux" def
+                Graph.addNode loc u1 "def quux a b c" def
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ code `shouldBe` normalizeQQ [r|
-                def quux:
+                def quux a b c:
                     None
 
                 def foo:
@@ -122,7 +122,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.addNode loc u1 "quux" $ set NodeMeta.position (Position.fromTuple (200,0)) def
+                Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (200,0)) def
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
@@ -145,7 +145,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.addNode loc u1 "quux" $ set NodeMeta.position (Position.fromTuple (500,0)) def
+                Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (500,0)) def
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
@@ -191,7 +191,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                n <- Graph.addNode loc u1 "quux" def
+                n <- Graph.addNode loc u1 "def quux" def
                 Graph.getGraph (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
             length (graph ^. Graph.nodes) `shouldBe` 0
             let Just (Node.OutputSidebar _ ports) = graph ^. Graph.outputSidebar
@@ -444,7 +444,7 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
                 u1 <- mkUUID
-                Graph.addNode loc u1 "aaa" (atXPos 150)
+                Graph.addNode loc u1 "def aaa" (atXPos 150)
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
