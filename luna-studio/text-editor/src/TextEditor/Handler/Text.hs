@@ -25,11 +25,11 @@ handle (Event.Atom (InternalEvent FileChanged filepath _)) = Just $ ActBatch.fil
 handle (Event.Atom (InternalEvent Copy filepath selections)) = Just $ ActBatch.getBuffer filepath selections
 
 handle (Event.Batch (SubstituteResponse response)) = Just $ handleResponse response doNothing doNothing
-handle (Event.Batch (BufferGetResponse  response)) = Just $ handleResponse response success doNothing where
+handle (Event.Batch (BufferGetResponse  response)) = Just $ timeIt "BufferGetResponse" $ handleResponse response success doNothing where
    success result = do
        let uri  = response ^. Response.request . GetBuffer.filePath
            code = result ^. GetBuffer.code
-       liftIO $ pushBuffer (convert uri) (convert code)
+       liftIO (pushBuffer (convert uri) (convert code)) <!!> "pushBuffer"
 
 
 handle (Event.Batch (SubstituteUpdate (Substitute.Update path start end text cursor))) =

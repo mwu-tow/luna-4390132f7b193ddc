@@ -23,14 +23,13 @@ nodeValue_ ref n = React.view nodeValue (ref, n) mempty
 
 nodeValue :: ReactView (Ref App, ExpressionNode)
 nodeValue = React.defineView nodeValueName $ \(ref, n) ->
-    -- TODO[JK]: Squeeze these divs into one
     div_
-        [ "key"       $= "results"
-        , "className" $= Style.prefixFromList ["node__results", "node-translate"]
+        [ "key"       $= "shortValuePositioner"
+        , "className" $= Style.prefixFromList ["node__short-value-positioner", "noselect",  "node-translate"]
         ] $ do
         div_
             [ "key"       $= "shortValue"
-            , "className" $= Style.prefixFromList ["node__short-value", "noselect"]
+            , "className" $= Style.prefixFromList ["node__short-value", "noselect" ]
             , onDoubleClick $ \e _ -> [stopPropagation e]
             , onClick       $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.ShowFullError $ n ^. Node.nodeLoc
             ] $ elemString $ strValue n

@@ -162,6 +162,9 @@ module.exports = LunaStudio =
     # undo/redo
     @subs.add atom.commands.add '.luna-studio', 'core:redo': -> pushShortcutEvent("Redo")
     @subs.add atom.commands.add '.luna-studio', 'core:undo': -> pushShortcutEvent("Undo")
+    # MockMonads
+    @subs.add atom.commands.add '.luna-studio', 'luna-studio:mock-add-monad': -> pushShortcutEvent("MockAddMonad")
+    @subs.add atom.commands.add '.luna-studio', 'luna-studio:mock-clear-monads': -> pushShortcutEvent("MockClearMonads")
 
   deactivate: ->
     @subs.dispose()

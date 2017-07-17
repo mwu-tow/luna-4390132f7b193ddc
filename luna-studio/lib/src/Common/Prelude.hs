@@ -33,6 +33,7 @@ import           Data.String               as X (IsString (fromString))
 import           Data.Text                 as X (Text)
 import           Data.Traversable          as X (forM, mapM, sequenceA)
 import           Data.Typeable             as X (Typeable)
+import           Debug                     as X (timeIt, (<!!>))
 import           Development.Placeholders  as X
 import           GHC.Generics              as X (Generic)
 import           GHCJS.Marshal             as X (FromJSVal (..), ToJSVal (..))

@@ -22,6 +22,7 @@ import qualified Empire.Data.Graph              as Graph
 import           LunaStudio.Data.Breadcrumb     (Breadcrumb (..), BreadcrumbItem (..))
 import qualified LunaStudio.Data.Breadcrumb     as Breadcrumb
 import qualified LunaStudio.Data.Graph          as Graph
+import           LunaStudio.Data.Constants      (gapBetweenNodes)
 import           LunaStudio.Data.GraphLocation  (GraphLocation (..))
 import qualified LunaStudio.Data.Node           as Node
 import           LunaStudio.Data.NodeMeta       (NodeMeta(..))
@@ -534,7 +535,7 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
                 u1 <- mkUUID
-                Graph.addNode loc u1 "def aaa" (atXPos 150)
+                Graph.addNode loc u1 "def aaa" (atXPos $ 1.5 * gapBetweenNodes)
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns

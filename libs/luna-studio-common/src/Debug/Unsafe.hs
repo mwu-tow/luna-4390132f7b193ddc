@@ -1,10 +1,10 @@
-module Unsafe.Debug where
+module Debug.Unsafe where
 
+import           Control.Concurrent
+import           Data.Time.Clock    (diffUTCTime, getCurrentTime)
 import           Prologue
+import           System.CPUTime
 import           System.IO.Unsafe
-import           Data.Time.Clock  (diffUTCTime, getCurrentTime)
-import System.CPUTime
-import Control.Concurrent
 
 debugPrint :: (Show a, Monad m) => a -> m ()
 debugPrint = unsafeLiftIO . print
@@ -20,8 +20,8 @@ unsafeLiftIO action = do
     let r = unsafePerformIO action
     r `seq` return r
 
-timeIt :: Monad m => String -> m a -> m a
-timeIt name action = do
+timeIt' :: Monad m => String -> m a -> m a
+timeIt' name action = do
     (cpuStart, start) <- unsafeLiftIO $ do
         putStrLn $ ">> " <> name
         (,) <$> getCPUTime <*> getCurrentTime

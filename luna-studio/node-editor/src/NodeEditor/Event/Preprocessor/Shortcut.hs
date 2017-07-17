@@ -70,6 +70,9 @@ handleKeyApp evt
     | Keys.withCtrl         evt Keys.z          = Just Undo
     | Keys.withCtrl         evt Keys.y          = Just Redo
     | Keys.withCtrlShift    evt Keys.z          = Just Redo
+    -- mock-monads
+    | Keys.withCtrl         evt Keys.m          = Just MockAddMonad
+    | Keys.withCtrlShift    evt Keys.m          = Just MockClearMonads
     --
     | otherwise                                 = Nothing
 

@@ -27,6 +27,7 @@ import qualified NodeEditor.Handler.Camera              as Camera
 import qualified NodeEditor.Handler.Clipboard           as Clipboard
 import qualified NodeEditor.Handler.Connect             as Connect
 import qualified NodeEditor.Handler.ConnectionPen       as ConnectionPen
+import qualified NodeEditor.Handler.MockMonads          as MockMonads
 import qualified NodeEditor.Handler.MultiSelection      as MultiSelection
 import qualified NodeEditor.Handler.Navigation          as Navigation
 import qualified NodeEditor.Handler.Node                as Node
@@ -69,6 +70,7 @@ actions loop =
     , Undo.handle
     , Searcher.handle (scheduleEvent loop)
     , Visualization.handle
+    , MockMonads.handle
     ]
 
 runCommands :: [Event -> Maybe (Command State ())] -> Event -> Command State ()
