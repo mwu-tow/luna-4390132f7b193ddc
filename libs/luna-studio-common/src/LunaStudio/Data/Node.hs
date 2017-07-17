@@ -21,6 +21,7 @@ data Node = ExpressionNode' ExpressionNode | InputSidebar' InputSidebar | Output
 
 data ExpressionNode = ExpressionNode { _exprNodeId       :: NodeId
                                      , _expression       :: Text
+                                     , _isDefinition     :: Bool
                                      , _name             :: Maybe Text
                                      , _code             :: Text
                                      , _inPorts          :: InPortTree  InPort
@@ -69,6 +70,7 @@ instance HasNodeId Node where
 mkExprNode :: NodeId -> Text -> Position -> ExpressionNode
 mkExprNode nid expr pos = ExpressionNode nid
                                          expr
+                                         False
                                          def
                                          def
                                          (Port.LabeledTree (Port.InPorts (Just $ Port.LabeledTree def $ Port.Port [Port.Self] (Text.pack "") TStar Port.NotConnected) def def) (Port.Port [] (Text.pack "") TStar Port.NotConnected))

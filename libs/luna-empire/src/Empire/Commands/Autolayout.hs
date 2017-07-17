@@ -16,7 +16,7 @@ import           Data.Traversable          (forM)
 import           Empire.Prelude
 import           LunaStudio.Data.Constants (gapBetweenNodes)
 import           LunaStudio.Data.Geometry  (snap)
-import           LunaStudio.Data.Node      (ExpressionNode, NodeId, exprNodeId, findPredecessorPosition, findSuccessorPosition, position)
+import           LunaStudio.Data.Node      (ExpressionNode, NodeId, exprNodeId, position)
 import           LunaStudio.Data.Port      (isSelf)
 import           LunaStudio.Data.PortRef   (InPortRef, OutPortRef, dstNodeId, dstPortId, srcNodeId, srcPortId)
 import           LunaStudio.Data.Position  (Position, fromDoubles, leftTopPoint, move, vector, x, y)
@@ -47,14 +47,14 @@ type SubgraphMap       = Map NodeId Subgraph
 type AutolayoutState a = S.State NodesInfoMap a
 
 
-autolayoutNodes :: [NodeId] -> [ExpressionNode] -> [Connection] -> [(NodeId, Position)]
+autolayoutNodes :: [NodeId] -> [(NodeId, Position)] -> [Connection] -> [(NodeId, Position)]
 autolayoutNodes nids allNodes allConns =
     let nidsSet   = Set.fromList nids
-        nodeInSet = flip Set.member nidsSet . view exprNodeId
+        nodeInSet = flip Set.member nidsSet . view _1
         nodes = filter nodeInSet allNodes
-        leftTop  = maybe (fromDoubles 0 0) snap $ leftTopPoint $ view position <$> nodes
+        leftTop  = maybe (fromDoubles 0 0) snap $ leftTopPoint $ view _2 <$> nodes
         nodesMap = Map.fromList $ flip map nodes $ \n ->
-            let nid       = n ^. exprNodeId
+            let nid       = n ^. _1
                 inConns'  = filter ((== nid) . view (_2 . dstNodeId)) allConns
                 outConns' = filter ((== nid) . view (_1 . srcNodeId)) allConns
             in (nid, NodeInfo nid leftTop Nothing NotProcessed inConns' outConns')
@@ -64,7 +64,7 @@ autolayoutNodes nids allNodes allConns =
 clearDFSState :: AutolayoutState ()
 clearDFSState = traverse . dfsState .= NotProcessed
 
-findPositions :: Position -> [ExpressionNode] -> [Connection] -> AutolayoutState ()
+findPositions :: Position -> [(NodeId, Position)] -> [Connection] -> AutolayoutState ()
 findPositions pos allNodes allConns = do
     removeCycles
     nids <- gets Map.keys
@@ -308,22 +308,35 @@ alignNodesY pos = do
     void $ foldlM alignSubgraph pos subgraphs
     fmap Map.fromList . forM subgraphs $ fmap (view subgraphId &&& id) . refreshSubgraph
 
-alignToEndpoint :: SubgraphMap -> [ExpressionNode] -> [Connection] -> AutolayoutState ()
+findPredecessorPosition :: (NodeId, Position) -> [(NodeId, Position)] -> Position
+findPredecessorPosition node nodes = fromDoubles xPos yPos where
+    xPos = (node ^. _2 . x) - gapBetweenNodes
+    yPos = findYPos $ node ^. _2 . y
+    findYPos y' = if any (\n -> n ^. _2 . x == xPos && n ^. _2 . y == y') nodes then findYPos $ y' - gapBetweenNodes else y'
+
+findSuccessorPosition :: (NodeId, Position) -> [(NodeId, Position)] -> Position
+findSuccessorPosition node nodes = fromDoubles xPos yPos where
+    xPos = (node ^. _2 . x) + gapBetweenNodes
+    yPos = findYPos $ node ^. _2 . y
+    findYPos y' = if any (\n -> n ^. _2 . x == xPos && n ^. _2 . y == y') nodes then findYPos $ y' + gapBetweenNodes else y'
+
+
+alignToEndpoint :: SubgraphMap -> [(NodeId, Position)] -> [Connection] -> AutolayoutState ()
 alignToEndpoint subgraphs nodes conns = forM_ subgraphs $ \s -> forM_ (findEndPoint s nodes conns) $ \((src, dst), node) -> do
-    mayNode <- lookupNode $ if src ^. srcNodeId /= node ^. exprNodeId then src ^. srcNodeId else dst ^. dstNodeId
+    mayNode <- lookupNode $ if src ^. srcNodeId /= node ^. _1 then src ^. srcNodeId else dst ^. dstNodeId
     forM_ mayNode $ \n -> do
         state <- get
-        let newPos = if src ^. srcNodeId == node ^. exprNodeId
-                then findSuccessorPosition   node $ filter (\n -> Map.notMember (n ^. exprNodeId) state) nodes
-                else findPredecessorPosition node $ filter (\n -> Map.notMember (n ^. exprNodeId) state) nodes
+        let newPos = if src ^. srcNodeId == node ^. _1
+                then findSuccessorPosition   node $ filter (\n -> Map.notMember (n ^. _1) state) nodes
+                else findPredecessorPosition node $ filter (\n -> Map.notMember (n ^. _1) state) nodes
             shift  = newPos ^. vector - n ^. actPos . vector
         moveSubgraph shift s
 
-findEndPoint :: Subgraph -> [ExpressionNode] -> [Connection] -> Maybe (Connection, ExpressionNode)
+findEndPoint :: Subgraph -> [(NodeId, Position)] -> [Connection] -> Maybe (Connection, (NodeId, Position))
 findEndPoint s nodes conns = listToMaybe endPoints where
     inSubgraph nid = Set.member nid $ s ^. members
-    endPoints :: [(Connection, ExpressionNode)]
+    endPoints :: [(Connection, (NodeId, Position))]
     endPoints = catMaybes . flip map conns $ \conn@(src, dst) ->
-        if      inSubgraph (src ^. srcNodeId) && (not $ inSubgraph (dst ^. dstNodeId)) then (conn, ) <$> find (\n -> n ^. exprNodeId == dst ^. dstNodeId) nodes
-        else if (not $ inSubgraph (src ^. srcNodeId)) && inSubgraph (dst ^. dstNodeId) then (conn, ) <$> find (\n -> n ^. exprNodeId == src ^. srcNodeId) nodes
+        if      inSubgraph (src ^. srcNodeId) && (not $ inSubgraph (dst ^. dstNodeId)) then (conn, ) <$> find (\n -> n ^. _1 == dst ^. dstNodeId) nodes
+        else if (not $ inSubgraph (src ^. srcNodeId)) && inSubgraph (dst ^. dstNodeId) then (conn, ) <$> find (\n -> n ^. _1 == src ^. srcNodeId) nodes
         else    Nothing

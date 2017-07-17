@@ -31,7 +31,7 @@ import           Empire.ASTOp                           (runASTOp)
 import qualified Empire.ASTOps.Print                    as Print
 import           Empire.Commands.Autolayout             (autolayoutNodes)
 import qualified Empire.Commands.Graph                  as Graph
-import           Empire.Commands.GraphBuilder           (buildConnections, buildGraph, buildNodes, getNodeName)
+import           Empire.Commands.GraphBuilder           (buildClassGraph, buildConnections, buildGraph, buildNodes, getNodeName)
 import qualified Empire.Commands.GraphUtils             as GraphUtils
 import qualified Empire.Commands.Persistence            as Persistence
 import           Empire.Data.AST                        (SomeASTException, astExceptionFromException, astExceptionToException)
@@ -98,6 +98,8 @@ import           System.FilePath                        ((</>))
 import qualified System.Log.MLogger                     as Logger
 import           ZMQ.Bus.Trans                          (BusT (..))
 
+import           GHC.Stack (whoCreated, renderStack)
+
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
@@ -121,6 +123,11 @@ webGUIHack req = do
                                         else req
     return hackedReq
 
+prettyException :: Exception e => e -> IO String
+prettyException e = do
+    stack <- whoCreated e
+    return $ displayException e ++ "\n" ++ renderStack stack
+
 modifyGraph :: forall req inv res res'. (G.GraphRequest req, Response.ResponseResult req inv res') => (req -> Empire inv) -> (req -> Empire res) -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req -> StateT Env BusT ()
 modifyGraph inverse action success origReq@(Request uuid guiID request') = do
     request          <- liftIO $ webGUIHack request'
@@ -128,14 +135,16 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
     empireNotifEnv   <- use Env.empireNotif
     inv'             <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ inverse request
     case inv' of
-        Left (exc :: SomeASTException) ->
-            let err = displayException exc in replyFail logger err origReq (Response.Error err)
+        Left (exc :: SomeASTException) -> do
+            err <- liftIO $ prettyException exc
+            replyFail logger err origReq (Response.Error err)
         Right (inv, _) -> do
             let invStatus = Response.Ok inv
             result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ action request
             case result of
-                Left  (exc :: SomeASTException) ->
-                    let err = displayException exc in replyFail logger err origReq invStatus
+                Left  (exc :: SomeASTException) -> do
+                    err <- liftIO $ prettyException exc
+                    replyFail logger err origReq invStatus
                 Right (result, newEmpireEnv) -> do
                     Env.empireEnv .= newEmpireEnv
                     success origReq inv result
@@ -315,7 +324,7 @@ handleRemoveNodes :: Request RemoveNodes.Request -> StateT Env BusT ()
 handleRemoveNodes = modifyGraph inverse action replyResult where
     inverse (RemoveNodes.Request location nodeLocs) = do
         let nodeIds = convert <$> nodeLocs --TODO[PM -> MM] Use NodeLoc instead of NodeId
-        Graph allNodes allConnections _ _ monads <- Graph.withGraph location $ runASTOp buildGraph
+        Graph allNodes allConnections _ _ monads <- Graph.getGraph location
         let idSet = Set.fromList nodeIds
             nodes = flip filter allNodes       $ \node ->   Set.member (node ^. Node.nodeId)            idSet
             conns = flip filter allConnections $ \conn -> ( Set.member (conn ^. _1 . PortRef.srcNodeId) idSet
@@ -373,7 +382,7 @@ handleSetNodeExpression = modifyGraph inverse action replyResult where
 handleSetNodesMeta :: Request SetNodesMeta.Request -> StateT Env BusT ()
 handleSetNodesMeta = modifyGraph inverse action replyResult where
     inverse (SetNodesMeta.Request location updates) = do
-        allNodes <- Graph.withGraph location $ runASTOp buildNodes
+        allNodes <- Graph.withGraph' location (runASTOp buildNodes) (view GraphAPI.nodes <$> runASTOp buildClassGraph)
         let idSet = Set.fromList $ map fst updates
             prevMeta = catMaybes $ flip map allNodes $ \node ->
                 if Set.member (node ^. Node.nodeId) idSet then

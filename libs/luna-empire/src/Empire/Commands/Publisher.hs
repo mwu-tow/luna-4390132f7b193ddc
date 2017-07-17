@@ -5,7 +5,7 @@ import           Control.Concurrent.STM.TChan               (writeTChan)
 import           Control.Monad.Reader
 import           Control.Monad.STM                          (atomically)
 import           Data.Text                                  (Text)
-import           Empire.Data.Graph                          (Graph)
+import           Empire.Data.Graph                          (Graph, ClsGraph)
 import           Empire.Empire
 import           Empire.Prelude
 import           LunaStudio.API.AsyncUpdate                 (AsyncUpdate (..))
@@ -42,7 +42,7 @@ sendUpdate upd = do
     chan <- asks $ view updatesChan
     liftIO $ atomically $ writeTChan chan upd
 
-requestTC :: GraphLocation -> Graph -> Bool -> Command s ()
+requestTC :: GraphLocation -> ClsGraph -> Bool -> Command s ()
 requestTC loc g flush = do
     chan <- view typecheckChan
     liftIO $ do

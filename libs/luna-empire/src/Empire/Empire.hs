@@ -1,9 +1,10 @@
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Empire.Empire where
 
 import           Empire.Data.AST               (SomeASTException)
-import           Empire.Data.Graph             (Graph, defaultGraph)
+import           Empire.Data.Graph             (Graph, ClsGraph)
 import           Empire.Data.Library           (Library)
 import           Empire.Prelude                hiding (TypeRep)
 import           Empire.Prelude
@@ -45,9 +46,9 @@ instance Default Env where
 
 data CommunicationEnv = CommunicationEnv { _updatesChan   :: TChan AsyncUpdate
                                          -- FIXME[MK]: Yeah, let's use 3-tuples, way to code!
-                                         , _typecheckChan :: MVar (GraphLocation, Graph, Bool)
+                                         , _typecheckChan :: MVar (GraphLocation, ClsGraph, Bool)
                                          , _scopeVar      :: MVar SymbolMap
-                                         }
+                                         } deriving Generic
 makeLenses ''CommunicationEnv
 
 instance Show CommunicationEnv where
@@ -56,17 +57,12 @@ instance Show CommunicationEnv where
 data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _nodesCache  :: Map NodeId ExpressionNode
                                      , _errorsCache :: Map NodeId APIError.Error
-                                     , _graph       :: Graph
+                                     , _graph       :: ClsGraph
                                      , _cleanUp     :: IO ()
                                      , _listeners   :: [ThreadId]
                                      , _imports     :: Imports
                                      }
 makeLenses ''InterpreterEnv
-
-defaultInterpreterEnv :: IO InterpreterEnv
-defaultInterpreterEnv = do
-    g <- defaultGraph
-    return $ InterpreterEnv def def def g (return ()) def def
 
 type CommandStack s = ReaderT CommunicationEnv (StateT s IO)
 type Command s a = ReaderT CommunicationEnv (StateT s IO) a

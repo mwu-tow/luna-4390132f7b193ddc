@@ -14,13 +14,13 @@ import qualified Empire.Commands.Graph       as Graph
 import           Prologue                    hiding ((|>))
 
 import           Test.Hspec (Spec, Selector, around, describe, it, xit, expectationFailure,
-                             shouldBe, shouldMatchList, shouldStartWith, shouldThrow)
+                             parallel, shouldBe, shouldMatchList, shouldStartWith, shouldThrow)
 
 import EmpireUtils
 
 
 spec :: Spec
-spec = around withChannels $ do
+spec = around withChannels $ parallel $ do
     describe "parser" $ do
         it "shows error on parse error" $ \env -> do
             u1 <- mkUUID

@@ -18,7 +18,7 @@ import           Control.Monad.State  (StateT, runStateT, get, put)
 import qualified Control.Monad.State.Dependent as DepState
 import qualified Data.Map             as Map
 import           Data.Foldable        (toList)
-import           Empire.Data.Graph    (ASTState(..), Graph, withVis)
+import           Empire.Data.Graph    (AST(..), Graph, withVis)
 import qualified Empire.Data.Graph    as Graph (ast, breadcrumbHierarchy)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Data.Layers   (Marker, Meta, TypeLayer)

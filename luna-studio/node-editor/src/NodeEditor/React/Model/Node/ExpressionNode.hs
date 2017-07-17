@@ -37,6 +37,7 @@ import           NodeEditor.State.Collaboration           (ColorId)
 data ExpressionNode = ExpressionNode { _nodeLoc'                  :: NodeLoc
                                      , _name                      :: Maybe Text
                                      , _expression                :: Text
+                                     , _isDefinition              :: Bool
                                      , _inPorts                   :: InPortTree InPort
                                      , _outPorts                  :: OutPortTree OutPort
                                      , _argConstructorMode        :: Port.Mode
@@ -92,6 +93,7 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- nodeLoc                   -} (NodeLoc path $ n ^. Empire.nodeId)
         {- name                      -} (n ^. Empire.name)
         {- expression                -} (n ^. Empire.expression)
+        {- isDefinition              -} (n ^. Empire.isDefinition)
         {- inPorts                   -} (convert <$> n ^. Empire.inPorts)
         {- outPorts                  -} (convert <$> n ^. Empire.outPorts)
         {- argConstructorHighlighted -} def
@@ -111,14 +113,15 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
 
 instance Convertible ExpressionNode Empire.ExpressionNode where
     convert n = Empire.ExpressionNode
-        {- exprNodeId -} (n ^. nodeId)
-        {- expression -} (n ^. expression)
-        {- name       -} (n ^. name)
-        {- code       -} (n ^. code)
-        {- inPorts    -} (convert <$> n ^. inPorts)
-        {- outPorts   -} (convert <$> n ^. outPorts)
-        {- nodeMeta   -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
-        {- canEnter   -} (n ^. canEnter)
+        {- exprNodeId   -} (n ^. nodeId)
+        {- expression   -} (n ^. expression)
+        {- isDefinition -} (n ^. isDefinition)
+        {- name         -} (n ^. name)
+        {- code         -} (n ^. code)
+        {- inPorts      -} (convert <$> n ^. inPorts)
+        {- outPorts     -} (convert <$> n ^. outPorts)
+        {- nodeMeta     -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
+        {- canEnter     -} (n ^. canEnter)
 
 instance Default Mode where def = Collapsed
 
@@ -126,7 +129,7 @@ instance HasNodeLoc ExpressionNode where
     nodeLoc = nodeLoc'
 
 instance HasPorts ExpressionNode where
-    inPortsList = Port.inPortTreeLeafs . view inPorts
+    inPortsList = Port.inPortTreeLeafs False . view inPorts
     outPortsList = Port.outPortTreeLeafs . view outPorts
     inPortAt  pid = inPorts . ix pid
     outPortAt pid = outPorts . ix pid

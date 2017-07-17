@@ -19,6 +19,15 @@ tests:
             - reflection
             - raw-strings-qq
 
+benchmarks:
+    bench:
+        main: Main.hs
+        source-dirs: bench
+        ghc-options: -O2 -threaded -with-rtsopts=-N
+        dependencies:
+            - criterion
+            - luna-empire
+
 ghc-options: -Wall
 
 dependencies:

@@ -28,7 +28,7 @@ import qualified Empire.Data.Graph               as Graph (code, codeMarkers, br
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Empire                   (CommunicationEnv (..), Empire)
 import qualified Luna.Syntax.Text.Parser.Parser  as Parser (ReparsingChange (..), ReparsingStatus (..))
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..))
+import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem(Definition))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
 import qualified LunaStudio.Data.Node            as Node
@@ -38,6 +38,7 @@ import qualified LunaStudio.Data.NodeMeta        as NodeMeta
 import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
+import           LunaStudio.Data.Vector2         (Vector2(..))
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 
@@ -55,7 +56,7 @@ import qualified Luna.IR                         as IR
 
 mainCondensed = [r|def main:
     «0»pi = 3.14
-    «1»foo = a: b: a + b
+    «1»foo = a: b: «4»a + b
     «2»c = 4
     «3»bar = foo 8 c
 |]
@@ -89,19 +90,21 @@ specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> Communicatio
 specifyCodeChange initialCode expectedCode act env = do
     let normalize = Text.pack . normalizeQQ . Text.unpack
     actualCode <- evalEmp env $ do
-        Library.createLibrary Nothing "TestPath" $ normalize initialCode
+        Library.createLibrary Nothing "TestPath"
         let loc = GraphLocation "TestPath" $ Breadcrumb []
-        Graph.withGraph loc $ Graph.loadCode $ normalize initialCode
-        (nodeIds, toplevel) <- Graph.withGraph loc $ do
+        Graph.loadCode loc $ normalize initialCode
+        [main] <- Graph.getNodes loc
+        let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+        (nodeIds, toplevel) <- Graph.withGraph loc' $ do
             markers  <- fmap fromIntegral . Map.keys <$> use Graph.codeMarkers
             ids      <- runASTOp $ forM markers $ \i -> (i,) <$> Graph.getNodeIdForMarker i
             toplevel <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
             return (ids, toplevel)
         forM nodeIds $ \(i, Just nodeId) ->
             when (elem nodeId toplevel) $
-                Graph.setNodeMeta loc nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
-        act loc
-        Graph.withGraph loc $ use Graph.code
+                Graph.setNodeMeta loc' nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
+        act loc'
+        Text.pack <$> Graph.getCode loc'
     Text.strip actualCode `shouldBe` normalize expectedCode
 
 
@@ -152,10 +155,12 @@ spec = around withChannels $ parallel $ do
                     «4»c = 3
                 |]
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" code
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode code
-                graph <- Graph.withGraph loc $ runASTOp $ GraphBuilder.buildGraph
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                graph <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildGraph
                 return graph
             withResult res $ \(Graph.Graph nodes connections _ _ _) -> do
                 let Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
@@ -179,11 +184,13 @@ spec = around withChannels $ parallel $ do
                     ]
         it "does not duplicate nodes on edit" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainFile
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainFile
+                Graph.loadCode loc mainFile
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
-                Graph.getGraph loc
+                Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                     cNodes = filter (\node -> node ^. Node.name == Just "c") nodes
@@ -197,12 +204,14 @@ spec = around withChannels $ parallel $ do
                     ]
         it "double modification gives proper value" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainFile
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainFile
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 66)
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 66)
-                Graph.getGraph loc
+                Graph.loadCode loc mainFile
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
+                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
+                Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                     cNodes = filter (\node -> node ^. Node.name == Just "c") nodes
@@ -218,12 +227,14 @@ spec = around withChannels $ parallel $ do
                     ]
         it "modifying two expressions give proper values" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainFile
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainFile
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 66)
-                Graph.substituteCode "TestPath" 88 88 "1" (Just 86)
-                Graph.getGraph loc
+                Graph.loadCode loc mainFile
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
+                Graph.substituteCode "TestPath" 88 88 "1" (Just 88)
+                Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                     cNodes = filter (\node -> node ^. Node.name == Just "c") nodes
@@ -240,11 +251,13 @@ spec = around withChannels $ parallel $ do
                     ]
         it "adding an expression works" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainCondensed
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainCondensed
-                Graph.substituteCode "TestPath" 89 89 "    «4»d = 10\n" (Just 86)
-                Graph.getGraph loc
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.substituteCode "TestPath" 89 89 "    d = 10\n" (Just 89)
+                Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                     Just d = find (\node -> node ^. Node.name == Just "d") nodes
@@ -258,12 +271,14 @@ spec = around withChannels $ parallel $ do
                     ]
         it "unparseable expression does not sabotage whole file" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainCondensed
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainCondensed
-                Graph.substituteCode "TestPath" 22 26 ")" (Just 26) `catch` (\(_e :: SomeASTException) -> return ())
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.substituteCode "TestPath" 22 26 ")" (Just 26)
                 Graph.substituteCode "TestPath" 22 23 "5" (Just 23)
-                Graph.getGraph loc
+                Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                     Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
@@ -284,11 +299,13 @@ spec = around withChannels $ parallel $ do
                     |]
                 loc = GraphLocation "TestPath" $ Breadcrumb []
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" code
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode code
-                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
-                Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.buildGraph
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just foo <- Graph.withGraph loc' $ runASTOp $ Graph.getNodeIdForMarker 0
+                Graph.withGraph (loc' |> foo) $ runASTOp $ GraphBuilder.buildGraph
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
                 nodes `shouldSatisfy` ((== 1) . length)
@@ -299,38 +316,59 @@ spec = around withChannels $ parallel $ do
                         «0»foo = a: a
                     |]
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" code
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode code
-                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
-                Graph.getGraph $ loc |> foo
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just foo <- Graph.withGraph loc' $ runASTOp $ Graph.getNodeIdForMarker 0
+                Graph.getGraph $ loc' |> foo
             withResult res $ \(Graph.Graph nodes connections _ _ _) -> do
                 nodes `shouldBe` []
                 connections `shouldSatisfy` (not . null)
         it "autolayouts nodes on file load" $ \env -> do
             nodes <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainCondensed
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainCondensed
-                Graph.autolayout loc
-                view Graph.nodes <$> Graph.getGraph loc
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.autolayout loc'
+                view Graph.nodes <$> Graph.getGraph loc'
             let positions = map (view (Node.nodeMeta . NodeMeta.position)) nodes
                 uniquePositions = Set.size $ Set.fromList positions
             uniquePositions `shouldBe` length nodes
         it "retains node ids on code reload" $ \env -> do
-            (prev, new) <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" testLuna
+            (prev, new, foo, newFoo) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Just foo <- Graph.withGraph loc $ Graph.loadCode testLuna >> runASTOp (Graph.getNodeIdForMarker 1)
-                previousGraph <- Graph.getGraph (loc |> foo)
+                Graph.loadCode loc testLuna
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                previousGraph <- Graph.getGraph (loc' |> foo)
                 Graph.substituteCode "TestPath" 65 66 "5" (Just 66)
-                newGraph <- Graph.getGraph (loc |> foo)
-                return (previousGraph, newGraph)
+                Just newFoo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                newGraph <- Graph.getGraph (loc' |> foo)
+                return (previousGraph, newGraph, foo, newFoo)
             let Just lala = find (\n -> n ^. Node.name == Just "lala") $ new ^. Graph.nodes
             lala ^. Node.code `shouldBe` "15.0"
-            prev ^. Graph.inputSidebar `shouldBe` new ^. Graph.inputSidebar
-            prev ^. Graph.outputSidebar `shouldBe` new ^. Graph.outputSidebar
-            prev ^. Graph.connections `shouldBe` new ^. Graph.connections
+            newFoo `shouldBe` foo
+            new ^. Graph.inputSidebar `shouldBe` prev ^. Graph.inputSidebar
+            new ^. Graph.connections `shouldBe` prev ^. Graph.connections
+            new ^. Graph.outputSidebar `shouldBe` prev ^. Graph.outputSidebar
+        it "preserves node meta on code reload" $ \env -> do
+            meta <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                Graph.setNodeMeta loc' foo (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
+                Graph.substituteCode "TestPath" 63 64 "5" (Just 64)
+                Graph.getNodeMeta loc' foo
+            meta `shouldBe` Just (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
@@ -338,10 +376,12 @@ spec = around withChannels $ parallel $ do
                         «0»pi = 5
                     |]
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" code
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode code
-                forM [0..0] $ Graph.markerCodeSpan loc
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                forM [0..0] $ Graph.markerCodeSpan loc'
             withResult res $ \spans -> do
                 spans `shouldBe` [
                       (14, 23)
@@ -353,10 +393,12 @@ spec = around withChannels $ parallel $ do
                         «1»a = 60
                     |]
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" code
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode code
-                forM [0..1] $ Graph.markerCodeSpan loc
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                forM [0..1] $ Graph.markerCodeSpan loc'
             withResult res $ \spans -> do
                 spans `shouldBe` [
                       (14, 23)
@@ -364,40 +406,46 @@ spec = around withChannels $ parallel $ do
                     ]
         it "shows proper expressions ranges" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainCondensed
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainCondensed
-                forM [0..3] $ Graph.markerCodeSpan loc
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                forM [0..3] $ Graph.markerCodeSpan loc'
             withResult res $ \spans -> do
                 spans `shouldBe` [
                       (14, 26)
-                    , (31, 51)
-                    , (56, 64)
-                    , (69, 85)
+                    , (31, 54)
+                    , (59, 67)
+                    , (72, 88)
                     ]
         it "updateCodeSpan does not break anything" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainCondensed
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ do
-                    Graph.loadCode mainCondensed
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.withGraph loc' $ do
                     runASTOp $ do
                         Just nodeSeq <- GraphBuilder.getNodeSeq
                         Graph.updateCodeSpan nodeSeq
-                forM [0..3] $ Graph.markerCodeSpan loc
+                forM [0..3] $ Graph.markerCodeSpan loc'
             withResult res $ \spans -> do
                 spans `shouldBe` [
                       (14, 26)
-                    , (31, 51)
-                    , (56, 64)
-                    , (69, 85)
+                    , (31, 54)
+                    , (59, 67)
+                    , (72, 88)
                     ]
         it "assigns nodeids to marked expressions" $ \env -> do
             res <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" mainCondensed
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode mainCondensed
-                Graph.withGraph loc $ runASTOp $ forM [0..3] Graph.getNodeIdForMarker
+                Graph.loadCode loc mainCondensed
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.withGraph loc' $ runASTOp $ forM [0..3] Graph.getNodeIdForMarker
             withResult res $ \ids -> do
                 ids `shouldSatisfy` (all isJust)
         it "autolayouts nested nodes on file load" $ \env -> do
@@ -414,12 +462,14 @@ spec = around withChannels $ parallel $ do
                             «11»m + n
                     |]
             nodes <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath" code
+                Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.withGraph loc $ Graph.loadCode code
-                Graph.autolayout loc
-                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
-                view Graph.nodes <$> Graph.getGraph (loc |> foo)
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.autolayout loc'
+                Just foo <- Graph.withGraph loc' $ runASTOp $ Graph.getNodeIdForMarker 1
+                view Graph.nodes <$> Graph.getGraph (loc' |> foo)
             let positions = map (view (Node.nodeMeta . NodeMeta.position)) nodes
                 uniquePositions = Set.size $ Set.fromList positions
             uniquePositions `shouldBe` length nodes
@@ -427,24 +477,26 @@ spec = around withChannels $ parallel $ do
         it "adds one node to code" $ \env -> do
             u1 <- mkUUID
             code <- evalEmp env $ do
-                Graph.addNode top u1 "4" def
-                Graph.withGraph top $ use Graph.code
-            code `shouldBe` "def main:\n    «0»node1 = 4\n"
+                [main] <- Graph.getNodes (GraphLocation "TestFile" (Breadcrumb []))
+                let loc' = GraphLocation "TestFile" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                Graph.addNode top u1 "4" (atXPos (-20.0))
+                Graph.getCode top
+            code `shouldBe` "def main:\n    node1 = 4\n    None"
         it "adds one node and updates it" $ \env -> do
             u1 <- mkUUID
             code <- evalEmp env $ do
-                Graph.addNode top u1 "4" def
+                Graph.addNode top u1 "4" (atXPos (-10))
                 Graph.markerCodeSpan top 0
                 Graph.setNodeExpression top u1 "5"
-                Graph.withGraph top $ use Graph.code
-            code `shouldBe` "def main:\n    «0»node1 = 5\n"
+                Graph.getCode top
+            code `shouldBe` "def main:\n    node1 = 5\n    None"
         it "disconnect updates code at proper range" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 [Just c, Just bar] <- Graph.withGraph loc $ runASTOp $ mapM (Graph.getNodeIdForMarker) [2,3]
@@ -452,10 +504,10 @@ spec = around withChannels $ parallel $ do
         it "disconnect/connect updates code at proper range" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 pi
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 pi
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 [Just pi, Just bar] <- Graph.withGraph loc $ runASTOp $ mapM (Graph.getNodeIdForMarker) [0,3]
@@ -464,11 +516,11 @@ spec = around withChannels $ parallel $ do
         it "adds one node to existing file via node editor" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»node1 = 4
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    node1 = 4
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \top -> do
                 u1 <- mkUUID
@@ -476,11 +528,11 @@ spec = around withChannels $ parallel $ do
         it "adds one node to the beginning of the file via node editor" $ let
             expectedCode = [r|
                 def main:
-                    «5»node1 = 4
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
+                    node1 = 4
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \top -> do
                 u1 <- mkUUID
@@ -488,11 +540,11 @@ spec = around withChannels $ parallel $ do
         it "adds one named node to existing file via node editor" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»someNode = 123456789
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    someNode = 123456789
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -500,11 +552,11 @@ spec = around withChannels $ parallel $ do
         it "trims whitespace when adding node via node editor" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»node1 = 1
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    node1 = 1
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -512,11 +564,11 @@ spec = around withChannels $ parallel $ do
         it "preserves original whitespace inside expression when adding node" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»node1 = a:   b:   «6»a   *  b
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    node1 = a:   b:   a   *  b
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -524,11 +576,11 @@ spec = around withChannels $ parallel $ do
         it "adds lambda to existing file via node editor" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»node1 = x: x
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    node1 = x: x
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -536,10 +588,10 @@ spec = around withChannels $ parallel $ do
         it "adds node via node editor and removes it" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -549,33 +601,46 @@ spec = around withChannels $ parallel $ do
             initialCode = [r|
                 def main:
                     «0»pi = 3.14
+                    None
                 |]
-            expectedCode = "def main:"
+            expectedCode = [r|
+                def main:
+                    None
+                |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just id <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
                 Graph.removeNodes loc [id]
         it "removes all nodes from a file, then adds some" $ let
+            initialCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                    None
+                |]
             expectedCode = [r|
                 def main:
-                    «0»foo = 3 + 5
-                    «1»bar = 20 + 30
+                    foo = 3 + 5
+                    bar = 20 + 30
+                    None
                 |]
-            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
                 ids <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..3]
                 Graph.removeNodes loc (fromJust <$> ids)
                 u1 <- mkUUID
                 u2 <- mkUUID
                 Graph.addNode loc u1 "foo = 3 + 5"   (atXPos 20.0)
-                Graph.addNode loc u1 "bar = 20 + 30" (atXPos 30.0)
+                Graph.addNode loc u2 "bar = 20 + 30" (atXPos 30.0)
 
         it "adds and removes nodes inside a lambda" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «6»d = 8
-                                   «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
+                    pi = 3.14
+                    foo = a: b: d = 8
+                                a + b
+                    c = 4
+                    bar = foo 8 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just id <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
@@ -583,15 +648,15 @@ spec = around withChannels $ parallel $ do
                 u1 <- mkUUID
                 Graph.addNode loc' u1 "x = 2 + 3 +    5" (atXPos 0)
                 u2 <- mkUUID
-                Graph.addNode loc' u2 "d = 8" (atXPos 10.0)
+                Graph.addNode loc' u2 "d = 8" (atXPos (-10.0))
                 Graph.removeNodes loc' [u1]
         it "updates code span after editing an expression" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 123456789
-                    «3»bar = foo 8 c
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 123456789
+                    bar = foo 8 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1     <- mkUUID
@@ -600,10 +665,10 @@ spec = around withChannels $ parallel $ do
         it "renames unused node in code" $ let
             expectedCode = [r|
                 def main:
-                    «0»ddd = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
+                    ddd = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just pi <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
@@ -611,10 +676,10 @@ spec = around withChannels $ parallel $ do
         it "renames used node in code" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»ddd = 4
-                    «3»bar = foo 8 ddd
+                    pi = 3.14
+                    foo = a: b: a + b
+                    ddd = 4
+                    bar = foo 8 ddd
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
@@ -622,11 +687,11 @@ spec = around withChannels $ parallel $ do
         it "adds one node to existing file and updates it" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»node1 = 5
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    node1 = 5
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -635,12 +700,12 @@ spec = around withChannels $ parallel $ do
         it "adds multiple nodes" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: «4»a + b
-                    «2»c = 4
-                    «3»bar = foo 8 c
-                    «5»node1 = (foo +  baz)
-                    «6»node2 = add here
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                    node1 = (foo +  baz)
+                    node2 = add here
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -655,9 +720,9 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»foobar = 20
-                    «1»b = foobar .    succ
-                    «2»bar = foobar .   div   foobar
+                    foobar = 20
+                    b = foobar .    succ
+                    bar = foobar .   div   foobar
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just a <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
@@ -673,8 +738,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»foobar = 20
-                    «1»b =   foobar + foobar
+                    foobar = 20
+                    b =   foobar + foobar
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just a <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
@@ -688,9 +753,9 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»a = 20
-                    «1»foo = 30
-                    «2»b =   foo . bar
+                    a = 20
+                    foo = 30
+                    b =   foo . bar
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just b, Just foo] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [2, 1]
@@ -704,9 +769,9 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»a = 20
-                    «1»foo = 30
-                    «2»b = foo  .   bar
+                    a = 20
+                    foo = 30
+                    b = foo  .   bar
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just b, Just foo] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [2, 1]
@@ -719,8 +784,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»a = 20
-                    «1»b =   bar
+                    a = 20
+                    b =   bar
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [1]
@@ -733,8 +798,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = foo
-                    «1»b = succ
+                    node1 = foo
+                    b = succ
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
@@ -750,8 +815,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = foo
-                    «1»b = succ baz _ node1
+                    node1 = foo
+                    b = succ baz _ node1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
@@ -764,8 +829,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = Empty
-                    «1»b = node1 . prepend 10 . prepend 20
+                    node1 = Empty
+                    b = node1 . prepend 10 . prepend 20
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
@@ -778,8 +843,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = Empty
-                    «1»b = node1 . prepend node1 . prepend 20
+                    node1 = Empty
+                    b = node1 . prepend node1 . prepend 20
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0, 1]
@@ -792,8 +857,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = foo
-                    «1»b = succ baz
+                    node1 = foo
+                    b = succ baz
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
@@ -806,8 +871,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = foo
-                    «1»b = succ baz (prepend 1) node1
+                    node1 = foo
+                    b = succ baz (prepend 1) node1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
@@ -820,8 +885,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = foo
-                    «1»b = prepend 10 . prepend 20
+                    node1 = foo
+                    b = prepend 10 . prepend 20
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
@@ -834,8 +899,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»node1 = foo
-                    «1»b = succ baz (Empty . prepend _ foo) node1
+                    node1 = foo
+                    b = succ baz (Empty . prepend _ foo) node1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just b <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
@@ -850,10 +915,10 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»a  = foo
-                    «1»bb = bar
-                    «2»ccc = baz
-                    «3»dddd = spam a bb ccc
+                    a  = foo
+                    bb = bar
+                    ccc = baz
+                    dddd = spam a bb ccc
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just a, Just bb, Just ccc, Just dddd] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..3]
@@ -869,8 +934,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»aa = foo
-                    «1»b  = aa +
+                    aa = foo
+                    b  = aa +
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
@@ -885,9 +950,9 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»aa  = foo
-                    «1»bar = foobar
-                    «2»c   = aa + bar
+                    aa  = foo
+                    bar = foobar
+                    c   = aa + bar
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just aa, Just bar, Just c] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..2]
@@ -902,8 +967,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»aa = foo
-                    «1»b  = _ + aa
+                    aa = foo
+                    b  = _ + aa
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
@@ -917,23 +982,49 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    «0»aa = foo
-                    «1»b  = aa + buzz
+                    aa = foo
+                    b  = aa + buzz
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just aa, Just b] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..1]
                 Graph.connect loc (outPortRef aa []) (InPortRef' $ inPortRef b [Port.Arg 0])
 
-        xit "updates code after disconnecting lambda output" $ let
+        it "updates code after connecting lambda output" $ let
             expectedCode = [r|
                 def main:
-                    «0»pi = 3.14
-                    «1»foo = a: b: a + b
-                            None
-                    «2»c = 4
-                    «3»bar = foo 8 c
+                    pi = 3.14
+                    foo = a: b: baz = bar a b
+                                a + b
+                                baz
+                    c = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                Just foo    <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
+                u1 <- mkUUID
+                Graph.addNode (loc |> foo) u1 "baz = bar a b" $ atXPos (-10.0)
+                Graph.connect (loc |> foo) (outPortRef u1 []) (InPortRef' $ inPortRef output [])
+
+        it "updates code after disconnecting lambda output" $ let
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: a + b
+                                None
+                    c = 4
+                    bar = foo 8 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
-                Just (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
+                (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.disconnect (loc |> foo) (inPortRef output [])
+        it "preserves code after connecting & disconnecting lambda output" $ let
+            code = [r|
+                def main a:
+                    None
+                |]
+            in specifyCodeChange code code $ \loc -> do
+                (input, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.connect    loc (outPortRef input [Port.Projection 0]) (InPortRef' $ inPortRef output [])
+                Graph.disconnect loc (inPortRef output [])

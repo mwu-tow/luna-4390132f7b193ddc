@@ -32,7 +32,6 @@ handleCreateLibrary req@(Request _ _ request) = do
     result           <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Library.createLibrary
         (request ^. CreateLibrary.libraryName)
         (fromString $ request ^. CreateLibrary.path)
-        ""
     case result of
         Left (exc :: SomeASTException) ->
             let err = displayException exc in replyFail logger err req (Response.Error err)

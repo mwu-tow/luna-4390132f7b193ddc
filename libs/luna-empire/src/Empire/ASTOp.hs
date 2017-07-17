@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
@@ -10,10 +11,13 @@
 
 module Empire.ASTOp (
     ASTOp
+  , ClassOp
+  , GraphOp
   , ASTOpReq
   , EmpirePass
   , PMStack
   , putNewIR
+  , putNewIRCls
   , runAliasAnalysis
   , runASTOp
   , runPass
@@ -22,7 +26,7 @@ module Empire.ASTOp (
   , match
   ) where
 
-import           Empire.Prelude       hiding (mempty, toList)
+import           Empire.Prelude       hiding (Type, mempty, toList)
 import           Prologue             (Text, mempty, toListOf)
 
 import           Control.Monad.Catch  (MonadCatch(..))
@@ -30,8 +34,8 @@ import           Control.Monad.State  (MonadState, StateT, evalStateT, runStateT
 import qualified Control.Monad.State.Dependent as DepState
 import qualified Data.Map             as Map
 import           Data.Foldable        (toList)
-import           Empire.Data.Graph    (ASTState(..), Graph, withVis)
-import qualified Empire.Data.Graph    as Graph (ast, breadcrumbHierarchy, pmState, ir, defaultAST)
+import           Empire.Data.Graph    (AST(..), ClsGraph, Graph, withVis)
+import qualified Empire.Data.Graph    as Graph
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Data.Layers   (Marker, Meta, TypeLayer, attachEmpireLayers, SpanLength, SpanOffset)
 import           Empire.Empire        (Command)
@@ -73,19 +77,21 @@ type PMStack m = PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogge
 runPM :: MonadIO m => PMStack m a -> m a
 runPM = dropLogs . DepState.evalDefStateT @Cache . evalIRBuilder' . evalPassManager'
 
-type ASTOpReq m = (MonadThrow m,
-                   MonadCatch m,
-                   MonadPassManager m,
-                   MonadIO m,
-                   MonadState Graph m,
-                   Emitters EmpireEmitters m,
-                   Editors Net  '[AnyExpr, AnyExprLink] m,
-                   Editors Attr '[Source, Parser.ParsedExpr, MarkedExprMap, Invalids] m,
-                   Editors Layer EmpireLayers m,
-                   DepOld.MonadGet Vis.V Vis.Vis m,
-                   DepOld.MonadPut Vis.V Vis.Vis m)
+type ASTOpReq a m = (MonadThrow m,
+                     MonadCatch m,
+                     MonadPassManager m,
+                     MonadIO m,
+                     MonadState a m,
+                     Emitters EmpireEmitters m,
+                     Editors Net  '[AnyExpr, AnyExprLink] m,
+                     Editors Attr '[Source, Parser.ParsedExpr, MarkedExprMap, Invalids] m,
+                     Editors Layer EmpireLayers m,
+                     DepOld.MonadGet Vis.V Vis.Vis m,
+                     DepOld.MonadPut Vis.V Vis.Vis m)
 
-type ASTOp m = (ASTOpReq m, HasCallStack)
+type ASTOp a m = (ASTOpReq a m, HasCallStack)
+type GraphOp m = ASTOp Graph m
+type ClassOp m = ASTOp ClsGraph m
 
 
 type EmpireLayers = '[AnyExpr // Model, AnyExprLink // Model,
@@ -135,8 +141,63 @@ match = matchExpr
 deriving instance MonadCatch m => MonadCatch (Pass.PassManager m)
 deriving instance MonadCatch m => MonadCatch (DepState.StateT s m)
 
-runASTOp :: Pass.SubPass EmpirePass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT Graph IO)))))) a
-         -> Command Graph a
+class GraphRunner g where
+    runPass :: forall pass b a. KnownPass pass
+            => Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))) b
+            -> Pass.SubPass pass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO)))))) a
+            -> Command g a
+
+instance GraphRunner Graph where
+    runPass :: forall pass b a. KnownPass pass
+            => Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT Graph IO))))) b
+            -> Pass.SubPass pass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT Graph IO)))))) a
+            -> Command Graph a
+    runPass inits pass = do
+        g <- get
+        AST currentStateIR currentStatePass <- use Graph.ast
+        let evalIR = flip runStateT g
+                   . withVis
+                   . dropLogs
+                   . DepState.evalDefStateT @Cache
+                   . flip evalIRBuilder currentStateIR
+                   . flip evalPassManager currentStatePass
+        ((a, (st, passSt)), newG) <- liftIO $ evalIR $ do
+            inits
+            a      <- Pass.eval' @pass pass
+            st     <- snapshot
+            passSt <- DepState.get @Pass.State
+            return (a, (st, passSt))
+        put $ newG & Graph.ast .~ AST st passSt
+
+        return a
+
+instance GraphRunner ClsGraph where
+    runPass :: forall pass b a. KnownPass pass
+            => Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT ClsGraph IO))))) b
+            -> Pass.SubPass pass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT ClsGraph IO)))))) a
+            -> Command ClsGraph a
+    runPass inits pass = do
+        g <- get
+        AST currentStateIR currentStatePass <- use Graph.clsAst
+        let evalIR = flip runStateT g
+                   . withVis
+                   . dropLogs
+                   . DepState.evalDefStateT @Cache
+                   . flip evalIRBuilder currentStateIR
+                   . flip evalPassManager currentStatePass
+        ((a, (st, passSt)), newG) <- liftIO $ evalIR $ do
+            inits
+            a      <- Pass.eval' @pass pass
+            st     <- snapshot
+            passSt <- DepState.get @Pass.State
+            return (a, (st, passSt))
+        put $ newG & Graph.clsAst .~ AST st passSt
+
+        return a
+
+runASTOp :: GraphRunner g
+         => Pass.SubPass EmpirePass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO)))))) a
+         -> Command g a
 runASTOp pass = runPass inits pass where
     inits = do
         setAttr (getTypeDesc @MarkedExprMap)     $ (mempty :: MarkedExprMap)
@@ -147,20 +208,20 @@ runASTOp pass = runPass inits pass where
 
 runAliasAnalysis :: Command Graph ()
 runAliasAnalysis = do
-    roots <- gets $ toListOf $ Graph.breadcrumbHierarchy . BH.body
+    root <- use $ Graph.breadcrumbHierarchy . BH.body
     let inits = do
             Pass.setAttr (getTypeDesc @UnresolvedVars)   $ UnresolvedVars   []
             Pass.setAttr (getTypeDesc @UnresolvedConses) $ UnresolvedConses []
             Pass.setAttr (getTypeDesc @NegativeConses)   $ NegativeConses   []
-            Pass.setAttr (getTypeDesc @ExprRoots) $ ExprRoots $ map unsafeGeneralize roots
+            Pass.setAttr (getTypeDesc @ExprRoots) $ ExprRoots [unsafeGeneralize root]
     runPass inits PatternTransformation.runPatternTransformation
     runPass inits AliasAnalysis.runAliasAnalysis
 
 runTypecheck :: Imports -> Command Graph ()
 runTypecheck imports = do
     g <- get
-    ASTState currentStateIR currentStatePass <- use Graph.ast
-    root <- preuse $ Graph.breadcrumbHierarchy . BH.body
+    AST currentStateIR currentStatePass <- use Graph.ast
+    root <- use $ Graph.breadcrumbHierarchy . BH.self
     let evalIR = flip runStateT g
                . withVis
                . dropLogs
@@ -168,37 +229,42 @@ runTypecheck imports = do
                . flip evalIRBuilder currentStateIR
                . flip evalPassManager currentStatePass
     ((st, passSt), newG) <- liftIO $ evalIR $ do
-        Typecheck.typecheck TgtNone imports $ map unsafeGeneralize $ toList root
+        Typecheck.typecheck TgtNone imports [unsafeGeneralize root]
         st     <- snapshot
         passSt <- DepState.get @Pass.State
         return (st, passSt)
-    put $ newG & Graph.ast .~ ASTState st passSt
+    put $ newG & Graph.ast .~ AST st passSt
 
 putNewIR :: IR -> Command Graph ()
 putNewIR ir = do
-    newAST <- liftIO $ Graph.defaultAST
-    Graph.ast .= (newAST & Graph.ir .~ ir)
+    pmState <- liftIO $ Graph.defaultPMState
+    Graph.ast .= AST ir pmState
+
+putNewIRCls :: IR -> Command ClsGraph ()
+putNewIRCls ir = do
+    newAST <- liftIO $ Graph.emptyClsAST
+    Graph.clsAst .= (newAST & Graph.ir .~ ir)
 
 
-runPass :: forall pass b a. KnownPass pass
-        => Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT Graph IO))))) b
-        -> Pass.SubPass pass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT Graph IO)))))) a
-        -> Command Graph a
-runPass inits pass = do
-    g <- get
-    ASTState currentStateIR currentStatePass <- use Graph.ast
-    let evalIR = flip runStateT g
-               . withVis
-               . dropLogs
-               . DepState.evalDefStateT @Cache
-               . flip evalIRBuilder currentStateIR
-               . flip evalPassManager currentStatePass
-    ((a, (st, passSt)), newG) <- liftIO $ evalIR $ do
-        inits
-        a      <- Pass.eval' @pass pass
-        st     <- snapshot
-        passSt <- DepState.get @Pass.State
-        return (a, (st, passSt))
-    put $ newG & Graph.ast .~ ASTState st passSt
-
-    return a
+-- runPass :: forall pass g b a. KnownPass pass
+--         => Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))) b
+--         -> Pass.SubPass pass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO)))))) a
+--         -> Command g a
+-- runPass inits pass = do
+--     g <- get
+--     AST currentStateIR currentStatePass <- use Graph.ast
+--     let evalIR = flip runStateT g
+--                . withVis
+--                . dropLogs
+--                . DepState.evalDefStateT @Cache
+--                . flip evalIRBuilder currentStateIR
+--                . flip evalPassManager currentStatePass
+--     ((a, (st, passSt)), newG) <- liftIO $ evalIR $ do
+--         inits
+--         a      <- Pass.eval' @pass pass
+--         st     <- snapshot
+--         passSt <- DepState.get @Pass.State
+--         return (a, (st, passSt))
+--     put $ newG & Graph.ast .~ AST st passSt
+--
+--     return a

@@ -17,10 +17,11 @@ import           LunaStudio.Data.Node               (NodeId)
 import           LunaStudio.Data.PortRef            (OutPortRef (..))
 import           LunaStudio.Data.NodeLoc            (NodeLoc (..))
 import qualified LunaStudio.Data.Port               as Port
-import           Empire.ASTOp                       (ASTOp, match)
+import           Empire.ASTOp                       (GraphOp, match)
 import           Empire.ASTOps.Deconstruct          (deconstructApp, extractArguments, dumpAccessors)
 import           Empire.ASTOps.Remove               (removeSubtree)
 import qualified Empire.ASTOps.Read                 as ASTRead
+import qualified Empire.ASTOps.Print                as ASTPrint
 import qualified Empire.Commands.Code               as Code
 import           Empire.Data.AST                    (EdgeRef, NodeRef, astExceptionFromException,
                                                      astExceptionToException)
@@ -35,27 +36,23 @@ import           Luna.IR.Term.Uni
 import qualified Luna.IR as IR
 
 
-apps :: ASTOp m => IR.Expr f -> [NodeRef] -> m NodeRef
+apps :: GraphOp m => IR.Expr f -> [NodeRef] -> m NodeRef
 apps fun exprs = IR.unsafeRelayout <$> foldM f (IR.unsafeRelayout fun) (IR.unsafeRelayout <$> exprs)
     where
         f fun' arg' = appAny fun' arg'
 
-appAny :: ASTOp m => NodeRef -> NodeRef -> m NodeRef
+appAny :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
 appAny = fmap IR.generalize .: IR.app
 
-lams :: ASTOp m => [NodeRef] -> NodeRef -> m NodeRef
-lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
 
-lamAny :: ASTOp m => NodeRef -> NodeRef -> m NodeRef
-lamAny a b = fmap IR.generalize $ IR.lam a b
 
-newApplication :: ASTOp m => NodeRef -> NodeRef -> Int -> m NodeRef
+newApplication :: GraphOp m => NodeRef -> NodeRef -> Int -> m NodeRef
 newApplication fun arg' pos = do
     blanks <- sequence $ replicate pos IR.blank
     let args = IR.generalize blanks ++ [arg']
     apps fun args
 
-rewireApplication :: ASTOp m => NodeRef -> NodeRef -> Int -> m NodeRef
+rewireApplication :: GraphOp m => NodeRef -> NodeRef -> Int -> m NodeRef
 rewireApplication fun arg' pos = do
     (target, oldArgs) <- deconstructApp fun
 
@@ -66,9 +63,9 @@ rewireApplication fun arg' pos = do
 
     apps target withNewArg
 
-replaceEdgeSource :: ASTOp m => EdgeRef -> Delta -> NodeRef -> m ()
+replaceEdgeSource :: GraphOp m => EdgeRef -> Delta -> NodeRef -> m ()
 replaceEdgeSource edge beg newSrc = do
-    newCode <- getTgtCode newSrc
+    newCode <- ASTPrint.printFullExpression newSrc
     oldSrc  <- IR.source edge
     oldLen  <- IR.getLayer @SpanLength oldSrc
     Code.applyDiff beg (beg + oldLen) newCode
@@ -76,7 +73,7 @@ replaceEdgeSource edge beg newSrc = do
     IR.deleteSubtree oldSrc
     Code.gossipLengthsChangedBy (fromIntegral (Text.length newCode) - oldLen) =<< IR.readTarget edge
 
-countArguments :: ASTOp m => NodeRef -> m Int
+countArguments :: GraphOp m => NodeRef -> m Int
 countArguments expr = IR.matchExpr expr $ \case
     App          f _ -> (+ 1) <$> (countArguments =<< IR.source f)
     LeftSection  f _ -> return 2
@@ -84,7 +81,7 @@ countArguments expr = IR.matchExpr expr $ \case
     Grouped      g   -> countArguments =<< IR.source g
     _                -> return 0
 
-getArgumentOf :: ASTOp m => NodeRef -> Delta -> m (EdgeRef, Delta)
+getArgumentOf :: GraphOp m => NodeRef -> Delta -> m (EdgeRef, Delta)
 getArgumentOf fun beg = IR.matchExpr fun $ \case
     App f a -> do
         off <- Code.getOffsetRelativeToTarget a
@@ -101,7 +98,7 @@ getArgumentOf fun beg = IR.matchExpr fun $ \case
         getArgumentOf g' (beg + off)
     f -> error $ show f
 
-getOrCreateArgument :: ASTOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
+getOrCreateArgument :: GraphOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
 getOrCreateArgument currentFun codeBegin currentArgument neededArgument
     | currentArgument <=  neededArgument = do
         padArgs currentFun codeBegin (neededArgument - currentArgument)
@@ -128,7 +125,7 @@ getOrCreateArgument currentFun codeBegin currentArgument neededArgument
                 IR.replace ap fun
                 getOrCreateArgument currentFun codeBegin currentArgument neededArgument
 
-padArgs :: ASTOp m => EdgeRef -> Delta -> Int -> m ()
+padArgs :: GraphOp m => EdgeRef -> Delta -> Int -> m ()
 padArgs e beg i | i <= 0    = return ()
                 | otherwise = do
     bl     <- IR.blank
@@ -150,7 +147,7 @@ padArgs e beg i | i <= 0    = return ()
     Code.gossipLengthsChangedBy 2 =<< IR.readTarget e
     padArgs e beg $ pred i
 
-dropBlankArgumentsAtTailPosition :: ASTOp m => EdgeRef -> Delta -> m ()
+dropBlankArgumentsAtTailPosition :: GraphOp m => EdgeRef -> Delta -> m ()
 dropBlankArgumentsAtTailPosition e beg = do
     head <- IR.source e
     IR.matchExpr head $ \case
@@ -175,15 +172,14 @@ dropBlankArgumentsAtTailPosition e beg = do
                 dropBlankArgumentsAtTailPosition e beg
         _ -> return ()
 
-
-removeAppArgument :: ASTOp m => EdgeRef -> Delta -> Int -> m ()
+removeAppArgument :: GraphOp m => EdgeRef -> Delta -> Int -> m ()
 removeAppArgument funE beg pos = do
     bl <- IR.generalize <$> IR.blank
     IR.putLayer @SpanLength bl 1
     applyFunction funE beg bl pos
     dropBlankArgumentsAtTailPosition funE beg
 
-removeArgument :: ASTOp m => EdgeRef -> Delta -> Port.InPortId -> m ()
+removeArgument :: GraphOp m => EdgeRef -> Delta -> Port.InPortId -> m ()
 removeArgument funE beg [Port.Self]  = void $ removeAccessor   funE beg
 removeArgument funE beg [Port.Arg i] = removeAppArgument funE beg i
 removeArgument funE beg (Port.Arg i : rest) = do
@@ -202,21 +198,21 @@ instance Exception SelfPortNotExistantException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-unfoldM :: ASTOp m => (a -> m (Either b a)) -> a -> m b
+unfoldM :: GraphOp m => (a -> m (Either b a)) -> a -> m b
 unfoldM f a = do
     res <- f a
     case res of
         Left  b -> return b
         Right b -> unfoldM f b
 
-unfoldM' :: ASTOp m => (a -> m (Maybe a)) -> a -> m a
+unfoldM' :: GraphOp m => (a -> m (Maybe a)) -> a -> m a
 unfoldM' f a = do
     res <- f a
     case res of
         Nothing -> return a
         Just a' -> unfoldM' f a'
 
-getCurrentAccTarget :: ASTOp m => EdgeRef -> Delta -> m (EdgeRef, Delta)
+getCurrentAccTarget :: GraphOp m => EdgeRef -> Delta -> m (EdgeRef, Delta)
 getCurrentAccTarget = curry $ unfoldM $ \(edge, codeBeg) -> do
     let passThrough e = Right . (e,) <$> ((+ codeBeg) <$> Code.getOffsetRelativeToTarget e)
     ref <- IR.source edge
@@ -225,13 +221,7 @@ getCurrentAccTarget = curry $ unfoldM $ \(edge, codeBeg) -> do
         Acc t _ -> Left . (t,) . (+ codeBeg) <$> Code.getOffsetRelativeToTarget t
         _       -> return $ Left (edge, codeBeg)
 
-getTgtCode :: ASTOp m => NodeRef -> m Text
-getTgtCode ref = IR.matchExpr ref $ \case
-    Var n -> return $ convert n
-    Blank -> return "_"
-    _     -> throwM $ SelfPortNotExistantException ref
-
-ensureHasSelf :: ASTOp m => EdgeRef -> Delta -> m ()
+ensureHasSelf :: GraphOp m => EdgeRef -> Delta -> m ()
 ensureHasSelf e beg = IR.source e >>= flip IR.matchExpr `id` \case
     App f _ -> do
         off <- Code.getOffsetRelativeToTarget f
@@ -251,19 +241,19 @@ ensureHasSelf e beg = IR.source e >>= flip IR.matchExpr `id` \case
         return ()
     _ -> throwM . SelfPortNotExistantException =<< IR.source e
 
-makeAccessor :: ASTOp m => NodeRef -> EdgeRef -> Delta -> m ()
+makeAccessor :: GraphOp m => NodeRef -> EdgeRef -> Delta -> m ()
 makeAccessor target naming exprBegin = do
     ensureHasSelf naming exprBegin
     (edge, tgtBegin) <- getCurrentAccTarget naming exprBegin
     replaceEdgeSource edge tgtBegin target
 
-applyFunction :: ASTOp m => EdgeRef -> Delta -> NodeRef -> Int -> m ()
+applyFunction :: GraphOp m => EdgeRef -> Delta -> NodeRef -> Int -> m ()
 applyFunction funE beg arg pos = do
     argCount    <- countArguments =<< IR.source funE
     (edge, beg) <- getOrCreateArgument funE beg (argCount - 1) pos
     replaceEdgeSource edge beg arg
 
-makeConnection :: ASTOp m => EdgeRef -> Delta -> Port.InPortId -> NodeRef -> m ()
+makeConnection :: GraphOp m => EdgeRef -> Delta -> Port.InPortId -> NodeRef -> m ()
 makeConnection funE beg [] arg = do
     replaceEdgeSource funE beg arg
 makeConnection funE beg (Port.Self : rest) arg = do
@@ -284,7 +274,7 @@ instance Exception SelfPortNotConnectedException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-removeAccessor :: ASTOp m => EdgeRef -> Delta -> m ()
+removeAccessor :: GraphOp m => EdgeRef -> Delta -> m ()
 removeAccessor ed beg = do
     expr <- IR.source ed
     IR.matchExpr expr $ \case
@@ -306,14 +296,14 @@ removeAccessor ed beg = do
             removeAccessor g (beg + off)
         _ -> return ()
 
-detachNodeMarkers :: ASTOp m => NodeRef -> m ()
+detachNodeMarkers :: GraphOp m => NodeRef -> m ()
 detachNodeMarkers ref' = do
     ref <- ASTRead.cutThroughGroups ref'
     IR.putLayer @Marker ref Nothing
     inps <- IR.inputs ref
     mapM_ (IR.source >=> detachNodeMarkers) inps
 
-attachNodeMarkers :: ASTOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
+attachNodeMarkers :: GraphOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
 attachNodeMarkers marker port ref' = do
     ref <- ASTRead.cutThroughGroups ref'
     IR.putLayer @Marker ref $ Just $ OutPortRef (NodeLoc def marker) port
@@ -323,12 +313,12 @@ attachNodeMarkers marker port ref' = do
             zipWithM_ (attachNodeMarkers marker) ((port ++) . pure . Port.Projection <$> [0..]) args
         _ -> return ()
 
-detachNodeMarkersForArgs :: ASTOp m => NodeRef -> m ()
+detachNodeMarkersForArgs :: GraphOp m => NodeRef -> m ()
 detachNodeMarkersForArgs lam = do
     args <- extractArguments lam
     mapM_ detachNodeMarkers args
 
-attachNodeMarkersForArgs :: ASTOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
+attachNodeMarkersForArgs :: GraphOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
 attachNodeMarkersForArgs nid port lam = do
     args <- extractArguments lam
     zipWithM_ (attachNodeMarkers nid) (pure . Port.Projection <$> [0..]) args
@@ -338,7 +328,7 @@ instance Exception CannotFlipNodeException where
     toException   = astExceptionToException
     fromException = astExceptionFromException
 
-patternify :: ASTOp m => NodeRef -> m NodeRef
+patternify :: GraphOp m => NodeRef -> m NodeRef
 patternify ref = match ref $ \case
     App _ _ -> do
         (fun, args) <- deconstructApp ref
@@ -354,7 +344,7 @@ patternify ref = match ref $ \case
     Cons _ _  -> return ref
     _         -> throwM CannotFlipNodeException
 
-appify :: ASTOp m => NodeRef -> m NodeRef
+appify :: GraphOp m => NodeRef -> m NodeRef
 appify ref = match ref $ \case
     Cons n as -> do
         args <- mapM (IR.source >=> appify) as
@@ -366,7 +356,7 @@ appify ref = match ref $ \case
     Grouped g -> appify =<< IR.source g
     _         -> throwM CannotFlipNodeException
 
-flipNode :: ASTOp m => NodeId -> m ()
+flipNode :: GraphOp m => NodeId -> m ()
 flipNode nid = do
     lhs    <- ASTRead.getASTVar    nid
     rhs    <- ASTRead.getASTTarget nid
@@ -377,14 +367,14 @@ flipNode nid = do
     pointer <- ASTRead.getASTPointer nid
     IR.replace uni pointer
 
-generateNodeName :: ASTOp m => m Text
+generateNodeName :: GraphOp m => m Text
 generateNodeName = do
     lastNameId <- use Graph.lastNameId
     let newNameId = lastNameId + 1
     Graph.lastNameId .= newNameId
     return $ convert $ "node" <> show newNameId
 
-makeNodeRep :: ASTOp m => NodeId -> Maybe Text -> NodeRef -> m (NodeRef, Maybe Text)
+makeNodeRep :: GraphOp m => NodeId -> Maybe Text -> NodeRef -> m (NodeRef, Maybe Text)
 makeNodeRep marker name node = do
     (pat, uni, newName) <- match node $ \case
         Unify l r -> (, node, Nothing) <$> IR.source l

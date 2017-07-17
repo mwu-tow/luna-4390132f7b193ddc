@@ -22,7 +22,7 @@ import           LunaStudio.Data.NodeValue        (NodeValue (..), Visualization
 
 import           Empire.ASTOp                     (runASTOp, runTypecheck)
 import qualified Empire.ASTOps.Read               as ASTRead
-import           Empire.Commands.Breadcrumb       (zoomBreadcrumb)
+import           Empire.Commands.Breadcrumb       (zoomBreadcrumb')
 import qualified Empire.Commands.GraphBuilder     as GraphBuilder
 import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.BreadcrumbHierarchy  (topLevelIDs)
@@ -51,57 +51,41 @@ runTC imports = do
 
 runInterpreter :: Imports -> Command Graph (Maybe Interpreter.LocalScope)
 runInterpreter imports = runASTOp $ do
-    bodyRef    <- preuse $ Graph.breadcrumbHierarchy . BH.body
-    res        <- mapM (Interpreter.interpret' imports . IR.unsafeGeneralize) bodyRef
-    case res of
-        Nothing -> return Nothing
-        Just v  -> do
-            result <- liftIO $ runIO $ runError $ execStateT v def
-            case result of
-                Left e  -> return Nothing
-                Right r -> return $ Just r
+    bodyRef <- use $ Graph.breadcrumbHierarchy . BH.self
+    res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
+    result  <- liftIO $ runIO $ runError $ execStateT res def
+    case result of
+        Left e  -> return Nothing
+        Right r -> return $ Just r
 
-reportError :: GraphLocation -> NodeId -> Maybe APIError.Error -> Command InterpreterEnv ()
-reportError loc nid err = do
-    cachedErr <- uses errorsCache $ Map.lookup nid
-    when (cachedErr /= err) $ do
-        errorsCache %= Map.alter (const err) nid
-        valuesCache %= Map.delete nid
-        case err of
-            Just e  -> Publisher.notifyResultUpdate loc nid (NodeError e)     0
-            Nothing -> Publisher.notifyResultUpdate loc nid (NodeValue "" Nothing) 0
-
-updateNodes :: GraphLocation -> Command InterpreterEnv ()
-updateNodes loc@(GraphLocation _ br) = zoom graph $ zoomBreadcrumb br $ do
-    portMapping <- preuse $ Graph.breadcrumbHierarchy . BH._LambdaParent . BH.portMapping
-    (updates, errors) <- runASTOp $ do
-        sidebarUpdates <- case portMapping of
-            Just (i, o) -> do
-                (u1, u2) <- (,) <$> GraphBuilder.buildInputSidebarTypecheckUpdate i <*> GraphBuilder.buildOutputSidebarTypecheckUpdate o
-                return [u1, u2]
-            Nothing     -> return []
-        allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
-        nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
-        errors      <- forM allNodeIds $ \nid -> do
-            errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
-            case errs of
-                []     -> return Nothing
-                e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError e)
-        return (sidebarUpdates ++ nodeUpdates, errors)
-    mapM_ (Publisher.notifyNodeTypecheck loc) updates
-    forM_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
+updateNodes :: GraphLocation -> Command Graph ()
+updateNodes loc@(GraphLocation _ br) = do
+     (inEdge, outEdge) <- use $ Graph.breadcrumbHierarchy . BH.portMapping
+     (updates, errors) <- runASTOp $ do
+         sidebarUpdates <- (\x y -> [x, y]) <$> GraphBuilder.buildInputSidebarTypecheckUpdate  inEdge
+                                            <*> GraphBuilder.buildOutputSidebarTypecheckUpdate outEdge
+         allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
+         nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
+         errors      <- forM allNodeIds $ \nid -> do
+             errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
+             case errs of
+                 []     -> return Nothing
+                 e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError e)
+         return (sidebarUpdates ++ nodeUpdates, errors)
+     mapM_ (Publisher.notifyNodeTypecheck loc) updates
+     forM_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
 
 updateMonads :: GraphLocation -> Command InterpreterEnv ()
 updateMonads loc@(GraphLocation _ br) = return ()--zoom graph $ zoomBreadcrumb br $ do
     {-newMonads <- runASTOp GraphBuilder.buildMonads-}
     {-Publisher.notifyMonadsUpdate loc newMonads-}
 
-updateValues :: GraphLocation -> Interpreter.LocalScope -> Command InterpreterEnv ()
+updateValues :: GraphLocation -> Interpreter.LocalScope -> Command Graph ()
 updateValues loc scope = do
-    childrenMap <- use $ graph . Graph.breadcrumbHierarchy . BH.children
+    childrenMap <- use $ Graph.breadcrumbHierarchy . BH.children
     let allNodes = Map.assocs $ view BH.self <$> childrenMap
     env     <- ask
-    allVars <- zoom graph $ runASTOp $ fmap catMaybes $ forM allNodes $ \(nid, tgt) -> do
+    allVars <- runASTOp $ fmap catMaybes $ forM allNodes $ \(nid, tgt) -> do
         pointer <- ASTRead.getASTPointer nid
         IR.matchExpr pointer $ \case
             IR.Unify{} -> Just . (nid,) <$> ASTRead.getVarNode pointer
@@ -141,16 +125,16 @@ getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
     processClass (Class _ methods) = convert <$> Map.keys methods
 
 run :: GraphLocation -> Command InterpreterEnv ()
-run loc = do
+run loc@(GraphLocation _ br) = do
     std     <- use imports
     cln     <- use cleanUp
     threads <- use listeners
-    liftIO $ print $ Map.keys $ std ^. importedClasses
-    zoom graph $ runTC std
-    updateNodes  loc
-    {-updateMonads loc-}
-    liftIO cln
-    liftIO $ mapM_ killThread threads
     listeners .= []
-    scope <- zoom graph $ runInterpreter std
-    mapM_ (updateValues loc) scope
+    zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
+        runTC std
+        updateNodes  loc
+        {-updateMonads loc-}
+        liftIO cln
+        liftIO $ mapM killThread threads
+        scope <- runInterpreter std
+        mapM_ (updateValues loc) scope

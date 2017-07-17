@@ -4,7 +4,7 @@ module Empire.Commands.Library
     ( withLibrary
     , listLibraries
     , createLibrary
-    , getBuffer
+    -- , getBuffer
     ) where
 
 import           Control.Monad.Except    (throwError)
@@ -30,14 +30,16 @@ import           Empire.Empire           (Command, Empire)
 import qualified Empire.Empire           as Empire
 import qualified Empire.Utils.IdGen      as IdGen
 
-createLibrary :: Maybe String -> FilePath -> Text -> Empire Library
-createLibrary name path code = do
-    library <- liftIO $ make name path code
+createLibrary :: Maybe String -> FilePath -> Empire Library
+createLibrary name path = do
+    library <- liftIO $ make name path
     Empire.activeFiles . at path ?= library
     return library
 
-make :: Maybe String -> FilePath -> Text -> IO Library
-make name path code = Library.Library name path . (Graph.code .~ code) <$> Graph.defaultGraph
+make :: Maybe String -> FilePath -> IO Library
+make name path = do
+    clsGraph <- Graph.defaultClsGraph
+    return $ Library.Library name path clsGraph
 
 
 listLibraries :: Empire [Library]
@@ -62,8 +64,12 @@ withLibrary file cmd = do
             Just lib -> do
                 let result = (_2 %~ Just) <$> Empire.runEmpire notifEnv lib cmd
                 Empire.empire $ const $ const result
-
-getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
-getBuffer path Nothing = withLibrary path $ do
-    source <- use $ Library.body . Graph.code
-    return source
+                -- (result, state) <- liftIO $ Empire.runEmpire notifEnv lib cmd
+                -- put $ Just state
+                -- -- return result
+                -- Empire.empire $ const $ const result
+--
+-- getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
+-- getBuffer path Nothing = withLibrary path $ do
+--     source <- use $ Library.body . Graph.code
+--     return source
