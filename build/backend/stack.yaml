@@ -22,7 +22,6 @@ packages:
 - {extra-dep: true, location: ../../libs/luna-studio-common}
 - {extra-dep: true, location: ../../libs/m-logger}
 - {extra-dep: true, location: ../../libs/scope-searcher}
-- {extra-dep: true, location: ../../libs/undo-redo}
 - {extra-dep: true, location: ../../libs/ws-connector}
 - {extra-dep: true, location: ../../libs/zmq-bus-config}
 - {extra-dep: true, location: ../../libs/zmq-bus}
@@ -68,8 +67,6 @@ packages:
   location: {commit: 7c9eab45f65ab98290282e11d19e39401830ab9c, git: 'https://github.com/luna/type-cache.git'}
 - extra-dep: true
   location: {commit: d5c2a68df9b34b8370c98a84f8bcaf311869daa9, git: 'https://github.com/luna/typelevel.git'}
-- extra-dep: true
-  location: {commit: fb0e46aacaa7060046f88d4c5a5f708fd443c8ae, git: 'https://github.com/luna/data-construction.git'}
 - extra-dep: true
   location: {commit: adb894846d34ceaa005961bd8fe676023cf1b036, git: 'https://github.com/luna/data-prop.git'}
 - extra-dep: true
