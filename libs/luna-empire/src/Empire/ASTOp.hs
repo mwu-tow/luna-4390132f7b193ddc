@@ -215,7 +215,7 @@ runASTOp pass = runPass inits pass where
 
 runAliasAnalysis :: Command Graph ()
 runAliasAnalysis = do
-    root <- use $ Graph.breadcrumbHierarchy . BH.body
+    root <- use $ Graph.breadcrumbHierarchy . BH.self
     let inits = do
             Pass.setAttr (getTypeDesc @UnresolvedVars)   $ UnresolvedVars   []
             Pass.setAttr (getTypeDesc @UnresolvedConses) $ UnresolvedConses []
