@@ -38,7 +38,6 @@ unpackArchive file = case currentHost of
                     fullFilename = filename file
                 Shelly.mkdir_p $ dir </> name
                 Shelly.cp_r file $ dir </> name
-                print $ show fullFilename
                 unpackRPM (dir </> name </> fullFilename) (dir </> name)
                 -- Shelly.rm fullFilename
                 return $ dir </> name
@@ -51,7 +50,6 @@ unpackTarGzUnix file = do
         name = basename file
     case name of
         "atom-mac" -> do
-            Shelly.liftSh $ print $ "atom-mac unpack"
             Shelly.cd dir
             Shelly.mkdir_p name
             Shelly.cmd  "unzip" file
