@@ -10,14 +10,14 @@ import           Control.Concurrent               (forkIO)
 import           Control.Concurrent.STM           (STM)
 import           Control.Concurrent.MVar
 import           Control.Concurrent.STM.TChan     (TChan, newTChan, readTChan, tryPeekTChan)
-import           Control.Monad                    (forever)
+import           Control.Monad                    (forM_, forever)
 import           Control.Monad.Catch              (try, catchAll)
 import           Control.Monad.State              (StateT, evalStateT)
 import           Control.Monad.STM                (atomically)
 import qualified Data.Binary                      as Bin
 import           Data.ByteString                  (ByteString)
 import           Data.ByteString.Char8            (unpack)
-import           Data.ByteString.Lazy             (toStrict)
+import           Data.ByteString.Lazy             (fromStrict, toStrict)
 import qualified Data.Map.Strict                  as Map
 
 import           System.FilePath                  ()
@@ -31,6 +31,7 @@ import           Empire.Data.Graph                    (ClsGraph, Graph, ast)
 import qualified Empire.Data.Graph                    as Graph
 import           LunaStudio.API.AsyncUpdate           (AsyncUpdate (..))
 import qualified LunaStudio.API.Control.EmpireStarted as EmpireStarted
+import qualified LunaStudio.API.Graph.SetNodesMeta    as SetNodesMeta
 import qualified LunaStudio.API.Topic                 as Topic
 import           LunaStudio.Data.GraphLocation        (GraphLocation)
 
@@ -44,6 +45,7 @@ import qualified Empire.Empire                    as Empire
 import           Empire.Env                       (Env)
 import qualified Empire.Env                       as Env
 import qualified Empire.Handlers                  as Handlers
+import qualified Empire.Server.Graph              as Graph
 import qualified Empire.Server.Server             as Server
 import qualified Empire.Utils                     as Utils
 import           Prologue                         hiding (Text)
@@ -59,7 +61,6 @@ import           ZMQ.Bus.Data.Topic               (Topic)
 import           ZMQ.Bus.EndPoint                 (BusEndPoints)
 import           ZMQ.Bus.Trans                    (BusT (..))
 import qualified ZMQ.Bus.Trans                    as BusT
-
 import           System.Remote.Monitoring
 import           System.Environment               (getEnv)
 import           System.Directory                 (canonicalizePath)
@@ -196,8 +197,12 @@ handleRequest logMsg topic content = do
     handler content
 
 handleUpdate :: String -> String -> ByteString -> StateT Env BusT ()
-handleUpdate logMsg _ content = do
+handleUpdate logMsg topic content = do
     logger Logger.info logMsg
+    let update = if topic == "empire.graph.node.updateMeta.update"
+                      then Just (Bin.decode (fromStrict content) :: SetNodesMeta.Update)
+                      else Nothing
+    forM_ update $ Graph.handleSetNodesMetaUpdate
 
 handleStatus :: String -> String -> ByteString -> StateT Env BusT ()
 handleStatus logMsg _ content = do

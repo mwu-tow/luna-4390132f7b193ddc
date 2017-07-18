@@ -384,18 +384,36 @@ handleSetNodeExpression = modifyGraph inverse action replyResult where
     action (SetNodeExpression.Request location nodeId expression) = withDefaultResult location $
         Graph.setNodeExpression location nodeId expression
 
+inverseSetNodesMeta :: GraphLocation -> [(NodeId, NodeMeta)] -> Empire SetNodesMeta.Inverse
+inverseSetNodesMeta location updates = do
+    allNodes <- Graph.withGraph' location (runASTOp buildNodes) (view GraphAPI.nodes <$> runASTOp buildClassGraph)
+    let idSet = Set.fromList $ map fst updates
+        prevMeta = catMaybes $ flip map allNodes $ \node ->
+            if Set.member (node ^. Node.nodeId) idSet then
+                 Just (node ^. Node.nodeId, node ^. Node.nodeMeta)
+            else Nothing
+    return $ SetNodesMeta.Inverse prevMeta
+
+actionSetNodesMeta :: GraphLocation -> [(NodeId, NodeMeta)] -> Empire Result.Result
+actionSetNodesMeta location updates = withDefaultResult location $
+    forM_ updates $ uncurry $ Graph.setNodeMeta location
+
 handleSetNodesMeta :: Request SetNodesMeta.Request -> StateT Env BusT ()
 handleSetNodesMeta = modifyGraph inverse action replyResult where
-    inverse (SetNodesMeta.Request location updates) = do
-        allNodes <- Graph.withGraph' location (runASTOp buildNodes) (view GraphAPI.nodes <$> runASTOp buildClassGraph)
-        let idSet = Set.fromList $ map fst updates
-            prevMeta = catMaybes $ flip map allNodes $ \node ->
-                if Set.member (node ^. Node.nodeId) idSet then
-                     Just (node ^. Node.nodeId, node ^. Node.nodeMeta)
-                else Nothing
-        return $ SetNodesMeta.Inverse prevMeta
-    action (SetNodesMeta.Request location updates) = withDefaultResult location $
-        forM_ updates $ uncurry $ Graph.setNodeMeta location
+    inverse (SetNodesMeta.Request location updates) = inverseSetNodesMeta location updates
+    action (SetNodesMeta.Request location updates) = actionSetNodesMeta location updates
+
+handleSetNodesMetaUpdate :: SetNodesMeta.Update -> StateT Env BusT ()
+handleSetNodesMetaUpdate (SetNodesMeta.Update location updates) = do
+    currentEmpireEnv <- use Env.empireEnv
+    empireNotifEnv   <- use Env.empireNotif
+    result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ actionSetNodesMeta location updates
+    case result of
+        Left  (exc :: SomeASTException) -> do
+            err <- liftIO $ prettyException exc
+            logger Logger.error err
+        Right (result, newEmpireEnv) -> do
+            Env.empireEnv .= newEmpireEnv
 
 handleSetPortDefault :: Request SetPortDefault.Request -> StateT Env BusT ()
 handleSetPortDefault = modifyGraph inverse action replyResult where
