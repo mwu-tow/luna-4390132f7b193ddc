@@ -7,6 +7,7 @@
 
 module Empire.ASTOps.Parse (
     SomeParserException
+  , FunctionParsing(..)
   , parseExpr
   , parsePortDefault
   , runParser
@@ -125,17 +126,22 @@ runParser expr = do
         exprMap <- IR.getAttr @Parser.MarkedExprMap
         return (unwrap' res, exprMap)
 
-prepareInput :: Text.Text -> Text.Text
-prepareInput expr = Text.concat [header, ":\n    None"]
+prepareInput :: Text.Text -> FunctionParsing -> Text.Text
+prepareInput expr parsing = Text.concat $ header : case parsing of
+    AppendNone -> [":\n    None"]
+    ParseAsIs  -> []
     where
         stripped = Text.strip expr
         header   = case Text.splitOn " " stripped of
             (def:var:args) -> Text.intercalate " " (def:var:args)
             i              -> Text.concat i
 
-runFunHackParser :: Text.Text -> Command ClsGraph (NodeRef, Text.Text)
-runFunHackParser expr = do
-    let input = prepareInput expr
+
+data FunctionParsing = AppendNone | ParseAsIs
+
+runFunHackParser :: Text.Text -> FunctionParsing -> Command ClsGraph (NodeRef, Text.Text)
+runFunHackParser expr parsing = do
+    let input = prepareInput expr parsing
     parse <- runFunParser input
     return (fst parse, input)
 

@@ -80,6 +80,7 @@ import qualified Empire.ASTOps.Builder            as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
 import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy)
 import qualified Empire.ASTOps.Modify             as ASTModify
+import           Empire.ASTOps.Parse              (FunctionParsing(..))
 import qualified Empire.ASTOps.Parse              as ASTParse
 import qualified Empire.ASTOps.Print              as ASTPrint
 import qualified Empire.ASTOps.Read               as ASTRead
@@ -135,7 +136,7 @@ addNode = addNodeCondTC True
 addNodeCondTC :: Bool -> GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNodeCondTC tc loc@(GraphLocation f _) uuid expr meta
     | GraphLocation _ (Breadcrumb []) <- loc = do
-        node <- addFunNode loc uuid expr meta
+        node <- addFunNode loc AppendNone uuid expr meta
         resendCode loc
         return node
     | otherwise = do
@@ -189,9 +190,9 @@ insertFunAfter previousFunction function code = do
             IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace funLen))
             return $ Text.length indentedCode
 
-addFunNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
-addFunNode loc uuid expr meta = withUnit loc $ do
-    (parse, code) <- ASTParse.runFunHackParser expr
+addFunNode :: GraphLocation -> FunctionParsing -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
+addFunNode loc parsing uuid expr meta = withUnit loc $ do
+    (parse, code) <- ASTParse.runFunHackParser expr parsing
     runASTOp $ AST.writeMeta parse meta
     name <- runASTOp $ IR.matchExpr parse $ \case
         IR.ASGRootedFunction name _ -> return $ nameToString name
@@ -412,11 +413,16 @@ addPortWithConnections loc portRef connectTo = withTC loc False $ do
     return newPorts
 
 addSubgraph :: GraphLocation -> [ExpressionNode] -> [Connection] -> Empire [ExpressionNode]
-addSubgraph loc@(GraphLocation _ (Breadcrumb [])) nodes _ =
-    forM nodes $ \n -> addFunNode loc (n ^. Node.nodeId) (n ^. Node.code) (n ^. Node.nodeMeta)
-addSubgraph loc nodes conns = withTC loc False $ do
-    newNodes <- forM nodes $ \n -> addNodeNoTC loc (n ^. Node.nodeId) (n ^. Node.expression) (n ^. Node.name) (n ^. Node.nodeMeta)
-    forM_ conns $ \(Connection src dst) -> connectNoTC loc src (InPortRef' dst)
+addSubgraph loc@(GraphLocation _ (Breadcrumb [])) nodes _ = do
+    res <- forM nodes $ \n -> addFunNode loc ParseAsIs (n ^. Node.nodeId) (n ^. Node.code) (n ^. Node.nodeMeta)
+    resendCode loc
+    return res
+addSubgraph loc nodes conns = do
+    newNodes <- withTC loc False $ do
+        newNodes <- forM nodes $ \n -> addNodeNoTC loc (n ^. Node.nodeId) (n ^. Node.expression) (n ^. Node.name) (n ^. Node.nodeMeta)
+        forM_ conns $ \(Connection src dst) -> connectNoTC loc src (InPortRef' dst)
+        return newNodes
+    resendCode loc
     return newNodes
 
 removeNodes :: GraphLocation -> [NodeId] -> Empire ()
