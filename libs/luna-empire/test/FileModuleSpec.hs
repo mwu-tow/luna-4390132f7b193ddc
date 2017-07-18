@@ -21,12 +21,14 @@ import qualified Empire.Data.BreadcrumbHierarchy as BH
 import qualified Empire.Data.Graph              as Graph
 import           LunaStudio.Data.Breadcrumb     (Breadcrumb (..), BreadcrumbItem (..))
 import qualified LunaStudio.Data.Breadcrumb     as Breadcrumb
-import qualified LunaStudio.Data.Graph          as Graph
+import qualified LunaStudio.Data.Graph          as APIGraph
 import           LunaStudio.Data.Constants      (gapBetweenNodes)
 import           LunaStudio.Data.GraphLocation  (GraphLocation (..))
 import qualified LunaStudio.Data.Node           as Node
 import           LunaStudio.Data.NodeMeta       (NodeMeta(..))
 import qualified LunaStudio.Data.NodeMeta       as NodeMeta
+import qualified LunaStudio.Data.Port           as Port
+import           LunaStudio.Data.PortRef        (AnyPortRef(..))
 import qualified LunaStudio.Data.Position       as Position
 import           LunaStudio.Data.TypeRep        (TypeRep(TStar))
 import           LunaStudio.Data.Port           (Port(..), PortState(..))
@@ -196,8 +198,8 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc multiFunCode
                 n <- Graph.addNode loc u1 "def quux" def
                 Graph.getGraph (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
-            length (graph ^. Graph.nodes) `shouldBe` 0
-            let Just (Node.OutputSidebar _ ports) = graph ^. Graph.outputSidebar
+            length (graph ^. APIGraph.nodes) `shouldBe` 0
+            let Just (Node.OutputSidebar _ ports) = graph ^. APIGraph.outputSidebar
             toListOf traverse ports `shouldBe` [Port [] "output" TStar (WithDefault (Expression "None"))]
         it "removes function at top-level" $ \env -> do
             (nodes, code) <- evalEmp env $ do
@@ -485,6 +487,60 @@ spec = around withChannels $ parallel $ do
                     «1»"bar"
                 def main:
                     «2»print bar
+                |]
+        it "adds node after connecting to output" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
+                u1 <- mkUUID
+                Graph.addNode (loc |>= bar) u1 "5" (atXPos 10)
+                APIGraph.Graph _ _ _ (Just output) _ <- Graph.getGraph (loc |>= bar)
+                Graph.connect (loc |>= bar) (outPortRef u1 []) (InPortRef' $ inPortRef (output ^. Node.nodeId) [])
+                u2 <- mkUUID
+                Graph.addNode (loc |>= bar) u2 "1" (atXPos (-20))
+                Graph.withUnit loc $ use Graph.code
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                    def foo:
+                        «0»5
+
+                    def bar:
+                        «4»node2 = 1
+                        «1»"bar"
+                        «3»node1 = 5
+                        node1
+
+                    def main:
+                        «2»print bar
+                |]
+        it "updates block end after connecting to output" $ \env -> do
+            (blockEnd, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                nodes <- Graph.getNodes loc
+                let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
+                u1 <- mkUUID
+                Graph.addNode (loc |>= bar) u1 "5" (atXPos 10)
+                APIGraph.Graph _ _ _ (Just output) _ <- Graph.getGraph (loc |>= bar)
+                Graph.connect (loc |>= bar) (outPortRef u1 []) (InPortRef' $ inPortRef (output ^. Node.nodeId) [])
+                blockEnd <- Graph.withGraph (loc |>= bar) $ runASTOp $ Code.getCurrentBlockEnd
+                code <- Graph.withUnit loc $ use Graph.code
+                return (blockEnd, code)
+            blockEnd `shouldBe` 67
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                    def foo:
+                        «0»5
+
+                    def bar:
+                        «1»"bar"
+                        «3»node1 = 5
+                        node1
+
+                    def main:
+                        «2»print bar
                 |]
         it "maintains proper block start info after adding node" $ \env -> do
             (starts, code) <- evalEmp env $ do

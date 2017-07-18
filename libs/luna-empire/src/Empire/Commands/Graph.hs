@@ -326,8 +326,12 @@ addOutputAtEnd initial out blockEnd = do
     indentBy <- Code.getCurrentIndentationLength
     code     <- ASTPrint.printFullExpression out
     seq      <- IR.generalize <$> IR.seq initial out
+    len      <- IR.getLayer @SpanLength initial
+    outLen   <- IR.getLayer @SpanLength out
+    let offset = indentBy + 1
+    IR.putLayer @SpanLength seq $ len + offset + outLen
     Code.insertAt blockEnd ("\n" <> Text.replicate (fromIntegral indentBy) " " <> code)
-    setSeqOffsets seq 0 (indentBy + 1)
+    setSeqOffsets seq 0 offset
     return seq
 
 reconnectOut :: GraphOp m => NodeRef -> NodeRef -> Delta -> m (Maybe NodeRef)
