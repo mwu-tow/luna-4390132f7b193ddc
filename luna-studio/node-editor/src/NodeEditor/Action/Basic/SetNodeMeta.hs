@@ -50,3 +50,7 @@ localSetNodeMeta nl nm = do
         visualizationsEnabled .= nm ^. NodeMeta.displayResult
         position              .= nm ^. NodeMeta.position
     NodeEditor.inGraph nl
+
+-- Use this function to notify backend - this function prevents undo
+sendNodesMetaUpdate :: [(NodeLoc, NodeMeta)] -> Command State ()
+sendNodesMetaUpdate = Batch.sendNodesMetaUpdate

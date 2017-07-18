@@ -21,9 +21,9 @@ data Request = Request { _location :: GraphLocation
 data Inverse = Inverse { _prevMeta :: [SingleUpdate]
                        } deriving (Eq, Generic, NFData, Show)
 
-data Update   = Update { _location' :: GraphLocation
-                       , _updates'  :: [SingleUpdate]
-                       } deriving (Eq, Generic, NFData, Show)
+data Update = Update { _location' :: GraphLocation
+                     , _updates'  :: [SingleUpdate]
+                     } deriving (Eq, Generic, NFData, Show)
 
 makeLenses ''Request
 makeLenses ''Inverse

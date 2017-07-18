@@ -106,7 +106,11 @@ setNodeExpression = withWorkspace .: BatchCmd.setNodeExpression
 
 setNodesMeta :: [(NodeLoc, NodeMeta)] -> Command State ()
 setNodesMeta []      = return ()
-setNodesMeta updates = withWorkspace . BatchCmd.setNodesMeta $ updates
+setNodesMeta updates = withWorkspace $ BatchCmd.setNodesMeta updates
+
+sendNodesMetaUpdate :: [(NodeLoc, NodeMeta)] -> Command State ()
+sendNodesMetaUpdate []      = return ()
+sendNodesMetaUpdate updates = withWorkspace $ BatchCmd.sendNodesMetaUpdate updates
 
 setPortDefault :: InPortRef -> PortDefault -> Command State ()
 setPortDefault portRef portDefault = do

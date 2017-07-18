@@ -318,10 +318,12 @@ addVisualizationForNode nl = withJustM (maybe def (view ExpressionNode.defaultVi
                                                                nl
                                                                (Visualization.NodeVisualizations def [newVis] def)
 
-updateDefaultVisualizer :: NodeLoc -> Maybe Visualizer -> Command State ()
-updateDefaultVisualizer nl vis = do
+updateDefaultVisualizer :: NodeLoc -> Maybe Visualizer -> Bool -> Command State ()
+updateDefaultVisualizer nl vis sendAsRequest = do
     modifyExpressionNode nl $ ExpressionNode.defaultVisualizer .= vis
-    withJustM (getNodeMeta nl) $ Batch.setNodesMeta . return . (nl,)
+    withJustM (getNodeMeta nl) $ \nm -> if sendAsRequest
+        then Batch.setNodesMeta [(nl, nm)]
+        else Batch.sendNodesMetaUpdate [(nl, nm)]
 
 recoverVisualizations :: NodeLoc -> Command State [VisualizationId]
 recoverVisualizations nl = getNodeVisualizations nl >>= \case
@@ -340,7 +342,7 @@ recoverVisualizations nl = getNodeVisualizations nl >>= \case
 updateVisualizationsForNode :: NodeLoc -> Maybe TypeRep -> Command State ()
 updateVisualizationsForNode nl mayTpe = do
     mayVisInfo <- maybe (return def) getVisualizers mayTpe
-    updateDefaultVisualizer nl $ fst <$> mayVisInfo
+    updateDefaultVisualizer nl (fst <$> mayVisInfo) False
     case mayVisInfo of
         Nothing -> modifyNodeEditor $ withJustM (preuse $ NE.nodeVisualizations . ix nl) $ \nodeVis -> do
             let idleVis = map (& Visualization.visualizationStatus .~ Visualization.Outdated) (nodeVis ^. Visualization.idleVisualizations)

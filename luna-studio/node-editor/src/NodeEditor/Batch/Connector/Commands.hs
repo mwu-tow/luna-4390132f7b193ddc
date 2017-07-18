@@ -153,6 +153,11 @@ setNodesMeta updates workspace uuid guiID = sendRequest $ Message uuid guiID $ w
     (workspace', nls) = normalise' workspace $ map fst updates
     updates'          = zip nls $ map snd updates
 
+sendNodesMetaUpdate :: [(NodeLoc, NodeMeta)] -> Workspace -> UUID -> Maybe UUID -> IO ()
+sendNodesMetaUpdate updates workspace uuid guiID = sendUpdate $ withLibrary workspace' SetNodesMeta.Update (map (_1 %~ convert) updates') where
+    (workspace', nls) = normalise' workspace $ map fst updates
+    updates'          = zip nls $ map snd updates
+
 setPortDefault :: InPortRef -> PortDefault -> Workspace -> UUID -> Maybe UUID -> IO ()
 setPortDefault portRef portDef workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' SetPortDefault.Request portRef' (Just portDef) where
     (workspace', portRef') = normalise workspace portRef

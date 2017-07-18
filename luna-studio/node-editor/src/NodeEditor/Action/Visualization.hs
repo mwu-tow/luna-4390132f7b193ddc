@@ -61,7 +61,7 @@ selectVisualizer nl visId visName = withJustM (getNodeVisualizations nl) $ \node
     withJust ((,) <$> Map.lookup visId (nodeVis ^. visualizations) <*> Map.lookup visName (nodeVis ^. visualizers)) $ \(prevVis, visPath) -> do
         continue (end :: VisualizationActive -> Command State ())
         let visualizer' = (visName, visPath)
-        updateDefaultVisualizer nl $ Just visualizer'
+        updateDefaultVisualizer nl (Just visualizer') True
         when (prevVis ^. runningVisualizer /= visualizer') $ getVisualizationsBackupMap >>= \visBackup ->
             case Map.lookup nl visBackup of
                 Just (StreamBackup backup) -> do
