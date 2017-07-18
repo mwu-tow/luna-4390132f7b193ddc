@@ -15,4 +15,8 @@ data Graph = Graph { _nodes         :: [ExpressionNode]
                    } deriving (Eq, Generic, NFData, Show)
 
 makeLenses ''Graph
-instance Binary Graph
+
+instance Binary  Graph
+
+instance Default Graph where
+    def = Graph def def def def def

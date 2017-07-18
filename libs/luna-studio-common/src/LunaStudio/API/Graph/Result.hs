@@ -14,3 +14,6 @@ data Result = Result { _removedNodes       :: [NodeId]
 
 makeLenses ''Result
 instance Binary Result
+
+instance Default Result where
+    def = Result def def def

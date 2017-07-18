@@ -688,20 +688,23 @@ getCode loc@(GraphLocation file _) = Text.unpack . Code.removeMarkers <$> withUn
 getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
 getBuffer file span = Text.pack <$> getCode (GraphLocation file (Breadcrumb []))
 
-getGraph :: GraphLocation -> Empire APIGraph.Graph
-getGraph loc = withTC' loc True (runASTOp $ do
-    exc <- use $ Graph.parseError
+getGraphCondTC :: Bool -> GraphLocation -> Empire APIGraph.Graph
+getGraphCondTC tc loc = (if tc then withTC' loc True else withGraph' loc) (runASTOp $ do
+    exc <- use Graph.parseError
     case exc of
         Just e  -> throwM e
         Nothing -> GraphBuilder.buildGraph)
     (runASTOp $ do
-        exc <- use $ Graph.clsParseError
+        exc <- use Graph.clsParseError
         case exc of
             Just e  -> throwM e
             Nothing -> GraphBuilder.buildClassGraph)
 
+getGraph :: GraphLocation -> Empire APIGraph.Graph
+getGraph = getGraphCondTC True
+
 getGraphNoTC :: GraphLocation -> Empire APIGraph.Graph
-getGraphNoTC loc = withGraph' loc (runASTOp GraphBuilder.buildGraph) (runASTOp GraphBuilder.buildClassGraph)
+getGraphNoTC = getGraphCondTC False
 
 getNodes :: GraphLocation -> Empire [ExpressionNode]
 getNodes loc = withTC' loc True (runASTOp (view APIGraph.nodes <$> GraphBuilder.buildGraph))

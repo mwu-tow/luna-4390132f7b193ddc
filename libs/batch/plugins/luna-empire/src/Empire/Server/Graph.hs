@@ -192,11 +192,22 @@ constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds 
     updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
         then newGraph ^. GraphAPI.outputSidebar else Nothing
 
+handleASTException :: Empire a -> Empire (Either SomeASTException a)
+handleASTException act = handle (return . Left) (Right <$> act)
+
 withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
 withDefaultResult' getFinalGraph location action = do
-    oldGraph <- Graph.getGraphNoTC location
+    oldGraph <- handleASTException $ Graph.getGraphNoTC location
     void action
-    constructResult oldGraph <$> getFinalGraph location
+    newGraph <- handleASTException $ getFinalGraph location
+    return $ case (oldGraph, newGraph) of
+        (Left _, Right g)    -> Result.Result def def g
+        (Left _, Left _)     -> def
+        (Right g, Left _)    -> Result.Result (g ^.. GraphAPI.nodes . traverse . Node.nodeId)
+                                              (g ^.. GraphAPI.connections . traverse . _2)
+                                              def
+        (Right og, Right ng) -> constructResult og ng
+
 
 withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
 withDefaultResult = withDefaultResult' Graph.getGraphNoTC
@@ -431,7 +442,6 @@ handleGetBuffer = modifyGraph defInverse action replyResult where
     action (GetBuffer.Request file span) = do
         code <- Graph.getBuffer file (head <$> span)
         return $ GetBuffer.Result code
-
 
 
 stdlibFunctions :: [String]
