@@ -27,11 +27,13 @@ import qualified System.Process.Typed as Process
 
 data PackageConfig = PackageConfig { _defaultPackagePath :: FilePath
                                    , _studioName :: Text
+                                   , _lunaName :: Text
                                    , _backendBuildPath :: FilePath
                                    , _frontendBuildPath :: FilePath
-                                   , _runBuildPath :: FilePath
+                                   , _lunaBuildPath :: FilePath
                                    , _atomPrepareScriptPath :: FilePath
                                    , _studioComponentsToCopy :: [FilePath]
+                                   , _lunaComponentsToCopy :: [FilePath]
                                    , _studioFolderName :: Text
                                    , _studioUtilsFolder :: Text
                                    , _lunaUtilsFolder   :: Text
@@ -46,11 +48,13 @@ instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "~/luna-package"
         , _studioName = "luna-studio"
+        , _lunaName   = "luna"
         , _backendBuildPath = "./build/backend"
         , _frontendBuildPath = "./luna-studio"
-        , _runBuildPath = "./packages"
+        , _lunaBuildPath = "./shell"
         , _atomPrepareScriptPath = "./luna-studio/script/atom_prepare.py"
         , _studioComponentsToCopy = ["dist/bin", "env", "supervisor", "luna-studio/atom", "resources"]
+        , _lunaComponentsToCopy = ["./shell/.stack-work/install/x86_64-osx/lts-8.16/8.0.2/bin/luna"]
         , _studioFolderName = "luna"
         , _studioUtilsFolder = "resources"
         , _lunaUtilsFolder = "docs"
@@ -103,34 +107,57 @@ runStackBuild :: MonadCreatePackage m => Text -> FilePath -> m ()
 runStackBuild appName repoPath = do
     pkgConfig <- get @PackageConfig
     let studioAppName = pkgConfig ^. studioName
+        lunaAppName = pkgConfig ^. lunaName
     case appName of
-        studioAppName -> do
+        a | a == studioAppName -> do
+            print "STUDIO BUILD"
             let backendAbsolutePath  = repoPath </> (pkgConfig ^. backendBuildPath)
                 frontendAbsolutePath = repoPath </> (pkgConfig ^. frontendBuildPath)
             Shelly.shelly $ buildCopyBins backendAbsolutePath
             Shelly.shelly $ build frontendAbsolutePath
             prepareAtomPkg repoPath
+          | a == lunaAppName -> do
+
+            print "LUNA BUILD"
+            Shelly.shelly $ build lunaBuildAbsolutePath where
+            lunaBuildAbsolutePath = repoPath </> (pkgConfig ^. lunaBuildPath)
+
 
 copyFromRepository :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromRepository appName repoPath = do
     pkgConfig <- get @PackageConfig
-    packageRepoFolder <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName </> fromText (pkgConfig ^. studioFolderName)
+
+    let studioAppName = pkgConfig ^. studioName
+        lunaAppName = pkgConfig ^. lunaName
+
+    packageRepoFolder <- if appName == studioAppName
+        then expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName </> fromText (pkgConfig ^. studioFolderName)
+        else if appName == lunaAppName
+            then expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName
+            else error "no such app to make package"
     Shelly.shelly $ Shelly.mkdir_p packageRepoFolder
-    let expandedCopmponents = (repoPath </> ) <$> (pkgConfig ^. studioComponentsToCopy)
-    Shelly.shelly $ (flip Shelly.cp_r packageRepoFolder) `mapM_` expandedCopmponents
+    case appName of
+        a | a == studioAppName -> do
+            let expandedCopmponents = (repoPath </> ) <$> (pkgConfig ^. studioComponentsToCopy)
+            Shelly.shelly $ (flip Shelly.cp_r packageRepoFolder) `mapM_` expandedCopmponents
+          | a == lunaAppName -> do
+            let expandedCopmponents = (repoPath </> ) <$> (pkgConfig ^. lunaComponentsToCopy)
+            Shelly.shelly $ (flip Shelly.cp_r packageRepoFolder) `mapM_` expandedCopmponents
 
 downloadAndUnpackDependency :: MonadCreatePackage m => Text -> ResolvedPackage -> m ()
 downloadAndUnpackDependency appName resolvedPackage = do
     pkgConfig <- get @PackageConfig
     let depName = resolvedPackage ^. header . name
     pkgFolderPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName </> fromText depName
-    atomAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName </> "Atom.app"
+    atomAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText appName
     downloadedPkg <- downloadFromURL $ resolvedPackage ^. desc . path
+    print $ show downloadedPkg
     unpacked <- unpackArchive downloadedPkg
+    print $ show unpacked
     case currentHost of
         Linux -> Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
         Darwin -> case depName of
-            "atom" -> Shelly.shelly $ Shelly.cmd "mv" unpacked atomAppPath --TODO moze atompowinien byc oznaczony jako gui app i inaczej kopiowany?
+            "atom" -> Shelly.shelly $ Shelly.cp_r unpacked atomAppPath --TODO moze atompowinien byc oznaczony jako gui app i inaczej kopiowany?
             otherwise -> Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
 
 runApm :: (MonadIO m, Shelly.MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
@@ -209,13 +236,15 @@ linkLibs binPath = do
 
 createPkg :: MonadCreatePackage m => ResolvedPackageMap -> m ()
 createPkg resolvedApp = do
+    print resolvedApp
     pkgConfig <- get @PackageConfig
     runStackBuild (resolvedApp ^. appName) $ fromText (resolvedApp ^. appDesc . path)
     copyFromRepository (resolvedApp ^. appName) $ fromText (resolvedApp ^. appDesc . path)
     mapM_ (downloadAndUnpackDependency (resolvedApp ^. appName)) (resolvedApp ^. pkgsToPack)
     let studio = pkgConfig ^. studioName
+        luna = pkgConfig ^. lunaName
     case (resolvedApp ^. appName) of
-        studio -> do
+        a | a == studio -> do
             apm             <- apmPath (pkgConfig ^. defaultPackagePath) (resolvedApp ^. appName)
             oniguruma       <- onigurumaPath (pkgConfig ^. defaultPackagePath) (resolvedApp ^. appName)
             atomHomePath    <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> "luna-atom" </> "packages" </> fromText (resolvedApp ^. appName)
@@ -223,14 +252,20 @@ createPkg resolvedApp = do
             Shelly.shelly $ Shelly.mkdir_p atomHomePath
             Shelly.shelly $ copyDir atomDirInStudio atomHomePath
             Shelly.shelly $ runApm apm atomHomePath oniguruma
-        otherwise -> return ()
+          | a == luna -> return ()
     mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> fromText (resolvedApp ^. appName) </> fromText (resolvedApp ^. appName)
-    Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
+    case (resolvedApp ^. appName) of
+        a | a == studio -> do
+            Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
+          | a == luna -> return ()
     case currentHost of
         Linux  -> createAppimage (resolvedApp ^. appName)
         Darwin -> do
-            Shelly.shelly $ Shelly.cp ((parent mainAppDir) </> "zmq" </> "libzmq.5.dylib") ((parent mainAppDir) </> "luna" </> "bin")
-            Shelly.shelly $ linkLibs $ (parent mainAppDir) </> "luna" </> "bin"
+            case (resolvedApp ^. appName) of
+                a | a == studio -> do
+                    Shelly.shelly $ Shelly.cp ((parent mainAppDir) </> "zmq" </> "libzmq.5.dylib") ((parent mainAppDir) </> "luna" </> "bin")
+                    Shelly.shelly $ linkLibs $ (parent mainAppDir) </> "luna" </> "bin"
+                  | a == luna -> return ()
             Shelly.shelly $ createTarGzUnix (parent mainAppDir) (resolvedApp ^. appName)
             return ()
 
@@ -244,7 +279,7 @@ runCreatingPackage opts = do
         pkgList = map (\(name, package) -> (name, fromMaybe (error $ convert $ "package undefined in yaml file: " <> name) package)) appPkg
         pkgMap  = map (\(name, package) -> (name, fromMaybe (error $ "no package description") $ Map.lookup currentSysDesc $ snd $ head $ toList $ package ^. versions) ) pkgList
         resolvedMap = map (\(name,pkgDesc) -> ResolvedPackageMap name pkgDesc $ snd $ resolve repo pkgDesc) pkgMap -- TODO zrób to bezpiecznie!
-
+    print resolvedMap
     mapM_ createPkg resolvedMap
 
 

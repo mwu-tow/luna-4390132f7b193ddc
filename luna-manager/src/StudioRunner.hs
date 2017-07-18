@@ -82,11 +82,6 @@ resourcesMacOS = liftIO $ do
     resources <- prepPathNoHome [contents, "Resources" ]
     return resources
 
-frameworksMacOS :: IO FilePath
-frameworksMacOS = liftIO $ do
-    contents <- mainDirMacOS
-    frameworks <- prepPathNoHome [contents, "Frameworks" ]
-    return frameworks
 
 backendDirMacOS :: IO FilePath
 backendDirMacOS = liftIO $ do
@@ -102,7 +97,7 @@ supervisordMacOS = liftIO $ do
 
 atomMacOS :: IO FilePath
 atomMacOS = liftIO $ do
-    frameworks <- frameworksMacOS
+    frameworks <- resourcesMacOS
     atom       <- prepPathNoHome [frameworks, atomFolderName, current, atomAppBin]
     return atom
 
@@ -157,11 +152,14 @@ runLinux = do
 copyLunaStudioMacOS :: IO ()
 copyLunaStudioMacOS = do
   resources <- mainDirMacOS
-
-  atomHome <- lunaAtomHome
+  tmpAH <- lunaAtomHome
+  atomHome <- prepPathNoHome [tmpAH, studioHome]
 
   createDirectoryIfMissing True atomHome
+
   studioHomePath <- prepPathNoHome [resources, studioHome, "*"]
+  print $ studioHomePath
+  print $ atomHome
   runProcess_ $ shell ("cp -R " ++ studioHomePath ++ " " ++ atomHome)
 
 checkLunaHomeMacOS :: IO ()
@@ -178,8 +176,6 @@ runLunaEmpireMacOS = do
   lunaSupervisor <- backendDirMacOS
   supervisord    <- supervisordMacOS
   logs <- logsDir
-  print lunaSupervisor
-  print supervisord
   createDirectoryIfMissing True logs
   runProcess_ $ setWorkingDir lunaSupervisor $ shell (supervisord  ++" -c supervisord-mac.conf")
 

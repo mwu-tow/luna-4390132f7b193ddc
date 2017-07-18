@@ -26,7 +26,7 @@ extensionError = toException ExtensionError
 unpackArchive :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
 unpackArchive file = case currentHost of
     Windows -> unzipFileWindows file
-    Darwin  -> Shelly.shelly $ unpackTarGzUnix file
+    Darwin  ->  Shelly.shelly $ unpackTarGzUnix file
     Linux   -> do
         ext <- tryJust extensionError $ extension file
         case ext of
@@ -49,10 +49,18 @@ unpackTarGzUnix :: Shelly.MonadSh m => FilePath -> m FilePath
 unpackTarGzUnix file = do
     let dir = directory file
         name = basename file
-    Shelly.cd dir
-    Shelly.mkdir_p name
-    Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
-    return $ dir </> name
+    case name of
+        "atom-mac" -> do
+            Shelly.liftSh $ print $ "atom-mac unpack"
+            Shelly.cd dir
+            Shelly.mkdir_p name
+            Shelly.cmd  "unzip" file
+            return $ dir </> "Atom.app"
+        otherwise -> do
+            Shelly.cd dir
+            Shelly.mkdir_p name
+            Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+            return $ dir </> name
 
 -- TODO: download unzipper if missing
 unzipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath

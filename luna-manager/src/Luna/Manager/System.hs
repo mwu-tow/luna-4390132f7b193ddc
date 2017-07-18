@@ -81,10 +81,10 @@ exportPath' :: MonadIO m => FilePath -> m ()
 exportPath' pathToExport = case currentHost of
     Linux -> do
         shellType <- checkShell
-        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "error occured, TODO[WD]"
+        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "Unrecognized shell. Please add ~/.local/bin to your exports." --"error occured, TODO[WD]"
     Darwin -> do
         shellType <- checkShell
-        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "error occured, TODO[WD]"
+        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "Unrecognized shell. Please add ~/.local/bin to your exports."--"error occured, TODO[WD]"
     Windows -> exportPathWindows pathToExport
     -- | e == unrecognizedShellError  -> error "d"
     -- | e == bashConfigNotFoundError -> error "x"
