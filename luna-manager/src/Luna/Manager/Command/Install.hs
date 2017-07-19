@@ -136,8 +136,12 @@ downloadAndUnpack pkgPath installPath = do
     putStrLn "Unpacking archive"
     unpacked <- unpackArchive pkg
     liftIO $ hFlush stdout
+    putStrLn "Archive unpacked!"
+    liftIO $ hFlush stdout
     putStrLn "Copying files"
-    Shelly.shelly $ copyDir unpacked installPath
+    Shelly.shelly $ copyDir unpacked  installPath
+    liftIO $ hFlush stdout
+    putStrLn "Files copied!"
     liftIO $ hFlush stdout
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
@@ -167,11 +171,13 @@ copyResources appType installPath appName = case currentHost of
     Linux -> return ()
     Darwin -> case appType of
         GuiApp -> do
-            let packageLogo = installPath </> "luna" </> "resources" </> "logo.png"
+            let packageLogo = installPath </> "luna" </> "resources" </> "logo.icns"
                 packageInfoPlist = installPath </> "luna" </> "resources" </> "Info.plist"
-                appLogo = parent installPath </> fromText (mkSystemPkgName appName <> ".png")
+                appLogo = parent installPath </> fromText (appName <> ".icns")
                 appInfoPlist = (parent $ parent installPath) </> "Info.plist"
+            -- Shelly.shelly $ Shelly.rm appLogo
             Shelly.shelly $ Shelly.cp packageLogo appLogo
+            -- Shelly.shelly $ Shelly.rm appInfoPlist
             Shelly.shelly $ Shelly.cp packageInfoPlist appInfoPlist
         BatchApp -> return ()
 
@@ -193,7 +199,6 @@ linkingLocalBin currentBin appName = do
         Darwin -> do
             let localBin = "/usr/local/bin" </> fromText appName
             linking currentBin localBin
-            exportPath' localBin
         Windows -> exportPath' currentBin
 
 runServices :: MonadInstall m => FilePath -> AppType -> m ()
@@ -248,6 +253,8 @@ runInstaller opts = do
     binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
     mapM_ (installApp opts) appsToInstall
     installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
+    pathExists <- Shelly.shelly $ Shelly.test_d installPath
+    if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
     downloadAndUnpack (appPkgDesc ^. path) installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName
 

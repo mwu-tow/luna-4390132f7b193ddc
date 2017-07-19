@@ -110,6 +110,9 @@ makeLenses ''RepoConfig
 
 type MonadRepo m = (MonadStates '[RepoConfig, EnvConfig] m, MonadNetwork m)
 
+parseConfig :: (MonadIO m, MonadException SomeException m) => FilePath -> m Repo
+parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither cfgPath)
+
 getRepo :: MonadRepo m => m Repo
 getRepo = do
     cfg <- get @RepoConfig
@@ -118,7 +121,7 @@ getRepo = do
         Nothing -> do
             setTmpCwd
             downloadedConfig <- downloadFromURL . view repoPath =<< get @RepoConfig
-            repo <- tryRight' =<< liftIO (Yaml.decodeFileEither $ encodeString downloadedConfig)
+            repo <- parseConfig $ encodeString downloadedConfig
             put @RepoConfig $ cfg & cachedRepo .~ Just repo
             return repo
 

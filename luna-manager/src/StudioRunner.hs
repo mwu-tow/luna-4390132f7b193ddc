@@ -26,18 +26,23 @@ import           Luna.Manager.System.Host
 import qualified Data.Text as T
 default (T.Text)
 
-version = "1.0.0"
-atomHome = "local"
-atomFolderName = "atom"
+-- version = "1.0.0"
+mainHomeDir = ".luna"
+config = "config"
+versionFile = "version.txt"
+
 studioHome = "luna-atom"
 logs = "logs"
+studioName = "luna-studio"
 atomPackageName = "luna-studio"
 lunaFolderName = "luna"
 supervisorFolderName = "supervisor"
 supervisordFolderName = "supervisord"
 supervisordBin = "supervisord"
-current = "current" --just for MacOS
-atomAppBin = "Atom.app/Contents/MacOS"
+
+atomFolderNameMacOS = "Atom.app"
+atomFolderNameLinux = "atom"
+
 atomFolderWin = "Atom"
 atomBinWin = "atom"
 
@@ -47,17 +52,31 @@ scriptDir = liftIO $ do
   path         <- parseAbsFile localExePath
   return $ toFilePath (parent path)
 
+versionFilePath :: IO FilePath
+versionFilePath = do
+    exePath <- scriptDir
+    prepPathNoHome [exePath, versionFile]
+
+
+versionContent :: IO String
+versionContent = do
+    path <- versionFilePath
+    version <- readFile $ path
+    return $ version
+
 -----Linux----
 
 lunaAtomHome :: IO FilePath
 lunaAtomHome = do
   home <- getHomeDirectory
-  prepPathNoHome [home, ".luna-studio", atomHome]
+  version <- versionContent
+  prepPathNoHome [home, mainHomeDir, config, studioName, version, studioHome]
 
 logsDir :: IO FilePath
 logsDir = do
   home <- getHomeDirectory
-  prepPath [home, ".luna-studio", logs]
+  version <- versionContent
+  prepPath [home, mainHomeDir, logs, studioName, version]
 
 backendDir :: IO FilePath
 backendDir = prepPath [ lunaFolderName, supervisorFolderName]
@@ -65,7 +84,8 @@ backendDir = prepPath [ lunaFolderName, supervisorFolderName]
 pathLunaAtomHomePackage ::IO FilePath
 pathLunaAtomHomePackage = liftIO $ do
     home         <- getHomeDirectory
-    lunaAtomHome <- prepPathNoHome [home, studioHome, version, atomHome, "packages", atomPackageName]
+    version <- versionContent
+    lunaAtomHome <- prepPathNoHome [home, mainHomeDir, config, studioName, version, studioHome, "packages", atomPackageName]
     return lunaAtomHome
 
 ----MacOS----
@@ -75,13 +95,6 @@ mainDirMacOS = liftIO $ do
     localExePath <- getExecutablePath
     path     <- parseAbsFile localExePath
     return $ toFilePath $ parent path
-
-resourcesMacOS :: IO FilePath
-resourcesMacOS = liftIO $ do
-    contents <- mainDirMacOS
-    resources <- prepPathNoHome [contents, "Resources" ]
-    return resources
-
 
 backendDirMacOS :: IO FilePath
 backendDirMacOS = liftIO $ do
@@ -97,8 +110,8 @@ supervisordMacOS = liftIO $ do
 
 atomMacOS :: IO FilePath
 atomMacOS = liftIO $ do
-    frameworks <- resourcesMacOS
-    atom       <- prepPathNoHome [frameworks, atomFolderName, current, atomAppBin]
+    resources <- mainDirMacOS
+    atom       <- prepPathNoHome [resources, atomFolderNameMacOS]
     return atom
 
 ------Windows------
@@ -148,18 +161,21 @@ runLinux = do
     checkLunaHome
     runLunaEmpire
 
+
+
 --MacOS
+
+
+
+
 copyLunaStudioMacOS :: IO ()
 copyLunaStudioMacOS = do
   resources <- mainDirMacOS
-  tmpAH <- lunaAtomHome
-  atomHome <- prepPathNoHome [tmpAH, studioHome]
-
+  atomHome <- lunaAtomHome
   createDirectoryIfMissing True atomHome
 
   studioHomePath <- prepPathNoHome [resources, studioHome, "*"]
-  print $ studioHomePath
-  print $ atomHome
+
   runProcess_ $ shell ("cp -R " ++ studioHomePath ++ " " ++ atomHome)
 
 checkLunaHomeMacOS :: IO ()
@@ -182,8 +198,11 @@ runLunaEmpireMacOS = do
 
 runMacOS :: IO ()
 runMacOS = do
-    atom           <- atomMacOS
-    Environment.setEnv "LUNAATOM" atom
+    atomHome <- lunaAtomHome
+    logs <- logsDir
+    Environment.setEnv "LUNAATOM" atomHome
+    Environment.setEnv "SUPERVISORLOGS" logs
+
     checkLunaHomeMacOS
     runLunaEmpireMacOS
 
@@ -200,48 +219,52 @@ mkRelativePathWindows args = do
         a = normalise $ folded
     return a
 
-logsWin :: IO FilePath
-logsWin = mkPathWithHomeWindows [studioHome, version, logs]
-
-atomHomePathWin :: IO FilePath
-atomHomePathWin = mkPathWithHomeWindows [studioHome, version, atomHome]
-
-pathLunaAtomHomePackageWin :: IO FilePath
-pathLunaAtomHomePackageWin =  do
-    atomHomePath <- atomHomePathWin
-    path <- mkRelativePathWindows [atomHomePath, "packages", atomPackageName]
-    return path
-
-atomPathWin :: IO FilePath
-atomPathWin = liftIO $ do
-    script   <- scriptDir
-    atomFold <- mkRelativePathWindows [script, atomFolderWin]
-    return atomFold
-
-checkLunaHomeWin :: IO ()
-checkLunaHomeWin = liftIO $ do
-    pathLunaPackage <- pathLunaAtomHomePackageWin
-    doesDirectoryExist pathLunaPackage >>= \case
-      True -> return ()
-      False -> copyLunaStudioWin
-
-copyLunaStudioWin :: IO ()
-copyLunaStudioWin = liftIO $ do
-    mainDir <- scriptDir
-    atomHome <- atomHomePathWin
-    createDirectoryIfMissing True atomHome
-    runProcess_ $ shell ("xcopy " ++ mainDir ++ studioHome ++ " " ++ atomHome ++ " /e /i /h")
-
-
-runWindows :: IO ()
-runWindows = do
-    currentDirr <- scriptDir
-    logs <- logsWin
-    atom <- atomPathWin
-    atomHomeAbs <- atomHomePathWin
-    createDirectoryIfMissing True logs
-    checkLunaHomeWin
-    runProcess_ $ setWorkingDir atom $ setEnv [("ATOM_HOME", atomHomeAbs)] $ shell ("atom")
+-- logsWin :: IO FilePath
+-- logsWin = do
+--     version <- versionContent
+--     return $ mkPathWithHomeWindows [studioHome, version, logs]
+--
+-- atomHomePathWin :: IO FilePath
+-- atomHomePathWin = do
+--     version <- versionContent
+--     return $ mkPathWithHomeWindows [studioHome, version, studioHome]
+--
+-- pathLunaAtomHomePackageWin :: IO FilePath
+-- pathLunaAtomHomePackageWin =  do
+--     atomHomePath <- atomHomePathWin
+--     path <- mkRelativePathWindows [atomHomePath, "packages", atomPackageName]
+--     return path
+--
+-- atomPathWin :: IO FilePath
+-- atomPathWin = liftIO $ do
+--     script   <- scriptDir
+--     atomFold <- mkRelativePathWindows [script, atomFolderWin]
+--     return atomFold
+--
+-- checkLunaHomeWin :: IO ()
+-- checkLunaHomeWin = liftIO $ do
+--     pathLunaPackage <- pathLunaAtomHomePackageWin
+--     doesDirectoryExist pathLunaPackage >>= \case
+--       True -> return ()
+--       False -> copyLunaStudioWin
+--
+-- copyLunaStudioWin :: IO ()
+-- copyLunaStudioWin = liftIO $ do
+--     mainDir <- scriptDir
+--     atomHome <- atomHomePathWin
+--     createDirectoryIfMissing True atomHome
+--     runProcess_ $ shell ("xcopy " ++ mainDir ++ studioHome ++ " " ++ atomHome ++ " /e /i /h")
+--
+--
+-- runWindows :: IO ()
+-- runWindows = do
+--     currentDirr <- scriptDir
+--     logs <- logsWin
+--     atom <- atomPathWin
+--     atomHomeAbs <- atomHomePathWin
+--     createDirectoryIfMissing True logs
+--     checkLunaHomeWin
+--     runProcess_ $ setWorkingDir atom $ setEnv [("ATOM_HOME", atomHomeAbs)] $ shell ("atom")
 
 
 main :: IO ()
