@@ -89,7 +89,7 @@ insertAt at code = applyDiff at at code
 removeAt :: (MonadState state m, Graph.HasCode state) => Delta -> Delta -> m ()
 removeAt from to = void $ applyDiff from to ""
 
-getAt :: MonadState Graph m => Delta -> Delta -> m Text
+getAt :: (MonadState state m, Graph.HasCode state) => Delta -> Delta -> m Text
 getAt (fromIntegral -> from) (fromIntegral -> to) = do
     code <- use Graph.code
     return $ Text.take (to - from) $ Text.drop from code

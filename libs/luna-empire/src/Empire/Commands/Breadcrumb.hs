@@ -21,7 +21,6 @@ import           Empire.ASTOp                      (putNewIR, putNewIRCls, runAl
 import           Empire.ASTOps.BreadcrumbHierarchy as ASTBreadcrumb
 import           Empire.ASTOps.Parse               as ASTParse
 import           Empire.ASTOps.Read                as ASTRead
-import           Empire.Commands.AST               (classFunctions)
 import           Empire.Commands.Code              (functionBlockStartRef, propagateLengths)
 import           Empire.Data.AST                   (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.BreadcrumbHierarchy   (navigateTo, replaceAt)
@@ -116,7 +115,7 @@ withRootedFunction uuid act = do
     funName <- use $ Graph.clsFuns . ix uuid . _1
     diffs <- runASTOp $ do
         cls <- use Graph.clsClass
-        funs <- classFunctions cls
+        funs <- ASTRead.classFunctions cls
         forM funs $ \fun -> IR.matchExpr fun $ \case
             IR.ASGRootedFunction name _ -> do
                 if (nameToString name == funName) then do

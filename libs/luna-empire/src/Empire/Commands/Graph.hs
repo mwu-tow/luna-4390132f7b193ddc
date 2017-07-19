@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -54,12 +56,20 @@ module Empire.Commands.Graph
     , withUnit
     , runTC
     , getName
+    , MarkerNodeMeta(..)
+    , FileMetadata(..)
+    , dumpMetadata
+    , addMetadataToCode
+    , readMetadata
     ) where
 
 import           Control.Arrow                    ((&&&))
 import           Control.Monad                    (forM, forM_)
 import           Control.Monad.Catch              (handle, onException)
 import           Control.Monad.State              hiding (when)
+import           Data.Aeson                       (FromJSON, ToJSON)
+import qualified Data.Aeson                       as Aeson
+import qualified Data.Aeson.Text                  as Aeson
 import           Data.Coerce                      (coerce)
 import           Data.Foldable                    (toList)
 import           Data.List                        (elemIndex, group, sortOn)
@@ -70,6 +80,8 @@ import qualified Data.Set                         as Set
 import           Data.Text                        (Text)
 import           Data.Text.Strict.Lens            (packed)
 import qualified Data.Text                        as Text
+import qualified Data.Text.Encoding               as Text
+import qualified Data.Text.Lazy                   as TL
 import qualified Data.Text.IO                     as Text
 import           Data.Text.Position               (Delta)
 import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
@@ -104,10 +116,12 @@ import           Empire.Empire
 import           Empire.Prelude                   hiding (toList)
 import qualified Luna.IR                          as IR
 import qualified Luna.IR.Term.Core                as Term
+import qualified Luna.Syntax.Text.Lexer.Name      as Lexer
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
 import qualified Luna.Syntax.Text.Parser.Marker   as Luna
+import           LunaStudio.API.JSONInstances     ()
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Constants        (gapBetweenNodes)
@@ -170,7 +184,7 @@ insertFunAfter previousFunction function code = do
     case previousFunction of
         Nothing -> do
             klass <- use Graph.clsClass
-            funs <- AST.classFunctions klass
+            funs <- ASTRead.classFunctions klass
             funBlockStart <- Code.functionBlockStartRef (head funs)
             LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan (head funs)
             off' <- if (off /= 0) then return off else do
@@ -198,7 +212,7 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
         IR.ASGRootedFunction name _ -> return $ nameToString name
     klass <- use Graph.clsClass
     (insertedCharacters, codePosition) <- runASTOp $ do
-        funs <- AST.classFunctions klass
+        funs <- ASTRead.classFunctions klass
         previousFunction <- findPreviousFunction meta funs
         IR.matchExpr klass $ \case
             IR.Unit _ _ cls -> do
@@ -611,7 +625,7 @@ setNodeMetaFun nodeId newMeta = runASTOp $ do
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
-setNodeMeta loc nodeId newMeta = withGraph' loc (setNodeMetaGraph nodeId newMeta) (setNodeMetaFun nodeId newMeta)
+setNodeMeta loc@(GraphLocation file _) nodeId newMeta = withGraph' loc (setNodeMetaGraph nodeId newMeta) (setNodeMetaFun nodeId newMeta)
 
 setNodePosition :: GraphLocation -> NodeId -> Position -> Empire ()
 setNodePosition loc nodeId newPos = do
@@ -692,7 +706,18 @@ getNodeMeta :: GraphLocation -> NodeId -> Empire (Maybe NodeMeta)
 getNodeMeta loc = withGraph loc . runASTOp . AST.getNodeMeta
 
 getCode :: GraphLocation -> Empire String
-getCode loc@(GraphLocation file _) = Text.unpack . Code.removeMarkers <$> withUnit (GraphLocation file (Breadcrumb [])) (use Graph.clsCode)
+getCode loc@(GraphLocation file _) = do
+    code <- withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ do
+        unit     <- use Graph.clsClass
+        metaRef  <- ASTRead.getMetadataRef unit
+        case metaRef of
+            Just meta -> do
+                metaStart <- Code.functionBlockStartRef meta
+                LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
+                Code.getAt 0 (metaStart - off)
+            _         ->
+                use Graph.code
+    return $ Text.unpack . Code.removeMarkers $ code
 
 -- TODO[MK]: handle span
 getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
@@ -875,11 +900,15 @@ loadCode loc@(GraphLocation file _) code = do
     funs <- use $ activeFiles . at file . traverse . Library.body . Graph.clsFuns
     let funsUUIDs = Map.fromList $ map (\(k, (n,g)) -> (n, k)) $ Map.assocs funs
     activeFiles . at file . traverse . Library.body . Graph.clsFuns .= Map.empty
-    withUnit (GraphLocation file (Breadcrumb [])) $ putNewIRCls ir
+    withUnit (GraphLocation file (Breadcrumb [])) $ do
+        putNewIRCls ir
+        FileMetadata fileMetadata <- runASTOp $ readMetadata'
+        let savedNodeMetas = Map.fromList $ map (\(MarkerNodeMeta m meta) -> (m, meta)) fileMetadata
+        Graph.nodeCache . Graph.nodeMetaMap %= (\cache -> Map.union cache savedNodeMetas)
     functions <- withUnit loc $ do
         klass <- use Graph.clsClass
         runASTOp $ do
-            funs <- AST.classFunctions klass
+            funs <- ASTRead.classFunctions klass
             forM funs $ \f -> IR.matchExpr f $ \case
                 IR.ASGRootedFunction name _ -> return (convert name, f)
     forM_ functions $ \(name, fun) -> do
@@ -1010,6 +1039,76 @@ markerCodeSpan loc index = withGraph loc $ runASTOp $ do
         exprMap' = coerce exprMap
         Just ref = Map.lookup (fromIntegral index) exprMap'
     readRange ref
+
+data MarkerNodeMeta = MarkerNodeMeta { marker :: Word64, meta :: NodeMeta }
+    deriving (Eq, Show, Generic, FromJSON, ToJSON)
+newtype FileMetadata = FileMetadata { metas :: [MarkerNodeMeta] }
+    deriving (Show, Generic, FromJSON, ToJSON)
+
+dumpMetadata :: FilePath -> Empire [MarkerNodeMeta]
+dumpMetadata file = do
+    funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        funs <- use Graph.clsFuns
+        return $ Map.keys funs
+    metas <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        root       <- use $ Graph.breadcrumbHierarchy . BH.body
+        oldMetas   <- extractMarkedMetasAndIds root
+        return [ MarkerNodeMeta marker meta | (marker, (Just meta, _)) <- oldMetas ]
+    return $ concat metas
+
+addMetadataToCode :: FilePath -> Empire ()
+addMetadataToCode file = do
+    metadata <- FileMetadata <$> dumpMetadata file
+    let metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) metadata
+        metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
+    withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ do
+        unit     <- use Graph.clsClass
+        metaRef  <- ASTRead.getMetadataRef unit
+        case metaRef of
+            Just meta -> do
+                metaStart <- Code.functionBlockStartRef meta
+                LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
+                Code.applyDiff metaStart (metaStart + len) metadataJSONWithHeader
+                IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan off (fromIntegral $ Text.length metadataJSONWithHeader))
+            Nothing   -> do
+                lastFun <- last <$> ASTRead.classFunctions unit
+                lastFunStart <- Code.functionBlockStartRef lastFun
+                LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan lastFun
+                let metaOffset = 2
+                    metaStart  = lastFunStart + len
+                    metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
+                Code.insertAt metaStart metadataJSONWithHeaderAndOffset
+                meta <- IR.metadata metadataJSONWithHeader
+                IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
+
+                IR.matchExpr unit $ \case
+                    IR.Unit _ _ cls -> do
+                        cls' <- IR.source cls
+                        Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
+                        l <- IR.unsafeGeneralize <$> IR.link meta cls''
+                        links <- IR.matchExpr cls' $ \case
+                            IR.ClsASG _ _ _ decls -> return decls
+                        newFuns <- putNewFunctionRef l (Just lastFun) links
+                        IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
+
+readMetadata' :: ClassOp m => m FileMetadata
+readMetadata' = do
+    unit     <- use Graph.clsClass
+    metaRef  <- ASTRead.getMetadataRef unit
+    case metaRef of
+        Just meta -> do
+            metaStart <- Code.functionBlockStartRef meta
+            LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
+            code <- Code.getAt metaStart (metaStart + len)
+            let json = Text.drop (Text.length "### META ") $ code
+                metadata = Aeson.eitherDecodeStrict' $ Text.encodeUtf8 json
+            case metadata of
+                Right fm  -> return fm
+                Left  err -> error $ "malformed metadata: " ++ Text.unpack json
+        _ -> return $ FileMetadata []
+
+readMetadata :: FilePath -> Empire FileMetadata
+readMetadata file = withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ readMetadata'
 
 -- internal
 

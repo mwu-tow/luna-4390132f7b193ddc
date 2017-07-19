@@ -117,15 +117,6 @@ isTrivialLambda node = match node $ \case
         return $ out' `elem` vars
     _ -> throwM $ NotLambdaException node
 
-classFunctions :: ClassOp m => NodeRef -> m [NodeRef]
-classFunctions unit = IR.matchExpr unit $ \case
-    IR.Unit _ _ klass -> do
-        klass' <- IR.source klass
-        IR.matchExpr klass' $ \case
-            IR.ClsASG _ _ _ funs -> do
-                mapM IR.source funs
-
-
 dumpGraphViz :: ASTOp g m => String -> m ()
 dumpGraphViz name = Vis.snapshotWith nodeVis edgeVis name where
     edgeVis e = do
