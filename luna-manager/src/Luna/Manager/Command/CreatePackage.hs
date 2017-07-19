@@ -73,13 +73,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
         reconfig cfg = cfg & studioComponentsToCopy .~ ["dist/bin", "env", "supervisor", "luna-studio/atom"]
 
 -- Map Name ResolvedPackage
-data ResolvedPackageMap  = ResolvedPackageMap { _appName    :: Text
-                                              , _appVersion :: Version
-                                            --   , _header :: Header
-                                              , _appDesc    :: PackageDesc
-                                              , _pkgsToPack :: [ResolvedPackage] -- jak zunifikowac to z typami z Repository?
-                                              } deriving (Show)
-makeLenses ''ResolvedPackageMap
+
 
 type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNetwork m)
 
@@ -230,56 +224,58 @@ linkLibs binPath = do
     Process.runProcess_ $ Process.setWorkingDir (encodeString binPath) $ Process.shell "install_name_tool -change /usr/local/opt/zeromq/lib/libzmq.5.dylib @executable_path/`basename /usr/local/opt/zeromq/lib/libzmq.5.dylib` ./ws-connector"
 
 
-createPkg :: MonadCreatePackage m => ResolvedPackageMap -> m ()
-createPkg resolvedApp = do
+createPkg :: MonadCreatePackage m => ResolvedApplication -> m ()
+createPkg resolvedApplication = do
     pkgConfig <- get @PackageConfig
-    runStackBuild (resolvedApp ^. appName) $ convert (resolvedApp ^. appDesc . path) -- convert -> convert
-    copyFromRepository (resolvedApp ^. appName) $ convert (resolvedApp ^. appDesc . path)
-    mapM_ (downloadAndUnpackDependency (resolvedApp ^. appName)) (resolvedApp ^. pkgsToPack)
+    runStackBuild (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path) -- convert -> convert
+    copyFromRepository (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path)
+    mapM_ (downloadAndUnpackDependency (resolvedApplication ^. resolvedApp . header . name)) (resolvedApplication ^. pkgsToPack)
     let studio = pkgConfig ^. studioName
         luna = pkgConfig ^. lunaName
-    case (resolvedApp ^. appName) of
+    case (resolvedApplication ^. resolvedApp . header . name) of
         a | a == studio -> do
-            apm             <- apmPath (pkgConfig ^. defaultPackagePath) (resolvedApp ^. appName)
-            oniguruma       <- onigurumaPath (pkgConfig ^. defaultPackagePath) (resolvedApp ^. appName)
-            atomHomePath    <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApp ^. appName) </> "luna-atom" </> "packages" </> convert (resolvedApp ^. appName)
-            atomDirInStudio <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApp ^. appName) </> convert (pkgConfig ^. studioFolderName) </> "atom"
+            apm             <- apmPath (pkgConfig ^. defaultPackagePath) (resolvedApplication ^. resolvedApp . header . name)
+            oniguruma       <- onigurumaPath (pkgConfig ^. defaultPackagePath) (resolvedApplication ^. resolvedApp . header . name)
+            atomHomePath    <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> "luna-atom" </> "packages" </> convert (resolvedApplication ^. resolvedApp . header . name)
+            atomDirInStudio <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> convert (pkgConfig ^. studioFolderName) </> "atom"
             Shelly.shelly $ Shelly.mkdir_p atomHomePath
             Shelly.shelly $ copyDir atomDirInStudio atomHomePath
             Shelly.shelly $ runApm apm atomHomePath oniguruma
           | a == luna -> return ()
-    mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApp ^. appName) </> convert (resolvedApp ^. appName)
-    case (resolvedApp ^. appName) of
+    mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> convert (resolvedApplication ^. resolvedApp . header . name)
+    case (resolvedApplication ^. resolvedApp . header . name) of
         a | a == studio -> do
             Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
             print $ show mainAppDir
             let versionFile = (parent mainAppDir) </>  "version.txt"
-            liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty (resolvedApp ^. appVersion)
+            liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty (resolvedApplication ^. resolvedApp . header . version)
           | a == luna -> return ()
     case currentHost of
-        Linux  -> createAppimage (resolvedApp ^. appName)
+        Linux  -> createAppimage (resolvedApplication ^. resolvedApp . header . name)
         Darwin -> do
-            case (resolvedApp ^. appName) of
+            case (resolvedApplication ^. resolvedApp . header . name) of
                 a | a == studio -> do
                     Shelly.shelly $ Shelly.cp ((parent mainAppDir) </> "zmq" </> "libzmq.5.dylib") ((parent mainAppDir) </> "luna" </> "bin")
                     Shelly.shelly $ linkLibs $ (parent mainAppDir) </> "luna" </> "bin"
                   | a == luna -> return ()
-            Shelly.shelly $ createTarGzUnix (parent mainAppDir) (resolvedApp ^. appName)
+            Shelly.shelly $ createTarGzUnix (parent mainAppDir) (resolvedApplication ^. resolvedApp . header . name)
             return ()
+
+
+
+
+
 
 
 
 runCreatingPackage :: MonadCreatePackage m => MakePackageOpts -> m ()
 runCreatingPackage opts = do
     repo <- parseConfig $ convert (opts ^. Opts.cfgPath)
-    --TODO separate function for resolving package
     let appsToPack = repo ^. apps
-        appPkg  = map (\app -> (app, Map.lookup app (repo ^. packages))) appsToPack
-        pkgList = map (\(name, package) -> (name, fromMaybe (error $ convert $ "package undefined in yaml file: " <> name) package)) appPkg  -- TODO zrób to bezpiecznie!
-        pkgMap  = map (\(name, package) -> (name, fst $ head $ toList $ package ^. versions, fromMaybe (error $ "no package description") $ Map.lookup currentSysDesc $ snd $ head $ toList $ package ^. versions) ) pkgList  -- TODO zrób to bezpiecznie!
-        resolvedMap = map (\(name, version, pkgDesc) -> ResolvedPackageMap name version pkgDesc $ snd $ resolve repo pkgDesc) pkgMap -- TODO zrób to bezpiecznie!
 
-    mapM_ createPkg resolvedMap
+    resolved <- mapM (resolvePackageApp repo) appsToPack
+    print resolved
+    mapM_ createPkg resolved
 
 
     return ()

@@ -23,6 +23,24 @@ import qualified Data.Aeson.Encoding as JSON
 import Filesystem.Path.CurrentOS (encodeString)
 
 ------------------------
+-- === Errors === --
+------------------------
+
+data UndefinedPackageError = UndefinedPackageError deriving (Show)
+instance Exception UndefinedPackageError where
+    displayException err = "Package undefined in yaml file: " <> show err
+
+undefinedPackageError :: SomeException
+undefinedPackageError = toException UndefinedPackageError
+
+data MissingPackageDescriptionError = MissingPackageDescriptionError deriving (Show)
+instance Exception MissingPackageDescriptionError where
+    displayException err = "Package description undefined in yaml file: " <> show err
+
+missingPackageDescriptionError :: SomeException
+missingPackageDescriptionError = toException MissingPackageDescriptionError
+
+------------------------
 -- === Repository === --
 ------------------------
 -- FIXME: Features for luna-manager 1.1:
@@ -36,18 +54,23 @@ data AppType = BatchApp | GuiApp | Lib deriving (Show, Generic, Eq)
 -- Core
 data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                          } deriving (Show, Generic, Eq)
 data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap, _appType :: AppType } deriving (Show, Generic, Eq)
-data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: Text                         } deriving (Show, Generic, Eq)
+data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: Text                            } deriving (Show, Generic, Eq)
 data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                         } deriving (Show, Generic, Eq)
 type VersionMap    = Map Version (Map SysDesc PackageDesc)
 
 -- Helpers
 data ResolvedPackage = ResolvedPackage { _header :: PackageHeader, _desc :: PackageDesc, _resolvedAppType :: AppType } deriving (Show, Generic, Eq)
 
+data ResolvedApplication  = ResolvedApplication { _resolvedApp :: ResolvedPackage
+                                                , _pkgsToPack  :: [ResolvedPackage] -- jak zunifikowac to z typami z Repository?
+                                                } deriving (Show)
+
 makeLenses ''Repo
 makeLenses ''Package
 makeLenses ''PackageDesc
 makeLenses ''PackageHeader
 makeLenses ''ResolvedPackage
+makeLenses ''ResolvedApplication
 
 -- === Utils === --
 
@@ -70,6 +93,14 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
     subRes      = resolve repo <$> subDescs
     subErrs     = concat $ fst <$> subRes
     subOks      = concat $ snd <$> subRes
+
+resolvePackageApp :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ResolvedApplication
+resolvePackageApp repo appName = do
+    appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
+    let version = fst $ head $ toList $ appPkg ^. versions
+        applicationType = appPkg ^. appType
+    appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ head $ toList $ appPkg ^. versions
+    return $ ResolvedApplication (ResolvedPackage (PackageHeader appName version) appDesc applicationType) (snd $ resolve repo appDesc)
 
 
 -- === Instances === --
