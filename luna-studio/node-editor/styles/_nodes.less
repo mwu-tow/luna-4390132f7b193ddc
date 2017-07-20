@@ -25,7 +25,7 @@
 .luna-node__text {
     align-items:    center;
     bottom:         36rem !important;
-    color:          lightslategrey;
+    color:          @luna-text-color;
     cursor:         default;
     display:        flex;
     flex-direction: column;
@@ -39,7 +39,7 @@
 }
 
 .luna-node__name {
-    .color(8);
+    color:          @luna-text-color;
     font-weight:    300;
     width:          40px;
     position:       relative;
@@ -70,7 +70,7 @@
     overflow:      hidden;
     text-overflow: ellipsis;
     padding:       4px 8px;
-    background:    @colorBackgroundCode; // TODO: atom background
+    background:    @luna-syntax-color-background; // TODO: atom background
     //display:       none;
 }
 
@@ -129,7 +129,7 @@
     }
     circle {
         .fill(3);
-        stroke: @colorBackground;
+        stroke: @luna-graph-color-background;
         stroke-width: 3px;
         r:            5px;
     }
@@ -144,7 +144,7 @@
     font-size:   10px;
     line-height: 16px;
     display:     none;
-    .fill(7);
+    fill:        @luna-text-color;
     text-anchor: end;
     &.luna-hover {
         display: block;
@@ -159,7 +159,7 @@
 }
 
 .luna-node.luna-hover .luna-port__type { display: inherit }
-.luna-port:hover .luna-port__type { fill:    #fff }
+.luna-port:hover .luna-port__type { fill: @luna-text-color }
 
 /////////////////////////////
 //      node expanded      //
@@ -363,7 +363,6 @@
     y:     -100px;
     width:  10px;
     height: 10px;
-    fill:   red;
 }
 
 /////////////////////////////

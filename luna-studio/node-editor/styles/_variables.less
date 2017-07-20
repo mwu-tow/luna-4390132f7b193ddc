@@ -10,14 +10,21 @@
 //         colors          //
 /////////////////////////////
 
-@colorBackground:      darken(@syntax-background-color,10%); //#181b1f;
+@luna-syntax-color-background: @syntax-background-color;
+@luna-graph-color-background: darken(@luna-syntax-color-background,10%); //#181b1f;
+
+@luna-syntax-text-color: @syntax-text-color;
+@luna-text-color:        @syntax-text-color;
 
 .backgroundBase() {
-    background: @colorBackground;
+    background: @luna-graph-color-background;
 }
 
 .shade(@t; @j) {
-    @{t}: lighten(@colorBackground, @j * 8%);
+    @{t}: lighten(@luna-graph-color-background, @j * 8%);
+}
+.textShade(@t; @j) {
+    @{t}: fade(@luna-syntax-text-color, @j * 8%);
 }
 
 .background(@n, @i:1, @j:1) when (@i =< @n) {
@@ -26,7 +33,7 @@
     .print;
 }
 .color(@n, @i:1, @j:1) when (@i =< @n) {
-    .print() when (@n = @i) { .shade(color, @j) }
+    .print() when (@n = @i) { .textShade(color, @j) }
     .color(@n, (@i + 1), (@j * 1.44));
     .print;
 }
@@ -61,8 +68,7 @@
 @colorBreadcrumbsText:         @colorText;
 @colorBreadcrumbsTextInactive: #888;
 
-@colorBackgroundCode:            #282d33;
-@colorSearcherResultsBackground: @colorBackgroundCode;
+@colorSearcherResultsBackground: @luna-syntax-color-background;
 @colorSearcherResultsSelected:   #3a414a;
 
 /////////////////////////////
