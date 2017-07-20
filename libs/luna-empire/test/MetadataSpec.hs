@@ -82,6 +82,13 @@ def main:
     «0»c = 4.0
 |]
 
+oneNode = [r|def main:
+    «0»pi = 3.14
+    None
+
+### META {"metas":[]}
+|]
+
 simpleCodeWithMetadata = [r|def foo:
     «1»pi = 3.14
 
@@ -158,3 +165,21 @@ spec = around withChannels $ parallel $ do
                 return (join zeroMeta, join oneMeta)
             zeroMeta `shouldBe` Just (NodeMeta (Position.fromTuple (66,33)) False Nothing)
             oneMeta  `shouldBe` Just (NodeMeta (Position.fromTuple (-66,-33)) False Nothing)
+        xit "removes last node in a file with metadata" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc oneNode
+                nodes <- Graph.getNodes loc
+                let Just main = find (\n -> n ^. Node.name == Just "main") nodes
+                nodes <- Graph.getNodes loc
+                let Just main = find (\n -> n ^. Node.name == Just "main") nodes
+                Just pi <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
+                    Graph.getNodeIdForMarker 0
+                Graph.removeNodes (loc |>= main ^. Node.nodeId) [pi]
+                Graph.getCode loc
+            code `shouldBe` normalizeQQ [r|
+                def main:
+                    None
+
+                |]
