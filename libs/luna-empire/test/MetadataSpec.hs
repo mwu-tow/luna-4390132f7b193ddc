@@ -158,16 +158,3 @@ spec = around withChannels $ parallel $ do
                 return (join zeroMeta, join oneMeta)
             zeroMeta `shouldBe` Just (NodeMeta (Position.fromTuple (66,33)) False Nothing)
             oneMeta  `shouldBe` Just (NodeMeta (Position.fromTuple (-66,-33)) False Nothing)
-        xit "updates metadata in a file after setting node meta" $ \env -> do
-            meta <- evalEmp env $ do
-                Library.createLibrary Nothing "TestPath"
-                let loc = GraphLocation "TestPath" $ Breadcrumb []
-                Graph.loadCode loc codeWithMetadata
-                nodes <- Graph.getNodes loc
-                let Just main = find (\n -> n ^. Node.name == Just "main") nodes
-                Just c <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ Graph.getNodeIdForMarker 2
-                Graph.setNodeMeta (loc |>= main ^. Node.nodeId) c (atXPos (-9999))
-                Graph.FileMetadata meta <- Graph.readMetadata "TestPath"
-                return meta
-            let Just (Graph.MarkerNodeMeta _ cMeta) = find (\(Graph.MarkerNodeMeta m _) -> m == 2) meta
-            cMeta `shouldBe` NodeMeta (Position.fromTuple (-9999, 0)) False Nothing
