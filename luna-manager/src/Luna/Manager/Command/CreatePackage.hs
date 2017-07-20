@@ -28,11 +28,9 @@ import qualified System.Process.Typed as Process
 
 
 data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
+                                   , _buildScriptPath        :: FilePath
                                    , _studioName             :: Text -- x
                                    , _lunaName               :: Text -- x
-                                   , _backendBuildPath       :: FilePath -- x
-                                   , _frontendBuildPath      :: FilePath -- x
-                                   , _lunaBuildPath          :: FilePath -- x
                                    , _atomPrepareScriptPath  :: FilePath
                                    , _studioComponentsToCopy :: [FilePath]
                                    , _lunaComponentsToCopy   :: [FilePath]
@@ -49,11 +47,9 @@ makeLenses ''PackageConfig
 instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "~/luna-package"
+        , _buildScriptPath = "./scripts-build/build.py"
         , _studioName = "luna-studio"
         , _lunaName   = "luna"
-        , _backendBuildPath = "./build/backend"
-        , _frontendBuildPath = "./luna-studio"
-        , _lunaBuildPath = "./shell"
         , _atomPrepareScriptPath = "./luna-studio/script/atom_prepare.py"
         , _studioComponentsToCopy = ["dist/bin", "env", "supervisor", "luna-studio/atom", "resources"]
         , _lunaComponentsToCopy = ["./shell/.stack-work/install/x86_64-osx/lts-8.16/8.0.2/bin/luna"]
@@ -80,42 +76,17 @@ type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNet
 
 
 
-
-
-
-
-
-build :: Shelly.MonadSh m => FilePath -> m ()
-build path = do
-    Shelly.cd path
-    Shelly.cmd "stack" "build"
-
-buildCopyBins :: Shelly.MonadSh m => FilePath -> m ()
-buildCopyBins path = do
-    Shelly.cd path
-    Shelly.cmd "stack" "build" "--copy-bins"
-
 prepareAtomPkg :: MonadCreatePackage m => FilePath -> m ()
 prepareAtomPkg path = do
     pkgConfig <- get @PackageConfig
     Shelly.shelly $ do
         Shelly.cmd $  path </> (pkgConfig ^. atomPrepareScriptPath)
 
-runStackBuild :: MonadCreatePackage m => Text -> FilePath -> m () -- wypadna informacje o pakiecie bo bedzie jeden skrypt na repo do stack builda
-runStackBuild appName repoPath = do
+runStackBuild :: MonadCreatePackage m => FilePath -> m () -- wypadna informacje o pakiecie bo bedzie jeden skrypt na repo do stack builda
+runStackBuild repoPath = do
     pkgConfig <- get @PackageConfig
-    let studioAppName = pkgConfig ^. studioName
-        lunaAppName = pkgConfig ^. lunaName
-    case appName of
-        a | a == studioAppName -> do
-            let backendAbsolutePath  = repoPath </> (pkgConfig ^. backendBuildPath)
-                frontendAbsolutePath = repoPath </> (pkgConfig ^. frontendBuildPath)
-            Shelly.shelly $ buildCopyBins backendAbsolutePath
-            Shelly.shelly $ build frontendAbsolutePath
-            prepareAtomPkg repoPath
-          | a == lunaAppName -> do
-            Shelly.shelly $ build lunaBuildAbsolutePath where
-            lunaBuildAbsolutePath = repoPath </> (pkgConfig ^. lunaBuildPath)
+    buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
+    Shelly.shelly $ Shelly.cmd buildPath
 
 
 copyFromRepository :: MonadCreatePackage m => Text -> FilePath -> m ()
@@ -227,7 +198,7 @@ linkLibs binPath = do
 createPkg :: MonadCreatePackage m => ResolvedApplication -> m ()
 createPkg resolvedApplication = do
     pkgConfig <- get @PackageConfig
-    runStackBuild (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path) -- convert -> convert
+    runStackBuild $ convert (resolvedApplication ^. resolvedApp . desc . path)
     copyFromRepository (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path)
     mapM_ (downloadAndUnpackDependency (resolvedApplication ^. resolvedApp . header . name)) (resolvedApplication ^. pkgsToPack)
     let studio = pkgConfig ^. studioName
@@ -246,7 +217,6 @@ createPkg resolvedApplication = do
     case (resolvedApplication ^. resolvedApp . header . name) of
         a | a == studio -> do
             Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
-            print $ show mainAppDir
             let versionFile = (parent mainAppDir) </>  "version.txt"
             liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty (resolvedApplication ^. resolvedApp . header . version)
           | a == luna -> return ()
@@ -274,7 +244,7 @@ runCreatingPackage opts = do
     let appsToPack = repo ^. apps
 
     resolved <- mapM (resolvePackageApp repo) appsToPack
-    print resolved
+    -- print resolved
     mapM_ createPkg resolved
 
 
