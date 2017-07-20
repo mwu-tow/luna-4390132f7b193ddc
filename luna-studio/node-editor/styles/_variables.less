@@ -1,3 +1,5 @@
+@import "syntax-variables";
+
 /////////////////////////////
 //          fonts          //
 /////////////////////////////
@@ -8,7 +10,7 @@
 //         colors          //
 /////////////////////////////
 
-@colorBackground:      #181b1f;
+@colorBackground:      darken(@syntax-background-color,10%); //#181b1f;
 
 .backgroundBase() {
     background: @colorBackground;
