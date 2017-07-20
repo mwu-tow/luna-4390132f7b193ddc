@@ -29,6 +29,8 @@ import qualified System.Process.Typed as Process
 
 data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
                                    , _buildScriptPath        :: FilePath
+                                   , _thirdPartyPath         :: FilePath
+                                   , _libPath                :: FilePath
                                    , _studioName             :: Text -- x
                                    , _lunaName               :: Text -- x
                                    , _atomPrepareScriptPath  :: FilePath
@@ -48,6 +50,8 @@ instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "~/luna-package"
         , _buildScriptPath = "./scripts-build/build.py"
+        , _thirdPartyPath  = "./dist/third-party"
+        , _libPath = "./dist/lib"
         , _studioName = "luna-studio"
         , _lunaName   = "luna"
         , _atomPrepareScriptPath = "./luna-studio/script/atom_prepare.py"
@@ -82,7 +86,7 @@ prepareAtomPkg path = do
     Shelly.shelly $ do
         Shelly.cmd $  path </> (pkgConfig ^. atomPrepareScriptPath)
 
-runStackBuild :: MonadCreatePackage m => FilePath -> m () -- wypadna informacje o pakiecie bo bedzie jeden skrypt na repo do stack builda
+runStackBuild :: MonadCreatePackage m => FilePath -> m ()
 runStackBuild repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
@@ -110,19 +114,23 @@ copyFromRepository appName repoPath = do
             let expandedCopmponents = (repoPath </> ) <$> (pkgConfig ^. lunaComponentsToCopy)
             Shelly.shelly $ (flip Shelly.cp_r packageRepoFolder) `mapM_` expandedCopmponents
 
-downloadAndUnpackDependency :: MonadCreatePackage m => Text -> ResolvedPackage -> m ()
-downloadAndUnpackDependency appName resolvedPackage = do
+downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
+downloadAndUnpackDependency repoPath resolvedPackage = do
     pkgConfig <- get @PackageConfig
-    let depName = resolvedPackage ^. header . name
-    pkgFolderPath <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> convert depName
-    atomAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName
-    downloadedPkg <- downloadFromURL $ resolvedPackage ^. desc . path
-    unpacked <- unpackArchive downloadedPkg
-    case currentHost of
-        Linux -> Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
-        Darwin -> case depName of
-            "atom" -> Shelly.shelly $ Shelly.cp_r unpacked atomAppPath --TODO moze atompowinien byc oznaczony jako gui app i inaczej kopiowany?
-            otherwise -> Shelly.shelly $ Shelly.cmd "mv" unpacked pkgFolderPath
+    let depName     = resolvedPackage ^. header . name
+        packageType = resolvedPackage ^. resolvedAppType
+
+    thirdPartyFullPath <- expand $ repoPath </> (pkgConfig ^. thirdPartyPath)
+    libFullPath        <- expand $ repoPath </> (pkgConfig ^. libPath)
+    downloadedPkg      <- downloadFromURL $ resolvedPackage ^. desc . path
+    unpacked           <- unpackArchive downloadedPkg
+    Shelly.shelly $ Shelly.mkdir_p thirdPartyFullPath
+    Shelly.shelly $ Shelly.mkdir_p libFullPath
+    case packageType of
+        BatchApp -> Shelly.shelly $ Shelly.cmd "mv" unpacked thirdPartyFullPath
+        GuiApp   -> Shelly.shelly $ Shelly.cmd "mv" unpacked thirdPartyFullPath
+        Lib      -> Shelly.shelly $ Shelly.cmd "mv" unpacked libFullPath
+
 
 runApm :: (MonadIO m, Shelly.MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
 runApm apmPath atomHomePath onigurumaPath = do
@@ -198,38 +206,39 @@ linkLibs binPath = do
 createPkg :: MonadCreatePackage m => ResolvedApplication -> m ()
 createPkg resolvedApplication = do
     pkgConfig <- get @PackageConfig
+
+    mapM_ (downloadAndUnpackDependency (convert (resolvedApplication ^. resolvedApp . desc . path))) (resolvedApplication ^. pkgsToPack)
     runStackBuild $ convert (resolvedApplication ^. resolvedApp . desc . path)
-    copyFromRepository (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path)
-    mapM_ (downloadAndUnpackDependency (resolvedApplication ^. resolvedApp . header . name)) (resolvedApplication ^. pkgsToPack)
-    let studio = pkgConfig ^. studioName
-        luna = pkgConfig ^. lunaName
-    case (resolvedApplication ^. resolvedApp . header . name) of
-        a | a == studio -> do
-            apm             <- apmPath (pkgConfig ^. defaultPackagePath) (resolvedApplication ^. resolvedApp . header . name)
-            oniguruma       <- onigurumaPath (pkgConfig ^. defaultPackagePath) (resolvedApplication ^. resolvedApp . header . name)
-            atomHomePath    <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> "luna-atom" </> "packages" </> convert (resolvedApplication ^. resolvedApp . header . name)
-            atomDirInStudio <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> convert (pkgConfig ^. studioFolderName) </> "atom"
-            Shelly.shelly $ Shelly.mkdir_p atomHomePath
-            Shelly.shelly $ copyDir atomDirInStudio atomHomePath
-            Shelly.shelly $ runApm apm atomHomePath oniguruma
-          | a == luna -> return ()
-    mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> convert (resolvedApplication ^. resolvedApp . header . name)
-    case (resolvedApplication ^. resolvedApp . header . name) of
-        a | a == studio -> do
-            Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
-            let versionFile = (parent mainAppDir) </>  "version.txt"
-            liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty (resolvedApplication ^. resolvedApp . header . version)
-          | a == luna -> return ()
-    case currentHost of
-        Linux  -> createAppimage (resolvedApplication ^. resolvedApp . header . name)
-        Darwin -> do
-            case (resolvedApplication ^. resolvedApp . header . name) of
-                a | a == studio -> do
-                    Shelly.shelly $ Shelly.cp ((parent mainAppDir) </> "zmq" </> "libzmq.5.dylib") ((parent mainAppDir) </> "luna" </> "bin")
-                    Shelly.shelly $ linkLibs $ (parent mainAppDir) </> "luna" </> "bin"
-                  | a == luna -> return ()
-            Shelly.shelly $ createTarGzUnix (parent mainAppDir) (resolvedApplication ^. resolvedApp . header . name)
-            return ()
+    -- copyFromRepository (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path)
+    -- let studio = pkgConfig ^. studioName
+    --     luna = pkgConfig ^. lunaName
+    -- case (resolvedApplication ^. resolvedApp . header . name) of
+    --     a | a == studio -> do
+    --         apm             <- apmPath (pkgConfig ^. defaultPackagePath) (resolvedApplication ^. resolvedApp . header . name)
+    --         oniguruma       <- onigurumaPath (pkgConfig ^. defaultPackagePath) (resolvedApplication ^. resolvedApp . header . name)
+    --         atomHomePath    <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> "luna-atom" </> "packages" </> convert (resolvedApplication ^. resolvedApp . header . name)
+    --         atomDirInStudio <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> convert (pkgConfig ^. studioFolderName) </> "atom"
+    --         Shelly.shelly $ Shelly.mkdir_p atomHomePath
+    --         Shelly.shelly $ copyDir atomDirInStudio atomHomePath
+    --         Shelly.shelly $ runApm apm atomHomePath oniguruma
+    --       | a == luna -> return ()
+    -- mainAppDir <- expand $ (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name) </> convert (resolvedApplication ^. resolvedApp . header . name)
+    -- case (resolvedApplication ^. resolvedApp . header . name) of
+    --     a | a == studio -> do
+    --         Shelly.shelly $ Shelly.cp "./executables/luna-studio-runner"  mainAppDir
+    --         let versionFile = (parent mainAppDir) </>  "version.txt"
+    --         liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty (resolvedApplication ^. resolvedApp . header . version)
+    --       | a == luna -> return ()
+    -- case currentHost of
+    --     Linux  -> createAppimage (resolvedApplication ^. resolvedApp . header . name)
+    --     Darwin -> do
+    --         case (resolvedApplication ^. resolvedApp . header . name) of
+    --             a | a == studio -> do
+    --                 Shelly.shelly $ Shelly.cp ((parent mainAppDir) </> "zmq" </> "libzmq.5.dylib") ((parent mainAppDir) </> "luna" </> "bin")
+    --                 Shelly.shelly $ linkLibs $ (parent mainAppDir) </> "luna" </> "bin"
+    --               | a == luna -> return ()
+    --         Shelly.shelly $ createTarGzUnix (parent mainAppDir) (resolvedApplication ^. resolvedApp . header . name)
+            -- return ()
 
 
 
