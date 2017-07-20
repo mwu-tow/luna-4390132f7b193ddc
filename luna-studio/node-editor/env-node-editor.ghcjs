@@ -2,8 +2,10 @@ var app              = require('./app'),
     atomCallback     = require('./atom-callback')();
     common           = require('./common'),
     config           = require('./config');
+    fontSize         = require('./font-size');
     init             = require('./init'),
     lexerClasses     = require('./lexer-classes')
+
 
 var run = function(maybe_url, maybe_mountPoint, websocket) {
   var arg_url   = function() { return maybe_url; };
