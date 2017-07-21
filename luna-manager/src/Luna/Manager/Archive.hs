@@ -26,7 +26,11 @@ extensionError = toException ExtensionError
 unpackArchive :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
 unpackArchive file = case currentHost of
     Windows -> unzipFileWindows file
-    Darwin  ->  Shelly.shelly $ unpackTarGzUnix file
+    Darwin  -> do
+        ext <- tryJust extensionError $ extension file
+        case ext of
+            "gz"  -> Shelly.shelly $ unpackTarGzUnix file
+            "zip" -> Shelly.shelly $ unzipUnix file
     Linux   -> do
         ext <- tryJust extensionError $ extension file
         case ext of
@@ -42,23 +46,28 @@ unpackArchive file = case currentHost of
                 -- Shelly.rm fullFilename
                 return $ dir </> name
 
-
+unzipUnix :: Shelly.MonadSh m => FilePath -> m FilePath
+unzipUnix file = do
+    let dir = directory file
+        name = basename file
+    Shelly.cd dir
+    Shelly.mkdir_p name
+    Shelly.cp file name
+    Shelly.cd $ dir </> name
+    out <- Shelly.cmd  "unzip" $ dir </> name </> (filename file)
+    Shelly.rm $ dir </> name </> (filename file)
+    listed <- Shelly.ls $ dir </> name
+    Shelly.liftSh $ print listed
+    if length listed == 1 then return $ head listed else return $ dir </> name
 
 unpackTarGzUnix :: Shelly.MonadSh m => FilePath -> m FilePath
 unpackTarGzUnix file = do
     let dir = directory file
         name = basename file
-    case name of
-        "atom-mac" -> do
-            Shelly.cd dir
-            Shelly.mkdir_p name
-            Shelly.cmd  "unzip" file
-            return $ dir </> "Atom.app"
-        otherwise -> do
-            Shelly.cd dir
-            Shelly.mkdir_p name
-            Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
-            return $ dir </> name
+    Shelly.cd dir
+    Shelly.mkdir_p name
+    Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+    return $ dir </> name
 
 -- TODO: download unzipper if missing
 unzipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath
@@ -81,5 +90,5 @@ createTarGzUnix :: Shelly.MonadSh m => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do
     let name =  (parent folder) </> Shelly.fromText (appName <> ".tar.gz")
     Shelly.cd $ parent folder
-    Shelly.cmd "tar" "-cpzf" name $ dirname folder
+    Shelly.cmd "tar" "-cpzf" name $ (parent folder)
     return name
