@@ -23,14 +23,6 @@ module.exports = LunaStudio =
     codeEditor.statusListener actStatus
 
 
-  deserializeLunaStudioTab: ({uri}) ->
-    actStatus = (status) ->
-      if uri != null
-          if status == 'activate'
-              codeEditor.pushInternalEvent(event: "OpenFile", uri: uri)
-              new LunaStudioTab(uri, nodeEditor)
-    codeEditor.statusListener actStatus
-
   activate: (state) ->
     atom.grammars.addGrammar(new LunaSemanticGrammar(atom.grammars, codeEditor.lex))
     codeEditor.connect(nodeEditor.connector)
@@ -54,6 +46,8 @@ module.exports = LunaStudio =
 
     @subs.add atom.workspace.onDidChangeActivePaneItem (items) ->
         if items instanceof LunaEditorTab
+            for i in atom.workspace.getPaneItems()
+                i.uri = items.uri if i instanceof LunaStudioTab
             nodeEditor.pushEvent(tag: "SetFile", path: items.uri)
 
 
