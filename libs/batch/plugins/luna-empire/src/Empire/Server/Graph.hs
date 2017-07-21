@@ -48,11 +48,13 @@ import qualified LunaStudio.API.Graph.AddNode           as AddNode
 import qualified LunaStudio.API.Graph.AddPort           as AddPort
 import qualified LunaStudio.API.Graph.AddSubgraph       as AddSubgraph
 import qualified LunaStudio.API.Graph.AutolayoutNodes   as AutolayoutNodes
+import qualified LunaStudio.API.Graph.Copy              as Copy
 import qualified LunaStudio.API.Graph.DumpGraphViz      as DumpGraphViz
 import qualified LunaStudio.API.Graph.GetProgram        as GetProgram
 import qualified LunaStudio.API.Graph.GetSubgraphs      as GetSubgraphs
 import qualified LunaStudio.API.Graph.MovePort          as MovePort
 import qualified LunaStudio.API.Graph.NodeResultUpdate  as NodeResultUpdate
+import qualified LunaStudio.API.Graph.Paste             as Paste
 import qualified LunaStudio.API.Graph.RemoveConnection  as RemoveConnection
 import qualified LunaStudio.API.Graph.RemoveNodes       as RemoveNodes
 import qualified LunaStudio.API.Graph.RemovePort        as RemovePort
@@ -284,6 +286,11 @@ handleAutolayoutNodes = modifyGraph inverse action replyResult where
     action (AutolayoutNodes.Request location nodeLocs) = withDefaultResult location $
         Graph.withGraph location $ runASTOp $ Graph.autolayoutNodes (convert <$> nodeLocs) --TODO[PM -> MM] Use NodeLoc instead of NodeId
 
+handleCopy :: Request Copy.Request -> StateT Env BusT ()
+handleCopy = modifyGraph defInverse action replyResult where
+    action (Copy.Request location nodeLocs) = do
+        Copy.Result <$> Graph.prepareCopy location (convert nodeLocs)
+
 handleDumpGraphViz :: Request DumpGraphViz.Request -> StateT Env BusT ()
 handleDumpGraphViz = modifyGraphOk defInverse action where
     action (DumpGraphViz.Request location) = Graph.dumpGraphViz location
@@ -298,6 +305,12 @@ handleMovePort :: Request MovePort.Request -> StateT Env BusT ()
 handleMovePort = modifyGraph defInverse action replyResult where
     action (MovePort.Request location portRef newPortPos) = withDefaultResult location $
         Graph.movePort location portRef newPortPos
+
+handlePaste :: Request Paste.Request -> StateT Env BusT ()
+handlePaste = modifyGraph inverse action replyResult where
+    inverse (Paste.Request location position string) = $notImplemented
+    action (Paste.Request location position string) = withDefaultResult location $ do
+        Graph.paste location position string
 
 data ConnectionDoesNotExistException = ConnectionDoesNotExistException InPortRef
     deriving (Show)

@@ -61,6 +61,8 @@ module Empire.Commands.Graph
     , dumpMetadata
     , addMetadataToCode
     , readMetadata
+    , prepareCopy
+    , paste
     ) where
 
 import           Control.Arrow                    ((&&&))
@@ -1109,6 +1111,23 @@ readMetadata' = do
 
 readMetadata :: FilePath -> Empire FileMetadata
 readMetadata file = withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ readMetadata'
+
+prepareCopy :: GraphLocation -> [NodeId] -> Empire String
+prepareCopy loc nodeIds = withGraph loc $ do
+    codesWithMeta <- runASTOp $ forM nodeIds $ \nid -> do
+        ref  <- ASTRead.getASTRef nid
+        code <- Code.getCodeOf ref
+        metasWithMarkers <- extractMarkedMetasAndIds ref
+        return (code, metasWithMarkers)
+    let code = Text.intercalate "\n\n" $ map fst codesWithMeta
+        metas = [ MarkerNodeMeta marker meta | (marker, (Just meta, _)) <- concat (map snd codesWithMeta) ]
+        meta  = FileMetadata metas
+        metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) meta
+        metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
+    return $ Text.unpack $ Text.intercalate "\n\n" [code, metadataJSONWithHeader]
+
+paste :: GraphLocation -> Position -> String -> Empire ()
+paste loc position code = return ()
 
 -- internal
 

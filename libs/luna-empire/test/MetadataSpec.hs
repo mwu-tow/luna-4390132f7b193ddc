@@ -183,3 +183,14 @@ spec = around withChannels $ parallel $ do
                     None
 
                 |]
+        xit "copies nodes with metadata" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc codeWithMetadata
+                nodes <- Graph.getNodes loc
+                let Just main = find (\n -> n ^. Node.name == Just "main") nodes
+                [Just foo, Just c, Just bar] <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
+                    mapM Graph.getNodeIdForMarker [1,2,3]
+                Graph.prepareCopy (loc |>= main ^. Node.nodeId) [foo, c, bar]
+            code `shouldBe` ""
