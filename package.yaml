@@ -19,3 +19,16 @@ stability: experimental
 synopsis: Parsert is a collection of composable monad transformers allowing for building
   parsers highly tailored for specific needs.
 version: 1.0.9
+
+
+benchmarks:
+  parsert-benchmark:
+    main:        Main.hs
+    source-dirs: test/bench
+    dependencies:
+      - criterion
+      - parsert
+      - random
+      - mtl
+      - kan-extensions
+      - mtl-c
