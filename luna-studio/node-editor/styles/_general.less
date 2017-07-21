@@ -37,7 +37,7 @@ atom-workspace .luna-studio {
 
 [data-type="LunaStudioTab"] {
     &.active {
-        background: @luna-graph-color-background !important;
+        background: @luna-graph-background-color !important;
         height:     auto !important;
         .title {
             background: none !important;
@@ -52,7 +52,6 @@ atom-workspace .luna-studio {
 .luna-studio {
     position: relative; // grouping z-index of
     z-index:  0;        // all graph layers.
-
     height:   100%;
     width:    100%;
     zoom:     reset !important;
@@ -135,6 +134,9 @@ atom-workspace .luna-studio {
     .color(8);
     width:      100%;
     height:     100%;
+    svg {
+        //-webkit-filter: brightness(1.4) grayscale(0.3);
+    }
 }
 
 .luna-svg-planes {
