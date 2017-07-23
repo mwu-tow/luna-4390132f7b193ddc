@@ -16,7 +16,7 @@
 @luna-syntax-text-color:       @syntax-text-color;
 @luna-text-color:              @syntax-text-color;
 
-.backgroundBase() {
+.graphBackground() {
     background: @luna-graph-background-color;
 }
 
@@ -101,3 +101,11 @@
 /////////////////////////////
 
 @strokeWidth:        2.6rem;
+
+/////////////////////////////
+//          mixins         //
+/////////////////////////////
+
+.outlineStroke() {
+    box-shadow: 0 0 0 2px @luna-graph-background-color;
+}
