@@ -35,18 +35,18 @@ instance Action (Command State) ZoomDrag where
 
 minCamFactor, maxCamFactor, dragZoomSpeed, wheelZoomSpeed, zoomFactorStep :: Double
 minCamFactor   = 0.26
-maxCamFactor   = 1.2
+maxCamFactor   = 3 --1.2 TODO: Smart scalling: 1.2 is a limit until you start zooming again
 dragZoomSpeed  = 512
 wheelZoomSpeed = 64
 zoomFactorStep = 1.1
 
--- restrictFactor :: Double -> Double -> Double
--- restrictFactor scale factor
---     | scale * factor < minCamFactor = minCamFactor / scale
---     | scale * factor > maxCamFactor = maxCamFactor / scale
---     | otherwise                     = factor
 restrictFactor :: Double -> Double -> Double
-restrictFactor scale factor = factor
+restrictFactor scale factor
+    | scale * factor < minCamFactor = minCamFactor / scale
+    | scale * factor > maxCamFactor = maxCamFactor / scale
+    | otherwise                     = factor
+-- restrictFactor :: Double -> Double -> Double
+-- restrictFactor scale factor = factor
 
 zoomCamera :: ScreenPosition -> Double -> Command State ()
 zoomCamera zoomCenter factor = do

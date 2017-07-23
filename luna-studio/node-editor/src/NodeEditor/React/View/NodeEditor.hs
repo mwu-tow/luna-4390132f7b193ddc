@@ -125,7 +125,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
               withJust output $ sidebar_ ref Nothing
 
               planeCanvas_ mempty
-        GraphLoading   -> noGraph_ True "Loading..."
+        GraphLoading   -> noGraph_ True "Loading…"
         NoGraph        -> noGraph_ False ""
         GraphError msg -> noGraph_ True msg
 
