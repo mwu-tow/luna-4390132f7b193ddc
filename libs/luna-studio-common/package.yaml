@@ -20,6 +20,7 @@ dependencies:
   - deepseq
   - hashable
   - lens
+  - lens-utils
   - matrix
   - pretty-show
   - prologue
@@ -28,6 +29,7 @@ dependencies:
   - time
   - unordered-containers
   - uuid-types
+  - yaml
 
 default-extensions:
   - DeriveAnyClass

@@ -1,19 +1,23 @@
 module NodeEditor.Action.Batch  where
 
 import           Common.Prelude
-import           Data.UUID.Types                     (UUID)
-import           LunaStudio.Data.NodeMeta            (NodeMeta)
-import           LunaStudio.Data.PortDefault         (PortDefault)
-import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), OutPortRef (OutPortRef),
-                                                      dstNodeLoc, nodeLoc)
-import           LunaStudio.Data.Position            (Position)
-import           NodeEditor.Action.Command           (Command)
-import           NodeEditor.Action.UUID              (registerRequest)
-import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
-import           NodeEditor.Batch.Workspace          (Workspace)
-import           NodeEditor.React.Model.Connection   (ConnectionId)
-import           NodeEditor.React.Model.Node         (ExpressionNode, NodeLoc)
-import           NodeEditor.State.Global             (State, backend, clientId, workspace)
+import           Data.HashMap.Strict                  (HashMap)
+import           Data.UUID.Types                      (UUID)
+import           LunaStudio.Data.CameraTransformation (CameraTransformation)
+import           LunaStudio.Data.NodeMeta             (NodeMeta)
+import           LunaStudio.Data.NodeValue            (Visualizer)
+import           LunaStudio.Data.PortDefault          (PortDefault)
+import           LunaStudio.Data.PortRef              (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), OutPortRef (OutPortRef),
+                                                       dstNodeLoc, nodeLoc)
+import           LunaStudio.Data.Position             (Position)
+import           LunaStudio.Data.TypeRep              (TypeRep)
+import           NodeEditor.Action.Command            (Command)
+import           NodeEditor.Action.UUID               (registerRequest)
+import qualified NodeEditor.Batch.Connector.Commands  as BatchCmd
+import           NodeEditor.Batch.Workspace           (Workspace)
+import           NodeEditor.React.Model.Connection    (ConnectionId)
+import           NodeEditor.React.Model.Node          (ExpressionNode, NodeLoc)
+import           NodeEditor.State.Global              (State, backend, clientId, workspace)
 
 
 withWorkspace :: (Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
@@ -105,6 +109,9 @@ renamePort = withWorkspace .: BatchCmd.renamePort
 
 paste :: Position -> String -> Command State ()
 paste = withWorkspace .: BatchCmd.paste
+
+saveSettings :: HashMap TypeRep Visualizer -> HashMap TypeRep Visualizer -> CameraTransformation -> Command State ()
+saveSettings = withWorkspace .:. BatchCmd.saveSettings
 
 searchNodes :: Command State ()
 searchNodes = withWorkspace BatchCmd.searchNodes

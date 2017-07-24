@@ -63,6 +63,7 @@ import qualified LunaStudio.API.Graph.RenameNode        as RenameNode
 import qualified LunaStudio.API.Graph.RenamePort        as RenamePort
 import qualified LunaStudio.API.Graph.Request           as G
 import qualified LunaStudio.API.Graph.Result            as Result
+import qualified LunaStudio.API.Graph.SaveSettings      as SaveSettings
 import qualified LunaStudio.API.Graph.SearchNodes       as SearchNodes
 import qualified LunaStudio.API.Graph.SetNodeExpression as SetNodeExpression
 import qualified LunaStudio.API.Graph.SetNodesMeta      as SetNodesMeta
@@ -76,7 +77,7 @@ import qualified LunaStudio.Data.Breadcrumb             as Breadcrumb
 import           LunaStudio.Data.Connection             as Connection
 import           LunaStudio.Data.Graph                  (Graph (..))
 import qualified LunaStudio.Data.Graph                  as GraphAPI
-import           LunaStudio.Data.GraphLocation          (GraphLocation)
+import           LunaStudio.Data.GraphLocation          (GraphLocation (..))
 import qualified LunaStudio.Data.GraphLocation          as GraphLocation
 import           LunaStudio.Data.LabeledTree            (LabeledTree (LabeledTree))
 import           LunaStudio.Data.Node                   (ExpressionNode (..), NodeId)
@@ -94,6 +95,7 @@ import           LunaStudio.Data.PortDefault            (PortValue (..))
 import           LunaStudio.Data.PortRef                (InPortRef (..), OutPortRef (..))
 import           LunaStudio.Data.PortRef                as PortRef
 import           LunaStudio.Data.Position               (Position)
+import qualified LunaStudio.Data.Project                as Project
 import           LunaStudio.Data.TypeRep                (TypeRep (TStar))
 import           Prologue                               hiding (Item)
 import           System.Environment                     (getEnv)
@@ -233,13 +235,26 @@ getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
 
 handleGetProgram :: Request GetProgram.Request -> StateT Env BusT ()
 handleGetProgram = modifyGraph defInverse action replyResult where
-    action (GetProgram.Request location _) = do
+    action (GetProgram.Request location moduleChanged) = do
         code <- Graph.getCode location
-        (graph, crumb) <- handle (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [])) $ do
-            graph <- Graph.getGraph location
-            crumb <- Graph.decodeLocation location
-            return (Right graph, crumb)
-        return $ GetProgram.Result graph (Text.pack code) crumb HashMap.empty HashMap.empty def
+        (graph, crumb, moduleVisPref, bcVisPref, camera) <- handle
+            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], HashMap.empty, HashMap.empty, def))
+            $ do
+                graph <- Graph.getGraph location
+                mayModuleSettings <- liftIO $ Project.getModuleSettings "config.path" $ location ^. GraphLocation.filePath
+                let (mayLastLoc, moduleVisPref, bcVisPref, camera) = case mayModuleSettings of
+                        Nothing -> (Nothing, HashMap.empty, HashMap.empty, def)
+                        Just ms -> let
+                                loc  = Just $ ms ^. Project.moduleCurrentBreadcrumb
+                                mvp  = ms ^. Project.moduleVisualizerPreferences
+                                bc   = ms ^. Project.moduleCurrentBreadcrumb
+                                bs   = Map.lookup bc $ ms ^. Project.breadcrumbsSettings
+                                bcvp = maybe HashMap.empty (view Project.breadcrumbVisualizerPreferences) bs
+                                cam  = maybe def           (Just . view Project.breadcrumbCameraSettings) bs
+                            in (loc, mvp, bcvp, cam)
+                crumb <- maybe (Graph.decodeLocation location) (Graph.decodeLocationFromNames (GraphLocation (location ^. GraphLocation.filePath) def)) mayLastLoc
+                return (Right graph, crumb, moduleVisPref, bcVisPref, camera)
+        return $ GetProgram.Result graph (Text.pack code) crumb moduleVisPref bcVisPref camera
 
 handleAddConnection :: Request AddConnection.Request -> StateT Env BusT ()
 handleAddConnection = modifyGraph inverse action replyResult where
@@ -384,6 +399,12 @@ handleRenamePort = modifyGraph inverse action replyResult where --FIXME[pm] impl
         return $ RenamePort.Inverse oldName
     action (RenamePort.Request location portRef name) = withDefaultResult location $
         Graph.renamePort location portRef name
+
+handleSaveSettings :: Request SaveSettings.Request -> StateT Env BusT ()
+handleSaveSettings = modifyGraphOk defInverse action where
+    action (SaveSettings.Request gl mvp bcvp camera) = do
+        bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
+        liftIO $ Project.updateLocationSettings "config.luna" (gl ^. GraphLocation.filePath) bc mvp bcvp camera
 
 handleSearchNodes :: Request SearchNodes.Request -> StateT Env BusT ()
 handleSearchNodes = modifyGraph defInverse action replyResult where

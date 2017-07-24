@@ -2,7 +2,8 @@
 module LunaStudio.Data.Breadcrumb where
 
 import           Control.DeepSeq      (NFData)
-import           Data.Aeson.Types     (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
+import           Control.Lens.Aeson   (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
+import           Data.Aeson.Types     (FromJSON (..), FromJSONKey, ToJSON (..), ToJSONKey)
 import           Data.Binary          (Binary)
 import           Data.Monoid          (Monoid (..))
 import           Data.Semigroup       (Semigroup (..))
@@ -41,15 +42,23 @@ instance Default (Breadcrumb a) where
 containsNode :: Breadcrumb BreadcrumbItem -> NodeId -> Bool
 containsNode b nid = any ((nid ==) . view nodeId) $ b ^. items
 
+toNames :: Breadcrumb (Named BreadcrumbItem) -> Breadcrumb Text
+toNames = Breadcrumb . map (view name) . view items
 
 instance FromJSON a => FromJSONKey (Breadcrumb a)
-instance FromJSON a => FromJSON (Breadcrumb a)
-instance FromJSON a => FromJSON (Named a)
+instance FromJSON a => FromJSON (Breadcrumb a) where parseJSON = lensJSONParse
+instance FromJSON a => FromJSON (Named a)      where parseJSON = lensJSONParse
 instance ToJSON a => ToJSONKey (Breadcrumb a)
-instance ToJSON a => ToJSON (Breadcrumb a)
-instance ToJSON a => ToJSON (Named a)
+instance ToJSON a => ToJSON (Breadcrumb a) where
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
+instance ToJSON a => ToJSON (Named a) where
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 
-instance FromJSON BreadcrumbItem
+instance FromJSON BreadcrumbItem where parseJSON = lensJSONParse
 instance FromJSONKey BreadcrumbItem
-instance ToJSON BreadcrumbItem
+instance ToJSON BreadcrumbItem where
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 instance ToJSONKey BreadcrumbItem
