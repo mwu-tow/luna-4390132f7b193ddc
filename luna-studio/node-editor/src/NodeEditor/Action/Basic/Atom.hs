@@ -2,7 +2,7 @@ module NodeEditor.Action.Basic.Atom where
 
 import           Common.Prelude
 import           LunaStudio.Data.GraphLocation          (filePath)
-import           NodeEditor.Action.Basic.ProjectManager (loadGraph)
+import           NodeEditor.Action.Basic.ProjectManager (loadGraph, saveSettings)
 import           NodeEditor.Action.Batch                (searchNodes)
 import           NodeEditor.Action.Camera.Persistence   (saveCamera)
 import           NodeEditor.Action.Command              (Command)
@@ -14,7 +14,7 @@ import           NodeEditor.State.Global                (State, workspace)
 
 setFile :: FilePath -> Command State ()
 setFile path = do
-    saveCamera
+    saveSettings
     mayCurrentFilePath <- preuse $ workspace . traverse . currentLocation . filePath
     mayNsData <- preuse $ workspace . traverse . nodeSearcherData
     when (Just path /= mayCurrentFilePath) $ do
@@ -25,6 +25,6 @@ setFile path = do
 
 unsetFile :: Command State ()
 unsetFile = do
-    saveCamera
+    saveSettings
     workspace .= def
     resetApp
