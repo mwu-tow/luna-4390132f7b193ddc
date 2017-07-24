@@ -27,15 +27,26 @@ makeLenses ''Project
 instance Binary Project
 
 
+data BreadcrumbSettings = BreadcrumbSettings { _breadcrumbVisualizerPreferences :: HashMap TypeRep Visualizer
+                                             , _breadcrumbCameraSettings        :: CameraTransformation
+                                             } deriving (Eq, Generic, Show)
 
-data FileSettings = FileSettings { _lastBreadcrumb        :: Breadcrumb BreadcrumbItem
-                                 , _visualizerPreferences :: HashMap TypeRep Visualizer
-                                 , _cameraSettings        :: Map (Breadcrumb BreadcrumbItem) CameraTransformation
-                                 } deriving (Eq, Generic, Show)
+data ModuleSettings = ModuleSettings { _modulePresentBreadcrumb     :: Breadcrumb BreadcrumbItem
+                                     , _moduleVisualizerPreferences :: HashMap TypeRep Visualizer
+                                     , _breadcrumbsSettings         :: Map (Breadcrumb BreadcrumbItem) BreadcrumbSettings
+                                     } deriving (Eq, Generic, Show)
 
-makeLenses ''FileSettings
+data ProjectSettings = ProjectSettings { _projectVisualizerPreferences :: HashMap TypeRep Visualizer
+                                       , _modulesSettings              :: Map FilePath ModuleSettings
+                                       } deriving (Eq, Generic, Show)
 
-type ProjectSettings = Map FilePath FileSettings
+makeLenses ''BreadcrumbSettings
+makeLenses ''ModuleSettings
+makeLenses ''ProjectSettings
 
-instance ToJSON   FileSettings
-instance FromJSON FileSettings
+instance FromJSON BreadcrumbSettings
+instance FromJSON ModuleSettings
+instance FromJSON ProjectSettings
+instance ToJSON   BreadcrumbSettings
+instance ToJSON   ModuleSettings
+instance ToJSON   ProjectSettings
