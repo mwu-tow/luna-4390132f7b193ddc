@@ -35,7 +35,7 @@ data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
                                    , _configFolder           :: FilePath
                                    , _binFolder              :: FilePath
                                    , _binsPrivate            :: FilePath
-                                   , _binsPublic             :: FilePath
+                                   , _mainBin                :: FilePath
                                    , _utilsFolder            :: FilePath
                                    , _logoFileName           :: Text
                                    , _desktopFileName        :: Text
@@ -55,7 +55,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
         , _configFolder       = "config"
         , _binFolder          = "bin"
         , _binsPrivate        = "private"
-        , _binsPublic         = "public"
+        , _mainBin            = "main"
         , _utilsFolder        = "resources"
         , _logoFileName       = "logo.png"
         , _desktopFileName    = "app.desktop"
@@ -108,16 +108,21 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         GuiApp   -> Shelly.shelly $ Shelly.cmd "mv" unpacked thirdPartyFullPath
         Lib      -> Shelly.shelly $ Shelly.cmd "mv" unpacked libFullPath
 
+modifyDesktopFileToUseWrapperAppImageToRunApp :: MonadCreatePackage m => Text -> FilePath -> m ()
+modifyDesktopFileToUseWrapperAppImageToRunApp appName tmpAppDirPath = Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ inPlaceSubs <> substitute <> desktopFile
+    where desktopFile = convert appName <> ".desktop"
+          wrappedExecName = convert appName <> ".wrapper"
+          substitute = "\"s|Exec=" <> (convert appName) <> "|Exec=" <> wrappedExecName <> "|g\""
+          inPlaceSubs = "sed -i -e "
 
+createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
+createAppimage appName repoPath = do
+    let appImageFolderName = "appimage"
+    pkgConfig     <- get @PackageConfig
+    tmpAppDirPath <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> appImageFolderName </> convert appName </> convert (appName <> ".AppDir")
+    tmpAppPath    <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> appImageFolderName </> convert appName
 
-
-createAppimage :: MonadCreatePackage m => Text -> m ()
-createAppimage appName = do
-    pkgConfig <- get @PackageConfig
-    tmpAppDirPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName </> convert (appName <> ".AppDir")
-    tmpAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName
-
-    srcPkgPath <- (expand $ (pkgConfig ^. defaultPackagePath) </> convert appName)
+    srcPkgPath <- (expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName)
     let dstPath = (tmpAppDirPath </> "usr" )
 
 
@@ -125,13 +130,14 @@ createAppimage appName = do
     Shelly.shelly $ Shelly.cd tmpAppPath
     functions <- downloadWithProgressBar "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
     let mainAppImageFolder = "usr"
+    utilsPath <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. binFolder)  </> (pkgConfig ^. mainBin) </> (pkgConfig ^. utilsFolder)
     Shelly.shelly $ do
         Shelly.mkdir_p $ tmpAppDirPath </> mainAppImageFolder
 
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> "get_apprun"
 
-    logoFile    <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. utilsFolder) </> convert (pkgConfig ^. logoFileName)
-    desktopFile <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. utilsFolder) </> convert (pkgConfig ^. desktopFileName)
+    let logoFile    = utilsPath </> convert (pkgConfig ^. logoFileName)
+        desktopFile = utilsPath </> convert (pkgConfig ^. desktopFileName)
 
     Shelly.shelly $ do
         Shelly.cp logoFile $ tmpAppDirPath </> convert (appName <> ".png")
@@ -141,12 +147,10 @@ createAppimage appName = do
     let dstWrapperPath = dstPath </> convert (appName <> ".wrapper")
     Shelly.shelly $ Shelly.mv appWrapper dstWrapperPath
     makeExecutable dstWrapperPath
-    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" <> (convert appName) ++ "|Exec=" <> (convert appName) <> ".wrapper|g\" " <> (convert appName) <> ".desktop"
+    modifyDesktopFileToUseWrapperAppImageToRunApp appName tmpAppDirPath
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> "generate_type2_appimage"
 
 
--- zrobtenaszewrappery = Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" ++ (convert appName) ++ "|Exec=" ++ (convert appName) ++".wrapper|g\" " <> desktopFile
---     where desktopFile = convert appName <> ".desktop"
 
 --------------------
 --linkingLibsMacOS--
@@ -212,7 +216,7 @@ createPkg resolvedApplication = do
     linkLibs binsFolder libsFolder
 
     case currentHost of
-        Linux  -> createAppimage appName
+        Linux  -> createAppimage appName $ convert appPath
         Darwin -> do
             Shelly.shelly $ createTarGzUnix mainAppDir appName
             return ()
