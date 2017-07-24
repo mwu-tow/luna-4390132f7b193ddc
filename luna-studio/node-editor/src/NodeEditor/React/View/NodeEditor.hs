@@ -6,6 +6,7 @@ import qualified Data.HashMap.Strict                        as HashMap
 import           Data.Matrix                                (Matrix)
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
+import           JS.FontSize                                (getFontSize)
 import           JS.Scene                                   (sceneId)
 import qualified LunaStudio.Data.CameraTransformation       as CameraTransformation
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
@@ -34,7 +35,7 @@ import           NodeEditor.React.View.Connection           (connection_, halfCo
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
 import           NodeEditor.React.View.ExpressionNode       (filterOutSearcherIfNotRelated, nodeDynamicStyles_, node_)
 import           NodeEditor.React.View.Monad                (monads_)
-import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, planeNodes_, svgPlanes_)
+import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, planeNodes_, svgPlane_, planeNewConnection_)
 import           NodeEditor.React.View.SelectionBox         (selectionBox_)
 import           NodeEditor.React.View.Sidebar              (sidebar_)
 import qualified NodeEditor.React.View.Style                as Style
@@ -60,6 +61,9 @@ show1 a = showFFloat (Just 1) a "" -- limit Double to two decimal numbers TODO: 
 
 show4 :: Double -> String
 show4 a = showFFloat (Just 4) a "" -- limit Double to two decimal numbers TODO: remove before the release
+
+
+--fontSize = liftIO getFontSize
 
 applySearcherHints :: NodeEditor -> NodeEditor
 applySearcherHints ne = maybe ne replaceNode $ ne ^. NodeEditor.searcher where
@@ -94,37 +98,41 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         nodesWithVis   = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-          div_
-              [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
-              , "id"          $= sceneId
-              , "key"         $= "graph"
-              , onMouseDown   $ \_ m   -> dispatch ref $ UI.NodeEditorEvent $ NE.MouseDown m
-              , onDoubleClick $ \_ _   -> dispatch' ref $ Shortcut $ Shortcut.Event Shortcut.ExitGraph def
-              , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
-              , onScroll      $ \e     -> [preventDefault e]
-              ] $ do
-              dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
+            div_
+                [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
+                , "id"          $= sceneId
+                , "key"         $= "graph"
+                , onMouseDown   $ \_ m   -> dispatch ref $ UI.NodeEditorEvent $ NE.MouseDown m
+                , onDoubleClick $ \_ _   -> dispatch' ref $ Shortcut $ Shortcut.Event Shortcut.ExitGraph def
+                , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
+                , onScroll      $ \e     -> [preventDefault e]
+                ] $ do
 
-              svgPlanes_ $ do
-                  planeMonads_ $
-                      monads_ monads
-                  planeConnections_ $ do
-                      forM_     (ne ^. NodeEditor.posConnections ) $ connection_ ref
-                      forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
-                      forM_     (ne ^. NodeEditor.selectionBox   ) selectionBox_
-                      forM_     (ne ^. NodeEditor.connectionPen  ) connectionPen_
+                dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
 
-              planeNodes_ $ do
-                  forM_  nodes         $ \n -> node_ ref
-                                                     n
-                                                     (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
-                                                     (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                  forM_ visualizations $ nodeVisualization_ ref
+                svgPlane_ $ do
+                    planeMonads_ $
+                        monads_ monads
+                    planeConnections_ $ do
+                        forM_ (ne ^. NodeEditor.posConnections ) $ connection_ ref
+                        forM_ (ne ^. NodeEditor.selectionBox   ) selectionBox_
+                        forM_ (ne ^. NodeEditor.connectionPen  ) connectionPen_
 
-              withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
-              withJust output $ sidebar_ ref Nothing
+                planeNodes_ $ do
+                    forM_ nodes $ \n -> node_ ref
+                                              n
+                                              (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
+                                              (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
+                    forM_ visualizations $ nodeVisualization_ ref
+                    
+                planeNewConnection_ $ do
+                    forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
 
-              planeCanvas_ mempty
+                withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
+                withJust output $ sidebar_ ref Nothing
+
+                planeCanvas_ mempty
+
         GraphLoading   -> noGraph_ True "Loading…"
         NoGraph        -> noGraph_ False ""
         GraphError msg -> noGraph_ True msg
@@ -135,9 +143,9 @@ noGraph_ hideLogo msg =
     div_ [ "className" $= Style.prefix "graph"] $
         div_ [ "className" $= Style.prefix "background-text"] $ do
             unless hideLogo $ img_
-                    [ "className" $= Style.prefix "message-logo"
-                    , "src"       $= "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGZpbGw9IiM1RjE1MjIgIiBkPSJNMzUuMiA4MC40YzMwLjUgMCA0MC43IDI0IDU3LjMgMjIuNEMxMDkgMTAxIDU2IDEyMy4zIDU2IDEyMy4zUzE4IDEyNyAxOCA5MGMwLTcuNCAxMi43LTkuNiAxNy4yLTkuNnoiLz48cGF0aCBmaWxsPSIjRjIyMTQ2ICIgZD0iTTkwIDE4MGM0OS43IDAgOTAtNDAuMyA5MC05MFMxMzkuNyAwIDkwIDAgMCA0MC4zIDAgOTBzNDAuMyA5MCA5MCA5MHptMC05YzQ0LjcgMCA4MS0zNi4zIDgxLTgxUzEzNC43IDkgOTAgOSA5IDQ1LjMgOSA5MHMzNi4zIDgxIDgxIDgxem03Mi03OS4yYzAgMzktMzIuOCA3MC4yLTcyIDcwLjItMzkuOCAwLTcyLTMyLjItNzItNzIgOSAxNC43IDI0IDI0LjYgNDAuMyAyNS4yIDE5LjQuOCAzOS43LTExIDQ4LjMtMzEuNiA2LTE0LjIgMTYuNy0xOS41IDI3LTE5LjUgMTMuOCAwIDI4LjQgMTEgMjguNCAyOHoiLz48L2c+PC9zdmc+Cg=="
-                    ] mempty
+                [ "className" $= Style.prefix "message-logo"
+                , "src"       $= "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGZpbGw9IiM1RjE1MjIgIiBkPSJNMzUuMiA4MC40YzMwLjUgMCA0MC43IDI0IDU3LjMgMjIuNEMxMDkgMTAxIDU2IDEyMy4zIDU2IDEyMy4zUzE4IDEyNyAxOCA5MGMwLTcuNCAxMi43LTkuNiAxNy4yLTkuNnoiLz48cGF0aCBmaWxsPSIjRjIyMTQ2ICIgZD0iTTkwIDE4MGM0OS43IDAgOTAtNDAuMyA5MC05MFMxMzkuNyAwIDkwIDAgMCA0MC4zIDAgOTBzNDAuMyA5MCA5MCA5MHptMC05YzQ0LjcgMCA4MS0zNi4zIDgxLTgxUzEzNC43IDkgOTAgOSA5IDQ1LjMgOSA5MHMzNi4zIDgxIDgxIDgxem03Mi03OS4yYzAgMzktMzIuOCA3MC4yLTcyIDcwLjItMzkuOCAwLTcyLTMyLjItNzItNzIgOSAxNC43IDI0IDI0LjYgNDAuMyAyNS4yIDE5LjQuOCAzOS43LTExIDQ4LjMtMzEuNiA2LTE0LjIgMTYuNy0xOS41IDI3LTE5LjUgMTMuOCAwIDI4LjQgMTEgMjguNCAyOHoiLz48L2c+PC9zdmc+Cg=="
+                ] mempty
             elemString msg
 
 dynamicStyles_ :: Matrix Double -> [ExpressionNode] -> ReactElementM ViewEventHandler ()
