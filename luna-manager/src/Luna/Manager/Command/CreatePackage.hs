@@ -48,7 +48,7 @@ makeLenses ''PackageConfig
 instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "dist-package"
-        , _buildScriptPath    = "./scripts-build/build.py"
+        , _buildScriptPath    = "build"
         , _thirdPartyPath     = "third-party"
         , _libPath            = "lib"
         , _componentsToCopy   = "dist"
@@ -59,7 +59,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
         , _utilsFolder        = "resources"
         , _logoFileName       = "logo.png"
         , _desktopFileName    = "app.desktop"
-        , versionFileName     = "version.txt"
+        , _versionFileName     = "version.txt"
         }
 
 instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
@@ -94,11 +94,12 @@ copyFromRepository appName repoPath = do
 downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do
     pkgConfig <- get @PackageConfig
-    let depName     = resolvedPackage ^. header . name
-        packageType = resolvedPackage ^. resolvedAppType
+    let depName          = resolvedPackage ^. header . name
+        packageType      = resolvedPackage ^. resolvedAppType
+        componentsFolder = pkgConfig ^. componentsToCopy
 
-    thirdPartyFullPath <- expand $ repoPath </> (pkgConfig ^. componentsToCopy) </> (pkgConfig ^. thirdPartyPath)
-    libFullPath        <- expand $ repoPath </> (pkgConfig ^. componentsToCopy) </> (pkgConfig ^. libPath)
+    thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
+    libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL $ resolvedPackage ^. desc . path
     unpacked           <- unpackArchive downloadedPkg
     Shelly.shelly $ Shelly.mkdir_p thirdPartyFullPath
@@ -110,53 +111,59 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
 
 
 
--- createAppimage :: MonadCreatePackage m => Text -> m ()
--- createAppimage appName = do
---     pkgConfig <- get @PackageConfig
---     tmpAppDirPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName </> convert (appName <> ".AppDir")
---     tmpAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName
---
---     srcPkgPath <- (expand $ (pkgConfig ^. defaultPackagePath) </> convert appName)
---     srcLibPath <- (expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> "zmq" </> "lib64")
---     let dstPkgPath = (tmpAppDirPath </> "usr" </> "bin")
---         dstLibPath = (tmpAppDirPath </> "usr" </> "lib")
---
---     Shelly.shelly $ Shelly.mkdir_p tmpAppDirPath
---     Shelly.shelly $ Shelly.cd tmpAppPath
---     functions <- downloadWithProgressBar "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
---     Shelly.shelly $ do
---         Shelly.mkdir_p $ tmpAppDirPath </> "usr" </> "bin"
---         Shelly.mkdir_p $ tmpAppDirPath </> "usr" </> "lib"
---
---     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "get_apprun"
---
---     logoFile <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> convert (pkgConfig ^. studioFolderName) </> convert (pkgConfig ^. studioUtilsFolder) </> convert (pkgConfig ^. logoFileName)
---     desktopFile <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> convert (pkgConfig ^. studioFolderName) </> convert (pkgConfig ^. studioUtilsFolder) </> convert (pkgConfig ^. desktopFileName)
---
---     Shelly.shelly $ do
---         Shelly.cp logoFile $ tmpAppDirPath </> convert (appName <> ".png")
---         Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
---         copyDir srcPkgPath dstPkgPath
---         copyDir srcLibPath dstLibPath
---     appWrapper <- downloadWithProgressBar "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
---     let dstWrapper = (dstPkgPath </> convert (appName <> ".wrapper"))
---     Shelly.shelly $ Shelly.mv appWrapper dstWrapper
---     makeExecutable dstWrapper
---     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" ++ (convert appName) ++ "|Exec=" ++ (convert appName) ++".wrapper|g\" " ++ (convert appName) ++ ".desktop"
---     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "generate_type2_appimage"
+createAppimage :: MonadCreatePackage m => Text -> m ()
+createAppimage appName = do
+    pkgConfig <- get @PackageConfig
+    tmpAppDirPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName </> convert (appName <> ".AppDir")
+    tmpAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName
+
+    srcPkgPath <- (expand $ (pkgConfig ^. defaultPackagePath) </> convert appName)
+    let dstPath = (tmpAppDirPath </> "usr" )
+
+
+    Shelly.shelly $ Shelly.mkdir_p tmpAppDirPath
+    Shelly.shelly $ Shelly.cd tmpAppPath
+    functions <- downloadWithProgressBar "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
+    Shelly.shelly $ do
+        Shelly.mkdir_p $ tmpAppDirPath </> "usr"
+
+    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "get_apprun"
+
+    logoFile <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. utilsFolder) </> convert (pkgConfig ^. logoFileName)
+    desktopFile <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. utilsFolder) </> convert (pkgConfig ^. desktopFileName)
+
+    Shelly.shelly $ do
+        Shelly.cp logoFile $ tmpAppDirPath </> convert (appName <> ".png")
+        Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
+        copyDir srcPkgPath dstPath
+    appWrapper <- downloadWithProgressBar "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
+    let dstWrapperPath = (dstPath </> convert (appName <> ".wrapper"))
+    Shelly.shelly $ Shelly.mv appWrapper dstWrapperPath
+    makeExecutable dstWrapperPath
+    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" ++ (convert appName) ++ "|Exec=" ++ (convert appName) ++".wrapper|g\" " ++ (convert appName) ++ ".desktop"
+    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "generate_type2_appimage"
+
+
+-- zrobtenaszewrappery = Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ "sed -i -e \"s|Exec=" ++ (convert appName) ++ "|Exec=" ++ (convert appName) ++".wrapper|g\" " <> desktopFile
+--     where desktopFile = convert appName <> ".desktop"
+
+--------------------
+--linkingLibsMacOS--
+--------------------
 
 isPathIncluded :: Text -> Text -> Bool
 isPathIncluded systemLibPath dylibPath = do
-    let dylibSplited = splitDirectories (convert dylibPath)
-        systemSplited = splitDirectories (convert systemLibPath)
+    let dylibSplited = splitDirectories $ convert dylibPath
+        systemSplited = splitDirectories $ convert systemLibPath
         l = length systemSplited
         firstL = take l dylibSplited
     (firstL /= systemSplited) && (not $ Filesystem.Path.CurrentOS.null $ convert dylibPath)
 
 install :: MonadIO m=> FilePath -> FilePath -> FilePath -> m ()
 install binPath libSystemPath libLocalPath = do
+    let relativeLibraryPath = "@executable_path/../../lib/`basename"
     if filename libLocalPath == filename libSystemPath
-        then Shelly.shelly $ Shelly.cmd "install_name_tool" "-change" libSystemPath "@executable_path/../../lib/`basename" binPath
+        then Shelly.shelly $ Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binPath
         else return ()
 
 installName :: MonadIO m => FilePath -> FilePath -> FilePath -> m ()
@@ -169,7 +176,10 @@ otool libFolderPath binaryPath = do
     deps <- Shelly.shelly $ Shelly.cmd "otool" "-L" binaryPath
     let splited = drop 1 $ Text.strip <$> Text.splitOn "\n" deps
         filePaths = Text.takeWhile (/= ' ') <$> splited
-        filtered = convert <$> filter (isPathIncluded "/usr/lib/") filePaths
+        filtered = convert <$> filterSystemLibraries filePaths
+        filterSystemLibraries s = filter checkIfSystemLibrary s
+        checkIfSystemLibrary = isPathIncluded "/usr/lib/"
+
     mapM_ (installName binaryPath libFolderPath) filtered
 
 linkLibs :: MonadIO m => FilePath -> FilePath -> m ()
@@ -177,30 +187,34 @@ linkLibs binPath libPath = Shelly.shelly $ do
     allBins <- Shelly.ls binPath
     mapM_ (otool libPath) allBins
 
+--------------------
+--creatingPackage---
+--------------------
+
 createPkg :: MonadCreatePackage m => ResolvedApplication -> m ()
 createPkg resolvedApplication = do
     pkgConfig <- get @PackageConfig
-
-    mapM_ (downloadAndUnpackDependency (convert (resolvedApplication ^. resolvedApp . desc . path))) (resolvedApplication ^. pkgsToPack)
-    runBuild $ convert (resolvedApplication ^. resolvedApp . desc . path)
-    copyFromRepository (resolvedApplication ^. resolvedApp . header . name) $ convert (resolvedApplication ^. resolvedApp . desc . path)
-    mainAppDir <- expand $ (convert (resolvedApplication ^. resolvedApp . desc . path)) </> (pkgConfig ^. defaultPackagePath) </> convert (resolvedApplication ^. resolvedApp . header . name)
+    let app        = resolvedApplication ^. resolvedApp
+        appDesc    = app ^. desc
+        appPath    = appDesc ^. path
+        appHeader  = app ^. header
+        appName    = appHeader ^. name
+        appVersion = appHeader ^. version
+    mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
+    runBuild $ convert appPath
+    copyFromRepository appName $ convert appPath
+    mainAppDir <- expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
     let versionFile = mainAppDir </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
-        binsFolder = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
-        libsFolder = mainAppDir </> (pkgConfig ^. libPath)
-    liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty (resolvedApplication ^. resolvedApp . header . version)
+        binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
+        libsFolder  = mainAppDir </> (pkgConfig ^. libPath)
+    liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
     linkLibs binsFolder libsFolder
 
     case currentHost of
-        -- Linux  -> createAppimage (resolvedApplication ^. resolvedApp . header . name)
+        Linux  -> createAppimage appName
         Darwin -> do
-            Shelly.shelly $ createTarGzUnix mainAppDir (resolvedApplication ^. resolvedApp . header . name)
+            Shelly.shelly $ createTarGzUnix mainAppDir appName
             return ()
-
-
-
-
-
 
 
 
@@ -210,7 +224,6 @@ runCreatingPackage opts = do
     let appsToPack = repo ^. apps
 
     resolved <- mapM (resolvePackageApp repo) appsToPack
-    -- print resolved
     mapM_ createPkg resolved
 
 
