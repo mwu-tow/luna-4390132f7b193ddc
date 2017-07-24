@@ -5,11 +5,11 @@ import           Common.Prelude
 import qualified Data.Matrix                          as Matrix
 import           Data.ScreenPosition                  (ScreenPosition (ScreenPosition))
 import qualified Data.ScreenPosition                  as ScreenPosition
+import           LunaStudio.Data.CameraTransformation (CameraTransformation, logicalToScreen, screenToLogical)
 import           LunaStudio.Data.Position             (Position, move, vector)
 import qualified LunaStudio.Data.Position             as Position
 import           LunaStudio.Data.Size                 (Size)
 import           LunaStudio.Data.Vector2              (Vector2 (Vector2), x, y)
-import           NodeEditor.Data.CameraTransformation (CameraTransformation, logicalToScreen, screenToLogical)
 import           NodeEditor.React.Model.Constants     (gridSize)
 import           NodeEditor.React.Model.Port          (InPort, OutPort, getPositionInSidebar, portId)
 import           NodeEditor.React.Model.Sidebar       (InputSidebar, OutputSidebar, inputSidebarPosition, inputSidebarSize,

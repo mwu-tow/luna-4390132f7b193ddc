@@ -12,10 +12,10 @@ import           Data.Map                                   (Map)
 import qualified Data.Map                                   as Map
 import           LunaStudio.API.Graph.GetProgram            (Error)
 import qualified LunaStudio.Data.Breadcrumb                 as B
+import           LunaStudio.Data.CameraTransformation       (CameraTransformation)
 import           LunaStudio.Data.MonadPath                  (MonadPath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import qualified LunaStudio.Data.PortRef                    as PortRef
-import           NodeEditor.Data.CameraTransformation       (CameraTransformation)
 import           NodeEditor.Data.Color                      (Color (Color))
 import           NodeEditor.React.Model.Connection          (Connection, ConnectionsMap, HalfConnection (HalfConnection),
                                                              PosConnection (PosConnection), PosHalfConnection (PosHalfConnection))

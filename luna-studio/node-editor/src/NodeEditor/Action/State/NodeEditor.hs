@@ -15,6 +15,7 @@ import           Data.Monoid                                 (First (First), get
 import qualified Data.Set                                    as Set
 import           JS.LocalStorage                             (saveVisualizationPreferences)
 import           JS.Visualizers                              (registerVisualizerFrame)
+import           LunaStudio.Data.CameraTransformation        (CameraTransformation)
 import           LunaStudio.Data.MonadPath                   (MonadPath)
 import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
@@ -32,7 +33,6 @@ import           NodeEditor.Action.State.App                 (get, modify)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
 import           NodeEditor.Action.UUID                      (getUUID)
 import           NodeEditor.Batch.Workspace                  (nodeSearcherData)
-import           NodeEditor.Data.CameraTransformation        (CameraTransformation)
 import           NodeEditor.Data.Graph                       (Graph (Graph))
 import           NodeEditor.React.Model.App                  (nodeEditor)
 import           NodeEditor.React.Model.Connection           (Connection, ConnectionId, ConnectionsMap, HalfConnection, PosConnection,

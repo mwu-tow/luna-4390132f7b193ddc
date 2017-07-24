@@ -7,10 +7,10 @@ import           Data.Matrix                                (Matrix)
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
 import           JS.Scene                                   (sceneId)
+import qualified LunaStudio.Data.CameraTransformation       as CameraTransformation
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.NodeLoc                    (NodePath)
 import           LunaStudio.Data.PortRef                    (InPortRef (InPortRef))
-import qualified NodeEditor.Data.CameraTransformation       as CameraTransformation
 import           NodeEditor.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraScale,
                                                              showCameraTranslate)
 import qualified NodeEditor.Data.Matrix                     as Matrix

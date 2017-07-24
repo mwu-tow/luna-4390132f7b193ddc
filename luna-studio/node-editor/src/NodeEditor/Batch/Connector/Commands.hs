@@ -83,8 +83,8 @@ dumpGraphViz :: Workspace -> UUID -> Maybe UUID -> IO ()
 dumpGraphViz workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace DumpGraphViz.Request
 
 
-getProgram :: Workspace -> UUID -> Maybe UUID -> IO ()
-getProgram workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace GetProgram.Request
+getProgram :: Bool -> Workspace -> UUID -> Maybe UUID -> IO ()
+getProgram moduleChanged workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace GetProgram.Request) moduleChanged
 
 addConnection :: Either OutPortRef NodeLoc -> Either AnyPortRef NodeLoc -> Workspace -> UUID -> Maybe UUID -> IO ()
 addConnection src dst workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace AddConnection.Request (conv src) dst where

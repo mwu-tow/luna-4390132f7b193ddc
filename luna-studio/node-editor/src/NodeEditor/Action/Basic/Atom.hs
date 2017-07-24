@@ -21,7 +21,7 @@ setFile path = do
         let newWorkspace = Workspace.mk path
         workspace ?= newWorkspace
         maybe searchNodes (workspace . _Just . nodeSearcherData .=) mayNsData
-        loadGraph $ newWorkspace ^. currentLocation
+        loadGraph (newWorkspace ^. currentLocation) True
 
 unsetFile :: Command State ()
 unsetFile = do
