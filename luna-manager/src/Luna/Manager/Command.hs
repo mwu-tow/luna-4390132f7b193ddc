@@ -19,5 +19,5 @@ chooseCommand = do
     opts <- get @Options
     case opts ^. command of
         Install opt     -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.runInstaller opt
-        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig] $ CreatePackage.runCreatingPackage opt
+        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig] $ CreatePackage.createPkgFromConfig opt
         -- TODO: other commands

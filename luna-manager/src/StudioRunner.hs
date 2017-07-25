@@ -21,7 +21,7 @@ import qualified  System.FilePath.Windows as Win
 import Data.Maybe (fromMaybe)
 import Path (parent, parseAbsFile, toFilePath)
 
-import           Luna.Manager.System.Host
+-- import           Luna.Manager.System.Host
 
 import qualified Data.Text as T
 default (T.Text)
@@ -268,10 +268,4 @@ mkRelativePathWindows args = do
 
 
 main :: IO ()
-main = case currentHost of
-    Linux -> do
-        currentDirr <- scriptDir
-        Environment.setEnv "LUNAATOM" currentDirr
-        checkLunaHome
-        runLunaEmpire
-    Darwin -> runMacOS
+main =  runMacOS

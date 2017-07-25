@@ -114,6 +114,7 @@ instance Exception UnresolvedDepsError where
 
 type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
 
+
 -- === Utils === --
 
 mkSystemPkgName :: Text -> Text
@@ -127,7 +128,7 @@ mkCamelCaseName txt = convert $ goHead (convert txt) where
     goHead :: [Char] -> [Char]
     goHead = \case []     -> []
                    (s:ss) -> Char.toUpper s : goBody ss
-    goBody = \case [] -> []
+    goBody = \case []       -> []
                    ('-':ss) -> goHead ss
                    (s  :ss) -> s : goBody ss
 
@@ -141,7 +142,6 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
 
-
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> m ()
 downloadAndUnpack pkgPath installPath = do
     Shelly.shelly $ Shelly.mkdir_p installPath
@@ -150,16 +150,13 @@ downloadAndUnpack pkgPath installPath = do
     unpacked <- unpackArchive pkg
     Shelly.shelly $ copyDir unpacked  installPath
 
-
-
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
     installConfig <- get @InstallConfig
     let currentPath = (parent installPath) </> (installConfig ^. selectedVersionPath)
     liftIO $ System.createDirectoryLink (encodeString installPath) (encodeString currentPath)
 
-
-postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m()
+postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m ()
 postInstallation appType installPath binPath appName = do
     linkingCurrent appType installPath
     installConfig <- get @InstallConfig
@@ -199,12 +196,10 @@ copyResources appType installPath appName = case currentHost of
             Shelly.shelly $ Shelly.cp packageInfoPlist (parent $ parent installPath)
         BatchApp -> return ()
 
-
 linking :: MonadInstall m => FilePath -> FilePath -> m ()
 linking src dst = do
     Shelly.shelly $ Shelly.mkdir_p $ parent dst
     createSymLink src dst
-
 
 linkingLocalBin :: (MonadInstall m, MonadIO m) => FilePath -> Text -> m ()
 linkingLocalBin currentBin appName = do
@@ -233,7 +228,7 @@ askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
     let pkgInstallDefPath = case appType of
-            GuiApp -> installConfig ^. defaultBinPathGuiApp
+            GuiApp   -> installConfig ^. defaultBinPathGuiApp
             BatchApp -> installConfig ^. defaultBinPathBatchApp
     binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question ("Select installation path for " <> appName) plainTextReader
@@ -246,10 +241,11 @@ installApp opts package = do
         appType = package ^. resolvedAppType
     binPath     <- askLocation opts appType pkgName
     installPath <- prepareInstallPath appType (convert binPath)  pkgName $ showPretty (package ^. header . version)
-    pathExists <- Shelly.shelly $ Shelly.test_d installPath
+    pathExists  <- Shelly.shelly $ Shelly.test_d installPath
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
     downloadAndUnpack (package ^. desc . path) installPath
     postInstallation appType installPath binPath pkgName
+
 
 -- === Running === --
 

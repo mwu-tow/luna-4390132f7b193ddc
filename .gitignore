@@ -1,7 +1,7 @@
 #############
 ## Haskell ##
 #############
-
+executables
 dist
 cabal-dev
 *.o
