@@ -209,7 +209,9 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
     (parse, code) <- ASTParse.runFunHackParser expr parsing
     runASTOp $ AST.writeMeta parse meta
     name <- runASTOp $ IR.matchExpr parse $ \case
-        IR.ASGRootedFunction name _ -> return $ nameToString name
+        IR.ASGRootedFunction n _ -> do
+            name <- ASTRead.getVarName' =<< IR.source n
+            return $ nameToString name
     klass <- use Graph.clsClass
     (insertedCharacters, codePosition) <- runASTOp $ do
         funs <- ASTRead.classFunctions klass
@@ -459,7 +461,9 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                         links <- mapM (\link -> (link,) <$> IR.source link) f
                         forM links $ \(link, fun) -> do
                             IR.matchExpr fun $ \case
-                                IR.ASGRootedFunction name _ -> return $ if convert name `elem` funsToRemove then Left link else Right link
+                                IR.ASGRootedFunction n _ -> do
+                                    name <- ASTRead.getVarName' =<< IR.source n
+                                    return $ if convert name `elem` funsToRemove then Left link else Right link
                 let (toRemove, left) = partitionEithers funs
                 spans <- forM toRemove $ \candidate -> do
                     ref <- IR.source candidate
@@ -766,9 +770,10 @@ renameNode loc nid name
             oldName <- use $ Graph.clsFuns . ix nid . _1
             Graph.clsFuns %= Map.adjust (_1 .~ (Text.unpack stripped)) nid
             runASTOp $ do
-                fun <- ASTRead.getFunByName oldName
-                Just (fun' :: IR.Expr (IR.ASGRootedFunction)) <- IR.narrow fun
-                IR.modifyExprTerm fun' $ wrapped . IR.termASGRootedFunction_name .~ convert stripped
+                fun     <- ASTRead.getFunByName oldName
+                IR.matchExpr fun $ \case
+                    IR.ASGRootedFunction n _ -> flip ASTModify.renameVar (convert stripped) =<< IR.source n
+                    _ -> return ()
 
                 LeftSpacedSpan (SpacedSpan off oldLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan fun
                 let lengthDiff = fromIntegral (Text.length stripped - length oldName)
@@ -910,7 +915,9 @@ loadCode loc@(GraphLocation file _) code = do
         runASTOp $ do
             funs <- ASTRead.classFunctions klass
             forM funs $ \f -> IR.matchExpr f $ \case
-                IR.ASGRootedFunction name _ -> return (convert name, f)
+                IR.ASGRootedFunction n _ -> do
+                    name <- ASTRead.getVarName' =<< IR.source n
+                    return (convert name, f)
     forM_ functions $ \(name, fun) -> do
         let lastUUID = Map.lookup name funsUUIDs
         uuid <- Library.withLibrary file (fst <$> makeGraph fun lastUUID)
