@@ -111,13 +111,14 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
 
 
 
-createAppimage :: MonadCreatePackage m => Text -> m ()
-createAppimage appName = do
+createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
+createAppimage appName repoPath = do
     pkgConfig <- get @PackageConfig
-    tmpAppDirPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName </> convert (appName <> ".AppDir")
-    tmpAppPath <- expand $ (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName
-
-    srcPkgPath <- (expand $ (pkgConfig ^. defaultPackagePath) </> convert appName)
+    tmpAppDirPath <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName </> convert (appName <> ".AppDir")
+    tmpAppPath <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> "appimage" </> convert appName
+    print tmpAppPath
+    print tmpAppDirPath
+    srcPkgPath <- (expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName)
     let dstPath = (tmpAppDirPath </> "usr" )
 
 
@@ -128,10 +129,10 @@ createAppimage appName = do
     Shelly.shelly $ do
         Shelly.mkdir_p $ tmpAppDirPath </> mainAppImageFolder
 
-    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> "get_apprun"
-
-    logoFile    <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. utilsFolder) </> convert (pkgConfig ^. logoFileName)
-    desktopFile <- expand $ (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. utilsFolder) </> convert (pkgConfig ^. desktopFileName)
+    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " ++ (encodeString functions) ++ " && " ++ "get_apprun"
+    mainResources <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPublic) </> convert appName </>   (pkgConfig ^. utilsFolder)
+    let logoFile = mainResources </> convert (pkgConfig ^. logoFileName)
+        desktopFile = mainResources </> convert (pkgConfig ^. desktopFileName)
 
     Shelly.shelly $ do
         Shelly.cp logoFile $ tmpAppDirPath </> convert (appName <> ".png")
@@ -209,10 +210,12 @@ createPkg resolvedApplication = do
         binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
         libsFolder  = mainAppDir </> (pkgConfig ^. libPath)
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
-    linkLibs binsFolder libsFolder
+    case currentHost of
+        Linux -> return ()
+        Darwin -> linkLibs binsFolder libsFolder
 
     case currentHost of
-        Linux  -> createAppimage appName
+        Linux  -> createAppimage appName $ convert appPath
         Darwin -> do
             Shelly.shelly $ createTarGzUnix mainAppDir appName
             return ()
