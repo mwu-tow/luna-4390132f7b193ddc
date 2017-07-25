@@ -84,13 +84,6 @@ module.exports = LunaStudio =
             e.preventDefault()
             e.stopImmediatePropagation()
 
-    @subs.add atom.commands.add 'atom-workspace', 'core:close': ->
-        if (atom.workspace.getActivePaneItem() instanceof LunaEditorTab) or (atom.workspace.getActivePaneItem() instanceof LunaStudioTab)
-            uris = (pane.uri for pane in atom.workspace.getPaneItems())
-            if atom.workspace.getActivePaneItem().uri not in uris
-                nodeEditor.pushEvent(tag: "UnsetFile")
-                return codeEditor.pushInternalEvent(event: "CloseFile", uri: atom.workspace.getActivePaneItem().uri)
-
     @subs.add atom.commands.add 'atom-workspace', 'core:save', (e)                 ->
       if (atom.workspace.getActivePaneItem() instanceof LunaEditorTab) or (atom.workspace.getActivePaneItem() instanceof LunaStudioTab)
           e.preventDefault()
