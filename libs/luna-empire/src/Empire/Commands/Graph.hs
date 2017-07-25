@@ -8,6 +8,7 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Empire.Commands.Graph
     ( addNode
@@ -63,6 +64,7 @@ module Empire.Commands.Graph
     , readMetadata
     , prepareCopy
     , paste
+    , moveToOrigin
     ) where
 
 import           Control.Arrow                    ((&&&))
@@ -74,7 +76,7 @@ import qualified Data.Aeson                       as Aeson
 import qualified Data.Aeson.Text                  as Aeson
 import           Data.Coerce                      (coerce)
 import           Data.Foldable                    (toList)
-import           Data.List                        (elemIndex, group, sortOn)
+import           Data.List                        (elemIndex, find, group, partition, sortOn)
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
 import           Data.Maybe                       (fromMaybe, maybeToList)
@@ -1093,6 +1095,14 @@ addMetadataToCode file = do
                         newFuns <- putNewFunctionRef l (Just lastFun) links
                         IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
 
+parseMetadata :: MonadIO m => Text -> m FileMetadata
+parseMetadata meta =
+    let json = Text.drop (Text.length "### META ") meta
+        metadata = Aeson.eitherDecodeStrict' $ Text.encodeUtf8 json
+    in case metadata of
+        Right fm  -> return fm
+        Left  err -> print err >> return (FileMetadata [])
+
 readMetadata' :: ClassOp m => m FileMetadata
 readMetadata' = do
     unit     <- use Graph.clsClass
@@ -1102,32 +1112,63 @@ readMetadata' = do
             metaStart <- Code.functionBlockStartRef meta
             LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
             code <- Code.getAt metaStart (metaStart + len)
-            let json = Text.drop (Text.length "### META ") $ code
-                metadata = Aeson.eitherDecodeStrict' $ Text.encodeUtf8 json
-            case metadata of
-                Right fm  -> return fm
-                Left  err -> error $ "malformed metadata: " ++ Text.unpack json
+            parseMetadata code
         _ -> return $ FileMetadata []
 
 readMetadata :: FilePath -> Empire FileMetadata
-readMetadata file = withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ readMetadata'
+readMetadata file = withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp readMetadata'
+
+unindent :: Int -> Text -> Text
+unindent offset code = Text.unlines $ map (Text.drop offset) $ Text.lines code
 
 prepareCopy :: GraphLocation -> [NodeId] -> Empire String
 prepareCopy loc nodeIds = withGraph loc $ do
     codesWithMeta <- runASTOp $ forM nodeIds $ \nid -> do
-        ref  <- ASTRead.getASTRef nid
-        code <- Code.getCodeOf ref
-        metasWithMarkers <- extractMarkedMetasAndIds ref
-        return (code, metasWithMarkers)
-    let code = Text.intercalate "\n\n" $ map fst codesWithMeta
+        ref    <- ASTRead.getASTRef nid
+        code   <- Code.getCodeWithIndentOf ref
+        indent <- Code.getCurrentIndentationLength
+        let unindentedCode = unindent (fromIntegral indent) code
+        metasWithMarkers   <- extractMarkedMetasAndIds ref
+        return (unindentedCode, metasWithMarkers)
+    let code  = Text.unlines $ map fst codesWithMeta
         metas = [ MarkerNodeMeta marker meta | (marker, (Just meta, _)) <- concat (map snd codesWithMeta) ]
         meta  = FileMetadata metas
         metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) meta
         metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
-    return $ Text.unpack $ Text.intercalate "\n\n" [code, metadataJSONWithHeader]
+    return $ Text.unpack $ Text.concat [code, metadataJSONWithHeader]
+
+moveToOrigin :: [MarkerNodeMeta] -> [MarkerNodeMeta]
+moveToOrigin metas = map (\(MarkerNodeMeta m me) -> MarkerNodeMeta m (me & NodeMeta.position %~ Position.move (coerce (Position.rescale leftTopCorner (-1))))) metas
+    where
+        leftTopCorner = fromMaybe (Position.fromTuple (0,0))
+                      $ Position.leftTopPoint
+                      $ map (\mnm -> meta mnm ^. NodeMeta.position) metas
+
+indent :: Int -> Text -> Text
+indent offset (Text.lines -> header:rest) =
+    Text.unlines $ header : map (\line -> Text.concat [Text.replicate offset " ", line]) rest
+indent _      code = code
 
 paste :: GraphLocation -> Position -> String -> Empire ()
-paste loc position code = return ()
+paste loc position (Text.pack -> code) = do
+    withTC loc False $ do
+        let lines = Text.splitOn "\n\n" code
+            (metaLine, exprs) = partition (Text.isPrefixOf "### META") lines
+        fm          <- forM (Safe.headMay metaLine) parseMetadata
+        let metas   =  maybe [] (\(FileMetadata fm') -> moveToOrigin fm') fm
+        indentation <- fromIntegral <$> runASTOp Code.getCurrentIndentationLength
+        forM exprs $ \(Text.strip -> expr) -> do
+            let (marker, rest) = Text.breakOn "»" expr & both %~ Text.drop 1
+                mark           = Safe.readMay (Text.unpack marker) :: Maybe Word64
+                newMeta        = case mark of
+                    Just marker -> fromMaybe def $ fmap meta $ find (\(MarkerNodeMeta m me) -> m == marker) metas
+                    _           -> def
+                movedMeta      = newMeta & NodeMeta.position %~ Position.move (coerce position)
+                nodeCode       = Code.removeMarkers $ indent indentation rest
+            uuid <- liftIO UUID.nextRandom
+            addNodeNoTC loc uuid nodeCode Nothing movedMeta
+    autolayout loc
+    resendCode loc
 
 -- internal
 

@@ -205,6 +205,12 @@ getCodeOf ref = do
     len <- IR.getLayer @SpanLength ref
     getAt beg (beg + len)
 
+getCodeWithIndentOf :: GraphOp m => NodeRef -> m Text
+getCodeWithIndentOf ref = do
+    Just beg <- getAnyBeginningOf ref
+    len <- IR.getLayer @SpanLength ref
+    off <- getCurrentIndentationLength
+    getAt (beg - off) (beg + len)
 
 replaceAllUses :: GraphOp m => NodeRef -> Text -> m ()
 replaceAllUses ref new = do
