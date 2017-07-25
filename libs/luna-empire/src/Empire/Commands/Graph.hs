@@ -1122,6 +1122,22 @@ unindent :: Int -> Text -> Text
 unindent offset code = Text.unlines $ map (Text.drop offset) $ Text.lines code
 
 prepareCopy :: GraphLocation -> [NodeId] -> Empire String
+prepareCopy loc@(GraphLocation _ (Breadcrumb [])) nodeIds = withUnit loc $ do
+    clipboard <- runASTOp $ do
+        starts  <- mapM Code.functionBlockStart nodeIds
+        lengths <- do
+            funs  <- use Graph.clsFuns
+            let names       = map (\a -> (a, Map.lookup a funs)) nodeIds
+                nonExistent = filter (isNothing . snd) names
+            forM nonExistent $ \(nid, _) ->
+                throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Breadcrumb.Definition nid])
+            refs <- mapM ASTRead.getFunByName [ name | (_nid, Just (name, _graph)) <- names]
+            forM refs $ \ref -> do
+                LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
+                return $ fromIntegral len
+        codes <- mapM (\(start, len) -> Code.getAt start (start + len)) $ zip starts lengths
+        return $ Text.intercalate "\n\n" codes
+    return $ Text.unpack clipboard
 prepareCopy loc nodeIds = withGraph loc $ do
     codesWithMeta <- runASTOp $ forM nodeIds $ \nid -> do
         ref    <- ASTRead.getASTRef nid
@@ -1150,6 +1166,15 @@ indent offset (Text.lines -> header:rest) =
 indent _      code = code
 
 paste :: GraphLocation -> Position -> String -> Empire ()
+paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
+    let funs = Text.splitOn "\n\n" $ Code.removeMarkers code
+    uuids <- forM funs $ \fun -> do
+        uuid <- liftIO UUID.nextRandom
+        addFunNode loc ParseAsIs uuid fun def
+        return uuid
+    autolayoutTopLevel loc
+    forM uuids $ \uuid -> autolayout (GraphLocation file (Breadcrumb [Breadcrumb.Definition uuid]))
+    resendCode loc
 paste loc position (Text.pack -> code) = do
     withTC loc False $ do
         let lines = Text.splitOn "\n\n" code

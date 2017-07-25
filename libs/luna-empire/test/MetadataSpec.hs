@@ -238,6 +238,64 @@ spec = around withChannels $ parallel $ do
     «8»m + n
 
 ### META|]
+        it "copies top level node" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc codeWithMetadata
+                nodes <- Graph.getNodes loc
+                let Just main = find (\n -> n ^. Node.name == Just "main") nodes
+                Graph.prepareCopy loc [main ^. Node.nodeId]
+            code `shouldStartWith` [r|def main:
+    «0»pi = 3.14
+    «1»foo = a: b:
+        «4»lala = 17.0
+        «11»buzz = x: y:
+            «9»x * y
+        «5»pi = 3.14
+        «6»n = buzz a lala
+        «7»m = buzz b pi
+        «8»m + n
+    «2»c = 4.0
+    «3»bar = foo 8.0 c|]
+        it "pastes top level node" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc oneNode
+                Graph.paste loc (Position.fromTuple (200,0)) [r|def bar:
+    «0»pi = 3.14
+    «1»foo = a: b:
+        «4»lala = 17.0
+        «11»buzz = x: y:
+            «9»x * y
+        «5»pi = 3.14
+        «6»n = buzz a lala
+        «7»m = buzz b pi
+        «8»m + n
+    «2»c = 4.0
+    «3»bar = foo 8.0 c|]
+                nodes <- Graph.getNodes loc
+                code  <- Graph.withUnit loc $ use Graph.code
+                return (nodes, Text.unpack code)
+            map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
+            code `shouldStartWith` [r|def bar:
+    «1»pi = 3.14
+    «2»foo = a: b:
+        «3»lala = 17.0
+        «4»buzz = x: y:
+            «5»x * y
+        «6»pi = 3.14
+        «7»n = buzz a lala
+        «8»m = buzz b pi
+        «9»m + n
+    «10»c = 4.0
+    «11»bar = foo 8.0 c
+
+def main:
+    «0»pi = 3.14
+    None
+|]
         it "pastes two nodes without metadata" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
