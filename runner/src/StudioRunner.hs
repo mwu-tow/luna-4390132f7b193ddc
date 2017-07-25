@@ -161,16 +161,19 @@ runLunaEmpireMacOS = do
     Shelly.shelly $ Shelly.mkdir_p logs
     Shelly.shelly $ do
         Shelly.cd lunaSupervisor
+        Shelly.cmd "pwd"
         Shelly.cmd supervisord "-c" "supervisord-mac.conf"
 
 runMacOS :: (MonadRun m, MonadIO m) => m ()
 runMacOS = do
     atomHome <- userStudioAtomHome
     logs <- userLogsDirectory
-    liftIO $ Environment.setEnv "LUNAATOM" (encodeString atomHome)
+    liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
     liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
     checkLunaHome
     runLunaEmpireMacOS
+
+
 
 -- versionFilePath :: IO FilePath
 -- versionFilePath = do
