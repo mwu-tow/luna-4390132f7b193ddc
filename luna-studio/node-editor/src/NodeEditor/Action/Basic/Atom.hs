@@ -6,7 +6,7 @@ import           NodeEditor.Action.Basic.ProjectManager (loadGraph)
 import           NodeEditor.Action.Batch                (searchNodes)
 import           NodeEditor.Action.Camera.Persistence   (saveCamera)
 import           NodeEditor.Action.Command              (Command)
-import           NodeEditor.Action.State.NodeEditor     (resetGraph)
+import           NodeEditor.Action.State.NodeEditor     (resetApp)
 import           NodeEditor.Batch.Workspace             (currentLocation, nodeSearcherData)
 import qualified NodeEditor.Batch.Workspace             as Workspace
 import           NodeEditor.State.Global                (State, workspace)
@@ -21,10 +21,10 @@ setFile path = do
         let newWorkspace = Workspace.mk path
         workspace ?= newWorkspace
         maybe searchNodes (workspace . _Just . nodeSearcherData .=) mayNsData
-        loadGraph $ newWorkspace ^. currentLocation
+        loadGraph (newWorkspace ^. currentLocation) True
 
 unsetFile :: Command State ()
 unsetFile = do
     saveCamera
     workspace .= def
-    resetGraph
+    resetApp

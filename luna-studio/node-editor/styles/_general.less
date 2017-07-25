@@ -30,14 +30,14 @@ body { height: 100%; overflow: auto; }
 body,
 atom-workspace .luna-studio {
     font:                   12px/15px @fontDefault;
-    .backgroundBase;
+    .graphBackground;
     font-weight:            300;
     font-variant-ligatures: contextual;
 }
 
 [data-type="LunaStudioTab"] {
     &.active {
-        background: @colorBackground !important;
+        background: @luna-graph-background-color !important;
         height:     auto !important;
         .title {
             background: none !important;
@@ -52,7 +52,6 @@ atom-workspace .luna-studio {
 .luna-studio {
     position: relative; // grouping z-index of
     z-index:  0;        // all graph layers.
-
     height:   100%;
     width:    100%;
     zoom:     reset !important;
@@ -128,16 +127,20 @@ atom-workspace .luna-studio {
 }
 
 .luna-graph {
-    .backgroundBase; //#1a1a1a;
-    position:   relative;
-    flex:       none;
-    overflow:   inherit;
+    .graphBackground; //#1a1a1a;
     .color(8);
-    width:      100%;
-    height:     100%;
+    position: relative;
+    flex:     none;
+    overflow: inherit;
+    width:    100%;
+    height:   100%;
+    z-index:  0;    // puts graph under breadcrumbs
+    svg {
+        //-webkit-filter: brightness(1.4) grayscale(0.3);
+    }
 }
 
-.luna-svg-planes {
+.luna-svg-plane {
     position: absolute;
     width:    1px;
     height:   1px;

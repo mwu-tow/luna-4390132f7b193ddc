@@ -2,20 +2,29 @@
 //          fonts          //
 /////////////////////////////
 
-@fontDefault:         'hasklig-regular', 'hasklig', monospace;
+@fontDefault:             'hasklig-regular', 'hasklig', monospace;
+@syntax-background-color: #282c34;  // default
+@syntax-text-color:       #abb2bf; //  default
 
 /////////////////////////////
 //         colors          //
 /////////////////////////////
 
-@colorBackground:      #181b1f;
+@luna-syntax-background-color: @syntax-background-color;
+@luna-graph-background-color:  darken(@luna-syntax-background-color,10%); //#181b1f;
 
-.backgroundBase() {
-    background: @colorBackground;
+@luna-syntax-text-color:       @syntax-text-color;
+@luna-text-color:              @syntax-text-color;
+
+.graphBackground() {
+    background: @luna-graph-background-color;
 }
 
 .shade(@t; @j) {
-    @{t}: lighten(@colorBackground, @j * 8%);
+    @{t}: lighten(@luna-graph-background-color, @j * 8%);
+}
+.textShade(@t; @j) {
+    @{t}: fade(@luna-syntax-text-color, @j * 8%);
 }
 
 .background(@n, @i:1, @j:1) when (@i =< @n) {
@@ -24,7 +33,7 @@
     .print;
 }
 .color(@n, @i:1, @j:1) when (@i =< @n) {
-    .print() when (@n = @i) { .shade(color, @j) }
+    .print() when (@n = @i) { .textShade(color, @j) }
     .color(@n, (@i + 1), (@j * 1.44));
     .print;
 }
@@ -59,8 +68,7 @@
 @colorBreadcrumbsText:         @colorText;
 @colorBreadcrumbsTextInactive: #888;
 
-@colorBackgroundCode:            #282d33;
-@colorSearcherResultsBackground: @colorBackgroundCode;
+@colorSearcherResultsBackground: @luna-syntax-background-color;
 @colorSearcherResultsSelected:   #3a414a;
 
 /////////////////////////////
@@ -93,3 +101,11 @@
 /////////////////////////////
 
 @strokeWidth:        2.6rem;
+
+/////////////////////////////
+//          mixins         //
+/////////////////////////////
+
+.outlineStroke() {
+    box-shadow: 0 0 0 2px @luna-graph-background-color;
+}

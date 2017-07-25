@@ -23,7 +23,7 @@
 .luna-visualization-container {
     position:   relative;
     width:      300px;
-    .backgroundBase;
+    .graphBackground;
 }
 .luna-visualization-cover {
     position: absolute;
@@ -40,7 +40,7 @@
 }
 
 .luna-graph--has-visualization-active {
-    background: darken(@colorBackground, 1.5%);
+    background: darken(@luna-graph-background-color, 1.5%);
     .luna-plane {
         > *:not(.luna-visualization--active) {
             opacity: 0.38;
@@ -49,7 +49,7 @@
 }
 .luna-visualization--active {
     .luna-visualization-container {
-        .backgroundBase;
+        .graphBackground;
         border-radius: @borderRadiusPx;
     }
     .luna-visualization-cover {

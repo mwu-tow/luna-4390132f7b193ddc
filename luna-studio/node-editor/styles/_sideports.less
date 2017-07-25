@@ -66,7 +66,6 @@
     color:       darken(@colorText, 30%);
     position:    absolute;
     white-space: nowrap;
-    text-shadow: 0 0 2px black;
 }
 
 .luna-sidebar__port--dragged {
@@ -119,7 +118,7 @@
 }
 
 .luna-port__plus rect {
-    fill: @colorBackground;
+    fill: @luna-graph-background-color;
 }
 
 .luna-sidebar__port__svg--inbetween {
@@ -150,7 +149,7 @@
 
 .luna-port-add-inbetween__plus {
     transform: translate(15px,8px);
-    fill:      @colorBackground;
+    fill:      @luna-graph-background-color;
 }
 
 .luna-port-add-inbetween__shape {
@@ -205,7 +204,7 @@
 }
 
 .luna-edit-icon__shape02 {
-    fill:      @colorBackground;
+    fill:      @luna-graph-background-color;
     transform: rotate(225deg);
     rect {
         width:  3px;
@@ -282,7 +281,7 @@
     .luna-port__plus {
         rect {
             opacity: 1;
-            fill:    @colorBackground;
+            fill:    @luna-graph-background-color;
             height:  8px;
             y:      -4px;
         }

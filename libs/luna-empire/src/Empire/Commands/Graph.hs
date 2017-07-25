@@ -625,7 +625,7 @@ setNodeMetaFun nodeId newMeta = runASTOp $ do
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
-setNodeMeta loc@(GraphLocation file _) nodeId newMeta = withGraph' loc (setNodeMetaGraph nodeId newMeta) (setNodeMetaFun nodeId newMeta)
+setNodeMeta loc nodeId newMeta = withGraph' loc (setNodeMetaGraph nodeId newMeta) (setNodeMetaFun nodeId newMeta)
 
 setNodePosition :: GraphLocation -> NodeId -> Position -> Empire ()
 setNodePosition loc nodeId newPos = do
@@ -714,7 +714,7 @@ getCode loc@(GraphLocation file _) = do
             Just meta -> do
                 metaStart <- Code.functionBlockStartRef meta
                 LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
-                Code.getAt 0 (metaStart - off)
+                Code.getAt 0 metaStart
             _         ->
                 use Graph.code
     return $ Text.unpack . Code.removeMarkers $ code

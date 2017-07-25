@@ -1,7 +1,7 @@
 module LunaStudio.Data.TypeRep where
 
 import           Control.DeepSeq  (NFData)
-import           Data.Aeson.Types (ToJSON)
+import           Data.Aeson.Types (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Binary      (Binary)
 import           Data.Hashable    (Hashable)
 import           Data.Text        (Text)
@@ -18,6 +18,10 @@ data TypeRep = TCons String  [TypeRep]
 
 instance Binary TypeRep
 instance Hashable TypeRep
+instance FromJSON TypeRep
+instance FromJSONKey TypeRep
+instance ToJSON TypeRep
+instance ToJSONKey TypeRep
 
 instance ToString TypeRep where
     toString = toString' False False where

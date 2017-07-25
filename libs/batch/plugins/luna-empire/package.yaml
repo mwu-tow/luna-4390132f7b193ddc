@@ -30,6 +30,7 @@ dependencies:
   - text
   - time
   - transformers
+  - unordered-containers
   - uuid
   - uuid-types
   - zeromq4-haskell >= 0.4

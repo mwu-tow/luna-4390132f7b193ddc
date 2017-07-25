@@ -51,7 +51,6 @@ import           LunaStudio.API.Project.ListProjects        as ListProjects
 import           LunaStudio.API.Project.OpenProject         as OpenProject
 import           LunaStudio.API.Request                     as Request
 import           LunaStudio.API.Response                    as Response
-import           LunaStudio.Data.Breadcrumb                 as Breadcrumb
 import           LunaStudio.Data.Connection                 as Connection
 import           LunaStudio.Data.Error                      as Error
 import           LunaStudio.Data.Graph                      as Graph
@@ -69,15 +68,11 @@ import           LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   as Position
 import           LunaStudio.Data.Project                    as Project
 import           LunaStudio.Data.Size                       as Size
-import           LunaStudio.Data.TypeRep                    as TypeRep
 import           LunaStudio.Data.ValueType                  as ValueType
 import           LunaStudio.Data.Vector2                    as Vector2
 
 
-instance FromJSON a => FromJSON (Breadcrumb.Breadcrumb a)
-instance FromJSON a => FromJSON (Breadcrumb.Named a)
 instance FromJSON a => FromJSON (Vector2.Vector2 a)
-instance FromJSON Breadcrumb.BreadcrumbItem
 instance FromJSON Connection.Connection
 instance FromJSON Graph.Graph
 instance FromJSON GraphLocation.GraphLocation
@@ -105,17 +100,12 @@ instance FromJSON PortRef.OutPortRef
 instance FromJSON Position.Position
 instance FromJSON PProject.Project
 instance FromJSON Result.Result
-instance FromJSON TypeRep.TypeRep
 
 instance FromJSONKey AnyPortRef
-instance FromJSONKey Breadcrumb.BreadcrumbItem
 instance FromJSONKey InPortRef
 instance FromJSONKey NodeLoc
-instance FromJSONKey TypeRep.TypeRep
 
 instance (ToJSON req, ToJSON res, ToJSON inv) => ToJSON (Response.Response req inv res)
-instance ToJSON a => ToJSON (Breadcrumb.Breadcrumb a)
-instance ToJSON a => ToJSON (Breadcrumb.Named a)
 instance ToJSON a => ToJSON (Request.Request a)
 instance ToJSON a => ToJSON (Vector2.Vector2 a)
 instance ToJSON AddConnection.Inverse
@@ -125,7 +115,6 @@ instance ToJSON AddPort.Request
 instance ToJSON AddSubgraph.Request
 instance ToJSON AutolayoutNodes.Inverse
 instance ToJSON AutolayoutNodes.Request
-instance ToJSON Breadcrumb.BreadcrumbItem
 instance ToJSON CloseFile.Request
 instance ToJSON CollaborationUpdate.Event
 instance ToJSON CollaborationUpdate.Update
@@ -225,13 +214,10 @@ instance ToJSON Size.Size
 instance ToJSON Substitute.Request
 instance ToJSON Substitute.Update
 instance ToJSON TypeCheck.Request
-instance ToJSON TypeRep.TypeRep
 instance ToJSON Undo.Request
 instance ToJSON Undo.UndoRequest
 instance ToJSON ValueType.ValueTypeEnum
 
 instance ToJSONKey AnyPortRef
-instance ToJSONKey Breadcrumb.BreadcrumbItem
 instance ToJSONKey InPortRef
 instance ToJSONKey NodeLoc
-instance ToJSONKey TypeRep.TypeRep

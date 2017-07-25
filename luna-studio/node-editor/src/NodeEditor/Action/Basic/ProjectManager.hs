@@ -13,21 +13,21 @@ import           NodeEditor.React.Model.NodeEditor    (GraphStatus (GraphLoading
 import           NodeEditor.State.Global              (State, workspace)
 
 
-loadGraph :: GraphLocation -> Command State ()
-loadGraph location = do
+loadGraph :: GraphLocation -> Bool -> Command State ()
+loadGraph location loadModule = do
     resetGraph
     setGraphStatus GraphLoading
     workspace . _Just . currentLocation .= location
     Atom.setActiveLocation location
     saveCurrentLocation
-    Batch.getProgram
+    Batch.getProgram loadModule
 
 navigateToGraph :: GraphLocation -> Command State ()
 navigateToGraph location = do
     mayCurrentLoc <- preuse $ workspace . traverse . currentLocation
     saveCamera
     when (mayCurrentLoc /= Just location) $ do
-        loadGraph location
+        loadGraph location False
 
 saveCurrentLocation :: Command State ()
 saveCurrentLocation =

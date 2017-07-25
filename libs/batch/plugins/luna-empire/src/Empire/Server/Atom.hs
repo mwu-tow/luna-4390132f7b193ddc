@@ -52,18 +52,26 @@ handleOpenFile req@(Request _ _ (OpenFile.Request path)) = timeIt "handleOpenFil
 
 handleSaveFile :: Request SaveFile.Request -> StateT Env BusT ()
 handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
-    maySource <- preuse (Env.empireEnv . Empire.activeFiles . at inPath . traverse . Library.body . Graph.code)
-    case maySource of
-        Nothing     -> logger Logger.error $ errorMessage <> inPath <> " is not open"
-        Just source -> do
-            path <- Path.parseAbsFile inPath
-            let dir  = Path.toFilePath $ Path.parent path
-                file = Path.toFilePath $ Path.filename path
-            liftIO $ Temp.withTempFile dir (file ++ ".tmp") $ \tmpFile handle -> do
-                Text.hPutStr handle source
-                Dir.renameFile (Path.toFilePath path) (Path.toFilePath path ++ ".backup")
-                Dir.renameFile tmpFile (Path.toFilePath path)
-            replyOk req ()
+    currentEmpireEnv <- use Env.empireEnv
+    empireNotifEnv   <- use Env.empireNotif
+    res <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Graph.addMetadataToCode inPath
+    case res of
+        Left (exc :: SomeASTException) ->
+            let err = displayException exc in replyFail logger err req (Response.Error err)
+        Right (_, newEmpireEnv) -> do
+            Env.empireEnv .= newEmpireEnv
+            maySource <- preuse (Env.empireEnv . Empire.activeFiles . at inPath . traverse . Library.body . Graph.code)
+            case maySource of
+                Nothing     -> logger Logger.error $ errorMessage <> inPath <> " is not open"
+                Just source -> do
+                    path <- Path.parseAbsFile inPath
+                    let dir  = Path.toFilePath $ Path.parent path
+                        file = Path.toFilePath $ Path.filename path
+                    liftIO $ Temp.withTempFile dir (file ++ ".tmp") $ \tmpFile handle -> do
+                        Text.hPutStr handle source
+                        Dir.renameFile (Path.toFilePath path) (Path.toFilePath path ++ ".backup")
+                        Dir.renameFile tmpFile (Path.toFilePath path)
+                    replyOk req ()
 
 handleCloseFile :: Request CloseFile.Request -> StateT Env BusT ()
 handleCloseFile (Request _ _ (CloseFile.Request path)) = do

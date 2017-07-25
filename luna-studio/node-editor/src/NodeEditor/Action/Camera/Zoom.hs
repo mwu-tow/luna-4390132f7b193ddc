@@ -12,6 +12,7 @@ module NodeEditor.Action.Camera.Zoom
 import           Common.Prelude
 import           Data.Matrix                          (getElem, setElem)
 import           Data.ScreenPosition                  (ScreenPosition, vector, x, y)
+import           LunaStudio.Data.CameraTransformation (logicalToScreen, screenToLogical)
 import           LunaStudio.Data.Vector2              (Vector2)
 import           NodeEditor.Action.Basic              (modifyCamera)
 import           NodeEditor.Action.Command            (Command)
@@ -19,7 +20,6 @@ import           NodeEditor.Action.State.Action       (beginActionWithKey, conti
                                                        updateActionWithKey)
 import           NodeEditor.Action.State.NodeEditor   (getNodeEditor, modifyNodeEditor)
 import           NodeEditor.Action.State.Scene        (getScreenCenter)
-import           NodeEditor.Data.CameraTransformation (logicalToScreen, screenToLogical)
 import           NodeEditor.Data.Matrix               (homothetyMatrix, invertedHomothetyMatrix)
 import           NodeEditor.React.Model.NodeEditor    (screenTransform)
 import           NodeEditor.State.Action              (Action (begin, continue, end, update), ZoomDrag (ZoomDrag), zoomDragAction,
@@ -35,18 +35,18 @@ instance Action (Command State) ZoomDrag where
 
 minCamFactor, maxCamFactor, dragZoomSpeed, wheelZoomSpeed, zoomFactorStep :: Double
 minCamFactor   = 0.26
-maxCamFactor   = 1.2
+maxCamFactor   = 3 --1.2 TODO: Smart scalling: 1.2 is a limit until you start zooming again
 dragZoomSpeed  = 512
 wheelZoomSpeed = 64
 zoomFactorStep = 1.1
 
--- restrictFactor :: Double -> Double -> Double
--- restrictFactor scale factor
---     | scale * factor < minCamFactor = minCamFactor / scale
---     | scale * factor > maxCamFactor = maxCamFactor / scale
---     | otherwise                     = factor
 restrictFactor :: Double -> Double -> Double
-restrictFactor scale factor = factor
+restrictFactor scale factor
+    | scale * factor < minCamFactor = minCamFactor / scale
+    | scale * factor > maxCamFactor = maxCamFactor / scale
+    | otherwise                     = factor
+-- restrictFactor :: Double -> Double -> Double
+-- restrictFactor scale factor = factor
 
 zoomCamera :: ScreenPosition -> Double -> Command State ()
 zoomCamera zoomCenter factor = do

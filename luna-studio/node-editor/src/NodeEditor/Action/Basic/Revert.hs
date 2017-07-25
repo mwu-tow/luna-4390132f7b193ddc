@@ -38,7 +38,7 @@ import           NodeEditor.State.Global                   (State)
 
 
 panic :: Command State ()
-panic = Batch.getProgram
+panic = Batch.getProgram False
 
 revertAddConnection :: AddConnection.Request -> Command State ()
 revertAddConnection (AddConnection.Request loc _ (Left (InPortRef' dst'))) =

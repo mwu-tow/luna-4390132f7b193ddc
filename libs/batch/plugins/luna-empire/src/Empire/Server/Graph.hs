@@ -15,6 +15,7 @@ import qualified Data.Binary                            as Bin
 import           Data.ByteString                        (ByteString)
 import           Data.ByteString.Lazy                   (fromStrict)
 import           Data.Char                              (isUpper)
+import qualified Data.HashMap.Strict                    as HashMap
 import qualified Data.IntMap                            as IntMap
 import           Data.List                              (break, find, partition)
 import           Data.List.Split                        (splitOneOf)
@@ -230,13 +231,13 @@ getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
 
 handleGetProgram :: Request GetProgram.Request -> StateT Env BusT ()
 handleGetProgram = modifyGraph defInverse action replyResult where
-    action (GetProgram.Request location) = do
+    action (GetProgram.Request location _) = do
         code <- Graph.getCode location
         (graph, crumb) <- handle (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [])) $ do
             graph <- Graph.getGraph location
             crumb <- Graph.decodeLocation location
             return (Right graph, crumb)
-        return $ GetProgram.Result graph (Text.pack code) crumb
+        return $ GetProgram.Result graph (Text.pack code) crumb HashMap.empty HashMap.empty def
 
 handleAddConnection :: Request AddConnection.Request -> StateT Env BusT ()
 handleAddConnection = modifyGraph inverse action replyResult where
