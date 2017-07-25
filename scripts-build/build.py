@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 
-
+import atom_prepare
+import atom_apm
+import copy_configs
+import stack_build
 import os
 import subprocess
 
-def prep_path(path):
-    script_abs_path = os.path.abspath(os.path.dirname(__file__))
-    return os.path.normpath(os.path.join(script_abs_path, path))
+app_dir      = atom_prepare.prep_path('..')
+backend_dir  = atom_prepare.prep_path('../build/backend')
+frontend_dir = atom_prepare.prep_path('../luna-studio')
 
-app_dir = prep_path('..')
-backend_dir = prep_path('./build/backend')
-frontend_dir = prep_path('./luna-studio')
-try:
-    os.chdir(backend_dir)
-    subprocess.check_output(['stack', 'build', '--copy-bins'])
-    os.chdir(frontend_dir)
-    subprocess.check_output(['stack', 'build'])
+def main ():
+    try:
+        stack_build.run()
+        atom_prepare.run()
+        atom_apm.run() # RENAME: LunaStudioInstallInAtom ?
+        copy_configs.run()
 
-except subprocess.CalledProcessError:
-    print("Status : FAIL")
+    except subprocess.CalledProcessError:
+        print("Status : FAIL")
+
+
+main()

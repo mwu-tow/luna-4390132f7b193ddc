@@ -9,7 +9,7 @@ var run = function(maybe_url, maybe_mountPoint, websocket) {
   var arg_url   = function() { return maybe_url; };
   var arg_mount = function() { return maybe_mountPoint; };
 
-GHCJS_CODE_BE_THERE
+<GHCJS_CODE>
 
 };
 

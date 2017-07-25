@@ -12,6 +12,7 @@
 out
 a.out
 *.li
+*.pyc
 
 # profiling results
 *.hp
