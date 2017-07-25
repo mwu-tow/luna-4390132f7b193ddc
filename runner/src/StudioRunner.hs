@@ -46,6 +46,7 @@ data RunnerConfig = RunnerConfig { _versionFile            :: FilePath
                                  , _atomFolder             :: FilePath
                                  , _thirdPartyFolder       :: FilePath
                                  , _backendBinsFolder      :: FilePath
+                                 , _binsFolder             :: FilePath
                                  , _packageFolder          :: FilePath
                                  }
 
@@ -70,6 +71,7 @@ instance Monad m => MonadHostConfig RunnerConfig 'Linux arch m where
         , _atomFolder             = "atom"
         , _thirdPartyFolder       = "third-party"
         , _backendBinsFolder      = "private"
+        , _binsFolder             = "bin"
         , _packageFolder          = "packages"
         }
 
@@ -100,6 +102,24 @@ version = do
     let versionFilePath = main </> (runnerCfg ^. configFolder) </> (runnerCfg ^. versionFile)
     version <- liftIO $ readFile $ encodeString versionFilePath
     return $ T.pack $ version
+
+backendBinsPath :: (MonadRun m, MonadIO m) => m FilePath
+backendBinsPath = do
+    runnerCfg <- get @RunnerConfig
+    main <- mainAppDir
+    return $ main </> (runnerCfg ^. binsFolder) </> (runnerCfg ^. backendBinsFolder)
+
+configPath :: (MonadRun m, MonadIO m) => m FilePath
+configPath = do
+    runnerCfg <- get @RunnerConfig
+    main <- mainAppDir
+    return $ main </> (runnerCfg ^. configFolder)
+
+atomAppPath :: (MonadRun m, MonadIO m) => m FilePath
+atomAppPath = do
+    runnerCfg <- get @RunnerConfig
+    main <- mainAppDir
+    return $ main </> (runnerCfg ^. thirdPartyFolder) </> "atom" </> "usr" </> "bin" </> "atom"
 
 backendDir :: (MonadRun m, MonadIO m) => m FilePath
 backendDir = do
@@ -164,14 +184,43 @@ runLunaEmpireMacOS = do
         Shelly.cmd "pwd"
         Shelly.cmd supervisord "-c" "supervisord-mac.conf"
 
-runMacOS :: (MonadRun m, MonadIO m) => m ()
-runMacOS = do
-    atomHome <- userStudioAtomHome
-    logs <- userLogsDirectory
-    liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
-    liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
-    checkLunaHome
-    runLunaEmpireMacOS
+runLunaEmpire :: (MonadRun m, MonadIO m) => m ()
+runLunaEmpire = do
+    lunaSupervisor <- backendDir
+    supervisord    <- supervisordBinPath
+    logs           <- userLogsDirectory
+    Shelly.shelly $ Shelly.mkdir_p logs
+    Shelly.shelly $ do
+        Shelly.cd lunaSupervisor
+        Shelly.cmd "pwd"
+        Shelly.cmd supervisord "-c" "supervisord-linux.conf"
+
+
+run :: (MonadRun m, MonadIO m) => m ()
+run = case currentHost of
+    Darwin -> do
+        atomHome <- userStudioAtomHome
+        logs <- userLogsDirectory
+        liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
+        checkLunaHome
+        runLunaEmpireMacOS
+    Linux -> do
+        atomHome <- userStudioAtomHome
+        logs <- userLogsDirectory
+        backendBins <- backendBinsPath
+        atom <- atomAppPath
+        config <- configPath
+        liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
+        liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
+        liftIO $ Environment.setEnv "ATOM" (encodeString atom)
+        liftIO $ Environment.setEnv "CONFIG" (encodeString config)
+
+        checkLunaHome
+        runLunaEmpire
+
+
 
 
 
@@ -391,4 +440,4 @@ runMacOS = do
 
 
 main :: IO ()
-main = evalDefHostConfigs @'[RunnerConfig] $ runMacOS
+main = evalDefHostConfigs @'[RunnerConfig] $ run

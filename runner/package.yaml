@@ -72,6 +72,6 @@ default-extensions:
     - RelaxedPolyRec
 
 executables:
-  luna-studio-runner:
+  luna-studio:
     main: StudioRunner.hs
     source-dirs: src

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=luna-studio
+Exec=bin/public/luna-studio/luna-studio %F
+Icon=luna-studio
+Name[pl_PL]=app
