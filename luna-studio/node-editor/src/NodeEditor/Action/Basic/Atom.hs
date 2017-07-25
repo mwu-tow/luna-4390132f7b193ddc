@@ -6,7 +6,7 @@ import           NodeEditor.Action.Basic.ProjectManager (loadGraph)
 import           NodeEditor.Action.Batch                (searchNodes)
 import           NodeEditor.Action.Camera.Persistence   (saveCamera)
 import           NodeEditor.Action.Command              (Command)
-import           NodeEditor.Action.State.NodeEditor     (resetGraph)
+import           NodeEditor.Action.State.NodeEditor     (resetApp)
 import           NodeEditor.Batch.Workspace             (currentLocation, nodeSearcherData)
 import qualified NodeEditor.Batch.Workspace             as Workspace
 import           NodeEditor.State.Global                (State, workspace)
@@ -27,4 +27,4 @@ unsetFile :: Command State ()
 unsetFile = do
     saveCamera
     workspace .= def
-    resetGraph
+    resetApp

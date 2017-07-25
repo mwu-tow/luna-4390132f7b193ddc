@@ -29,7 +29,7 @@ import           LunaStudio.Data.Position                    (Position)
 import           LunaStudio.Data.TypeRep                     (TypeRep)
 import qualified NodeEditor.Action.Batch                     as Batch
 import           NodeEditor.Action.Command                   (Command)
-import           NodeEditor.Action.State.App                 (get, modify)
+import           NodeEditor.Action.State.App                 (get, modify, modifyApp)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
 import           NodeEditor.Action.UUID                      (getUUID)
 import           NodeEditor.Batch.Workspace                  (nodeSearcherData)
@@ -73,6 +73,9 @@ setGraphStatus graphStatus = modifyNodeEditor $ NE.graphStatus .= graphStatus
 
 resetGraph :: Command State ()
 resetGraph = modifyNodeEditor $ M.put def
+
+resetApp :: Command State ()
+resetApp = modifyApp $ M.put def
 
 separateSubgraph :: [NodeLoc] -> Command State Graph
 separateSubgraph nodeLocs = do

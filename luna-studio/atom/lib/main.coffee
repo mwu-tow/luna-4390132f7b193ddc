@@ -53,9 +53,13 @@ module.exports = LunaStudio =
 
     @subs.add atom.workspace.onDidDestroyPaneItem (event) =>
         if (event.item instanceof LunaEditorTab)
-            uris = (pane.uri for pane in atom.workspace.getPaneItems())
-            if event.item.uri not in uris
-                nodeEditor.pushEvent(tag: "UnsetFile")
+            urisOf = (instance) ->
+                pane.uri for pane in atom.workspace.getPaneItems().filter((a) -> a instanceof instance)
+            codeUris  = urisOf LunaEditorTab
+            graphUris = urisOf LunaStudioTab
+            if event.item.uri not in codeUris #last opened file
+                if event.item.uri in graphUris
+                    nodeEditor.pushEvent(tag: "UnsetFile")
                 return codeEditor.pushInternalEvent(event: "CloseFile", uri: event.item.uri)
 
     @subs.add atom.workspace.observeTextEditors (editor) ->
