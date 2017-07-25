@@ -17,7 +17,7 @@ module.exports = LunaStudio =
   deserializeLunaEditorTab: ({uri}) ->
     actStatus = (status) ->
         if status == 'activate'
-            codeEditor.pushInternalEvent(event: "OpenFile", uri: uri)
+            codeEditor.pushInternalEvent(tag: "OpenFile", _path: uri)
             atom.workspace.getActivePane().activateItem new LunaEditorTab(uri, codeEditor)
 
     codeEditor.statusListener actStatus
@@ -31,7 +31,7 @@ module.exports = LunaStudio =
         if data == 'activate'
             rootPath = atom.project.getPaths().shift()
             if rootPath != ""
-                codeEditor.pushInternalEvent(event: "SetProject", uri: rootPath)
+                codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
             atom.workspace.getActivePane().activateItem new LunaStudioTab(null, nodeEditor)
     codeEditor.statusListener actStatus
 
@@ -40,7 +40,7 @@ module.exports = LunaStudio =
     atom.workspace.addOpener (uri) ->
 
       if path.extname(uri) is '.luna'
-          codeEditor.pushInternalEvent(event: "OpenFile", uri: uri)
+          codeEditor.pushInternalEvent(tag: "OpenFile", _path: uri)
           new LunaEditorTab(uri, codeEditor)
     @subs = new SubAtom
 
@@ -60,15 +60,15 @@ module.exports = LunaStudio =
             if event.item.uri not in codeUris #last opened file
                 if event.item.uri in graphUris
                     nodeEditor.pushEvent(tag: "UnsetFile")
-                return codeEditor.pushInternalEvent(event: "CloseFile", uri: event.item.uri)
+                return codeEditor.pushInternalEvent(tag: "CloseFile", _path: event.item.uri)
 
     @subs.add atom.workspace.observeTextEditors (editor) ->
       editor.onDidSave (e) =>
           if path.extname(e.path) is ".luna"
               atom.workspace.destroyActivePaneItem()
-              codeEditor.pushInternalEvent(event: "OpenFile", uri: e.path)
+              codeEditor.pushInternalEvent(tag: "OpenFile", _path: e.path)
               atom.workspace.getActivePane().activateItem new LunaEditorTab(e.path, codeEditor)
-              codeEditor.pushInternalEvent(event: "SaveFile", uri: e.path)
+              codeEditor.pushInternalEvent(tag: "SaveFile", _path: e.path)
 
 
     @subs.add atom.commands.add 'atom-text-editor', 'core:copy': ->
@@ -77,7 +77,7 @@ module.exports = LunaStudio =
             buffer = atom.workspace.getActiveTextEditor().buffer
             selection = atom.workspace.getActiveTextEditor().getSelections()
             spanList = ({start: buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), stop: buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)} for s in selection)
-            codeEditor.pushInternalEvent(event: "Copy", uri: activeFilePath, selections: spanList)
+            codeEditor.pushInternalEvent(tag: "Copy", _path: activeFilePath, _selections: spanList)
 
     @subs.add atom.commands.add 'atom-workspace', 'core:close', (e) ->
         if (atom.workspace.getActivePaneItem() instanceof LunaStudioTab)
@@ -88,7 +88,7 @@ module.exports = LunaStudio =
       if (atom.workspace.getActivePaneItem() instanceof LunaEditorTab) or (atom.workspace.getActivePaneItem() instanceof LunaStudioTab)
           e.preventDefault()
           e.stopImmediatePropagation()
-          codeEditor.pushInternalEvent(event: "SaveFile", uri: atom.workspace.getActivePaneItem().uri)
+          codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
 
 
 
