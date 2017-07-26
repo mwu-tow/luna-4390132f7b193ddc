@@ -225,9 +225,15 @@ isSubPath systemLibPath dylibPath = do
 
 changeExecutableLibPathToRelative :: MonadIO m => FilePath -> FilePath -> FilePath -> m ()
 changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
-    let relativeLibraryPath = "@executable_path/../../lib/`basename"
+    let dylibName = filename libSystemPath
+        relativeLibraryPath = "@executable_path/../../lib/" <> Shelly.toTextIgnore dylibName
+        binFolder = parent binPath
+        binName = "./"  <> (Shelly.toTextIgnore $ filename binPath)
+
     if filename libLocalPath == filename libSystemPath
-        then Shelly.shelly $ Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binPath
+        then Shelly.shelly $ do
+            Shelly.cd binFolder
+            Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binName
         else return ()
 
 changeExecutablesLibPaths :: MonadIO m => FilePath -> FilePath -> FilePath -> m ()
