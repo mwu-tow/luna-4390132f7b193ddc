@@ -188,8 +188,8 @@ copyFromDistToDistPkg appName repoPath = do
     pkgConfig         <- get @PackageConfig
     packageRepoFolder <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
-    Shelly.shelly $ Shelly.mkdir_p packageRepoFolder
-    Shelly.shelly $ copyDir expandedCopmponents packageRepoFolder
+    Shelly.shelly $ Shelly.mkdir_p $ parent packageRepoFolder
+    Shelly.shelly $ Shelly.cmd "mv" expandedCopmponents packageRepoFolder
 
 downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do
