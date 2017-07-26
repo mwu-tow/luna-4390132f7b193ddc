@@ -59,7 +59,7 @@ logMessage = do
                 errorMsg = show content
             case lastPart '.' topic of
                 "response" -> do logger info  logMsg
-                                 lift $ BusT $ lift $ ppr content
+                                --  lift $ BusT $ lift $ ppr content
                 "status"   -> logger info  logMsg
                 "update"   -> logger info  logMsg
                 "request"  -> logger info  logMsg

@@ -15,6 +15,7 @@ import           Data.Monoid                                 (First (First), get
 import qualified Data.Set                                    as Set
 import           JS.LocalStorage                             (saveVisualizationPreferences)
 import           JS.Visualizers                              (registerVisualizerFrame)
+import           LunaStudio.Data.CameraTransformation        (CameraTransformation)
 import           LunaStudio.Data.MonadPath                   (MonadPath)
 import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
@@ -28,11 +29,10 @@ import           LunaStudio.Data.Position                    (Position)
 import           LunaStudio.Data.TypeRep                     (TypeRep)
 import qualified NodeEditor.Action.Batch                     as Batch
 import           NodeEditor.Action.Command                   (Command)
-import           NodeEditor.Action.State.App                 (get, modify)
+import           NodeEditor.Action.State.App                 (get, modify, modifyApp)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
 import           NodeEditor.Action.UUID                      (getUUID)
 import           NodeEditor.Batch.Workspace                  (nodeSearcherData)
-import           NodeEditor.Data.CameraTransformation        (CameraTransformation)
 import           NodeEditor.Data.Graph                       (Graph (Graph))
 import           NodeEditor.React.Model.App                  (nodeEditor)
 import           NodeEditor.React.Model.Connection           (Connection, ConnectionId, ConnectionsMap, HalfConnection, PosConnection,
@@ -73,6 +73,9 @@ setGraphStatus graphStatus = modifyNodeEditor $ NE.graphStatus .= graphStatus
 
 resetGraph :: Command State ()
 resetGraph = modifyNodeEditor $ M.put def
+
+resetApp :: Command State ()
+resetApp = modifyApp $ M.put def
 
 separateSubgraph :: [NodeLoc] -> Command State Graph
 separateSubgraph nodeLocs = do

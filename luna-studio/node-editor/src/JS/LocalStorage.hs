@@ -14,10 +14,10 @@ import           Data.ByteString.Lazy.Char8           as ByteString
 import           Data.Hashable                        (hash)
 import           Data.HashMap.Lazy                    (HashMap)
 import           JavaScript.Web.Storage               (getItem, localStorage, setItem)
+import           LunaStudio.Data.CameraTransformation (CameraTransformation)
 import           LunaStudio.Data.GraphLocation        (GraphLocation, breadcrumb, filePath)
 import           LunaStudio.Data.NodeValue            (Visualizer)
 import           LunaStudio.Data.TypeRep              (TypeRep)
-import           NodeEditor.Data.CameraTransformation (CameraTransformation)
 
 
 locationKey :: JSString

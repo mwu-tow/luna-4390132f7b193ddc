@@ -2,6 +2,7 @@
 module LunaStudio.Data.Breadcrumb where
 
 import           Control.DeepSeq      (NFData)
+import           Data.Aeson.Types     (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Binary          (Binary)
 import           Data.Monoid          (Monoid (..))
 import           Data.Semigroup       (Semigroup (..))
@@ -39,3 +40,16 @@ instance Default (Breadcrumb a) where
 
 containsNode :: Breadcrumb BreadcrumbItem -> NodeId -> Bool
 containsNode b nid = any ((nid ==) . view nodeId) $ b ^. items
+
+
+instance FromJSON a => FromJSONKey (Breadcrumb a)
+instance FromJSON a => FromJSON (Breadcrumb a)
+instance FromJSON a => FromJSON (Named a)
+instance ToJSON a => ToJSONKey (Breadcrumb a)
+instance ToJSON a => ToJSON (Breadcrumb a)
+instance ToJSON a => ToJSON (Named a)
+
+instance FromJSON BreadcrumbItem
+instance FromJSONKey BreadcrumbItem
+instance ToJSON BreadcrumbItem
+instance ToJSONKey BreadcrumbItem

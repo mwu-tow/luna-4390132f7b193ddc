@@ -124,7 +124,7 @@ handle (Event.Batch ev) = Just $ case ev of
                 then fatal "Cannot get file from backend"
                 else do
                     Global.workspace . _Just %= Workspace.upperWorkspace
-                    getProgram
+                    getProgram True
 
     AddConnectionResponse response -> handleResponse response success failure where
         requestId = response ^. Response.requestId

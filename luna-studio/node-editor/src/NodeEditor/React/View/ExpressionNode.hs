@@ -34,7 +34,7 @@ import           NodeEditor.React.View.ExpressionNode.NodeValue       (nodeValue
 import           NodeEditor.React.View.ExpressionNode.Properties      (nodeProperties_)
 import           NodeEditor.React.View.Field                          (multilineField_)
 import           NodeEditor.React.View.Monad                          (monads_)
-import           NodeEditor.React.View.Plane                          (planeMonads_, svgPlanes_)
+import           NodeEditor.React.View.Plane                          (planeMonads_, svgPlane_)
 import           NodeEditor.React.View.Port                           (argumentConstructor_, portExpanded_, port_)
 import           NodeEditor.React.View.Searcher                       (searcher_)
 import           NodeEditor.React.View.Style                          (errorMark_, selectionMark_)
@@ -253,7 +253,7 @@ nodeContainer = React.defineView name $ \(ref, maySearcher, nodesWithVis, subgra
                                       n
                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                       (Set.filter (Node.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-            svgPlanes_ $ planeMonads_ $ monads_ monads
+            svgPlane_ $ planeMonads_ $ monads_ monads
 
 filterOutSearcherIfNotRelated :: NodeLoc -> Maybe Searcher -> Maybe Searcher
 filterOutSearcherIfNotRelated _  Nothing  = Nothing

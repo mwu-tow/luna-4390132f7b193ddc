@@ -1,16 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.React.View.Plane where
 
+import           Common.Prelude
 import           JS.Scene                    (planeCanvasId)
 import qualified NodeEditor.React.View.Style as Style
 import           React.Flux
 
 
-svgPlanes_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
-svgPlanes_ =
+svgPlane_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
+svgPlane_ =
     svg_
-        [ "className" $= Style.prefix "svg-planes"
-        , "key"       $= "svgPlanes"
+        [ "className" $= Style.prefix "svg-plane"
+        , "key"       $= "svgPlane"
         ]
 
 planeMonads_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
@@ -26,6 +27,18 @@ planeConnections_ =
         [ "className" $= Style.prefixFromList [ "plane", "plane--connections", "camera-transform" ]
         , "key"       $= "connections"
         ]
+
+planeNewConnection_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
+planeNewConnection_ =
+    svg_
+        [ "className" $= Style.prefixFromList [ "svg-plane", "svg-plane--new-connection" ]
+        , "key"       $= "svgPlaneNewConnection"
+        ] . g_
+            [ "className" $= Style.prefixFromList [ "plane", "plane--new-connection", "camera-transform" ]
+            , "key"       $= "newConnection"
+            ]
+
+
 
 planeNodes_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
 planeNodes_ =
