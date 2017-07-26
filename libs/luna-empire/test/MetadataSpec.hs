@@ -263,7 +263,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc oneNode
-                Graph.paste loc (Position.fromTuple (200,0)) [r|def bar:
+                Graph.paste loc (Position.fromTuple (-10,0)) [r|def bar:
     «0»pi = 3.14
     «1»foo = a: b:
         «4»lala = 17.0
