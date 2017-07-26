@@ -85,7 +85,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ parallel $ do
+spec = around withChannels $ id $ do
     describe "multi-module files" $ do
         it "shows functions at file top-level" $ \env -> do
             nodes <- evalEmp env $ do
@@ -104,7 +104,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.addNode loc u1 "def quux a b c" def
+                Graph.addNode loc u1 "def quux a b c" (atXPos (-1000))
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
@@ -314,7 +314,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                n <- Graph.addNode loc u1 "def quux" def
+                n <- Graph.addNode loc u1 "def quux" (atXPos (-1000))
                 Graph.removeNodes loc [n ^. Node.nodeId]
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust

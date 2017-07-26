@@ -188,13 +188,18 @@ insertFunAfter previousFunction function code = do
     case previousFunction of
         Nothing -> do
             klass <- use Graph.clsClass
-            funs <- ASTRead.classFunctions klass
-            funBlockStart <- Code.functionBlockStartRef (head funs)
-            LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan (head funs)
-            off' <- if (off /= 0) then return off else do
-                IR.putLayer @CodeSpan (head funs) $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace len))
-                return defaultFunSpace
+            funs  <- ASTRead.classFunctions klass
+            let second l = Safe.atMay l 1
+            (off, off') <- case second funs of
+                Just sndFun -> do
+                    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan sndFun
+                    off' <- if (off /= 0) then return off else do
+                        IR.putLayer @CodeSpan sndFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace len))
+                        return defaultFunSpace
+                    return (off, off')
+                Nothing     -> return (0, 0)
             let indentedCode = code <> Text.replicate (fromIntegral off') "\n"
+            funBlockStart <- Code.functionBlockStartRef function
             Code.insertAt funBlockStart indentedCode
             LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
             IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off funLen))
@@ -468,6 +473,7 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                                 IR.ASGRootedFunction n _ -> do
                                     name <- ASTRead.getVarName' =<< IR.source n
                                     return $ if convert name `elem` funsToRemove then Left link else Right link
+                                IR.Metadata{} -> return $ Right link
                 let (toRemove, left) = partitionEithers funs
                 spans <- forM toRemove $ \candidate -> do
                     ref <- IR.source candidate

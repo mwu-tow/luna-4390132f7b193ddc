@@ -25,7 +25,7 @@ import qualified Empire.Commands.Code            as Code
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import qualified Empire.Commands.Library         as Library
 import           Empire.Data.AST                 (SomeASTException)
-import qualified Empire.Data.Graph               as Graph (clsClass, code, codeMarkers, breadcrumbHierarchy)
+import qualified Empire.Data.Graph               as Graph (clsClass, clsFuns, fileOffset, code, codeMarkers, breadcrumbHierarchy)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Empire                   (CommunicationEnv (..), Empire)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
@@ -293,6 +293,35 @@ spec = around withChannels $ parallel $ do
         «9»m + n
     «10»c = 4.0
     «11»bar = foo 8.0 c
+
+def main:
+    «0»pi = 3.14
+    None
+|]
+        it "pastes and removes top level node" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc oneNode
+                Graph.paste loc (Position.fromTuple (-10,0)) [r|def foo:
+    5
+
+def bar:
+    "bar"|]
+                nodes <- Graph.getNodes loc
+                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
+                offsets <- Graph.withUnit loc $ do
+                    funs <- use Graph.clsFuns
+                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                print offsets
+                let Just foo = find (\n -> n ^. Node.name == Just "foo") nodes
+                    Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                Graph.removeNodes loc [foo ^. Node.nodeId, bar ^. Node.nodeId]
+                nodes <- Graph.getNodes loc
+                code  <- Graph.withUnit loc $ use Graph.code
+                return (nodes, Text.unpack code)
+            map (view Node.name) nodes `shouldMatchList` [Just "main"]
+            code `shouldStartWith` [r|
 
 def main:
     «0»pi = 3.14
