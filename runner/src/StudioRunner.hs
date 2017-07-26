@@ -48,6 +48,8 @@ data RunnerConfig = RunnerConfig { _versionFile            :: FilePath
                                  , _backendBinsFolder      :: FilePath
                                  , _binsFolder             :: FilePath
                                  , _packageFolder          :: FilePath
+                                 , _supervisorKillFolder   :: FilePath
+                                 , _supervisorKillBin      :: FilePath
                                  }
 
 makeLenses ''RunnerConfig
@@ -73,6 +75,8 @@ instance Monad m => MonadHostConfig RunnerConfig 'Linux arch m where
         , _backendBinsFolder      = "private"
         , _binsFolder             = "bin"
         , _packageFolder          = "packages"
+        , _supervisorKillFolder   = "kill"
+        , _supervisorKillBin      = "kill"
         }
 
 instance Monad m => MonadHostConfig RunnerConfig 'Darwin arch m where
@@ -119,7 +123,9 @@ atomAppPath :: (MonadRun m, MonadIO m) => m FilePath
 atomAppPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
-    return $ main </> (runnerCfg ^. thirdPartyFolder) </> "atom" </> "usr" </> "bin" </> "atom"
+    case currentHost of
+        Linux  -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "atom" </> "usr" </> "bin" </> "atom"
+        Darwin -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "Atom.app" </> "Contents" </> "MacOS" </> "Atom"
 
 backendDir :: (MonadRun m, MonadIO m) => m FilePath
 backendDir = do
@@ -132,6 +138,12 @@ supervisordBinPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. thirdPartyFolder) </> (runnerCfg ^. supervisordFolder) </> (runnerCfg ^. supervisordBin)
+
+killSupervisorBinPath :: (MonadRun m, MonadIO m) => m FilePath
+killSupervisorBinPath = do
+    runnerCfg <- get @RunnerConfig
+    main <- mainAppDir
+    return $ main </> (runnerCfg ^. thirdPartyFolder) </> (runnerCfg ^. supervisorKillFolder) </> (runnerCfg ^. supervisorKillBin)
 
 packageStudioAtomHome :: (MonadRun m, MonadIO m) => m FilePath
 packageStudioAtomHome = do
@@ -201,8 +213,19 @@ run = case currentHost of
     Darwin -> do
         atomHome <- userStudioAtomHome
         logs <- userLogsDirectory
+        backendBins <- backendBinsPath
+        atom <- atomAppPath
+        config <- configPath
+        kill <- killSupervisorBinPath
+        print backendBins
+        print atom
+        print config
         liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
         liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
+        liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
+        liftIO $ Environment.setEnv "ATOM" (encodeString atom)
+        liftIO $ Environment.setEnv "CONFIG" (encodeString config)
+        liftIO $ Environment.setEnv "KILL" (encodeString kill)
         checkLunaHome
         runLunaEmpireMacOS
     Linux -> do
@@ -211,12 +234,13 @@ run = case currentHost of
         backendBins <- backendBinsPath
         atom <- atomAppPath
         config <- configPath
+        kill <- killSupervisorBinPath
         liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
         liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
         liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
         liftIO $ Environment.setEnv "ATOM" (encodeString atom)
         liftIO $ Environment.setEnv "CONFIG" (encodeString config)
-
+        liftIO $ Environment.setEnv "KILL" (encodeString kill)
         checkLunaHome
         runLunaEmpire
 
