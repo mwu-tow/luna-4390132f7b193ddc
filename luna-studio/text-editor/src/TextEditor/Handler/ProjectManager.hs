@@ -29,7 +29,8 @@ handle (Batch (Batch.FileOpened response))    = Just $ handleResponse response s
     success _ = do
         let uri  = response ^. Response.request . OpenFile.filePath
             status = "ok"
-        liftIO $ pushStatus (convert "FileSaved") (convert uri) (convert status)
+        liftIO $ pushStatus (convert "FileOpened") (convert uri) (convert status)
+
 handle (Batch (Batch.FileClosed response))    = Just $ handleResponse response doNothing doNothing
 handle (Batch (Batch.FileSaved response))     = Just $ handleResponse response doNothing doNothing
 handle (Batch (Batch.IsSaved response))       = Just $ handleResponse response success doNothing where
