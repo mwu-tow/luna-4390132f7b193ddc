@@ -95,11 +95,13 @@ import           LunaStudio.Data.PortDefault            (PortValue (..))
 import           LunaStudio.Data.PortRef                (InPortRef (..), OutPortRef (..))
 import           LunaStudio.Data.PortRef                as PortRef
 import           LunaStudio.Data.Position               (Position)
+import           LunaStudio.Data.Project                (LocationSettings)
 import qualified LunaStudio.Data.Project                as Project
 import           LunaStudio.Data.TypeRep                (TypeRep (TStar))
 import           Prologue                               hiding (Item)
 import           System.Environment                     (getEnv)
 import           System.FilePath                        ((</>))
+import           System.FilePath.Posix                  (replaceFileName)
 import qualified System.Log.MLogger                     as Logger
 import           ZMQ.Bus.Trans                          (BusT (..))
 
@@ -229,32 +231,38 @@ getSrcPortByNodeId nid = OutPortRef (NodeLoc def nid) []
 getDstPortByNodeLoc :: NodeLoc -> AnyPortRef
 getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
 
+saveSettings :: GraphLocation -> LocationSettings -> Empire ()
+saveSettings gl settings = do
+    bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
+    let filePath = gl ^. GraphLocation.filePath
+    liftIO $ Project.updateLocationSettings (replaceFileName filePath "config.luna") filePath bc settings
+
 
 -- Handlers
 
 
 handleGetProgram :: Request GetProgram.Request -> StateT Env BusT ()
 handleGetProgram = modifyGraph defInverse action replyResult where
-    action (GetProgram.Request location moduleChanged) = do
+    action (GetProgram.Request location mayPrevSettings) = do
+        let moduleChanged = isNothing mayPrevSettings || isJust (maybe Nothing (view Project.visMap . snd) mayPrevSettings)
+        withJust mayPrevSettings $ uncurry saveSettings
         code <- Graph.getCode location
-        (graph, crumb, moduleVisPref, bcVisPref, camera) <- handle
-            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], HashMap.empty, HashMap.empty, def))
+        (graph, crumb, typeRepToVisMap, camera) <- handle
+            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], mempty, def))
             $ do
                 graph <- Graph.getGraph location
-                mayModuleSettings <- liftIO $ Project.getModuleSettings "config.path" $ location ^. GraphLocation.filePath
-                let (mayLastLoc, moduleVisPref, bcVisPref, camera) = case mayModuleSettings of
-                        Nothing -> (Nothing, HashMap.empty, HashMap.empty, def)
-                        Just ms -> let
-                                loc  = Just $ ms ^. Project.moduleCurrentBreadcrumb
-                                mvp  = ms ^. Project.moduleVisualizerPreferences
-                                bc   = ms ^. Project.moduleCurrentBreadcrumb
-                                bs   = Map.lookup bc $ ms ^. Project.breadcrumbsSettings
-                                bcvp = maybe HashMap.empty (view Project.breadcrumbVisualizerPreferences) bs
-                                cam  = maybe def           (Just . view Project.breadcrumbCameraSettings) bs
-                            in (loc, mvp, bcvp, cam)
-                crumb <- maybe (Graph.decodeLocation location) (Graph.decodeLocationFromNames (GraphLocation (location ^. GraphLocation.filePath) def)) mayLastLoc
-                return (Right graph, crumb, moduleVisPref, bcVisPref, camera)
-        return $ GetProgram.Result graph (Text.pack code) crumb moduleVisPref bcVisPref camera
+                crumb <- Graph.decodeLocation location
+                let filePath = location ^. GraphLocation.filePath
+                mayModuleSettings <- liftIO $ Project.getModuleSettings (replaceFileName filePath "config.luna") filePath
+                let (typeRepToVisMap, camera) = case mayModuleSettings of
+                        Nothing -> (mempty, def)
+                        Just ms -> let visMap = if moduleChanged then Just $ ms ^. Project.typeRepToVisMap else Nothing
+                                       bc     = Breadcrumb.toNames crumb
+                                       bs     = Map.lookup bc $ ms ^. Project.breadcrumbsSettings
+                                       cam    = maybe def (view Project.breadcrumbCameraSettings) bs
+                            in (visMap, cam)
+                return (Right graph, crumb, typeRepToVisMap, camera)
+        return $ GetProgram.Result graph (Text.pack code) crumb typeRepToVisMap camera
 
 handleAddConnection :: Request AddConnection.Request -> StateT Env BusT ()
 handleAddConnection = modifyGraph inverse action replyResult where
@@ -402,9 +410,7 @@ handleRenamePort = modifyGraph inverse action replyResult where --FIXME[pm] impl
 
 handleSaveSettings :: Request SaveSettings.Request -> StateT Env BusT ()
 handleSaveSettings = modifyGraphOk defInverse action where
-    action (SaveSettings.Request gl mvp bcvp camera) = do
-        bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
-        liftIO $ Project.updateLocationSettings "config.luna" (gl ^. GraphLocation.filePath) bc mvp bcvp camera
+    action (SaveSettings.Request gl settings) = saveSettings gl settings
 
 handleSearchNodes :: Request SearchNodes.Request -> StateT Env BusT ()
 handleSearchNodes = modifyGraph defInverse action replyResult where

@@ -42,10 +42,6 @@ import qualified NodeEditor.React.View.Style                          as Style
 import           React.Flux
 import qualified React.Flux                                           as React
 
-import           System.IO.Unsafe                                     (unsafePerformIO)
-
-traceShowMToStdout :: (Show a, Monad m) => a -> m ()
-traceShowMToStdout v = unsafePerformIO $ print v >> return (return ())
 
 name, objNameBody, objNamePorts, objNameDynStyles :: JSString
 name             = "node"

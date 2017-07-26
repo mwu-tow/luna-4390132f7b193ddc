@@ -1,4 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TypeFamilies      #-}
 module LunaStudio.Data.Breadcrumb where
 
 import           Control.DeepSeq      (NFData)
@@ -7,8 +9,9 @@ import           Data.Aeson.Types     (FromJSON (..), FromJSONKey, ToJSON (..), 
 import           Data.Binary          (Binary)
 import           Data.Monoid          (Monoid (..))
 import           Data.Semigroup       (Semigroup (..))
+import qualified Data.Text            as Text
 import           LunaStudio.Data.Node (NodeId)
-import           Prologue             hiding (Monoid, mappend, mempty, (<>))
+import           Prologue             hiding (Monoid, mappend, mconcat, mempty, (<>))
 
 
 data BreadcrumbItem = Definition { _nodeId  :: NodeId }
@@ -46,12 +49,18 @@ toNames :: Breadcrumb (Named BreadcrumbItem) -> Breadcrumb Text
 toNames = Breadcrumb . map (view name) . view items
 
 instance FromJSON a => FromJSONKey (Breadcrumb a)
-instance FromJSON a => FromJSON (Breadcrumb a) where parseJSON = lensJSONParse
+instance {-# OVERLAPPABLE #-} FromJSON a => FromJSON (Breadcrumb a) where parseJSON = lensJSONParse
 instance FromJSON a => FromJSON (Named a)      where parseJSON = lensJSONParse
 instance ToJSON a => ToJSONKey (Breadcrumb a)
-instance ToJSON a => ToJSON (Breadcrumb a) where
+instance {-# OVERLAPPABLE #-} ToJSON a => ToJSON (Breadcrumb a) where
     toJSON     = lensJSONToJSON
     toEncoding = lensJSONToEncoding
+
+instance ToJSON (Breadcrumb Text) where
+    toJSON     = toJSON . intercalate "." . unwrap
+
+instance FromJSON (Breadcrumb Text) where parseJSON = fmap (Breadcrumb . Text.split (== '.')) . parseJSON
+
 instance ToJSON a => ToJSON (Named a) where
     toJSON     = lensJSONToJSON
     toEncoding = lensJSONToEncoding

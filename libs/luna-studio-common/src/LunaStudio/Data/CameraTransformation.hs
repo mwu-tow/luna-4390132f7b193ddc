@@ -3,10 +3,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LunaStudio.Data.CameraTransformation  where
 
-import           Control.DeepSeq (NFData)
-import           Data.Aeson      (FromJSON (..), ToJSON (..))
-import           Data.Binary     (Binary (..))
-import           Data.Matrix     (Matrix, fromLists, identity, toLists)
+import           Control.DeepSeq    (NFData)
+import           Control.Lens.Aeson (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
+import           Data.Aeson         (FromJSON (..), ToJSON (..))
+import           Data.Binary        (Binary (..))
+import           Data.Matrix        (Matrix, fromLists, identity, toLists)
 import           Prologue
 
 --TODO[react]: Consider if we can require those Matrices to be squared and of size 4
@@ -26,11 +27,13 @@ instance (ToJSON a, Show a) => ToJSON (Matrix a) where
     toJSON = toJSON . show . toLists
 instance (FromJSON a, Read a) => FromJSON (Matrix a) where
     parseJSON json = do
-        (s :: Either String String) <- parseJSON json
-        either fail return . join $ (fmap fromLists . tryReads) <$> s
+        (s :: String) <- parseJSON json
+        either fail return $ fromLists <$> tryReads s
 
-instance ToJSON CameraTransformation
-instance FromJSON CameraTransformation
+instance ToJSON CameraTransformation where
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
+instance FromJSON CameraTransformation where parseJSON = lensJSONParse
 
 instance Default CameraTransformation where
     def = CameraTransformation (identity 4) (identity 4) 0

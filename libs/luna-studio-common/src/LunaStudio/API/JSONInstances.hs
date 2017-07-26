@@ -56,7 +56,6 @@ import           LunaStudio.API.Response                    as Response
 import           LunaStudio.Data.Connection                 as Connection
 import           LunaStudio.Data.Error                      as Error
 import           LunaStudio.Data.Graph                      as Graph
-import           LunaStudio.Data.GraphLocation              as GraphLocation
 import           LunaStudio.Data.Library                    as Library
 import           LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.Node                       as Node
@@ -77,7 +76,6 @@ import           LunaStudio.Data.Vector2                    as Vector2
 instance FromJSON a => FromJSON (Vector2.Vector2 a)
 instance FromJSON Connection.Connection
 instance FromJSON Graph.Graph
-instance FromJSON GraphLocation.GraphLocation
 instance FromJSON i => FromJSON (Port.Port i)
 instance FromJSON MonadPath.MonadPath
 instance FromJSON Node.ExpressionNode
@@ -145,7 +143,6 @@ instance ToJSON GetProgram.Result
 instance ToJSON GetSubgraphs.Request
 instance ToJSON GetSubgraphs.Result
 instance ToJSON Graph.Graph
-instance ToJSON GraphLocation.GraphLocation
 instance ToJSON i => ToJSON (Port.Port i)
 instance ToJSON ImportProject.Request
 instance ToJSON ImportProject.Result

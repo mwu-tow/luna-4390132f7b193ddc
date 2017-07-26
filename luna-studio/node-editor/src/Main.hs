@@ -7,7 +7,6 @@ import qualified Control.Concurrent.Chan    as Chan
 import           Control.Concurrent.MVar
 import           Data.DateTime              (getCurrentTime)
 import qualified JS.Config                  as Config
-import qualified JS.LocalStorage            as LocalStorage
 import           JS.UUID                    (generateUUID)
 import           JS.Visualizers             (mkVisualizersMap)
 import           LunaStudio.Data.NodeValue  (fromJSVisualizersMap)
@@ -25,20 +24,17 @@ import           WebSocket                  (WebSocket)
 
 runApp :: Chan (IO ()) -> WebSocket -> IO ()
 runApp chan socket = do
-    lastLocation   <- LocalStorage.loadLocation
     random         <- newStdGen
     clientId       <- generateUUID
     initTime       <- getCurrentTime
     visualizersMap <- fromJSVisualizersMap <$> mkVisualizersMap
-    prefVis        <- fromMaybe def <$> LocalStorage.loadVisualizationPreferences
     let openedFile = Config.openedFile
     mdo
         let loop = LoopRef chan state
         Engine.scheduleInit loop
         appRef <- Store.createApp $ Engine.scheduleEvent loop
         React.reactRender Config.mountPoint (App.app appRef) ()
-        let initState = mkState appRef clientId openedFile prefVis visualizersMap initTime random
-                      & Global.workspace . _Just . Workspace.lastUILocation .~ lastLocation
+        let initState = mkState appRef clientId openedFile mempty visualizersMap initTime random
         state <- newMVar initState
         Engine.connectEventSources socket loop
     App.focus

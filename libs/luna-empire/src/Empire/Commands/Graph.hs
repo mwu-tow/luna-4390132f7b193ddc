@@ -30,7 +30,6 @@ module Empire.Commands.Graph
     , connectCondTC
     , connectNoTC
     , decodeLocation
-    , decodeLocationFromNames
     , disconnect
     , getNodeMeta
     , getBuffer
@@ -127,7 +126,7 @@ import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
 import qualified Luna.Syntax.Text.Parser.Marker   as Luna
 import           LunaStudio.API.JSONInstances     ()
-import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem (Definition), Named)
+import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Constants        (gapBetweenNodes)
 import           LunaStudio.Data.Connection       (Connection (..))
@@ -776,16 +775,6 @@ decodeLocation loc@(GraphLocation file crumbs) = case crumbs of
                 funs <- use Graph.clsFuns
                 return $ Map.map fst funs
             withGraph (functionLocation loc) $ GraphBuilder.decodeBreadcrumbs definitionsIDs crumbs
-
-decodeLocationFromNames :: GraphLocation -> Breadcrumb Text -> Empire (Breadcrumb (Named BreadcrumbItem))
-decodeLocationFromNames gl (Breadcrumb []) = return $ Breadcrumb []
-decodeLocationFromNames gl@(GraphLocation file _) (Breadcrumb crumbNames) = do
-    definitionsIDs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-        funs <- use Graph.clsFuns
-        return $ Map.map fst funs
-    let nameToIdMap = Map.fromList . map swap $ Map.toList definitionsIDs
-        crumbs      = Breadcrumb $ fromMaybe [] $ mapM (fmap Definition . flip Map.lookup nameToIdMap . Text.unpack) crumbNames
-    withGraph (functionLocation gl) $ GraphBuilder.decodeBreadcrumbs definitionsIDs crumbs
 
 renameNode :: GraphLocation -> NodeId -> Text -> Empire ()
 renameNode loc nid name

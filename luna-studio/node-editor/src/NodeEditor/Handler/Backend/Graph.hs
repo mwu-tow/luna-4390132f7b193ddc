@@ -41,6 +41,7 @@ import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
 import           LunaStudio.Data.NodeSearcher                (prepareNSData)
+import qualified LunaStudio.Data.Project                     as Project
 import           NodeEditor.Action.Basic                     (exitBreadcrumb, localAddConnections, localMerge, localRemoveConnections,
                                                               localRemoveNodes, localSetSearcherHints, localUpdateNodeTypecheck,
                                                               localUpdateOrAddExpressionNode, localUpdateOrAddExpressionNodePreventingPorts,
@@ -52,11 +53,11 @@ import           NodeEditor.Action.Basic.Revert              (revertAddConnectio
                                                               revertSetPortDefault)
 import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime, modifyTime, refreshTime, touchCurrentlySelected, updateClient)
 import           NodeEditor.Action.Batch                     (collaborativeModify, getProgram, requestCollaborationRefresh)
-import           NodeEditor.Action.Camera                    (tryLoadCamera)
 import           NodeEditor.Action.Command                   (Command)
 import           NodeEditor.Action.State.App                 (setBreadcrumbs)
 import           NodeEditor.Action.State.Graph               (inCurrentLocation, isCurrentFile, isCurrentLocation)
-import           NodeEditor.Action.State.NodeEditor          (isGraphLoaded, modifyExpressionNode, setGraphStatus, updateMonads)
+import           NodeEditor.Action.State.NodeEditor          (isGraphLoaded, modifyExpressionNode, setGraphStatus, setScreenTransform,
+                                                              updateMonads)
 import           NodeEditor.Action.UUID                      (isOwnRequest)
 import qualified NodeEditor.Batch.Workspace                  as Workspace
 import           NodeEditor.Event.Batch                      (Event (..))
@@ -98,8 +99,9 @@ checkBreadcrumb res = do
 handle :: Event.Event -> Maybe (Command State ())
 handle (Event.Batch ev) = Just $ case ev of
     GetProgramResponse response -> handleResponse response success failure where
-        location       = response ^. Response.request . GetProgram.location
-        success result = do
+        location        = response ^. Response.request . GetProgram.location
+        requestId       = response ^. Response.requestId
+        success result  = do
             whenM (isCurrentLocation location) $ do
                 putStrLn "GetProgram"
                 setBreadcrumbs $ result ^. GetProgram.breadcrumb
@@ -111,20 +113,19 @@ handle (Event.Batch ev) = Just $ case ev of
                             output      = convert . (NodeLoc.empty,) <$> graph ^. Graph.outputSidebar
                             connections = graph ^. Graph.connections
                             monads      = graph ^. Graph.monads
-                        shouldCenter <- not <$> isGraphLoaded
                         updateGraph nodes input output connections monads
                         setGraphStatus GraphLoaded
+                        setScreenTransform $ result ^. GetProgram.camera
+                        whenM (isOwnRequest requestId) $ withJust (result ^. GetProgram.typeRepToVisMap) $ \visMap ->
+                            Global.preferedVisualizers .= visMap
                         updateScene
-                        when shouldCenter $ do
-                            tryLoadCamera
-                            requestCollaborationRefresh
         failure _ = do
             isOnTop <- fromMaybe True <$> preuses (Global.workspace . traverse) Workspace.isOnTopBreadcrumb
             if isOnTop
                 then fatal "Cannot get file from backend"
                 else do
                     Global.workspace . _Just %= Workspace.upperWorkspace
-                    getProgram True
+                    getProgram def
 
     AddConnectionResponse response -> handleResponse response success failure where
         requestId = response ^. Response.requestId

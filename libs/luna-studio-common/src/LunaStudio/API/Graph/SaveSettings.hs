@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Graph.SaveSettings where
 
+import           Control.Lens.Aeson                   (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
+import           Data.Aeson.Types                     (FromJSON (..), ToJSON (..))
 import           Data.Binary                          (Binary (..))
 import           Data.Hashable                        (Hashable)
 import           Data.HashMap.Strict                  (HashMap)
@@ -13,24 +15,22 @@ import qualified LunaStudio.API.Topic                 as T
 import           LunaStudio.Data.CameraTransformation (CameraTransformation)
 import           LunaStudio.Data.GraphLocation        (GraphLocation)
 import           LunaStudio.Data.NodeValue            (Visualizer)
+import           LunaStudio.Data.Project              (LocationSettings)
 import           LunaStudio.Data.TypeRep              (TypeRep)
 import           Prologue                             hiding (TypeRep)
 
 
-data Request = Request { _location                        :: GraphLocation
-                       , _moduleVisualizerPreferences     :: HashMap TypeRep Visualizer
-                       , _breadcrumbVisualizerPreferences :: HashMap TypeRep Visualizer
-                       , _cameraSettings                  :: CameraTransformation
+data Request = Request { _location        :: GraphLocation
+                       , _settings        :: LocationSettings
                        } deriving (Eq, Generic, NFData, Show)
 
 makeLenses ''Request
 
---FIXME[MM, LJK, PM]: We should allow sending HashMap here without convert to list
-instance (Hashable k, Eq k, Binary k, Binary v) => Binary (HashMap k v) where
-    put = put . HashMap.toList
-    get = HashMap.fromList . get
-
 instance Binary Request
+instance FromJSON Request where parseJSON = lensJSONParse
+instance ToJSON Request where
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 instance G.GraphRequest Request where location = location
 
 type Response = Response.SimpleResponse Request ()
