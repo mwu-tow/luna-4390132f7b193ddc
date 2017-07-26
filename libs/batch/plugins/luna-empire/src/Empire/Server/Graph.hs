@@ -307,8 +307,7 @@ handleMovePort = modifyGraph defInverse action replyResult where
         Graph.movePort location portRef newPortPos
 
 handlePaste :: Request Paste.Request -> StateT Env BusT ()
-handlePaste = modifyGraph inverse action replyResult where
-    inverse (Paste.Request location position string) = return ()
+handlePaste = modifyGraph defInverse action replyResult where
     action (Paste.Request location position string) = withDefaultResult location $ do
         Graph.paste location position string
 

@@ -211,7 +211,7 @@ insertFunAfter previousFunction function code = do
 addFunNode :: GraphLocation -> FunctionParsing -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addFunNode loc parsing uuid expr meta = withUnit loc $ do
     (parse, code) <- ASTParse.runFunHackParser expr parsing
-    runASTOp $ AST.writeMeta parse meta
+    when (meta /= def) $ runASTOp $ AST.writeMeta parse meta
     name <- runASTOp $ IR.matchExpr parse $ \case
         IR.ASGRootedFunction name _ -> return $ nameToString name
     klass <- use Graph.clsClass
@@ -945,11 +945,11 @@ autolayoutTopLevel :: GraphLocation -> Empire ()
 autolayoutTopLevel loc = do
     withUnit loc $ runASTOp $ do
         clsFuns <- use Graph.clsFuns
-        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, graph)) -> do
+        needLayout <- forM (Map.assocs clsFuns) $ \(id, (name, graph)) -> do
             f    <- ASTRead.getFunByName name
             meta <- AST.readMeta f
             let fileOffset = graph ^. Graph.fileOffset
-            return $ if meta /= def then Nothing else Just (id, fileOffset)
+            return (id, fileOffset)
 
         let sortedNeedLayout = sortOn snd needLayout
             positions  = map (Position.fromTuple . (,0)) [0,gapBetweenNodes..]
@@ -1170,7 +1170,7 @@ paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
     let funs = Text.splitOn "\n\n" $ Code.removeMarkers code
     uuids <- forM funs $ \fun -> do
         uuid <- liftIO UUID.nextRandom
-        addFunNode loc ParseAsIs uuid fun def
+        addFunNode loc ParseAsIs uuid fun $ set NodeMeta.position position def
         return uuid
     autolayoutTopLevel loc
     forM uuids $ \uuid -> autolayout (GraphLocation file (Breadcrumb [Breadcrumb.Definition uuid]))

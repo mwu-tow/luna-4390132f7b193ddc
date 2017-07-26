@@ -279,6 +279,8 @@ spec = around withChannels $ parallel $ do
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
             map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
+            let positions = map (view $ Node.nodeMeta . NodeMeta.position . to Position.toTuple) nodes
+            length (Set.toList $ Set.fromList positions) `shouldBe` 2
             code `shouldStartWith` [r|def bar:
     «1»pi = 3.14
     «2»foo = a: b:
