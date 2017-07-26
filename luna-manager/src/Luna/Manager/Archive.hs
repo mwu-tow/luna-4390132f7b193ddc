@@ -24,27 +24,29 @@ extensionError :: SomeException
 extensionError = toException ExtensionError
 
 unpackArchive :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
-unpackArchive file = case currentHost of
-    Windows -> unzipFileWindows file
-    Darwin  -> do
-        ext <- tryJust extensionError $ extension file
-        case ext of
-            "gz"  -> Shelly.shelly $ unpackTarGzUnix file
-            "zip" -> Shelly.shelly $ unzipUnix file
-    Linux   -> do
-        ext <- tryJust extensionError $ extension file
-        case ext of
-            "AppImage" -> return file
-            "gz"       -> Shelly.shelly $ unpackTarGzUnix file
-            "rpm"      -> Shelly.shelly $ do
-                let name = basename file
-                    dir = directory file
-                    fullFilename = filename file
-                Shelly.mkdir_p $ dir </> name
-                Shelly.cp_r file $ dir </> name
-                unpackRPM (dir </> name </> fullFilename) (dir </> name)
-                -- Shelly.rm fullFilename
-                return $ dir </> name
+unpackArchive file = do
+    print $ "Unpacking archive"
+    case currentHost of
+        Windows -> unzipFileWindows file
+        Darwin  -> do
+            ext <- tryJust extensionError $ extension file
+            case ext of
+                "gz"  -> Shelly.shelly $ unpackTarGzUnix file
+                "zip" -> Shelly.shelly $ unzipUnix file
+        Linux   -> do
+            ext <- tryJust extensionError $ extension file
+            case ext of
+                "AppImage" -> return file
+                "gz"       -> Shelly.shelly $ unpackTarGzUnix file
+                "rpm"      -> Shelly.shelly $ do
+                    let name = basename file
+                        dir = directory file
+                        fullFilename = filename file
+                    Shelly.mkdir_p $ dir </> name
+                    Shelly.cp_r file $ dir </> name
+                    unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                    -- Shelly.rm fullFilename
+                    return $ dir </> name
 
 unzipUnix :: Shelly.MonadSh m => FilePath -> m FilePath
 unzipUnix file = do
@@ -90,5 +92,5 @@ createTarGzUnix :: Shelly.MonadSh m => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do
     let name =  (parent folder) </> Shelly.fromText (appName <> ".tar.gz")
     Shelly.cd $ parent folder
-    Shelly.cmd "tar" "-cpzf" name $ (parent folder)
+    Shelly.cmd "tar" "-cpzf" name $ filename folder
     return name
