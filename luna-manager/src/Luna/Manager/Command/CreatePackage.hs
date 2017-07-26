@@ -138,7 +138,7 @@ createAppimage appName repoPath = do
     let appImageFolderName = "appimage"
     pkgConfig     <- get @PackageConfig
     tmpAppPath    <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> appImageFolderName </> convert appName
-    tmpAppDirPath <- tmpAppPath </> convert (appName <> ".AppDir")
+    let tmpAppDirPath = tmpAppPath </> convert (appName <> ".AppDir")
 
 
     Shelly.shelly $ Shelly.mkdir_p tmpAppDirPath
