@@ -129,7 +129,7 @@ modifyDesktopFileToUseWrapperAppImageToRunApp appName tmpAppDirPath =
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ inPlaceSubs <> substitute <> desktopFile
     where desktopFile     = convert appName <> ".desktop"
           wrappedExecName = convert appName <> ".wrapper"
-          substitute      = "\"s|Exec=" <> (convert appName) <> "|Exec=" <> wrappedExecName <> "|g\""
+          substitute      = "\"s|Exec=" <> (convert appName) <> "|Exec=" <> wrappedExecName <> "|g\" "
           inPlaceSubs     = "sed -i -e "
 
 -- TODO: refactor
@@ -144,6 +144,7 @@ createAppimage appName repoPath = do
     Shelly.shelly $ Shelly.mkdir_p tmpAppDirPath
     Shelly.shelly $ Shelly.cd tmpAppPath
     -- TODO: OPISZ co robia progressbary
+    print "Downloading AppImage functions.sh"
     functions <- downloadWithProgressBar "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
     let mainAppImageFolder = "usr"
         apprun             = "get_apprun"
@@ -162,6 +163,7 @@ createAppimage appName repoPath = do
         Shelly.cp logoFile    $ tmpAppDirPath </> convert (appName <> ".png")
         Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
         copyDir srcPkgPath dstPath
+    print "Downloading AppImage desktopIntegration"
     appWrapper <- downloadWithProgressBar "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
     let dstWrapperPath = dstPath </> convert (appName <> ".wrapper")
     Shelly.shelly $ Shelly.mv appWrapper dstWrapperPath
