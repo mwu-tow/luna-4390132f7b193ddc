@@ -56,6 +56,14 @@ createSymLink src dst = liftIO $  (System.createFileLink (encodeString src) (enc
             createSymLink src dst
         otherwise -> return ()
 
+createSymLinkDirectory ::  MonadIO m => FilePath -> FilePath -> m ()
+createSymLinkDirectory src dst = liftIO $ (System.createDirectoryLink (encodeString src) (encodeString dst)) `catch` handler src dst where
+    handler :: FilePath -> FilePath -> SomeException -> IO ()
+    handler src dst ex = case ex of
+        isAlreadyExistsError -> do
+            System.removeFile $ encodeString dst
+            createSymLinkDirectory src dst
+        otherwise -> return ()
 
 copyDir :: Shelly.MonadSh m => FilePath -> FilePath -> m ()-- copy the content of the source directory
 copyDir src dst = do

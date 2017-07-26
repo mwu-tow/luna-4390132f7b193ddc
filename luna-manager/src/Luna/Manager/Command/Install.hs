@@ -144,17 +144,18 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
 
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> m ()
 downloadAndUnpack pkgPath installPath = do
-    Shelly.shelly $ Shelly.mkdir_p installPath
+    Shelly.shelly $ Shelly.mkdir_p $ parent installPath
     tmp <- getTmpPath
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
-    Shelly.shelly $ copyDir unpacked  installPath
+    Shelly.shelly $ Shelly.cmd "mv" unpacked  installPath
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
     installConfig <- get @InstallConfig
     let currentPath = (parent installPath) </> (installConfig ^. selectedVersionPath)
-    liftIO $ System.createDirectoryLink (encodeString installPath) (encodeString currentPath)
+    createSymLinkDirectory installPath currentPath
+
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m ()
 postInstallation appType installPath binPath appName = do
