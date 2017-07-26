@@ -2,7 +2,6 @@ module NodeEditor.Batch.Connector.Commands where
 
 import           Common.Batch.Connector.Connection        (Message (Message), sendRequest, sendUpdate)
 import           Common.Prelude
-import           Data.HashMap.Strict                      (HashMap)
 import qualified Data.Text                                as Text
 import           Data.UUID.Types                          (UUID)
 import qualified LunaStudio.API.Atom.OpenFile             as OpenFile
@@ -24,7 +23,6 @@ import qualified LunaStudio.API.Graph.RemoveNodes         as RemoveNodes
 import qualified LunaStudio.API.Graph.RemovePort          as RemovePort
 import qualified LunaStudio.API.Graph.RenameNode          as RenameNode
 import qualified LunaStudio.API.Graph.RenamePort          as RenamePort
-import qualified LunaStudio.API.Graph.SaveSettings        as SaveSettings
 import qualified LunaStudio.API.Graph.SearchNodes         as SearchNodes
 import qualified LunaStudio.API.Graph.SetNodeExpression   as SetNodeExpression
 import qualified LunaStudio.API.Graph.SetNodesMeta        as SetNodesMeta
@@ -37,7 +35,6 @@ import qualified LunaStudio.API.Project.ExportProject     as ExportProject
 import qualified LunaStudio.API.Project.ImportProject     as ImportProject
 import qualified LunaStudio.API.Project.ListProjects      as ListProjects
 import qualified LunaStudio.API.Project.OpenProject       as OpenProject
-import           LunaStudio.Data.CameraTransformation     (CameraTransformation)
 import           LunaStudio.Data.Connection               (Connection)
 import           LunaStudio.Data.GraphLocation            (GraphLocation)
 import qualified LunaStudio.Data.GraphLocation            as GraphLocation
@@ -45,11 +42,9 @@ import           LunaStudio.Data.Node                     (ExpressionNode)
 import           LunaStudio.Data.NodeLoc                  (NodeLoc, normalise, normalise', normalise_)
 import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta)
-import           LunaStudio.Data.NodeValue                (Visualizer)
 import           LunaStudio.Data.PortDefault              (PortDefault)
 import           LunaStudio.Data.PortRef                  (AnyPortRef (InPortRef'), InPortRef, OutPortRef)
 import           LunaStudio.Data.Project                  (ProjectId)
-import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import           NodeEditor.Batch.Workspace               (currentLocation)
 import           NodeEditor.React.Model.Connection        (ConnectionId)
@@ -144,9 +139,6 @@ renameNode nl name workspace uuid guiID = sendRequest $ Message uuid guiID $ wit
 renamePort :: OutPortRef -> Text -> Workspace -> UUID -> Maybe UUID -> IO ()
 renamePort portRef name workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' RenamePort.Request portRef' name where
     (workspace', portRef') = normalise workspace portRef
-
-saveSettings :: HashMap TypeRep Visualizer -> HashMap TypeRep Visualizer -> CameraTransformation -> Workspace -> UUID -> Maybe UUID -> IO ()
-saveSettings mvp bcvp camera workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace SaveSettings.Request mvp bcvp camera
 
 searchNodes :: Workspace -> UUID -> Maybe UUID -> IO ()
 searchNodes workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace $ SearchNodes.Request
