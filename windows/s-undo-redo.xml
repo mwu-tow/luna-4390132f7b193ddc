@@ -3,7 +3,7 @@
   <id>s-undo-redo</id>
   <name>Luna Undo-Redo Service</name>
   <description>Undo-Redo support for Luna</description>
-  <executable>%BASE%\..\dist\bin\undo-redo.exe</executable>
+  <executable>%BASE%\..\..\bin\private\undo-redo.exe</executable>
 
   <onfailure action="restart" delay="1 sec"/>
   <onfailure action="restart" delay="1 sec"/>
@@ -14,7 +14,7 @@
 
   <env name="LUNAROOT" value="%BASE%\..\env" />
 
-  <logpath>%BASE%\logs</logpath>
+  <logpath>%LOGSDIR%</logpath>
   <log mode="roll">
   </log>
 </configuration>
