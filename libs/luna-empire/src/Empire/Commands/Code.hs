@@ -274,6 +274,7 @@ getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
         ilen  <- IR.getLayer @SpanLength =<< IR.source i
         recur <- getFirstNonLambdaOffset =<< IR.source o
         return $ ioff + ooff + ilen + recur
+    IR.ASGFunction n as o -> getOffsetRelativeToTarget o
     _ -> return 0
 
 getCurrentBlockEnd :: GraphOp m => m Delta

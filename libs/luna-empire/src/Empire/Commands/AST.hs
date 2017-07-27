@@ -123,5 +123,5 @@ dumpGraphViz name = Vis.snapshotWith nodeVis edgeVis name where
         off <- IR.getLayer @SpanOffset e
         return $ Just $ convert $ "[" ++ show (unwrap off) ++ "]"
     nodeVis n = do
-        LeftSpacedSpan (SpacedSpan (Delta off) (Delta len)) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan n
-        return $ Just $ convert $ show (off, len)
+        len <- IR.getLayer @SpanLength n
+        return $ Just $ convert $ "[" ++ show (unwrap len) ++ "]"

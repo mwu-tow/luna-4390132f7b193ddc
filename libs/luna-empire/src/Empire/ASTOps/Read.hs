@@ -252,8 +252,9 @@ getFirstNonLambdaRef ref = do
 
 getFirstNonLambdaLink :: GraphOp m => NodeRef -> m (Maybe EdgeRef)
 getFirstNonLambdaLink node = match node $ \case
-    Grouped g  -> IR.source g >>= getFirstNonLambdaLink
-    Lam _ next -> do
+    ASGFunction _ _ o -> return $ Just o
+    Grouped g         -> IR.source g >>= getFirstNonLambdaLink
+    Lam _ next        -> do
         nextLam <- IR.source next
         match nextLam $ \case
             Lam{} -> getFirstNonLambdaLink nextLam
