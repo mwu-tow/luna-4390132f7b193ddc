@@ -61,7 +61,7 @@ createSymLinkDirectory src dst = liftIO $ (System.createDirectoryLink (encodeStr
     handler :: FilePath -> FilePath -> SomeException -> IO ()
     handler src dst ex = case ex of
         isAlreadyExistsError -> do
-            System.removeFile $ encodeString dst
+            System.removeDirectoryLink $ encodeString dst
             createSymLinkDirectory src dst
         otherwise -> return ()
 

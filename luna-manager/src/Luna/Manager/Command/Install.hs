@@ -142,13 +142,17 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
 
-downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> m ()
-downloadAndUnpack pkgPath installPath = do
+downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> Text -> m ()
+downloadAndUnpack pkgPath installPath appName = do
     Shelly.shelly $ Shelly.mkdir_p $ parent installPath
     tmp <- getTmpPath
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
-    Shelly.shelly $ Shelly.cmd "mv" unpacked  installPath
+    case currentHost of
+         Linux -> do
+             Shelly.shelly $ Shelly.mkdir_p installPath
+             Shelly.shelly $ Shelly.cmd "mv" unpacked  $ installPath </> convert appName
+         Darwin -> Shelly.shelly $ Shelly.cmd "mv" unpacked  installPath
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
@@ -162,21 +166,27 @@ postInstallation appType installPath binPath appName = do
     linkingCurrent appType installPath
     installConfig <- get @InstallConfig
     packageBin <- case currentHost of
-        Linux   -> return $ installPath </> convert (appName <> ".AppImage")
+        Linux   -> return $ installPath </> convert appName
         Darwin  -> return $ installPath </> (installConfig ^. mainBinPath) </> convert appName
         Windows -> return $ installPath </> (installConfig ^. mainBinPath) </> convert ((mkSystemPkgName appName) <> ".exe")
     currentBin <- case currentHost of
-        Linux -> expand $ convert binPath </> (installConfig ^. selectedVersionPath)  </> convert (mkSystemPkgName appName)
+        Linux -> return $ parent installPath </> (installConfig ^. selectedVersionPath)  </> convert (mkSystemPkgName appName)
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
             GuiApp   -> expand $ convert binPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "MacOS" </> convert (mkSystemPkgName appName)
             BatchApp -> return $ (parent installPath) </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName)
         -- Windows -> case appType of
-            -- BatchApp -> parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
-            -- GuiApp   -> parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName) </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
+        --     BatchApp -> parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
+        --     GuiApp   -> parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName) </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
     makeExecutable packageBin
-    linking packageBin currentBin
-    linkingLocalBin currentBin appName
+    case currentHost of
+        Linux -> linkingLocalBin currentBin appName
+        Darwin -> case appType of
+            GuiApp -> do
+                linking packageBin currentBin
+                linkingLocalBin currentBin appName
+            BatchApp -> linkingLocalBin currentBin appName
+
     copyResources appType installPath appName
     runServices installPath appType
 
@@ -244,7 +254,7 @@ installApp opts package = do
     installPath <- prepareInstallPath appType (convert binPath)  pkgName $ showPretty (package ^. header . version)
     pathExists  <- Shelly.shelly $ Shelly.test_d installPath
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
-    downloadAndUnpack (package ^. desc . path) installPath
+    downloadAndUnpack (package ^. desc . path) installPath pkgName
     postInstallation appType installPath binPath pkgName
 
 
@@ -276,7 +286,7 @@ runInstaller opts = do
     installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
     pathExists <- Shelly.shelly $ Shelly.test_d installPath
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
-    downloadAndUnpack (appPkgDesc ^. path) installPath
+    downloadAndUnpack (appPkgDesc ^. path) installPath appName
     postInstallation (appPkg ^. appType) installPath binPath  appName
 
 

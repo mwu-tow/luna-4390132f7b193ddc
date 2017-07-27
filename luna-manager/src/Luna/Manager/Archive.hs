@@ -59,7 +59,6 @@ unzipUnix file = do
     out <- Shelly.cmd  "unzip" $ dir </> name </> (filename file)
     Shelly.rm $ dir </> name </> (filename file)
     listed <- Shelly.ls $ dir </> name
-    Shelly.liftSh $ print listed
     if length listed == 1 then return $ head listed else return $ dir </> name
 
 unpackTarGzUnix :: Shelly.MonadSh m => FilePath -> m FilePath
