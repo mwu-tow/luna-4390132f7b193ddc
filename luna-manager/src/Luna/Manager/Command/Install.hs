@@ -148,8 +148,6 @@ downloadAndUnpack pkgPath installPath appName = do
     tmp <- getTmpPath
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
-    print unpacked
-    print installPath
     case currentHost of
          Linux -> do
              Shelly.shelly $ Shelly.mkdir_p installPath
