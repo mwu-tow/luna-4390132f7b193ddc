@@ -6,6 +6,7 @@ import fileinput
 import glob
 import subprocess
 import shutil
+import system
 
 def prepare_holder(output, content_start, content_end, input1, input2, placeholder):
     with open(output, 'a+') as modified:
@@ -28,7 +29,7 @@ def prepare_ghcjs(output, placeholder, ghcjs):
     placeholder_abs = prep_path(placeholder)
     ghcjs_abs = prep_path(ghcjs)
     prepare_holder(output_abs, 'module.exports = (function(){', '});', uuid, imports, placeholder_abs)
-    put_ghcjs(output_abs, ghcjs_abs, '<GHCJS_CODE>')  
+    put_ghcjs(output_abs, ghcjs_abs, '<GHCJS_CODE>')
 
 def prepare_css(output, styles_file):
     output_abs = prep_path(output)
@@ -73,13 +74,26 @@ def cp_files():
         shutil.copy(prep_path(path), prep_path('../luna-studio/atom/lib/gen'))
 
 def run():
-    rm_old()
-    create_dirs()
-    ghcjs_code()
-    #prepare_css('../atom/styles/app.css', '../node-editor/styles/app.less')
-    cp_fonts('../luna-studio/atom/styles/fonts', '../luna-studio/node-editor/assets/fonts')
-    cp_less('../luna-studio/atom/styles/gen', '../luna-studio/node-editor/styles')
-    cp_files()
+    if system.system == system.systems.WINDOWS:
+        return ()
+    elif system.system == system.systems.LINUX:
+        rm_old()
+        create_dirs()
+        ghcjs_code()
+        #prepare_css('../atom/styles/app.css', '../node-editor/styles/app.less')
+        cp_fonts('../luna-studio/atom/styles/fonts', '../luna-studio/node-editor/assets/fonts')
+        cp_less('../luna-studio/atom/styles/gen', '../luna-studio/node-editor/styles')
+        cp_files()
+    elif system.system == system.systems.DARWIN:
+        rm_old()
+        create_dirs()
+        ghcjs_code()
+        #prepare_css('../atom/styles/app.css', '../node-editor/styles/app.less')
+        cp_fonts('../luna-studio/atom/styles/fonts', '../luna-studio/node-editor/assets/fonts')
+        cp_less('../luna-studio/atom/styles/gen', '../luna-studio/node-editor/styles')
+        cp_files()
+    else: print("unknown system")
+
 
 if __name__ == '__main__':
     run()
