@@ -13,10 +13,12 @@ import qualified LunaStudio.API.Graph.AutolayoutNodes     as AutolayoutNodes
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import qualified LunaStudio.API.Graph.CollaborationUpdate as CollaborationUpdate
 import qualified LunaStudio.API.Graph.CollapseToFunction  as CollapseToFunction
+import qualified LunaStudio.API.Graph.Copy                as Copy
 import qualified LunaStudio.API.Graph.DumpGraphViz        as DumpGraphViz
 import qualified LunaStudio.API.Graph.GetProgram          as GetProgram
 import qualified LunaStudio.API.Graph.GetSubgraphs        as GetSubgraphs
 import qualified LunaStudio.API.Graph.MovePort            as MovePort
+import qualified LunaStudio.API.Graph.Paste               as Paste
 import qualified LunaStudio.API.Graph.Redo                as Redo
 import qualified LunaStudio.API.Graph.RemoveConnection    as RemoveConnection
 import qualified LunaStudio.API.Graph.RemoveNodes         as RemoveNodes
@@ -44,6 +46,7 @@ import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta)
 import           LunaStudio.Data.PortDefault              (PortDefault)
 import           LunaStudio.Data.PortRef                  (AnyPortRef (InPortRef'), InPortRef, OutPortRef)
+import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.Project                  (ProjectId)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import           NodeEditor.Batch.Workspace               (currentLocation)
@@ -110,12 +113,19 @@ collapseToFunction :: [NodeLoc] -> Workspace -> UUID -> Maybe UUID ->  IO ()
 collapseToFunction nodeLocs workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' CollapseToFunction.Request nodeLocs' where
     (workspace', nodeLocs') = normalise' workspace nodeLocs
 
+copy :: [NodeLoc] -> Workspace -> UUID -> Maybe UUID ->  IO ()
+copy nodeLocs workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' Copy.Request nodeLocs' where
+    (workspace', nodeLocs') = normalise' workspace nodeLocs
+
 getSubgraph :: NodeLoc -> Workspace -> UUID -> Maybe UUID -> IO ()
 getSubgraph nodeLoc workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace $ GetSubgraphs.Request . (GraphLocation.breadcrumb .~ NodeLoc.toBreadcrumb (NodeLoc.prependPath workspace nodeLoc))
 
 movePort :: OutPortRef -> Int -> Workspace -> UUID -> Maybe UUID -> IO ()
 movePort portRef newPortPos workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace' MovePort.Request) portRef' newPortPos where
     (workspace', portRef') = normalise workspace portRef
+
+paste :: Position -> String -> Workspace -> UUID -> Maybe UUID ->  IO ()
+paste cursorPos clipboardData workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace Paste.Request) cursorPos clipboardData
 
 redo :: UUID -> Maybe UUID -> IO ()
 redo uuid guiID = sendRequest $ Message uuid guiID $ Redo.Request Redo.RedoRequest

@@ -5,6 +5,7 @@ module NodeEditor.Handler.Backend.Graph
 import           Common.Prelude
 import           Common.Report
 import qualified Data.DateTime                               as DT
+import qualified JS.Clipboard                                as JS
 import qualified LunaStudio.API.Atom.Substitute              as Substitute
 import qualified LunaStudio.API.Graph.AddConnection          as AddConnection
 import qualified LunaStudio.API.Graph.AddNode                as AddNode
@@ -13,12 +14,14 @@ import qualified LunaStudio.API.Graph.AddSubgraph            as AddSubgraph
 import qualified LunaStudio.API.Graph.AutolayoutNodes        as AutolayoutNodes
 import qualified LunaStudio.API.Graph.CollaborationUpdate    as CollaborationUpdate
 import qualified LunaStudio.API.Graph.CollapseToFunction     as CollapseToFunction
+import qualified LunaStudio.API.Graph.Copy                   as Copy
 import qualified LunaStudio.API.Graph.GetProgram             as GetProgram
 import qualified LunaStudio.API.Graph.GetSubgraphs           as GetSubgraphs
 import qualified LunaStudio.API.Graph.MonadsUpdate           as MonadsUpdate
 import qualified LunaStudio.API.Graph.MovePort               as MovePort
 import qualified LunaStudio.API.Graph.NodeResultUpdate       as NodeResultUpdate
 import qualified LunaStudio.API.Graph.NodeTypecheckerUpdate  as NodeTCUpdate
+import qualified LunaStudio.API.Graph.Paste                  as Paste
 import qualified LunaStudio.API.Graph.RemoveConnection       as RemoveConnection
 import qualified LunaStudio.API.Graph.RemoveNodes            as RemoveNodes
 import qualified LunaStudio.API.Graph.RemovePort             as RemovePort
@@ -182,6 +185,14 @@ handle (Event.Batch ev) = Just $ case ev of
         location        = request  ^. CollapseToFunction.location
         success         = applyResult location
 
+    CopyResponse response -> handleResponse response success doNothing where
+        requestId      = response ^. Response.requestId
+        request        = response ^. Response.request
+        location       = request ^. Copy.location
+        success result = inCurrentLocation location $ const $
+            whenM (isOwnRequest requestId) $
+                liftIO $ JS.copyStringToClipboard $ convert $ result ^. Copy.clipboardData
+
     DumpGraphVizResponse response -> handleResponse response doNothing doNothing
 
     --TODO[LJK, PM]: Review this Handler
@@ -214,6 +225,12 @@ handle (Event.Batch ev) = Just $ case ev of
     NodeTypecheckerUpdate update -> do
       inCurrentLocation (update ^. NodeTCUpdate.location) $ \path ->
           void $ localUpdateNodeTypecheck path $ update ^. NodeTCUpdate.node
+
+    PasteResponse response -> handleResponse response success doNothing where
+        requestId = response ^. Response.requestId
+        request   = response ^. Response.request
+        location  = request  ^. Paste.location
+        success   = applyResult location
 
     RedoResponse _response -> $notImplemented
 
