@@ -187,19 +187,24 @@ insertFunAfter previousFunction function code = do
     let defaultFunSpace = 2
     case previousFunction of
         Nothing -> do
-            klass <- use Graph.clsClass
-            funs  <- ASTRead.classFunctions klass
-            let second l = Safe.atMay l 1
-            (off, off') <- case second funs of
-                Just sndFun -> do
-                    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan sndFun
+            unit <- use Graph.clsClass
+            funs <- ASTRead.classFunctions unit
+            let firstFunction = Safe.headMay funs
+            funBlockStart <- case firstFunction of
+                Just fun -> Code.functionBlockStartRef fun
+                _        -> Code.functionBlockStartRef =<< IR.matchExpr unit (\case
+                    IR.Unit _ _ cls -> IR.source cls)
+            (off, off') <- case firstFunction of
+                Just firstFun -> do
+                    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan firstFun
                     off' <- if (off /= 0) then return off else do
-                        IR.putLayer @CodeSpan sndFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace len))
+                        IR.putLayer @CodeSpan firstFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan defaultFunSpace len))
                         return defaultFunSpace
                     return (off, off')
-                Nothing     -> return (0, 0)
-            let indentedCode = code <> Text.replicate (fromIntegral off') "\n"
-            funBlockStart <- Code.functionBlockStartRef function
+                Nothing     -> return (defaultFunSpace, 0)
+            let indentedCode = (if isNothing firstFunction then Text.replicate (fromIntegral off) "\n" else "")
+                             <> code
+                             <> Text.replicate (fromIntegral off') "\n"
             Code.insertAt funBlockStart indentedCode
             LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
             IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off funLen))
@@ -225,6 +230,8 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
     (insertedCharacters, codePosition) <- runASTOp $ do
         funs <- ASTRead.classFunctions klass
         previousFunction <- findPreviousFunction meta funs
+
+        insertedCharacters <- insertFunAfter previousFunction parse code
         IR.matchExpr klass $ \case
             IR.Unit _ _ cls -> do
                 cls' <- IR.source cls
@@ -234,8 +241,6 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
                     IR.ClsASG _ _ _ decls -> return decls
                 newFuns <- putNewFunctionRef l previousFunction links
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
-
-        insertedCharacters <- insertFunAfter previousFunction parse code
         codePosition       <- Code.functionBlockStartRef parse
 
         return (fromIntegral insertedCharacters, codePosition)
@@ -957,12 +962,12 @@ autolayout loc = do
 autolayoutTopLevel :: GraphLocation -> Empire ()
 autolayoutTopLevel loc = do
     withUnit loc $ runASTOp $ do
-        clsFuns <- use Graph.clsFuns
-        needLayout <- forM (Map.assocs clsFuns) $ \(id, (name, graph)) -> do
+        clsFuns    <- use Graph.clsFuns
+        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, graph)) -> do
             f    <- ASTRead.getFunByName name
             meta <- AST.readMeta f
             let fileOffset = graph ^. Graph.fileOffset
-            return (id, fileOffset)
+            return $ if meta /= def then Nothing else Just (id, fileOffset)
 
         let sortedNeedLayout = sortOn snd needLayout
             positions  = map (Position.fromTuple . (,0)) [0,gapBetweenNodes..]
@@ -1181,11 +1186,12 @@ indent _      code = code
 paste :: GraphLocation -> Position -> String -> Empire ()
 paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
     let funs = Text.splitOn "\n\n" $ Code.removeMarkers code
-    uuids <- forM funs $ \fun -> do
+        gaps = [0, gapBetweenNodes..]
+    uuids <- forM (zip funs gaps) $ \(fun, gap) -> do
         uuid <- liftIO UUID.nextRandom
-        addFunNode loc ParseAsIs uuid fun $ set NodeMeta.position position def
+        let meta = set NodeMeta.position (Position.move (coerce $ Position.fromTuple (gap, 0)) position) def
+        addFunNode loc ParseAsIs uuid fun meta
         return uuid
-    autolayoutTopLevel loc
     forM uuids $ \uuid -> autolayout (GraphLocation file (Breadcrumb [Breadcrumb.Definition uuid]))
     resendCode loc
 paste loc position (Text.pack -> code) = do

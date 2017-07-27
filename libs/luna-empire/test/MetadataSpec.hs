@@ -310,10 +310,6 @@ def bar:
     "bar"|]
                 nodes <- Graph.getNodes loc
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
-                offsets <- Graph.withUnit loc $ do
-                    funs <- use Graph.clsFuns
-                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
-                print offsets
                 let Just foo = find (\n -> n ^. Node.name == Just "foo") nodes
                     Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
                 Graph.removeNodes loc [foo ^. Node.nodeId, bar ^. Node.nodeId]
@@ -322,6 +318,41 @@ def bar:
                 return (nodes, Text.unpack code)
             map (view Node.name) nodes `shouldMatchList` [Just "main"]
             code `shouldStartWith` [r|
+
+def main:
+    «0»pi = 3.14
+    None
+|]
+        it "pastes and removes and pastes top level nodes" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc oneNode
+                Graph.paste loc (Position.fromTuple (-500,0)) [r|def foo:
+    5
+
+def bar:
+    "bar"|]
+                nodes <- Graph.getNodes loc
+                let Just foo = find (\n -> n ^. Node.name == Just "foo") nodes
+                    Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
+                Graph.removeNodes loc [foo ^. Node.nodeId, bar ^. Node.nodeId]
+                Graph.paste loc (Position.fromTuple (-500,0)) [r|def foo:
+    5
+
+def bar:
+    "bar"|]
+                nodes <- Graph.getNodes loc
+                code  <- Graph.withUnit loc $ use Graph.code
+                return (nodes, Text.unpack code)
+            map (view Node.name) nodes `shouldMatchList` [Just "foo", Just "bar", Just "main"]
+            code `shouldStartWith` [r|
+
+def foo:
+    «3»5
+
+def bar:
+    «4»"bar"
 
 def main:
     «0»pi = 3.14
