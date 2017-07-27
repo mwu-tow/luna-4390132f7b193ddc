@@ -73,6 +73,13 @@ copyDir src dst = do
         mapM_ (flip Shelly.cp_r dst) listedDirectory
     else Shelly.cp src dst
 
+move :: MonadIO m => FilePath -> FilePath -> m ()
+move src dst = case currentHost of
+    Linux   -> Shelly.shelly $ Shelly.cmd "mv" src dst
+    Darwin  -> Shelly.shelly $ Shelly.cmd "mv" src dst
+    Windows -> Shelly.shelly $ Shelly.mv src dst
+
+
 -- === Instances === --
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m where
     defaultHostConfig = EnvConfig <$> tmp where
