@@ -75,6 +75,7 @@ replaceEdgeSource edge beg newSrc = do
 
 countArguments :: GraphOp m => NodeRef -> m Int
 countArguments expr = IR.matchExpr expr $ \case
+    Tuple        e   -> return $ length e
     App          f _ -> (+ 1) <$> (countArguments =<< IR.source f)
     LeftSection  f _ -> return 2
     RightSection f _ -> return 1
@@ -100,7 +101,7 @@ getArgumentOf fun beg = IR.matchExpr fun $ \case
 
 getOrCreateArgument :: GraphOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
 getOrCreateArgument currentFun codeBegin currentArgument neededArgument
-    | currentArgument <=  neededArgument = do
+    | currentArgument <= neededArgument = do
         padArgs currentFun codeBegin (neededArgument - currentArgument)
         flip getArgumentOf codeBegin =<< IR.source currentFun
     | otherwise = do

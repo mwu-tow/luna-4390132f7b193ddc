@@ -272,6 +272,13 @@ isLambda expr = match expr $ \case
     Grouped g -> IR.source g >>= isLambda
     _         -> return False
 
+isEnterable :: GraphOp m => NodeRef -> m Bool
+isEnterable expr = match expr $ \case
+    Lam{}         -> return True
+    ASGFunction{} -> return True
+    Grouped g     -> IR.source g >>= isEnterable
+    _             -> return False
+
 isMatch :: GraphOp m => NodeRef -> m Bool
 isMatch expr = isJust <$> IRExpr.narrowTerm @IR.Unify expr
 

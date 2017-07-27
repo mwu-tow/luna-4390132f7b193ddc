@@ -181,7 +181,7 @@ buildNode nid = do
     marked    <- ASTRead.getASTRef nid
     meta      <- fromMaybe def <$> AST.readMeta marked
     name      <- getNodeName nid
-    canEnter  <- ASTRead.isLambda ref
+    canEnter  <- ASTRead.isEnterable ref
     inports   <- buildInPorts nid ref [] aliasPortName
     outports  <- buildOutPorts root
     code      <- getNodeCode nid
@@ -198,11 +198,10 @@ buildNodeTypecheckUpdate nid = do
 getUniName :: GraphOp m => NodeRef -> m (Maybe Text)
 getUniName root = do
     root'  <- getMarkedExpr root
-    match' <- ASTRead.isMatch root'
-    if match' then do
-        vnode <- ASTRead.getVarNode root'
-        Just . Text.pack <$> Print.printName vnode
-    else return Nothing
+    IR.matchExpr root' $ \case
+        Unify       l _   -> Just . Text.pack <$> (Print.printName =<< IR.source l)
+        ASGFunction n _ _ -> Just . Text.pack <$> (Print.printName =<< IR.source n)
+        _ -> return Nothing
 
 getNodeName :: GraphOp m => NodeId -> m (Maybe Text)
 getNodeName nid = ASTRead.getASTPointer nid >>= getUniName
