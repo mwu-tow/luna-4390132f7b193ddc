@@ -191,10 +191,10 @@ runLunaEmpireMacOS = do
     supervisord    <- supervisordBinPath
     logs           <- userLogsDirectory
     Shelly.shelly $ Shelly.mkdir_p logs
-    Shelly.shelly $ do
-        Shelly.cd lunaSupervisor
-        Shelly.cmd "pwd"
-        Shelly.cmd supervisord "-c" "supervisord-mac.conf"
+    runProcess_ $ setWorkingDir (encodeString lunaSupervisor) $ shell ((encodeString supervisord) ++ " -n -c supervisord-mac.conf") -- done with system.process.typed because with shelly clicking on app in launchpad returned abnormal exit code
+    -- Shelly.shelly $ do
+    --     Shelly.cd lunaSupervisor
+    --     Shelly.cmd supervisord "-n" "-c" "supervisord-mac.conf"
 
 runLunaEmpire :: (MonadRun m, MonadIO m) => m ()
 runLunaEmpire = do
@@ -204,8 +204,7 @@ runLunaEmpire = do
     Shelly.shelly $ Shelly.mkdir_p logs
     Shelly.shelly $ do
         Shelly.cd lunaSupervisor
-        Shelly.cmd "pwd"
-        Shelly.cmd supervisord "-c" "supervisord-linux.conf"
+        Shelly.cmd supervisord "-n" "-c" "supervisord-linux.conf"
 
 
 run :: (MonadRun m, MonadIO m) => m ()
@@ -217,9 +216,6 @@ run = case currentHost of
         atom <- atomAppPath
         config <- configPath
         kill <- killSupervisorBinPath
-        print backendBins
-        print atom
-        print config
         liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
         liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
         liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
