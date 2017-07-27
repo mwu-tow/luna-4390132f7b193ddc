@@ -79,10 +79,11 @@ unzipFileWindows zipFile = do
 
     script <- downloadFromURL scriptPath
     let dir = directory zipFile
-        name = basename zipFile
+        name = dir </> basename zipFile
     -- Shelly.shelly $ Shelly.cp script dir
-    Shelly.shelly $ Shelly.cd dir
-    Shelly.shelly $ Shelly.cmd "cscript" (filename script) (filename zipFile)
+    Shelly.shelly $ do
+      Shelly.cd dir
+      Shelly.cmd "cscript" (filename script) (filename zipFile)
     return name --checkon windows if it is possible to strip and unpack to different dir
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
