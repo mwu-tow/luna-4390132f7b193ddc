@@ -315,6 +315,10 @@ extractAppliedPorts seenApp seenLam bound node = IR.matchExpr node $ \case
             res          <- if isB || elem arg bound then return Nothing else Just .: (,) <$> Print.getTypeRep argTp <*> getPortState arg
             rest         <- extractAppliedPorts True False bound =<< IR.source f
             return $ res : rest
+    Tuple elts -> flip (mapM . mapM) elts $ \eltLink -> do
+        elt   <- IR.source eltLink
+        eltTp <- IR.getLayer @TypeLayer elt >>= IR.source
+        (,) <$> Print.getTypeRep eltTp <*> getPortState elt
     _       -> return []
 
 
@@ -456,8 +460,8 @@ deepResolveInputs :: GraphOp m => NodeId -> NodeRef -> InPortRef -> m [(OutPortR
 deepResolveInputs nid ref portRef@(InPortRef loc id) = do
     currentPortResolution <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
     let currentPortConn = (, portRef) <$> currentPortResolution
-    args      <- reverse <$> ASTDeconstruct.extractAppArguments ref
-    argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id ++ [Arg i]))
+    args      <- ASTDeconstruct.extractAppPorts ref
+    argsConns <- fmap catMaybes $ forM (zip args [0..]) $ \(arg, i) -> mapM (\a -> deepResolveInputs nid a (InPortRef loc (id ++ [Arg i]))) arg
     head      <- ASTDeconstruct.extractFun ref
     self      <- ASTDeconstruct.extractSelf head
     headConns <- case (self, head == ref) of
