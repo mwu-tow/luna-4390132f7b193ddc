@@ -1,14 +1,13 @@
 module NodeEditor.Action.Basic.ProjectManager where
 
 import           Common.Prelude
-import           Data.HashMap.Strict                (HashMap)
 import qualified JS.Atom                            as Atom
 import           LunaStudio.Data.GraphLocation      (GraphLocation, filePath)
 import           LunaStudio.Data.Project            (LocationSettings (LocationSettings))
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.Command          (Command)
 import           NodeEditor.Action.State.NodeEditor (getScreenTranform, resetGraph, setGraphStatus)
-import           NodeEditor.Batch.Workspace         (currentLocation, uiGraphLocation)
+import           NodeEditor.Batch.Workspace         (currentLocation)
 import           NodeEditor.React.Model.NodeEditor  (GraphStatus (GraphLoading))
 import           NodeEditor.State.Global            (State, workspace)
 import qualified NodeEditor.State.Global            as Global

@@ -2,7 +2,6 @@ module NodeEditor.Batch.Connector.Commands where
 
 import           Common.Batch.Connector.Connection        (Message (Message), sendRequest, sendUpdate)
 import           Common.Prelude
-import           Data.HashMap.Strict                      (HashMap)
 import qualified Data.Text                                as Text
 import           Data.UUID.Types                          (UUID)
 import qualified LunaStudio.API.Atom.OpenFile             as OpenFile
@@ -169,7 +168,7 @@ setNodesMeta updates workspace uuid guiID = sendRequest $ Message uuid guiID $ w
     updates'          = zip nls $ map snd updates
 
 sendNodesMetaUpdate :: [(NodeLoc, NodeMeta)] -> Workspace -> UUID -> Maybe UUID -> IO ()
-sendNodesMetaUpdate updates workspace uuid guiID = sendUpdate $ withLibrary workspace' SetNodesMeta.Update (map (_1 %~ convert) updates') where
+sendNodesMetaUpdate updates workspace _ _ = sendUpdate $ withLibrary workspace' SetNodesMeta.Update (map (_1 %~ convert) updates') where
     (workspace', nls) = normalise' workspace $ map fst updates
     updates'          = zip nls $ map snd updates
 
