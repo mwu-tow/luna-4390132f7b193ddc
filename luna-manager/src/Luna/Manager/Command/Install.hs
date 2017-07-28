@@ -66,6 +66,8 @@ data InstallConfig = InstallConfig { _defaultConfPath        :: FilePath
                                    , _localBinPath           :: FilePath
                                    , _logoFileName           :: FilePath
                                    , _infoFileName           :: FilePath
+                                   , _libPath                :: FilePath
+                                   , _privateBinPath         :: FilePath
                                    }
 makeLenses ''InstallConfig
 
@@ -85,6 +87,8 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
         , _localBinPath            = ".local/bin"
         , _logoFileName            = "logo.png"
         , _infoFileName            = "app.desktop"
+        , _libPath                 = "lib"
+        , _privateBinPath          = "bin/private"
         }
 
 instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
@@ -249,6 +253,16 @@ runServices installPath appType = case currentHost of
         BatchApp -> return ()
     otherwise -> return ()
 
+copyLibs :: MonadInstall m => FilePath -> m ()
+copyLibs installPath = case currentHost of
+    Linux -> return ()
+    Darwin -> return ()
+    Windows -> do
+        installConfig <- get @InstallConfig
+        let libFolderPath = installPath </> (installConfig ^. libPath) </> fromText "*"
+            binsFolderPath = installPath </> (installConfig ^. privateBinPath)
+        Shelly.shelly $ Shelly.mv libFolderPath binsFolderPath
+
 askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
@@ -302,6 +316,7 @@ runInstaller opts = do
     stopServices installPath (appPkg ^. appType)
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
     downloadAndUnpack (appPkgDesc ^. path) installPath appName
+    copyLibs installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName
 
 

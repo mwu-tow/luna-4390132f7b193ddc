@@ -59,7 +59,7 @@ type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNet
 instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "dist-package"
-        , _buildScriptPath    = "build"
+        , _buildScriptPath    = "scripts-build/build.py"
         , _thirdPartyPath     = "third-party"
         , _libPath            = "lib"
         , _componentsToCopy   = "dist"
@@ -183,7 +183,7 @@ runPkgBuildScript :: MonadCreatePackage m => FilePath -> m ()
 runPkgBuildScript repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-    Shelly.shelly $ Shelly.cmd buildPath
+    Shelly.shelly $ Shelly.cmd "python" buildPath
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -191,7 +191,7 @@ copyFromDistToDistPkg appName repoPath = do
     packageRepoFolder <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
     Shelly.shelly $ Shelly.mkdir_p $ parent packageRepoFolder
-    Shelly.shelly $ Shelly.cmd "mv" expandedCopmponents packageRepoFolder
+    Shelly.shelly $ Shelly.mv expandedCopmponents packageRepoFolder
 
 downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do
@@ -288,10 +288,12 @@ createPkg resolvedApplication = do
     case currentHost of
         Linux -> return ()
         Darwin -> linkLibs binsFolder libsFolder
+        Windows -> return ()
 
     case currentHost of
         Linux  -> createAppimage appName $ convert appPath
         Darwin -> void . Shelly.shelly $ createTarGzUnix mainAppDir appName
+        Windows -> void $ zipFileWindows mainAppDir appName
 
 
 

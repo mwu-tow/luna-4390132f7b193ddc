@@ -82,15 +82,33 @@ unzipFileWindows zipFile = do
     -- Shelly.shelly $ Shelly.cp script dir
     Shelly.shelly $ do
       Shelly.cd dir
+      Shelly.mkdir_p name
+      Shelly.cp zipFile name
+      Shelly.cp script name
+      Shelly.cd $ dir </> name
       Shelly.cmd "cscript" (filename script) (filename zipFile)
-    return name --checkon windows if it is possible to strip and unpack to different dir
+      Shelly.rm $ dir </> name </> (filename zipFile)
+      Shelly.rm $ dir </> name </> (filename script)
+      listed <- Shelly.ls $ dir </> name
+      if length listed == 1 then return $ head listed else return $ dir </> name
+
+zipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> Text -> m FilePath
+zipFileWindows folder appName = do
+    let name = parent folder </> Shelly.fromText (appName <> ".zip")
+    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/zipper.vbs"
+    script <- downloadFromURL scriptPath
+    Shelly.shelly $ do
+        Shelly.cd $ parent folder
+        Shelly.cp script $ parent folder
+        Shelly.cmd "cscript" (filename script) folder name
+        return name
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
 unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " ++ (encodeString file) ++ " | cpio -idmv"
 
 createTarGzUnix :: Shelly.MonadSh m => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do
-    let name =  (parent folder) </> Shelly.fromText (appName <> ".tar.gz")
+    let name =  parent folder </> Shelly.fromText (appName <> ".tar.gz")
     Shelly.cd $ parent folder
     Shelly.cmd "tar" "-cpzf" name $ filename folder
     return name
