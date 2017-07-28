@@ -29,7 +29,7 @@ module.exports = LunaStudio =
     actStatus = (act, path, status) ->
         if act == 'Init'
             rootPath = atom.project.getPaths().shift()
-            if rootPath != ""
+            if rootPath? and rootPath != ""
                 codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
             atom.workspace.getActivePane().activateItem new LunaStudioTab(null, nodeEditor)
         if act == 'FileOpened'
