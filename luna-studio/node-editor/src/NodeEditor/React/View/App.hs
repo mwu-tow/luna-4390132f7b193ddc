@@ -46,17 +46,9 @@ app ref = React.defineControllerView name ref $ \store () -> do
         , "id"        $= appId
         , "tabIndex"  $= "-1"
         , "className" $= Style.prefixFromList [ "studio", "noselect"]
-        ] $
-        div_
-            [ "className" $= Style.prefix "main"
-            , "key"       $= "main"
-            ] $ do
-            div_
-                [ "className" $= Style.prefix "graph-editor"
-                , "key"       $= "graph-editor"
-                ] $ do
-                nodeEditor_  ref $ s ^. App.nodeEditor
-                breadcrumbs_ ref $ s ^. App.breadcrumbs
+        ] $ do
+        nodeEditor_  ref $ s ^. App.nodeEditor
+        breadcrumbs_ ref $ s ^. App.breadcrumbs
 
 focus :: MonadIO m => m ()
 focus = UI.focus appId

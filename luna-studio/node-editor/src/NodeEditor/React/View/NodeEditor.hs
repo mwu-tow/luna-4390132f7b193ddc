@@ -95,40 +95,41 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         nodesWithVis   = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-            div_
-                [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
-                , "id"          $= sceneId
-                , "key"         $= "graph"
-                , onMouseDown   $ \_ m   -> dispatch ref $ UI.NodeEditorEvent $ NE.MouseDown m
-                , onDoubleClick $ \_ _   -> dispatch' ref $ Shortcut $ Shortcut.Event Shortcut.ExitGraph def
-                , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
-                , onScroll      $ \e     -> [preventDefault e]
-                ] $ do
+            div_ [ "className" $= Style.prefix "window", "key" $= "window" ] $
+                div_ [ "className" $= Style.prefix "window__center", "key" $= "window-center" ] $
+                    div_
+                        [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
+                        , "id"          $= sceneId
+                        , "key"         $= "graph"
+                        , onMouseDown   $ \_ m   -> dispatch ref $ UI.NodeEditorEvent $ NE.MouseDown m
+                        , onDoubleClick $ \_ _   -> dispatch' ref $ Shortcut $ Shortcut.Event Shortcut.ExitGraph def
+                        , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
+                        , onScroll      $ \e     -> [preventDefault e]
+                        ] $ do
 
-                dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
+                        dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
 
-                svgPlane_ $ do
-                    planeMonads_ $
-                        monads_ monads
-                    planeConnections_ $ do
-                        forM_ (ne ^. NodeEditor.posConnections ) $ connection_ ref
-                        forM_ (ne ^. NodeEditor.selectionBox   ) selectionBox_
-                        forM_ (ne ^. NodeEditor.connectionPen  ) connectionPen_
+                        svgPlane_ $ do
+                            planeMonads_ $
+                                monads_ monads
+                            planeConnections_ $ do
+                                forM_ (ne ^. NodeEditor.posConnections ) $ connection_ ref
+                                forM_ (ne ^. NodeEditor.selectionBox   ) selectionBox_
+                                forM_ (ne ^. NodeEditor.connectionPen  ) connectionPen_
 
-                planeNodes_ $ do
-                    forM_ nodes $ \n -> node_ ref
-                                              n
-                                              (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
-                                              (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                    forM_ visualizations $ nodeVisualization_ ref
+                        planeNodes_ $ do
+                            forM_ nodes $ \n -> node_ ref
+                                                      n
+                                                      (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
+                                                      (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
+                            forM_ visualizations $ nodeVisualization_ ref
 
-                planeNewConnection_ $ do
-                    forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
+                        planeNewConnection_ $ do
+                            forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
 
-                withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
-                withJust output $ sidebar_ ref Nothing
-
-                planeCanvas_ mempty
+                --withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
+                --withJust output $ sidebar_ ref Nothing
+                --planeCanvas_ mempty
 
         GraphLoading   -> noGraph_ True "Loading…"
         NoGraph        -> noGraph_ False ""
@@ -165,7 +166,6 @@ dynamicScale = React.defineView objDynStyle $ \cameraScale -> do
         [ "key" $= "scale"
         ] $ do
           elemString $ ":root { font-size: " <> show scale <> "px !important }"
-          elemString $ ":root { --scale: "   <> show scale <> " }"
           elemString $ ".luna-camera-scale { transform: "     <> showCameraScale cameraScale <> " }"
 
           elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
