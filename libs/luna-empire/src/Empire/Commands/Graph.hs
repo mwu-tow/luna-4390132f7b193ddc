@@ -202,7 +202,9 @@ insertFunAfter previousFunction function code = do
                         return defaultFunSpace
                     return (off, off')
                 Nothing     -> return (defaultFunSpace, 0)
-            let indentedCode = (if isNothing firstFunction then Text.replicate (fromIntegral off) "\n" else "")
+            let indentedCode = (if (isNothing firstFunction && funBlockStart /= 0)
+                                then Text.replicate (fromIntegral off) "\n"
+                                else "")
                              <> code
                              <> Text.replicate (fromIntegral off') "\n"
             Code.insertAt funBlockStart indentedCode
