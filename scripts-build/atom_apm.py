@@ -24,7 +24,7 @@ url = "http://10.62.1.34:8000/studio.zip"
 
 def apm_path(third_party_path):
     if system.system == system.systems.WINDOWS:
-        return third_party_path + '/atom/resources/app/apm/bin/apm.cmd'
+        return third_party_path + '/Atom/resources/app/apm/bin/apm.cmd'
     elif system.system == system.systems.LINUX:
         return third_party_path + '/atom/usr/share/atom/resources/app/apm/bin/apm'
     elif system.system == system.systems.DARWIN:
@@ -33,7 +33,7 @@ def apm_path(third_party_path):
 
 def oniguruma_path(third_party_path):
     if system.system == system.systems.WINDOWS:
-        return third_party_path + '/atom/resources/app/node_modules/oniguruma'
+        return third_party_path + '/Atom/resources/app/node_modules/oniguruma'
     elif system.system == system.systems.LINUX:
         return third_party_path + '/atom/usr/share/atom/resources/app/node_modules/oniguruma'
     elif system.system == system.systems.DARWIN:

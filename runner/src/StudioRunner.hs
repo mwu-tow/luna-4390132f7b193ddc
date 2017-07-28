@@ -126,7 +126,7 @@ atomAppPath = do
     case currentHost of
         Linux   -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "atom" </> "usr" </> "bin" </> "atom"
         Darwin  -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "Atom.app" </> "Contents" </> "MacOS" </> "Atom"
-        Windows -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "atom" </> "atom.exe"
+        Windows -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "Atom" </> "atom.exe"
 
 backendDir :: (MonadRun m, MonadIO m) => m FilePath
 backendDir = do
