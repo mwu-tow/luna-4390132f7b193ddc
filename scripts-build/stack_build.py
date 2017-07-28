@@ -3,6 +3,7 @@
 import atom_prepare
 import os
 import subprocess
+import system
 
 
 app_dir      = atom_prepare.prep_path('..')
@@ -15,12 +16,19 @@ def create_bin_dirs():
     for path in ('../dist/bin/private', '../dist/bin/public/luna-studio'):
         os.makedirs(atom_prepare.prep_path(path), exist_ok=True)
 
+def build_ghcjs(frontend):
+    os.chdir(frontend)
+    if system.system == system.systems.WINDOWS:
+        return ()
+    elif system.system == system.systems.LINUX:
+        subprocess.check_output(['stack', 'build'])
+    elif system.system == system.systems.DARWIN:
+        subprocess.check_output(['stack', 'build'])
+    else: print("unknown system")
 
-def build(frontend,backend,runner):
+def build(backend,runner):
     os.chdir(backend)
     subprocess.check_output(['stack', 'build', '--copy-bins'])
-    os.chdir(frontend)
-    subprocess.check_output(['stack', 'build'])
     os.chdir(runner)
     subprocess.check_output(['stack', 'build', '--copy-bins'])
 
@@ -30,7 +38,8 @@ def link_main_bin ():
 
 def run():
     create_bin_dirs()
-    build(frontend_dir,backend_dir, runner_dir)
+    build_ghcjs(frontend_dir)
+    build(backend_dir, runner_dir)
     link_main_bin ()
 
 if __name__ == '__main__':

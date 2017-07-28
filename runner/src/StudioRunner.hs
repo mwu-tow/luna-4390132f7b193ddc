@@ -192,9 +192,10 @@ runLunaEmpireMacOS = do
     supervisord    <- supervisordBinPath
     logs           <- userLogsDirectory
     Shelly.shelly $ Shelly.mkdir_p logs
-    Shelly.shelly $ do
-        Shelly.cd lunaSupervisor
-        Shelly.cmd supervisord "-c" "supervisord-mac.conf"
+    runProcess_ $ setWorkingDir (encodeString lunaSupervisor) $ shell ((encodeString supervisord) ++ " -n -c supervisord-mac.conf") -- done with system.process.typed because with shelly clicking on app in launchpad returned abnormal exit code
+    -- Shelly.shelly $ do
+    --     Shelly.cd lunaSupervisor
+    --     Shelly.cmd supervisord "-n" "-c" "supervisord-mac.conf"
 
 runLunaEmpire :: (MonadRun m, MonadIO m) => m ()
 runLunaEmpire = do
@@ -204,7 +205,7 @@ runLunaEmpire = do
     Shelly.shelly $ Shelly.mkdir_p logs
     Shelly.shelly $ do
         Shelly.cd lunaSupervisor
-        Shelly.cmd supervisord "-c" "supervisord-linux.conf"
+        Shelly.cmd supervisord "-n" "-c" "supervisord-linux.conf"
 
 -- runWindows :: (MonadRun m, MonadIO m) => m ()
 -- runWindows = do
