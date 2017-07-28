@@ -235,7 +235,7 @@ saveSettings :: GraphLocation -> LocationSettings -> Empire ()
 saveSettings gl settings = do
     bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
     let filePath = gl ^. GraphLocation.filePath
-    liftIO $ Project.updateLocationSettings (replaceFileName filePath "config.luna") filePath bc settings
+    liftIO $ Project.updateLocationSettings (replaceFileName filePath ".config.luna") filePath bc settings
 
 
 -- Handlers
@@ -253,7 +253,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 graph <- Graph.getGraph location
                 crumb <- Graph.decodeLocation location
                 let filePath = location ^. GraphLocation.filePath
-                mayModuleSettings <- liftIO $ Project.getModuleSettings (replaceFileName filePath "config.luna") filePath
+                mayModuleSettings <- liftIO $ Project.getModuleSettings (replaceFileName filePath ".config.luna") filePath
                 let (typeRepToVisMap, camera) = case mayModuleSettings of
                         Nothing -> (mempty, def)
                         Just ms -> let visMap = if moduleChanged then Just $ ms ^. Project.typeRepToVisMap else Nothing
