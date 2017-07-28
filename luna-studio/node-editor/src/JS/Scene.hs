@@ -14,9 +14,6 @@ import           NodeEditor.React.Model.Layout  (Scene (Scene))
 import           NodeEditor.React.Model.Sidebar (InputSidebar (InputSidebar), OutputSidebar (OutputSidebar))
 
 
-sceneId :: JSString
-sceneId = Config.prefix "Graph"
-
 appId :: JSString
 appId = Config.prefix "app"
 
@@ -50,10 +47,10 @@ onMovement handler = do
     return $ releaseCallback callback
 
 sceneWidth, sceneHeight, sceneLeft, sceneTop :: MonadIO m => m Double
-sceneWidth  = liftIO $ elementWidth  sceneId
-sceneHeight = liftIO $ elementHeight sceneId
-sceneLeft   = liftIO $ elementLeft   sceneId
-sceneTop    = liftIO $ elementTop    sceneId
+sceneWidth  = liftIO $ elementWidth  appId
+sceneHeight = liftIO $ elementHeight appId
+sceneLeft   = liftIO $ elementLeft   appId
+sceneTop    = liftIO $ elementTop    appId
 
 inputSidebarWidth, inputSidebarHeight, inputSidebarLeft, inputSidebarTop, outputSidebarWidth, outputSidebarHeight, outputSidebarLeft, outputSidebarTop :: MonadIO m => m Double
 inputSidebarWidth   = liftIO $ elementWidth  inputSidebarId

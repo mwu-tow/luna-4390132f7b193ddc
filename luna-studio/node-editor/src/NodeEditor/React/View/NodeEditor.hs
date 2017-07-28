@@ -6,7 +6,6 @@ import qualified Data.HashMap.Strict                        as HashMap
 import           Data.Matrix                                (Matrix)
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
-import           JS.Scene                                   (sceneId)
 import qualified LunaStudio.Data.CameraTransformation       as CameraTransformation
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.NodeLoc                    (NodePath)
@@ -98,7 +97,6 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                 div_ [ "className" $= Style.prefix "window__center", "key" $= "window-center" ] $
                     div_
                         [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
-                        , "id"          $= sceneId
                         , "key"         $= "graph"
                         ] $ do
 
