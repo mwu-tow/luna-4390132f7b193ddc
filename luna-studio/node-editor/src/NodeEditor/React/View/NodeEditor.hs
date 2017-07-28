@@ -17,7 +17,6 @@ import qualified NodeEditor.Data.Matrix                     as Matrix
 import           NodeEditor.Event.Event                     (Event (Shortcut))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import qualified NodeEditor.Event.UI                        as UI
-import qualified NodeEditor.React.Event.NodeEditor          as NE
 import           NodeEditor.React.Model.App                 (App)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import qualified NodeEditor.React.Model.Node                as Node
@@ -95,16 +94,12 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         nodesWithVis   = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-            div_ [ "className" $= Style.prefix "window", "key" $= "window" ] $
+            div_ [ "className" $= Style.prefix "window", "key" $= "window"] $
                 div_ [ "className" $= Style.prefix "window__center", "key" $= "window-center" ] $
                     div_
                         [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
                         , "id"          $= sceneId
                         , "key"         $= "graph"
-                        , onMouseDown   $ \_ m   -> dispatch ref $ UI.NodeEditorEvent $ NE.MouseDown m
-                        , onDoubleClick $ \_ _   -> dispatch' ref $ Shortcut $ Shortcut.Event Shortcut.ExitGraph def
-                        , onWheel       $ \e m w -> preventDefault e : dispatch ref (UI.NodeEditorEvent $ NE.Wheel m w)
-                        , onScroll      $ \e     -> [preventDefault e]
                         ] $ do
 
                         dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
