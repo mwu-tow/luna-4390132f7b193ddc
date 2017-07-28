@@ -134,7 +134,7 @@
         myLinePlot: {
           show: true,
           title: 'line',
-          icon: 'path://M3.5 18.5l6-6 4 4L22 7l-1.4-1.5-7 8-4-4L2 17l1.5 1.5z',
+          icon: 'path://M21 7l-6.5 6.5-4-4L3 17',
           iconStatus: {myLinePlot: 'emphasis'},
           onclick: function (){
             options = chart.getOption();
@@ -189,7 +189,7 @@
         myBarPlot: {
           show: true,
           title: 'bar',
-          icon: 'path://M13 19h-2v-7h2v7zm-4 0H7V9h2v10zm-4 0H3v-7h2v7zm14 0V5h2v14h-2zm-2 0h-2V9h2v10z',
+          icon: 'path://M20 19V5v14zm-4 0V9v10zm-4 0v-7 7zm-4 0V9v10zm-4 0v-7 7z',
           iconStatus: {myBarPlot: 'normal'},
           onclick: function (){
             options = chart.getOption();
@@ -216,7 +216,7 @@
         myScatterPlot: {
           show: true,
           title: 'scatter',
-          icon: 'path://M21 8c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zM5 16c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm2-2c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm2-2c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm2 2c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm8-4c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm-2 2c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm-4 4c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm2-2c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zM3 18c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1z',
+          icon: 'path://M19.5,9 C19.7761424,9 20,8.77614237 20,8.5 C20,8.22385763 19.7761424,8 19.5,8 C19.2238576,8 19,8.22385763 19,8.5 C19,8.77614237 19.2238576,9 19.5,9 Z M16.5,12 C16.7761424,12 17,11.7761424 17,11.5 C17,11.2238576 16.7761424,11 16.5,11 C16.2238576,11 16,11.2238576 16,11.5 C16,11.7761424 16.2238576,12 16.5,12 Z M13.5,15 C13.7761424,15 14,14.7761424 14,14.5 C14,14.2238576 13.7761424,14 13.5,14 C13.2238576,14 13,14.2238576 13,14.5 C13,14.7761424 13.2238576,15 13.5,15 Z M10.5,12 C10.7761424,12 11,11.7761424 11,11.5 C11,11.2238576 10.7761424,11 10.5,11 C10.2238576,11 10,11.2238576 10,11.5 C10,11.7761424 10.2238576,12 10.5,12 Z M7.5,15 C7.77614237,15 8,14.7761424 8,14.5 C8,14.2238576 7.77614237,14 7.5,14 C7.22385763,14 7,14.2238576 7,14.5 C7,14.7761424 7.22385763,15 7.5,15 Z M4.5,18 C4.77614237,18 5,17.7761424 5,17.5 C5,17.2238576 4.77614237,17 4.5,17 C4.22385763,17 4,17.2238576 4,17.5 C4,17.7761424 4.22385763,18 4.5,18 Z',
           iconStatus: {myScatterPlot: 'normal'},
           onclick: function (){
             options = chart.getOption();
@@ -266,17 +266,17 @@
           }
         },
 
-        // myResetView: {
-        //   show: true,
-        //   title: 'reset view',
-        //   icon: 'path://M12,3 C7.03,3 3,7.03 3,12 L0,12 L4,16 L8,12 L5,12 C5,8.13 8.13,5 12,5 C15.87,5 19,8.13 19,12 C19,15.87 15.87,19 12,19 C10.49,19 9.09,18.51 7.94,17.7 L6.52,19.14 C8.04,20.3 9.94,21 12,21 C16.97,21 21,16.97 21,12 C21,7.03 16.97,3 12,3 L12,3 Z',
-        //   onclick: function (){
-        //     options = chart.getOption();
-        //     options.legend   = defaultOptions.legend;
-        //     options.dataZoom = defaultOptions.dataZoom;
-        //     chart.setOption(addLegendData(options), { notMerge: true });
-        //   }
-        // }
+        myResetView: {
+          show: true,
+          title: 'reset view',
+          icon: 'path://M2 10.2l3 3.3 3.2-3.3m-3 3C4.4 8.6 8 5 12 5s7 3 7 7-3 7-7 7c-1.5 0-3-.5-4-1.3',
+          onclick: function (){
+            options = chart.getOption();
+            options.legend   = defaultOptions.legend;
+            options.dataZoom = defaultOptions.dataZoom;
+            chart.setOption(addLegendData(options), { notMerge: true });
+          }
+        }
       }
     },
     grid: {
