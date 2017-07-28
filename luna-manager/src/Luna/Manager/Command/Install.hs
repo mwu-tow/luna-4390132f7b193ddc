@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows)
+import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows, stopServicesWindows)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -174,10 +174,10 @@ postInstallation appType installPath binPath appName = do
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
             GuiApp   -> expand $ convert binPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "MacOS" </> convert (mkSystemPkgName appName)
-            BatchApp -> return $ (parent installPath) </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName)
-        -- Windows -> case appType of
-        --     BatchApp -> parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
-        --     GuiApp   -> parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName) </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
+            BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName)
+        Windows -> case appType of
+            BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
+            GuiApp   -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName) </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
     makeExecutable packageBin
     case currentHost of
         Linux -> linkingLocalBin currentBin appName
@@ -206,6 +206,7 @@ copyResources appType installPath appName = case currentHost of
             -- Shelly.shelly $ Shelly.rm appInfoPlist
             Shelly.shelly $ Shelly.cp packageInfoPlist (parent $ parent installPath)
         BatchApp -> return ()
+    Windows -> return ()
 
 linking :: MonadInstall m => FilePath -> FilePath -> m ()
 linking src dst = do
@@ -225,6 +226,19 @@ linkingLocalBin currentBin appName = do
             let localBin = (installConfig ^. localBinPath) </> convert appName
             linking currentBin localBin
         Windows -> exportPath' currentBin
+
+stopServices :: MonadInstall m => FilePath -> AppType -> m ()
+stopServices installPath appType = case currentHost of
+    Windows -> case appType of
+        GuiApp -> do
+            installConfig<- get @InstallConfig
+            let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> fromText "services"
+            Shelly.shelly $ do
+                testservices <- Shelly.test_d currentServices
+                if testservices then stopServicesWindows currentServices else return ()
+        BatchApp -> return ()
+    otherwise -> return ()
+
 
 runServices :: MonadInstall m => FilePath -> AppType -> m ()
 runServices installPath appType = case currentHost of
@@ -285,6 +299,7 @@ runInstaller opts = do
     mapM_ (installApp opts) $ appsToInstall
     installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
     pathExists <- Shelly.shelly $ Shelly.test_d installPath
+    stopServices installPath (appPkg ^. appType)
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
     downloadAndUnpack (appPkgDesc ^. path) installPath appName
     postInstallation (appPkg ^. appType) installPath binPath  appName

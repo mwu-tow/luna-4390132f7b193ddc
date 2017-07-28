@@ -130,3 +130,9 @@ runServicesWindows path = do
   Shelly.cd path
   let installPath = path </> (Shelly.fromText "installAll.bat")
   Shelly.cmd installPath
+
+stopServicesWindows :: MonadSh m => FilePath -> m ()
+stopServicesWindows path = do
+    Shelly.cd path
+    let uninstallPath = path </> (Shelly.fromText "uninstallAll.bat")
+    Shelly.cmd uninstallPath
