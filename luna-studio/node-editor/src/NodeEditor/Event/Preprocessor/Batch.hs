@@ -27,6 +27,7 @@ handlers = Map.fromList [ handle AddConnectionResponse
                         , handle AddSubgraphResponse
                         , handle AutolayoutNodesResponse
                         , handle CollaborationUpdate
+                        , handle CollapseToFunctionResponse
                         , handle CopyResponse
                         , handle DumpGraphVizResponse
                         , handle EmpireStarted
