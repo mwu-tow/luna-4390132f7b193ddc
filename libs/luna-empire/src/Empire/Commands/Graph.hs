@@ -1172,19 +1172,19 @@ collapseToFunction loc nids = do
         let srcInIds = flip Set.member ids . view PortRef.srcNodeId . fst
             dstInIds = flip Set.member ids . view PortRef.dstNodeId . snd
             inConns  = filter (\x -> dstInIds x && not (srcInIds x)) connections
-            inputs   = Set.fromList $ fst <$> inConns
+            inputs   = fst <$> inConns
             outConns = filter (\x -> srcInIds x && not (dstInIds x)) connections
-            usedRefs = Set.fromList $ fst <$> outConns
-            useSites = Set.fromList $ outConns ^.. traverse . _2 . PortRef.dstNodeId
-        inputNames <- forM (Set.toList inputs) $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
+            usedRefs = fst <$> outConns
+            useSites = outConns ^.. traverse . _2 . PortRef.dstNodeId
+        inputNames <- forM inputs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
             ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
-        outputNames <- forM (Set.toList usedRefs) $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
+        outputNames <- forM usedRefs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
             ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
         codeBegs <- fmap (sortOn fst) $ forM nids $ \nid -> do
             ref     <- ASTRead.getASTRef nid
             Just cb <- Code.getOffsetRelativeToFile ref
             return (cb, ref)
-        name <- ASTBuilder.generateNodeName
+        name             <- ASTBuilder.generateNodeName
         indentBy         <- Code.getCurrentIndentationLength
         newCodeBlockBody <- fmap Text.concat $ forM codeBegs $ \(beg, ref) -> do
             len  <- IR.getLayer @SpanLength ref
@@ -1216,8 +1216,8 @@ collapseToFunction loc nids = do
                    <> " = "
                    <> Text.intercalate " " (name : fmap convert inputNames)
         let newCode = defCode <> useLine
-        useRefs <- fmap Set.fromList $ forM (Set.toList useSites) ASTRead.getASTRef
-        inRefs  <- fmap Set.fromList $ forM (Set.toList inputs) $ \i -> ASTRead.getASTRef (i ^. PortRef.srcNodeId)
+        useRefs <- fmap Set.fromList $ forM useSites ASTRead.getASTRef
+        inRefs  <- fmap Set.fromList $ forM inputs $ \i -> ASTRead.getASTRef (i ^. PortRef.srcNodeId)
         b       <- use $ Graph.breadcrumbHierarchy . BH.body
         refToInsertAfter <- findRefToInsertAfter useRefs inRefs b
         insertPos        <- case refToInsertAfter of
@@ -1226,9 +1226,6 @@ collapseToFunction loc nids = do
                 Just p <- Code.getOffsetRelativeToFile r
                 l <- IR.getLayer @SpanLength r
                 return $ p + l
-        removeSpans <- forM codeBegs $ \(beg, ref) -> do
-            len <- IR.getLayer @SpanLength ref
-            return (beg, beg + len)
         Code.insertAt insertPos newCode
     reloadCode  loc code
     removeNodes loc nids
