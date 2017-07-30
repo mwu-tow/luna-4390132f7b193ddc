@@ -378,8 +378,9 @@ generateNodeName = do
 makeNodeRep :: GraphOp m => NodeId -> Maybe Text -> NodeRef -> m (NodeRef, Maybe Text)
 makeNodeRep marker name node = do
     (pat, uni, newName) <- match node $ \case
-        Unify l r -> (, node, Nothing) <$> IR.source l
-        _         -> do
+        Unify l r         -> (, node, Nothing) <$> IR.source l
+        ASGFunction n a b -> (, node, Nothing) <$> IR.source n
+        _                 -> do
             n   <- maybe generateNodeName pure name
             var <- IR.var' $ convert n
             IR.putLayer @SpanLength var (convert $ Text.length n)

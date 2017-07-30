@@ -64,6 +64,7 @@ module Empire.Commands.Graph
     , readMetadata
     , prepareCopy
     , paste
+    , collapseToFunction
     , moveToOrigin
     ) where
 
@@ -81,6 +82,7 @@ import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
 import           Data.Maybe                       (fromMaybe, maybeToList)
 import qualified Data.Set                         as Set
+import           Data.Set                         (Set)
 import           Data.Text                        (Text)
 import           Data.Text.Strict.Lens            (packed)
 import qualified Data.Text                        as Text
@@ -912,7 +914,8 @@ markNode nodeId = do
     ASTBuilder.attachNodeMarkers nodeId [] var
 
 loadCode :: GraphLocation -> Text -> Empire ()
-loadCode loc@(GraphLocation file _) code = do
+loadCode (GraphLocation file _) code = do
+    let loc = GraphLocation file def
     (unit, IR.Rooted ir ref, exprMap) <- liftIO $ ASTParse.runProperParser code
     activeFiles . at file . traverse . Library.body . Graph.clsClass .= unit
     activeFiles . at file . traverse . Library.body . Graph.clsCodeMarkers .= (coerce exprMap)
@@ -1138,6 +1141,98 @@ readMetadata file = withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp rea
 
 unindent :: Int -> Text -> Text
 unindent offset code = Text.unlines $ map (Text.drop offset) $ Text.lines code
+
+data ImpossibleToInsert = ImpossibleToCollapse
+    deriving (Show)
+
+instance Exception ImpossibleToInsert where
+    fromException = astExceptionFromException
+    toException = astExceptionToException
+
+findRefToInsertAfter :: GraphOp m => Set NodeRef -> Set NodeRef -> NodeRef -> m (Maybe NodeRef)
+findRefToInsertAfter beforeNodes afterNodes ref = do
+    if Set.null beforeNodes
+      then return $ Just ref
+      else IR.matchExpr ref $ \case
+          IR.Seq l r -> do
+              right <- IR.source r
+              if Set.member right afterNodes
+                then throwM ImpossibleToCollapse
+                else findRefToInsertAfter (Set.delete right beforeNodes) afterNodes =<< IR.source l
+          _ -> if Set.member ref afterNodes
+                 then throwM ImpossibleToCollapse
+                 else return Nothing
+
+
+collapseToFunction :: GraphLocation -> [NodeId] -> Empire ()
+collapseToFunction loc nids = do
+    code <- withGraph loc $ runASTOp $ do
+        let ids = Set.fromList nids
+        connections <- GraphBuilder.buildConnections
+        let srcInIds = flip Set.member ids . view PortRef.srcNodeId . fst
+            dstInIds = flip Set.member ids . view PortRef.dstNodeId . snd
+            inConns  = filter (\x -> dstInIds x && not (srcInIds x)) connections
+            inputs   = Set.fromList $ fst <$> inConns
+            outConns = filter (\x -> srcInIds x && not (dstInIds x)) connections
+            usedRefs = Set.fromList $ fst <$> outConns
+            useSites = Set.fromList $ outConns ^.. traverse . _2 . PortRef.dstNodeId
+        inputNames <- forM (Set.toList inputs) $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
+            ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
+        outputNames <- forM (Set.toList usedRefs) $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
+            ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
+        codeBegs <- fmap (sortOn fst) $ forM nids $ \nid -> do
+            ref     <- ASTRead.getASTRef nid
+            Just cb <- Code.getOffsetRelativeToFile ref
+            return (cb, ref)
+        name <- ASTBuilder.generateNodeName
+        indentBy         <- Code.getCurrentIndentationLength
+        newCodeBlockBody <- fmap Text.concat $ forM codeBegs $ \(beg, ref) -> do
+            len  <- IR.getLayer @SpanLength ref
+            code <- Code.getAt beg (beg + len)
+            return $ "\n" <> (Text.replicate (convert indentBy + 4) " ") <> code
+        let header = "\n"
+                  <> Text.replicate (convert indentBy) " "
+                  <> "def "
+                  <> name
+                  <> Text.concat ((" " <>) . convert <$> inputNames)
+                  <> ":"
+        returnBody <- case outputNames of
+            []  -> do
+                let lastNode = snd $ last codeBegs
+                ASTRead.getNameOf lastNode
+            [a] -> return $ Just $ convert a
+            _   -> return $ Just $ "(" <> Text.intercalate ", " (convert <$> outputNames) <> ")"
+        let returnLine = case returnBody of
+              Just n -> "\n"
+                     <> Text.replicate (convert indentBy + 4) " "
+                     <> n
+              _ -> ""
+        let defCode = header <> newCodeBlockBody <> returnLine
+        let useLine = case outputNames of
+                [] -> ""
+                _  -> "\n"
+                   <> Text.replicate (convert indentBy) " "
+                   <> fromJust returnBody
+                   <> " = "
+                   <> Text.intercalate " " (name : fmap convert inputNames)
+        let newCode = defCode <> useLine
+        useRefs <- fmap Set.fromList $ forM (Set.toList useSites) ASTRead.getASTRef
+        inRefs  <- fmap Set.fromList $ forM (Set.toList inputs) $ \i -> ASTRead.getASTRef (i ^. PortRef.srcNodeId)
+        b       <- use $ Graph.breadcrumbHierarchy . BH.body
+        refToInsertAfter <- findRefToInsertAfter useRefs inRefs b
+        insertPos        <- case refToInsertAfter of
+            Nothing -> Code.getCurrentBlockBeginning
+            Just r  -> do
+                Just p <- Code.getOffsetRelativeToFile r
+                l <- IR.getLayer @SpanLength r
+                return $ p + l
+        removeSpans <- forM codeBegs $ \(beg, ref) -> do
+            len <- IR.getLayer @SpanLength ref
+            return (beg, beg + len)
+        Code.insertAt insertPos newCode
+    reloadCode  loc code
+    removeNodes loc nids
+
 
 prepareCopy :: GraphLocation -> [NodeId] -> Empire String
 prepareCopy loc@(GraphLocation _ (Breadcrumb [])) nodeIds = withUnit loc $ do

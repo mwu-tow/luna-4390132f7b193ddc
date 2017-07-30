@@ -14,7 +14,7 @@ import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
 import qualified Data.Text.IO            as Text
-import           Data.List               (sort)
+import           Data.List               (sort, sortOn)
 import           Data.Maybe              (listToMaybe)
 import           Empire.Data.Graph       as Graph
 import           Empire.Empire           (Command, Empire)
@@ -82,6 +82,10 @@ applyDiff (fromIntegral -> start) (fromIntegral -> end) code = do
         newCode        = Text.concat [prefix', code, suffix]
     Graph.code .= newCode
     return newCode
+
+applyDiffs :: (MonadState state m, Integral a, Graph.HasCode state) => [(a, a, Text)] -> m Text
+applyDiffs diffs = last <$> mapM (uncurry applyDiff) sorted where
+    sorted = reverse $ sortOn (view _1) diffs
 
 insertAt :: (MonadState state m, Graph.HasCode state) => Delta -> Text -> m Text
 insertAt at code = applyDiff at at code

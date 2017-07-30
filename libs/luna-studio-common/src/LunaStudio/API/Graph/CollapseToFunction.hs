@@ -27,9 +27,9 @@ instance Binary Request
 instance Binary Inverse
 instance G.GraphRequest Request where location = location
 
-
-type Response = Response.Response Request Inverse Result
-instance Response.ResponseResult Request Inverse Result
+-- TODO[MK]: handle inverses
+type Response = Response.Response Request () Result
+instance Response.ResponseResult Request () Result
 
 topicPrefix :: T.Topic
 topicPrefix = "empire.graph.node.collapsetofunction"

@@ -132,6 +132,8 @@ instance Exception MalformedASTRef where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
+
+
 getASTRef :: GraphOp m => NodeId -> m NodeRef
 getASTRef nodeId = preuse (Graph.breadcrumbHierarchy . BH.children . ix nodeId . BH.self) <?!> NodeDoesNotExistException nodeId
 
@@ -173,7 +175,12 @@ getTargetEdge nid = do
                 _            -> return expr
         _ -> throwM $ MalformedASTRef ref
 
-
+getNameOf :: GraphOp m => NodeRef -> m (Maybe Text)
+getNameOf ref = match ref $ \case
+    IR.Marked _ e -> getNameOf =<< IR.source e
+    IR.Unify  l _ -> getNameOf =<< IR.source l
+    IR.Var    n   -> return $ Just $ convert n
+    _             -> return Nothing
 
 getASTMarkerPosition :: GraphOp m => NodeId -> m NodeRef
 getASTMarkerPosition nodeId = do
