@@ -1184,18 +1184,18 @@ collapseToFunction loc nids = do
             ref     <- ASTRead.getASTRef nid
             Just cb <- Code.getOffsetRelativeToFile ref
             return (cb, ref)
-        name             <- ASTBuilder.generateNodeName
-        indentBy         <- Code.getCurrentIndentationLength
+        defName            <- ASTBuilder.generateNodeName
+        currentIndentation <- Code.getCurrentIndentationLength
+        let indentBy i l = "\n" <> Text.replicate (fromIntegral i) " " <> l
+            topIndented  = indentBy currentIndentation
+            bodyIndented = indentBy (currentIndentation + Code.defaultIndentationLength)
         newCodeBlockBody <- fmap Text.concat $ forM codeBegs $ \(beg, ref) -> do
             len  <- IR.getLayer @SpanLength ref
             code <- Code.getAt beg (beg + len)
-            return $ "\n" <> (Text.replicate (convert indentBy + 4) " ") <> code
-        let header = "\n"
-                  <> Text.replicate (convert indentBy) " "
-                  <> "def "
-                  <> name
-                  <> Text.concat ((" " <>) . convert <$> inputNames)
-                  <> ":"
+            return $ bodyIndented code
+        let header = topIndented $  "def "
+                                 <> Text.unwords (defName : fmap convert inputNames)
+                                 <> ":"
         returnBody <- case outputNames of
             []  -> do
                 let lastNode = snd $ last codeBegs
@@ -1203,29 +1203,25 @@ collapseToFunction loc nids = do
             [a] -> return $ Just $ convert a
             _   -> return $ Just $ "(" <> Text.intercalate ", " (convert <$> outputNames) <> ")"
         let returnLine = case returnBody of
-              Just n -> "\n"
-                     <> Text.replicate (convert indentBy + 4) " "
-                     <> n
-              _ -> ""
+              Just n -> bodyIndented n
+              _      -> ""
         let defCode = header <> newCodeBlockBody <> returnLine
         let useLine = case outputNames of
                 [] -> ""
-                _  -> "\n"
-                   <> Text.replicate (convert indentBy) " "
-                   <> fromJust returnBody
-                   <> " = "
-                   <> Text.intercalate " " (name : fmap convert inputNames)
+                _  -> topIndented $ fromJust returnBody
+                                  <> " = "
+                                  <> Text.unwords (defName : fmap convert inputNames)
         let newCode = defCode <> useLine
         useRefs <- fmap Set.fromList $ forM useSites ASTRead.getASTRef
         inRefs  <- fmap Set.fromList $ forM inputs $ \i -> ASTRead.getASTRef (i ^. PortRef.srcNodeId)
-        b       <- use $ Graph.breadcrumbHierarchy . BH.body
-        refToInsertAfter <- findRefToInsertAfter useRefs inRefs b
+        topSeq  <- use $ Graph.breadcrumbHierarchy . BH.body
+        refToInsertAfter <- findRefToInsertAfter useRefs inRefs topSeq
         insertPos        <- case refToInsertAfter of
             Nothing -> Code.getCurrentBlockBeginning
             Just r  -> do
-                Just p <- Code.getOffsetRelativeToFile r
-                l <- IR.getLayer @SpanLength r
-                return $ p + l
+                Just beg <- Code.getOffsetRelativeToFile r
+                len      <- IR.getLayer @SpanLength r
+                return $ beg + len
         Code.insertAt insertPos newCode
     reloadCode  loc code
     removeNodes loc nids
