@@ -59,7 +59,7 @@ type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNet
 instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "dist-package"
-        , _buildScriptPath    = "scripts-build/build.py"
+        , _buildScriptPath    = "build-package"
         , _thirdPartyPath     = "third-party"
         , _libPath            = "lib"
         , _componentsToCopy   = "dist"
@@ -77,7 +77,9 @@ instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
     defaultHostConfig = defaultHostConfigFor @Linux
 
 instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
-    defaultHostConfig = defaultHostConfigFor @Linux
+    defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
+        reconfig cfg = cfg & buildScriptPath .~ "build-package.bat"
+
 
 
 
@@ -143,7 +145,6 @@ createAppimage appName repoPath = do
 
     Shelly.shelly $ Shelly.mkdir_p tmpAppDirPath
     Shelly.shelly $ Shelly.cd tmpAppPath
-    -- TODO: OPISZ co robia progressbary
     print "Downloading AppImage functions.sh"
     functions <- downloadWithProgressBar "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
     let mainAppImageFolder = "usr"
@@ -183,7 +184,7 @@ runPkgBuildScript :: MonadCreatePackage m => FilePath -> m ()
 runPkgBuildScript repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-    Shelly.shelly $ Shelly.cmd "python" buildPath
+    Shelly.shelly $ Shelly.cmd buildPath
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -204,7 +205,6 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL $ resolvedPackage ^. desc . path
     unpacked           <- unpackArchive downloadedPkg
-    liftIO $ print unpacked
     Shelly.shelly $ Shelly.mkdir_p thirdPartyFullPath
     case packageType of
         BatchApp -> move unpacked thirdPartyFullPath
