@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import atom_prepare
+from . import atom_prepare as ap
 
 import os
 import distutils.dir_util
@@ -15,10 +15,10 @@ import io
 import sys
 import system
 
-third_party_path = atom_prepare.prep_path('../dist/third-party/')
-atom_home_path = atom_prepare.prep_path('../dist/user-config/atom')
+third_party_path = ap.prep_path('../dist/third-party/')
+atom_home_path = ap.prep_path('../dist/user-config/atom')
 studio_package_name = "luna-studio"
-studio_atom_source_path = atom_prepare.prep_path("../luna-studio/atom")
+studio_atom_source_path = ap.prep_path("../luna-studio/atom")
 
 url = "http://10.62.1.34:8000/studio.zip"
 

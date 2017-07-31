@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
-import atom_prepare
+from . import atom_prepare as ap
 import os
 import subprocess
 import system
 
 
-app_dir      = atom_prepare.prep_path('..')
-backend_dir  = atom_prepare.prep_path('../build/backend')
-frontend_dir = atom_prepare.prep_path('../luna-studio')
-runner_dir   = atom_prepare.prep_path('../runner')
+app_dir      = ap.prep_path('..')
+backend_dir  = ap.prep_path('../build/backend')
+frontend_dir = ap.prep_path('../luna-studio')
+runner_dir   = ap.prep_path('../runner')
 
 
 def create_bin_dirs():
     for path in ('../dist/bin/private', '../dist/bin/public/luna-studio'):
-        os.makedirs(atom_prepare.prep_path(path), exist_ok=True)
+        os.makedirs(ap.prep_path(path), exist_ok=True)
 
 def build_ghcjs(frontend):
     os.chdir(frontend)
@@ -33,7 +33,7 @@ def build(backend,runner):
     subprocess.check_output(['stack', 'build', '--copy-bins'])
 
 def link_main_bin ():
-    os.chdir(atom_prepare.prep_path('../dist/bin'))
+    os.chdir(ap.prep_path('../dist/bin'))
     os.symlink('./public/luna-studio', 'main', target_is_directory=True)
 
 def run():
