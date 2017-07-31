@@ -10,12 +10,12 @@ import           Data.ByteString       (ByteString)
 import           Data.ByteString.Lazy  (fromStrict)
 import           Data.Map.Strict       (Map)
 import qualified Data.Map.Strict       as Map
-import qualified LunaStudio.API.Topic      as Topic
 import           Empire.Env            (Env)
 import qualified Empire.Server.Atom    as Atom
 import qualified Empire.Server.Graph   as Graph
 import qualified Empire.Server.Library as Library
 import qualified Empire.Server.Project as Project
+import qualified LunaStudio.API.Topic  as Topic
 import           ZMQ.Bus.Trans         (BusT (..))
 
 
@@ -28,10 +28,13 @@ handlersMap = Map.fromList
     , makeHandler Graph.handleAddPort
     , makeHandler Graph.handleAddSubgraph
     , makeHandler Graph.handleAutolayoutNodes
+    , makeHandler Graph.handleCollapseToFunction
+    , makeHandler Graph.handleCopy
     , makeHandler Graph.handleDumpGraphViz
     , makeHandler Graph.handleGetProgram
     , makeHandler Graph.handleGetSubgraphs
     , makeHandler Graph.handleMovePort
+    , makeHandler Graph.handlePaste
     , makeHandler Graph.handleRemoveConnection
     , makeHandler Graph.handleRemoveNodes
     , makeHandler Graph.handleRemovePort
@@ -56,6 +59,7 @@ handlersMap = Map.fromList
     , makeHandler Atom.handleCloseFile
     , makeHandler Graph.handleGetBuffer
     , makeHandler Graph.handleSubstitute
+    , makeHandler Graph.handleSaveSettings
     ]
 
 makeHandler :: forall a. (Topic.MessageTopic a, Bin.Binary a) => (a -> StateT Env BusT ()) -> (String, Handler)
