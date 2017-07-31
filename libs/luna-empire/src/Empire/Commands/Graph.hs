@@ -262,7 +262,7 @@ addNodeNoTC loc uuid input name meta = do
     parse <- fst <$> ASTParse.runParser propInput
     expr <- runASTOp $ do
         Code.propagateLengths parse
-        (parsedNode, newName) <- AST.addNode uuid name parse
+        (parsedNode, newName) <- AST.addNode uuid name (generateNodeName parse) parse
         index        <- getNextExprMarker
         marker       <- IR.marker' index
         IR.putLayer @SpanLength marker $ convert $ Text.length $ Code.makeMarker index
@@ -1191,7 +1191,7 @@ generateCollapsedDefCode inputs outputs bodyIds = do
         ref     <- ASTRead.getASTRef nid
         Just cb <- Code.getOffsetRelativeToFile ref
         return (cb, ref)
-    defName            <- ASTBuilder.generateNodeName
+    defName            <- generateNodeNameFromBase "func"
     currentIndentation <- Code.getCurrentIndentationLength
     let indentBy i l = "\n" <> Text.replicate (fromIntegral i) " " <> l
         topIndented  = indentBy currentIndentation
@@ -1322,6 +1322,17 @@ paste loc position (Text.pack -> code) = do
 
 getName :: GraphLocation -> NodeId -> Empire (Maybe Text)
 getName loc nid = withGraph' loc (runASTOp $ GraphBuilder.getNodeName nid) $ use (Graph.clsFuns . ix nid . _1 . packed . re _Just)
+
+generateNodeName :: GraphOp m => NodeRef -> m Text
+generateNodeName = ASTPrint.genNodeBaseName >=> generateNodeNameFromBase
+
+generateNodeNameFromBase :: GraphOp m => Text -> m Text
+generateNodeNameFromBase base = do
+    ids   <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
+    names <- Set.fromList . catMaybes <$> mapM GraphBuilder.getNodeName ids
+    let allPossibleNames = zipWith (<>) (repeat base) (convert . show <$> [1..])
+        Just newName     = find (not . flip Set.member names) allPossibleNames
+    return newName
 
 runTC :: GraphLocation -> Bool -> Command ClsGraph ()
 runTC loc flush = do
