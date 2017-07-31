@@ -2,7 +2,6 @@ module TextEditor.Handler.ProjectManager
     ( handle
     ) where
 
-
 import           Common.Prelude
 import           Data.Char                         (toUpper)
 import           JS.Atom
@@ -16,6 +15,7 @@ import           TextEditor.Event.Event            (Event (Atom, Batch))
 import           TextEditor.Event.Internal         (InternalEvent (..))
 import           TextEditor.Handler.Backend.Common (doNothing, handleResponse)
 import           TextEditor.State.Global           (State)
+
 
 handle :: Event -> Maybe (Command State ())
 handle (Atom (CloseFile  path)) = Just $ BatchCmd.closeFile  path

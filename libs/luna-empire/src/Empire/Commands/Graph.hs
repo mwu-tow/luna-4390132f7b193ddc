@@ -76,8 +76,10 @@ import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
 import qualified Data.Aeson.Text                  as Aeson
 import           Data.Coerce                      (coerce)
+import           Data.Char                        (isSeparator)
 import           Data.Foldable                    (toList)
 import           Data.List                        (elemIndex, find, group, partition, sortOn)
+import qualified Data.List.Split                  as Split
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
 import           Data.Maybe                       (fromMaybe, maybeToList)
@@ -204,7 +206,9 @@ insertFunAfter previousFunction function code = do
                         return defaultFunSpace
                     return (off, off')
                 Nothing     -> return (defaultFunSpace, 0)
-            let indentedCode = (if isNothing firstFunction then Text.replicate (fromIntegral off) "\n" else "")
+            let indentedCode = (if (isNothing firstFunction && funBlockStart /= 0)
+                                then Text.replicate (fromIntegral off) "\n"
+                                else "")
                              <> code
                              <> Text.replicate (fromIntegral off') "\n"
             Code.insertAt funBlockStart indentedCode
@@ -1282,7 +1286,10 @@ indent _      code = code
 
 paste :: GraphLocation -> Position -> String -> Empire ()
 paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
-    let funs = Text.splitOn "\n\n" $ Code.removeMarkers code
+    let funs = map (Text.stripEnd . Text.unlines)
+             $ Split.split (Split.dropInitBlank $ Split.keepDelimsL $ Split.whenElt (\a -> maybe False (not . isSeparator . fst) $ Text.uncons a))
+             $ Text.lines
+             $ Code.removeMarkers code
         gaps = [0, gapBetweenNodes..]
     uuids <- forM (zip funs gaps) $ \(fun, gap) -> do
         uuid <- liftIO UUID.nextRandom

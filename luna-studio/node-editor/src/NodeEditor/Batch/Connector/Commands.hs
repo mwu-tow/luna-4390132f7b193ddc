@@ -25,6 +25,7 @@ import qualified LunaStudio.API.Graph.RemoveNodes         as RemoveNodes
 import qualified LunaStudio.API.Graph.RemovePort          as RemovePort
 import qualified LunaStudio.API.Graph.RenameNode          as RenameNode
 import qualified LunaStudio.API.Graph.RenamePort          as RenamePort
+import qualified LunaStudio.API.Graph.SaveSettings        as SaveSettings
 import qualified LunaStudio.API.Graph.SearchNodes         as SearchNodes
 import qualified LunaStudio.API.Graph.SetNodeExpression   as SetNodeExpression
 import qualified LunaStudio.API.Graph.SetNodesMeta        as SetNodesMeta
@@ -47,7 +48,7 @@ import           LunaStudio.Data.NodeMeta                 (NodeMeta)
 import           LunaStudio.Data.PortDefault              (PortDefault)
 import           LunaStudio.Data.PortRef                  (AnyPortRef (InPortRef'), InPortRef, OutPortRef)
 import           LunaStudio.Data.Position                 (Position)
-import           LunaStudio.Data.Project                  (ProjectId)
+import           LunaStudio.Data.Project                  (LocationSettings, ProjectId)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import           NodeEditor.Batch.Workspace               (currentLocation)
 import           NodeEditor.React.Model.Connection        (ConnectionId)
@@ -86,8 +87,8 @@ dumpGraphViz :: Workspace -> UUID -> Maybe UUID -> IO ()
 dumpGraphViz workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace DumpGraphViz.Request
 
 
-getProgram :: Bool -> Workspace -> UUID -> Maybe UUID -> IO ()
-getProgram moduleChanged workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace GetProgram.Request) moduleChanged
+getProgram :: Maybe (GraphLocation, LocationSettings) -> Workspace -> UUID -> Maybe UUID -> IO ()
+getProgram maySettings workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace GetProgram.Request) maySettings
 
 addConnection :: Either OutPortRef NodeLoc -> Either AnyPortRef NodeLoc -> Workspace -> UUID -> Maybe UUID -> IO ()
 addConnection src dst workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace AddConnection.Request (conv src) dst where
@@ -150,6 +151,9 @@ renamePort :: OutPortRef -> Text -> Workspace -> UUID -> Maybe UUID -> IO ()
 renamePort portRef name workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' RenamePort.Request portRef' name where
     (workspace', portRef') = normalise workspace portRef
 
+saveSettings :: LocationSettings -> Workspace -> UUID -> Maybe UUID -> IO ()
+saveSettings settings workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace SaveSettings.Request settings
+
 searchNodes :: Workspace -> UUID -> Maybe UUID -> IO ()
 searchNodes workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace $ SearchNodes.Request
 
@@ -164,7 +168,7 @@ setNodesMeta updates workspace uuid guiID = sendRequest $ Message uuid guiID $ w
     updates'          = zip nls $ map snd updates
 
 sendNodesMetaUpdate :: [(NodeLoc, NodeMeta)] -> Workspace -> UUID -> Maybe UUID -> IO ()
-sendNodesMetaUpdate updates workspace uuid guiID = sendUpdate $ withLibrary workspace' SetNodesMeta.Update (map (_1 %~ convert) updates') where
+sendNodesMetaUpdate updates workspace _ _ = sendUpdate $ withLibrary workspace' SetNodesMeta.Update (map (_1 %~ convert) updates') where
     (workspace', nls) = normalise' workspace $ map fst updates
     updates'          = zip nls $ map snd updates
 

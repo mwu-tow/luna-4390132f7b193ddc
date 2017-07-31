@@ -29,7 +29,7 @@ module.exports = LunaStudio =
     actStatus = (act, path, status) ->
         if act == 'Init'
             rootPath = atom.project.getPaths().shift()
-            if rootPath != ""
+            if rootPath? and rootPath != ""
                 codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
             atom.workspace.getActivePane().activateItem new LunaStudioTab(null, nodeEditor)
         if act == 'FileOpened'
@@ -77,7 +77,7 @@ module.exports = LunaStudio =
             activeFilePath = atom.workspace.getActivePaneItem().buffer.file.path
             buffer = atom.workspace.getActiveTextEditor().buffer
             selection = atom.workspace.getActiveTextEditor().getSelections()
-            spanList = ({start: buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), stop: buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)} for s in selection)
+            spanList = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selection)
             codeEditor.pushInternalEvent(tag: "Copy", _path: activeFilePath, _selections: spanList)
 
     @subs.add atom.commands.add 'atom-workspace', 'core:close', (e) ->

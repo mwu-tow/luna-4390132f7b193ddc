@@ -298,6 +298,34 @@ def main:
     «0»pi = 3.14
     None
 |]
+        it "pastes top level node with empty line inside" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc oneNode
+                Graph.paste loc (Position.fromTuple (-10,0)) [r|def bar:
+    «0»pi = 3.14
+
+    «2»c = 4.0
+
+    «3»bar = foo 8.0 c|]
+                nodes <- Graph.getNodes loc
+                code  <- Graph.withUnit loc $ use Graph.code
+                return (nodes, Text.unpack code)
+            map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
+            let positions = map (view $ Node.nodeMeta . NodeMeta.position . to Position.toTuple) nodes
+            length (Set.toList $ Set.fromList positions) `shouldBe` 2
+            code `shouldStartWith` [r|def bar:
+    «1»pi = 3.14
+
+    «2»c = 4.0
+
+    «3»bar = foo 8.0 c
+
+def main:
+    «0»pi = 3.14
+    None
+|]
         it "pastes and removes top level node" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
