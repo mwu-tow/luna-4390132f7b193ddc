@@ -74,6 +74,7 @@ import qualified LunaStudio.API.Response                as Response
 import qualified LunaStudio.API.Topic                   as Topic
 import           LunaStudio.Data.Breadcrumb             (Breadcrumb (..))
 import qualified LunaStudio.Data.Breadcrumb             as Breadcrumb
+import qualified LunaStudio.Data.CameraTransformation   as Camera
 import           LunaStudio.Data.Connection             as Connection
 import           LunaStudio.Data.Graph                  (Graph (..))
 import qualified LunaStudio.Data.Graph                  as GraphAPI
@@ -95,6 +96,7 @@ import           LunaStudio.Data.PortDefault            (PortValue (..))
 import           LunaStudio.Data.PortRef                (InPortRef (..), OutPortRef (..))
 import           LunaStudio.Data.PortRef                as PortRef
 import           LunaStudio.Data.Position               (Position)
+import qualified LunaStudio.Data.Position               as Position
 import           LunaStudio.Data.Project                (LocationSettings)
 import qualified LunaStudio.Data.Project                as Project
 import           LunaStudio.Data.TypeRep                (TypeRep (TStar))
@@ -254,12 +256,13 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 crumb <- Graph.decodeLocation location
                 let filePath = location ^. GraphLocation.filePath
                 mayModuleSettings <- liftIO $ Project.getModuleSettings (replaceFileName filePath ".config.luna") filePath
-                let (typeRepToVisMap, camera) = case mayModuleSettings of
-                        Nothing -> (mempty, def)
+                let defaultCamera = maybe def (flip Camera.getCameraForRectangle def) . Position.minimumRectangle . map (view Node.position) $ graph ^. GraphAPI.nodes
+                    (typeRepToVisMap, camera) = case mayModuleSettings of
+                        Nothing -> (mempty, defaultCamera)
                         Just ms -> let visMap = if moduleChanged then Just $ ms ^. Project.typeRepToVisMap else Nothing
                                        bc     = Breadcrumb.toNames crumb
                                        bs     = Map.lookup bc $ ms ^. Project.breadcrumbsSettings
-                                       cam    = maybe def (view Project.breadcrumbCameraSettings) bs
+                                       cam    = maybe defaultCamera (view Project.breadcrumbCameraSettings) bs
                             in (visMap, cam)
                 return (Right graph, crumb, typeRepToVisMap, camera)
         return $ GetProgram.Result graph (Text.pack code) crumb typeRepToVisMap camera

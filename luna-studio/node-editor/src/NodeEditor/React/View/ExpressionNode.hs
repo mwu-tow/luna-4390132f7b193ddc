@@ -12,8 +12,8 @@ import qualified Data.Text                                            as Text
 import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
 import qualified LunaStudio.Data.LabeledTree                          as LabeledTree
+import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
-import           NodeEditor.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
 import qualified NodeEditor.React.Event.Node                          as Node

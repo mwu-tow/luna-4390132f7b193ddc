@@ -7,12 +7,12 @@ import           Data.Matrix                                (Matrix)
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
 import qualified LunaStudio.Data.CameraTransformation       as CameraTransformation
+import           LunaStudio.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraScale,
+                                                             showCameraTranslate)
+import qualified LunaStudio.Data.Matrix                     as Matrix
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.NodeLoc                    (NodePath)
 import           LunaStudio.Data.PortRef                    (InPortRef (InPortRef))
-import           NodeEditor.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraScale,
-                                                             showCameraTranslate)
-import qualified NodeEditor.Data.Matrix                     as Matrix
 import           NodeEditor.Event.Event                     (Event (Shortcut))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import qualified NodeEditor.Event.UI                        as UI

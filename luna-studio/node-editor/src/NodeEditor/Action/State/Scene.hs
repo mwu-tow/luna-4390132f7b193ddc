@@ -9,7 +9,7 @@ import           LunaStudio.Data.Size               (Size)
 import           LunaStudio.Data.Vector2            (scalarProduct, vector, x, y)
 import           NodeEditor.Action.Command          (Command)
 import           NodeEditor.Action.State.App        (renderIfNeeded)
-import           NodeEditor.Action.State.NodeEditor (getScreenTranform, modifyNodeEditor)
+import           NodeEditor.Action.State.NodeEditor (getScreenTransform, modifyNodeEditor)
 import qualified NodeEditor.Action.State.NodeEditor as NE
 import           NodeEditor.React.Model.Layout      (Scene)
 import qualified NodeEditor.React.Model.Layout      as Scene
@@ -20,10 +20,10 @@ import           NodeEditor.State.Global            (State)
 
 
 translateToWorkspace :: ScreenPosition -> Command State Position
-translateToWorkspace pos = Scene.translateToWorkspace pos <$> getScreenTranform
+translateToWorkspace pos = Scene.translateToWorkspace pos <$> getScreenTransform
 
 translateToScreen :: Position -> Command State ScreenPosition
-translateToScreen pos = Scene.translateToScreen pos <$> getScreenTranform
+translateToScreen pos = Scene.translateToScreen pos <$> getScreenTransform
 
 getScene :: Command State (Maybe Scene)
 getScene = NE.getScene >>= maybe (updateScene >> NE.getScene) (return . return . id)
