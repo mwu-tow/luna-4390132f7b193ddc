@@ -1049,3 +1049,32 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just baz, Just spam] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [1, 2]
                 Graph.collapseToFunction loc [baz, spam]
+        it "handles collapsing nodes into functions with multiple uses of an argument" $ let
+            initialCode = [r|
+                def main:
+                    «3»uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                    «5»crypto = "BTC"
+                    «6»withCrypto = uri + crypto
+                    «7»fiat = "USD"
+                    «8»fullUri = withCrypto + "&tsyms=" + fiat
+                    «4»response = Http.getJSON fullUri
+                    «9»result = response . lookupReal fiat
+                    «10»foo = id result
+                |]
+            expectedCode = [r|
+                def main:
+                    crypto = "BTC"
+                    fiat = "USD"
+                    def node1 crypto fiat:
+                        uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                        withCrypto = uri + crypto
+                        fullUri = withCrypto + "&tsyms=" + fiat
+                        response = Http.getJSON fullUri
+                        result = response . lookupReal fiat
+                        result
+                    result = node1 crypto fiat
+                    foo = id result
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just uri, Just withCrypto, Just fullUri, Just response, Just result] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [3, 6, 8, 4, 9]
+                Graph.collapseToFunction loc [uri, withCrypto, fullUri, response, result]
