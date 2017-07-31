@@ -11,8 +11,8 @@ module NodeEditor.Action.Camera.Zoom
 
 import           Common.Prelude
 import           Data.Matrix                          (getElem, setElem)
-import           Data.ScreenPosition                  (ScreenPosition, vector, x, y)
 import           LunaStudio.Data.CameraTransformation (logicalToScreen, screenToLogical)
+import           LunaStudio.Data.ScreenPosition       (ScreenPosition, vector, x, y)
 import           LunaStudio.Data.Vector2              (Vector2)
 import           NodeEditor.Action.Basic              (modifyCamera)
 import           NodeEditor.Action.Command            (Command)

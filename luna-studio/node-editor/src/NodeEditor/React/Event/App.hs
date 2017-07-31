@@ -4,9 +4,9 @@
 module NodeEditor.React.Event.App where
 
 import           Common.Prelude
-import           Data.ScreenPosition (ScreenPosition)
-import           Data.Timestamp      (Timestamp)
-import           React.Flux          (KeyboardEvent, MouseEvent, WheelEvent)
+import           Data.Timestamp                 (Timestamp)
+import           LunaStudio.Data.ScreenPosition (ScreenPosition)
+import           React.Flux                     (KeyboardEvent, MouseEvent, WheelEvent)
 
 
 

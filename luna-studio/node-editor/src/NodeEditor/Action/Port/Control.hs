@@ -7,12 +7,12 @@ module NodeEditor.Action.Port.Control
     ) where
 
 import           Common.Prelude
-import           Data.ScreenPosition                (ScreenPosition, x)
 import           Data.Time.Clock                    (UTCTime)
 import qualified Data.Time.Clock                    as Clock
 import qualified JS.UI                              as JS
 import           LunaStudio.Data.PortDefault        (PortDefault (Constant), PortValue (DoubleValue, IntValue))
 import           LunaStudio.Data.PortRef            (InPortRef)
+import           LunaStudio.Data.ScreenPosition     (ScreenPosition, x)
 import           NodeEditor.Action.Basic            (localSetPortDefault)
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.Command          (Command)

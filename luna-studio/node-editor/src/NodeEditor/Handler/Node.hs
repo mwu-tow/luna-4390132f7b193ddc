@@ -1,7 +1,7 @@
 module NodeEditor.Handler.Node where
 
 import           Common.Prelude
-import           Data.ScreenPosition                        (ScreenPosition)
+import           LunaStudio.Data.ScreenPosition             (ScreenPosition)
 import           NodeEditor.Action.Basic                    (collapseToFunction, enterNode, localSetPortDefault, removeSelectedNodes,
                                                              selectAll, setNodeExpression, setPortDefault, toggleSelect,
                                                              toggleSelectedNodesMode, toggleSelectedNodesUnfold)

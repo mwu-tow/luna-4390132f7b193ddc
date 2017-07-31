@@ -3,11 +3,11 @@ module NodeEditor.React.Model.Layout where
 
 import           Common.Prelude
 import qualified Data.Matrix                          as Matrix
-import           Data.ScreenPosition                  (ScreenPosition (ScreenPosition))
-import qualified Data.ScreenPosition                  as ScreenPosition
 import           LunaStudio.Data.CameraTransformation (CameraTransformation, logicalToScreen, screenToLogical)
 import           LunaStudio.Data.Position             (Position, move, vector)
 import qualified LunaStudio.Data.Position             as Position
+import           LunaStudio.Data.ScreenPosition       (ScreenPosition (ScreenPosition))
+import qualified LunaStudio.Data.ScreenPosition       as ScreenPosition
 import           LunaStudio.Data.Size                 (Size)
 import           LunaStudio.Data.Vector2              (Vector2 (Vector2), x, y)
 import           NodeEditor.React.Model.Constants     (gridSize)

@@ -13,8 +13,8 @@ module NodeEditor.Action.Camera.Pan
 
 import           Common.Prelude
 import           Data.Matrix                          (setElem)
-import           Data.ScreenPosition                  (ScreenPosition, vector)
 import           LunaStudio.Data.CameraTransformation (logicalToScreen, screenToLogical)
+import           LunaStudio.Data.ScreenPosition       (ScreenPosition, vector)
 import           LunaStudio.Data.Vector2              (Vector2 (Vector2))
 import           NodeEditor.Action.Basic              (modifyCamera)
 import           NodeEditor.Action.Command            (Command)
