@@ -13,7 +13,7 @@ import requests
 import zipfile
 import io
 import sys
-import system
+from . import system as system
 
 third_party_path = ap.prep_path('../dist/third-party/')
 atom_home_path = ap.prep_path('../dist/user-config/atom')

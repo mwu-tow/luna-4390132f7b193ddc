@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
-import atom_prepare
+from . import atom_prepare as ap
 import os
 import distutils
 import subprocess
-import system
+from . import system as system
 
 
-resources_dir = atom_prepare.prep_path('../resources')
-supervisor_dir = atom_prepare.prep_path('../supervisor')
-windows_dir = atom_prepare.prep_path('../windows')
-env_dir = atom_prepare.prep_path('../env')
+resources_dir = ap.prep_path('../resources')
+supervisor_dir = ap.prep_path('../supervisor')
+windows_dir = ap.prep_path('../windows')
+env_dir = ap.prep_path('../env')
 
 
 def copy_configs(supervisor,env, windows):
-    config_path = atom_prepare.prep_path('../dist/config/')
+    config_path = ap.prep_path('../dist/config/')
     supervisor_path = config_path + '/supervisor'
     env_path = config_path + '/env'
     windows_path = config_path + '/windows'
@@ -29,7 +29,7 @@ def copy_configs(supervisor,env, windows):
     else: print("unknown system")
 
 def copy_resources(resources):
-    resources_path=atom_prepare.prep_path('../dist/bin/public/luna-studio/resources')
+    resources_path=ap.prep_path('../dist/bin/public/luna-studio/resources')
     distutils.dir_util.copy_tree(resources, resources_path)
 
 def run():

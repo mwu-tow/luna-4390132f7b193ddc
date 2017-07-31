@@ -3,7 +3,7 @@
 from . import atom_prepare as ap
 import os
 import subprocess
-import system
+from . import system as system
 
 
 app_dir      = ap.prep_path('..')
