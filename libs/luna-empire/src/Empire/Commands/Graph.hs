@@ -1163,9 +1163,63 @@ findRefToInsertAfter beforeNodes afterNodes ref = do
                  then throwM ImpossibleToCollapse
                  else return Nothing
 
+insertCodeBetween :: GraphOp m => [NodeId] -> [NodeId] -> Text -> m Text
+insertCodeBetween beforeNodes afterNodes codeToInsert = do
+    beforeRefs <- fmap Set.fromList $ forM beforeNodes ASTRead.getASTRef
+    afterRefs  <- fmap Set.fromList $ forM afterNodes  ASTRead.getASTRef
+    topSeq     <- use $ Graph.breadcrumbHierarchy . BH.body
+    refToInsertAfter <- findRefToInsertAfter beforeRefs afterRefs topSeq
+    insertPos        <- case refToInsertAfter of
+        Nothing -> Code.getCurrentBlockBeginning
+        Just r  -> do
+            Just beg <- Code.getOffsetRelativeToFile r
+            len      <- IR.getLayer @SpanLength r
+            return $ beg + len
+    Code.insertAt insertPos codeToInsert
+
+generateCollapsedDefCode :: GraphOp m => [OutPortRef] -> [OutPortRef] -> [NodeId] -> m Text
+generateCollapsedDefCode inputs outputs bodyIds = do
+    inputNames <- forM inputs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
+        ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
+    outputNames <- forM outputs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
+        ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
+    codeBegs <- fmap (sortOn fst) $ forM bodyIds $ \nid -> do
+        ref     <- ASTRead.getASTRef nid
+        Just cb <- Code.getOffsetRelativeToFile ref
+        return (cb, ref)
+    defName            <- ASTBuilder.generateNodeName
+    currentIndentation <- Code.getCurrentIndentationLength
+    let indentBy i l = "\n" <> Text.replicate (fromIntegral i) " " <> l
+        topIndented  = indentBy currentIndentation
+        bodyIndented = indentBy (currentIndentation + Code.defaultIndentationLength)
+    newCodeBlockBody <- fmap Text.concat $ forM codeBegs $ \(beg, ref) -> do
+        len  <- IR.getLayer @SpanLength ref
+        code <- Code.getAt beg (beg + len)
+        return $ bodyIndented code
+    let header = topIndented $  "def "
+                             <> Text.unwords (defName : fmap convert inputNames)
+                             <> ":"
+    returnBody <- case outputNames of
+        []  -> do
+            let lastNode = snd $ last codeBegs
+            ASTRead.getNameOf lastNode
+        [a] -> return $ Just $ convert a
+        _   -> return $ Just $ "(" <> Text.intercalate ", " (convert <$> outputNames) <> ")"
+    let returnLine = case returnBody of
+            Just n -> bodyIndented n
+            _      -> ""
+    let defCode = header <> newCodeBlockBody <> returnLine
+    let useLine = case outputNames of
+            [] -> ""
+            _  -> topIndented $ fromJust returnBody
+                              <> " = "
+                              <> Text.unwords (defName : fmap convert inputNames)
+    return $ defCode <> useLine
+
 
 collapseToFunction :: GraphLocation -> [NodeId] -> Empire ()
 collapseToFunction loc nids = do
+    when (null nids) $ throwM ImpossibleToCollapse
     code <- withGraph loc $ runASTOp $ do
         let ids = Set.fromList nids
         connections <- GraphBuilder.buildConnections
@@ -1174,55 +1228,10 @@ collapseToFunction loc nids = do
             inConns  = filter (\x -> dstInIds x && not (srcInIds x)) connections
             inputs   = fst <$> inConns
             outConns = filter (\x -> srcInIds x && not (dstInIds x)) connections
-            usedRefs = fst <$> outConns
+            outputs  = fst <$> outConns
             useSites = outConns ^.. traverse . _2 . PortRef.dstNodeId
-        inputNames <- forM inputs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
-            ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
-        outputNames <- forM usedRefs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
-            ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
-        codeBegs <- fmap (sortOn fst) $ forM nids $ \nid -> do
-            ref     <- ASTRead.getASTRef nid
-            Just cb <- Code.getOffsetRelativeToFile ref
-            return (cb, ref)
-        defName            <- ASTBuilder.generateNodeName
-        currentIndentation <- Code.getCurrentIndentationLength
-        let indentBy i l = "\n" <> Text.replicate (fromIntegral i) " " <> l
-            topIndented  = indentBy currentIndentation
-            bodyIndented = indentBy (currentIndentation + Code.defaultIndentationLength)
-        newCodeBlockBody <- fmap Text.concat $ forM codeBegs $ \(beg, ref) -> do
-            len  <- IR.getLayer @SpanLength ref
-            code <- Code.getAt beg (beg + len)
-            return $ bodyIndented code
-        let header = topIndented $  "def "
-                                 <> Text.unwords (defName : fmap convert inputNames)
-                                 <> ":"
-        returnBody <- case outputNames of
-            []  -> do
-                let lastNode = snd $ last codeBegs
-                ASTRead.getNameOf lastNode
-            [a] -> return $ Just $ convert a
-            _   -> return $ Just $ "(" <> Text.intercalate ", " (convert <$> outputNames) <> ")"
-        let returnLine = case returnBody of
-              Just n -> bodyIndented n
-              _      -> ""
-        let defCode = header <> newCodeBlockBody <> returnLine
-        let useLine = case outputNames of
-                [] -> ""
-                _  -> topIndented $ fromJust returnBody
-                                  <> " = "
-                                  <> Text.unwords (defName : fmap convert inputNames)
-        let newCode = defCode <> useLine
-        useRefs <- fmap Set.fromList $ forM useSites ASTRead.getASTRef
-        inRefs  <- fmap Set.fromList $ forM inputs $ \i -> ASTRead.getASTRef (i ^. PortRef.srcNodeId)
-        topSeq  <- use $ Graph.breadcrumbHierarchy . BH.body
-        refToInsertAfter <- findRefToInsertAfter useRefs inRefs topSeq
-        insertPos        <- case refToInsertAfter of
-            Nothing -> Code.getCurrentBlockBeginning
-            Just r  -> do
-                Just beg <- Code.getOffsetRelativeToFile r
-                len      <- IR.getLayer @SpanLength r
-                return $ beg + len
-        Code.insertAt insertPos newCode
+        newCode <- generateCollapsedDefCode inputs outputs nids
+        insertCodeBetween useSites (view PortRef.srcNodeId <$> inputs) newCode
     reloadCode  loc code
     removeNodes loc nids
 

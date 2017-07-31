@@ -83,10 +83,6 @@ applyDiff (fromIntegral -> start) (fromIntegral -> end) code = do
     Graph.code .= newCode
     return newCode
 
-applyDiffs :: (MonadState state m, Integral a, Graph.HasCode state) => [(a, a, Text)] -> m Text
-applyDiffs diffs = last <$> mapM (uncurry applyDiff) sorted where
-    sorted = reverse $ sortOn (view _1) diffs
-
 insertAt :: (MonadState state m, Graph.HasCode state) => Delta -> Text -> m Text
 insertAt at code = applyDiff at at code
 
