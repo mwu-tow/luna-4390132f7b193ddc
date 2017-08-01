@@ -188,19 +188,17 @@ renameVar vref name = do
     var <- IR.narrowTerm @IR.Var vref
     mapM_ (flip IR.modifyExprTerm $ IR.name .~ (stringToName name)) var
 
-replaceWhenBodyOrRef :: GraphOp m => NodeRef -> NodeRef -> m ()
-replaceWhenBodyOrRef to from = do
-    oldBody <- use $ Graph.breadcrumbHierarchy . BH.body
-    when (oldBody == from) $ Graph.breadcrumbHierarchy . BH.body .= to
+replaceWhenBHSelf :: GraphOp m => NodeRef -> NodeRef -> m ()
+replaceWhenBHSelf to from = do
     oldRef  <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == from)  $ Graph.breadcrumbHierarchy . BH.self .= to
 
 replace :: GraphOp m => NodeRef -> NodeRef -> m ()
 replace to from = do
     IR.replace to from
-    replaceWhenBodyOrRef to from
+    replaceWhenBHSelf to from
 
 substitute :: GraphOp m => NodeRef -> NodeRef -> m ()
 substitute to from = do
     IR.substitute to from
-    replaceWhenBodyOrRef to from
+    replaceWhenBHSelf to from

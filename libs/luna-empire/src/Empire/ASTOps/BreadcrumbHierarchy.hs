@@ -107,7 +107,7 @@ prepareLambdaChild nodeCache marked ref = do
     ASTBuilder.attachNodeMarkersForArgs (fst portMapping) [] ref
     children            <- lambdaChildren nodeCache lambdaCodeBeg lambdaBodyLink
     newBody             <- ASTRead.getFirstNonLambdaRef ref
-    return $ BH.LamItem portMapping marked children newBody
+    return $ BH.LamItem portMapping marked children
 
 prepareFunctionChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.LamItem
 prepareFunctionChild nodeCache marked ref = do
@@ -121,7 +121,7 @@ prepareFunctionChild nodeCache marked ref = do
     forM_ (zip args [0..]) $ \(a, i) -> ASTBuilder.attachNodeMarkers (fst portMapping) [Port.Projection i] a
     children <- lambdaChildren nodeCache codeBeg bodyLink
     newBody  <- ASTRead.getFirstNonLambdaRef ref
-    return $ BH.LamItem portMapping marked children newBody
+    return $ BH.LamItem portMapping marked children
 
 prepareExprChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
 prepareExprChild nodeCache marked ref = do
@@ -142,7 +142,7 @@ restorePortMappings previousPortMappings = do
         goBChild nodeId (BH.ExprChild exprItem)  = BH.ExprChild <$> goExprItem nodeId exprItem
         goBChild nodeId (BH.LambdaChild lamItem) = BH.LambdaChild <$> goLamItem (Just (nodeId, Nothing)) lamItem
 
-        goLamItem idArg (BH.LamItem mapping marked children body) = do
+        goLamItem idArg (BH.LamItem mapping marked children) = do
             let cache       = case idArg of
                     Just idarg -> Map.lookup idarg previousPortMappings
                     _          -> Nothing
@@ -152,7 +152,7 @@ restorePortMappings previousPortMappings = do
             updatedChildren <- do
                 updatedChildren <- mapM (\(a, b) -> (a,) <$> goBChild a b) $ Map.assocs children
                 return $ Map.fromList updatedChildren
-            return $ BH.LamItem (fromMaybe mapping cache) marked updatedChildren body
+            return $ BH.LamItem (fromMaybe mapping cache) marked updatedChildren
 
         goExprItem nodeId (BH.ExprItem children self) = do
             updatedChildren <- mapM (\(a, b) -> (a,) <$> goLamItem (Just (nodeId, Just a)) b) $ Map.assocs children

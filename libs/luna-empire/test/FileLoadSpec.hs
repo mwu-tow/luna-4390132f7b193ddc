@@ -428,7 +428,7 @@ spec = around withChannels $ parallel $ do
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Graph.withGraph loc' $ do
                     runASTOp $ do
-                        nodeSeq <- GraphBuilder.getNodeSeq
+                        nodeSeq <- ASTRead.getCurrentBody
                         Graph.updateCodeSpan nodeSeq
                 forM [0..3] $ Graph.markerCodeSpan loc'
             withResult res $ \spans -> do

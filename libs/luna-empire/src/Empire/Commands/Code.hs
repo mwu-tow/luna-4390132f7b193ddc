@@ -274,7 +274,7 @@ getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
 
 getCurrentBlockEnd :: GraphOp m => m Delta
 getCurrentBlockEnd = do
-    body <- use $ Graph.breadcrumbHierarchy . BH.body
+    body <- ASTRead.getCurrentBody
     len  <- IR.getLayer @SpanLength body
     beg  <- getCurrentBlockBeginning
     return $ len + beg

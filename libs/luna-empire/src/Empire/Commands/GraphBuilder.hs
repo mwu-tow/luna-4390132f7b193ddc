@@ -122,12 +122,9 @@ hasIO ref = IR.matchExpr ref $ \case
     Unify l r -> (||) <$> (hasIO =<< IR.source l) <*> (hasIO =<< IR.source r)
     _         -> return False
 
-getNodeSeq :: GraphOp m => m NodeRef
-getNodeSeq = use $ Graph.breadcrumbHierarchy . BH.body
-
 getNodeIdSequence :: GraphOp m => m [NodeId]
 getNodeIdSequence = do
-    bodySeq <- getNodeSeq
+    bodySeq <- ASTRead.getCurrentBody
     nodeSeq <- AST.readSeq bodySeq
     catMaybes <$> mapM getNodeIdWhenMarked nodeSeq
 

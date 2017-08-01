@@ -211,6 +211,9 @@ getCurrentASTTarget = do
     ref <- use $ Graph.breadcrumbHierarchy . BH.self
     getTargetFromMarked ref
 
+getCurrentBody :: GraphOp m => m NodeRef
+getCurrentBody = getFirstNonLambdaRef =<< getCurrentASTTarget
+
 getASTVar :: GraphOp m => NodeId -> m NodeRef
 getASTVar nodeId = do
     matchNode <- getASTPointer nodeId
