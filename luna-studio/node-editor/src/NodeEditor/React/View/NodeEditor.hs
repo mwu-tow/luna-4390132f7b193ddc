@@ -93,8 +93,8 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         nodesWithVis   = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-            div_ [ "className" $= Style.prefix "window", "key" $= "window"] $
-                div_ [ "className" $= Style.prefix "window__center", "key" $= "window-center" ] $
+            div_ [ "className" $= Style.prefix "studio--window", "key" $= "studio--window"] $ do
+                div_ [ "className" $= Style.prefix "studio--window__center", "key" $= "studio--window__center" ] $
                     div_
                         [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
                         , "key"         $= "graph"
@@ -120,14 +120,13 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                         planeNewConnection_ $ do
                             forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
 
-                --withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
-                --withJust output $ sidebar_ ref Nothing
+                withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
+                withJust output $ sidebar_ ref Nothing
                 --planeCanvas_ mempty
 
         GraphLoading   -> noGraph_ True "Loading…"
         NoGraph        -> noGraph_ False ""
         GraphError msg -> noGraph_ True msg
-
 
 noGraph_ :: Bool -> String -> ReactElementM ViewEventHandler ()
 noGraph_ hideLogo msg =
