@@ -26,7 +26,7 @@ import           Empire.ASTOps.Read      as ASTRead
 import           Empire.ASTOps.Modify    as ASTModify
 
 import qualified Luna.IR                 as IR
-import qualified OCI.IR.Combinators      as IR (replace, substitute)
+import qualified OCI.IR.Combinators      as IR (replace, substitute, replaceSource)
 import           Data.Text.Position      (Delta)
 import           Empire.Data.Layers      (SpanOffset, SpanLength)
 import           Data.Text.Span          (LeftSpacedSpan(..), SpacedSpan(..), leftSpacedSpan)
@@ -158,21 +158,19 @@ getNextExprMarker = do
         highestIndex = Safe.maximumMay keys
     return $ maybe 0 succ highestIndex
 
-addCodeMarker :: GraphOp m => NodeRef -> m NodeRef
-addCodeMarker ref = do
+addCodeMarker :: GraphOp m => Delta -> EdgeRef -> m NodeRef
+addCodeMarker beg edge = do
+    ref    <- IR.source edge
     index  <- getNextExprMarker
     marker <- IR.marker' index
-    dummyBl    <- IR.blank
-    markedNode <- IR.marked' marker dummyBl
+    markedNode <- IR.marked' marker ref
     exprLength <- IR.getLayer @SpanLength ref
     let markerLength = convert $ Text.length $ makeMarker index
     IR.putLayer @SpanLength marker markerLength
     IR.putLayer @SpanLength markedNode (exprLength + markerLength)
     addExprMapping index markedNode
-    Just beg <- getOffsetRelativeToFile ref
     insertAt beg (makeMarker index)
-    ASTModify.substitute markedNode ref
-    IR.replace ref dummyBl
+    IR.replaceSource markedNode edge
     gossipUsesChangedBy (fromIntegral $ Text.length $ makeMarker index) markedNode
     return markedNode
 
