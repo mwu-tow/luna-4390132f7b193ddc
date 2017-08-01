@@ -19,7 +19,6 @@ import           NodeEditor.State.Global    (State)
 import           React.Flux                 (MouseEvent, wheelDeltaX, wheelDeltaY)
 
 
-
 -- TODO[react]: Consider mac trackpad!!!
 handle :: Event -> Maybe (Command State ())
 handle (Shortcut (Shortcut.Event command _)) = Just $ handleCommand command

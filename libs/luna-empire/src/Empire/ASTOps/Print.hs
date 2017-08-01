@@ -21,6 +21,7 @@ import qualified Luna.IR                        as IR
 import           Luna.IR.Term.Uni
 import           LunaStudio.Data.Node           (NodeId)
 import           LunaStudio.Data.TypeRep
+import           LunaStudio.Data.TypeRep
 
 import           Luna.Syntax.Text.Lexer.Name    (isOperator)
 import           Luna.Syntax.Text.Pretty.Pretty as CodeGen
