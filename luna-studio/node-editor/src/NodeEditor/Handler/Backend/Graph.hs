@@ -2,6 +2,7 @@ module NodeEditor.Handler.Backend.Graph
     ( handle
     ) where
 
+import           Common.Action.Command                       (Command)
 import           Common.Prelude
 import           Common.Report
 import qualified Data.DateTime                               as DT
@@ -52,9 +53,8 @@ import           NodeEditor.Action.Basic.Revert              (revertAddConnectio
                                                               revertSetPortDefault)
 import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime, modifyTime, refreshTime, touchCurrentlySelected, updateClient)
 import           NodeEditor.Action.Batch                     (collaborativeModify, getProgram)
-import           NodeEditor.Action.Command                   (Command)
 import           NodeEditor.Action.State.App                 (setBreadcrumbs)
-import           NodeEditor.Action.State.Graph               (inCurrentLocation, isCurrentFile, isCurrentLocation)
+import           NodeEditor.Action.State.Graph               (inCurrentLocation, isCurrentLocation)
 import           NodeEditor.Action.State.NodeEditor          (modifyExpressionNode, setGraphStatus, setScreenTransform, updateMonads)
 import           NodeEditor.Action.UUID                      (isOwnRequest)
 import qualified NodeEditor.Batch.Workspace                  as Workspace
@@ -268,9 +268,7 @@ handle (Event.Batch ev) = Just $ case ev of
         success          = applyResult location
 
     SearchNodesResponse response -> handleResponse response success doNothing where
-        location       = response ^. Response.request . SearchNodes.location
-        success result = whenM (isCurrentFile location) $
-            localSetSearcherHints $ prepareNSData (result ^. SearchNodes.globalFunctions) (result ^. SearchNodes.globalClasses)
+        success result = localSetSearcherHints $ prepareNSData (result ^. SearchNodes.globalFunctions) (result ^. SearchNodes.globalClasses)
 
     SetNodeExpressionResponse response -> handleResponse response success failure where
         requestId       = response ^. Response.requestId

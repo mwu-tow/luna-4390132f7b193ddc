@@ -7,11 +7,11 @@ import           TextEditor.Error.Error
 
 import           Common.Prelude
 
-import qualified TextEditor.Event.Batch    as Batch
-import           TextEditor.Event.Event    (Event (Batch))
+import qualified TextEditor.Event.Batch  as Batch
+import           TextEditor.Event.Event  (Event (Batch))
 
-import           TextEditor.Action.Command (Command)
-import           TextEditor.State.Global   (State)
+import           Common.Action.Command   (Command)
+import           TextEditor.State.Global (State)
 
 
 

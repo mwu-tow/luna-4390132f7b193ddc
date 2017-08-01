@@ -11,6 +11,7 @@ module NodeEditor.Action.Camera.Pan
      , panDrag
      ) where
 
+import           Common.Action.Command                (Command)
 import           Common.Prelude
 import           Data.Matrix                          (setElem)
 import           LunaStudio.Data.CameraTransformation (logicalToScreen, screenToLogical)
@@ -18,7 +19,6 @@ import           LunaStudio.Data.Matrix               (invertedTranslationMatrix
 import           LunaStudio.Data.ScreenPosition       (ScreenPosition, vector)
 import           LunaStudio.Data.Vector2              (Vector2 (Vector2))
 import           NodeEditor.Action.Basic              (modifyCamera)
-import           NodeEditor.Action.Command            (Command)
 import           NodeEditor.Action.State.Action       (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                        updateActionWithKey)
 import           NodeEditor.Action.State.NodeEditor   (modifyNodeEditor)

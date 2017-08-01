@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE StrictData     #-}
 {-# LANGUAGE TypeFamilies   #-}
 
 module NodeEditor.React.Event.App where
@@ -7,7 +8,6 @@ import           Common.Prelude
 import           Data.Timestamp                 (Timestamp)
 import           LunaStudio.Data.ScreenPosition (ScreenPosition)
 import           React.Flux                     (KeyboardEvent, MouseEvent, WheelEvent)
-
 
 
 data Event = Click

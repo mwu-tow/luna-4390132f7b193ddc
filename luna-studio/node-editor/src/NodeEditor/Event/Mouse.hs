@@ -1,9 +1,9 @@
 module NodeEditor.Event.Mouse where
 
+import           Common.Action.Command          (Command)
 import           Common.Prelude
 import           LunaStudio.Data.Position       (Position)
 import           LunaStudio.Data.ScreenPosition (ScreenPosition, fromDoubles)
-import           NodeEditor.Action.Command      (Command)
 import           NodeEditor.Action.State.Scene  (getWorkspacePosition, translateToWorkspace)
 import           NodeEditor.State.Global        (State)
 import           React.Flux                     (MouseEvent (MouseEvent), mousePageX, mousePageY)

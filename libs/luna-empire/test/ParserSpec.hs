@@ -3,20 +3,20 @@
 module ParserSpec (spec) where
 
 import qualified Data.Map                    as Map
-import           LunaStudio.Data.PortDefault (PortDefault(Expression))
-import qualified LunaStudio.Data.Node        as Node
-import qualified LunaStudio.Data.Port        as Port
-import           LunaStudio.Data.LabeledTree (LabeledTree (..))
-import           LunaStudio.Data.TypeRep     (TypeRep(TStar))
 import           Empire.ASTOps.Parse         (SomeParserException)
 import qualified Empire.Commands.Graph       as Graph
+import           LunaStudio.Data.LabeledTree (LabeledTree (..))
+import qualified LunaStudio.Data.Node        as Node
+import qualified LunaStudio.Data.Port        as Port
+import           LunaStudio.Data.PortDefault (PortDefault (Expression))
+import           LunaStudio.Data.TypeRep     (TypeRep (TStar))
 
 import           Prologue                    hiding ((|>))
 
-import           Test.Hspec (Spec, Selector, around, describe, it, xit, expectationFailure,
-                             parallel, shouldBe, shouldMatchList, shouldStartWith, shouldThrow)
+import           Test.Hspec                  (Selector, Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
+                                              shouldStartWith, shouldThrow, xit)
 
-import EmpireUtils
+import           EmpireUtils
 
 
 spec :: Spec
@@ -42,7 +42,7 @@ spec = around withChannels $ parallel $ do
             withResult res $ \node -> do
                 node  ^. Node.expression `shouldBe` "Vector x y z"
                 (node ^. Node.outPorts)  `shouldBe`
-                    LabeledTree def (Port.Port [] "node1" TStar Port.NotConnected)
+                    LabeledTree def (Port.Port [] "vector1" TStar Port.NotConnected)
                 (node ^.. Node.inPorts . traverse) `shouldMatchList` [
                       Port.Port []           "alias" TStar (Port.WithDefault $ Expression "Vector x y z")
                     , Port.Port [Port.Arg 0] "x"    TStar (Port.WithDefault (Expression "x"))

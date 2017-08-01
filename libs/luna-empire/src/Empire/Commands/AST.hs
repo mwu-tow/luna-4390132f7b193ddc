@@ -40,9 +40,9 @@ import qualified OCI.IR.Repr.Vis as Vis
 
 import           Web.Browser                       (openBrowser)
 
-addNode :: GraphOp m => NodeId -> Maybe Text -> NodeRef -> m (NodeRef, Maybe Text)
-addNode nid name node = do
-    ASTBuilder.makeNodeRep nid name node
+addNode :: GraphOp m => NodeId -> Maybe Text -> m Text -> NodeRef -> m (NodeRef, Maybe Text)
+addNode nid name genName node = do
+    ASTBuilder.makeNodeRep nid name genName node
 
 readMeta :: (IR.Reader IR.Layer (IR.AnyExpr IR.// Meta) m, IR.MonadRef m) => NodeRef -> m (Maybe NodeMeta)
 readMeta ref = IR.getLayer @Meta ref
@@ -123,5 +123,5 @@ dumpGraphViz name = Vis.snapshotWith nodeVis edgeVis name where
         off <- IR.getLayer @SpanOffset e
         return $ Just $ convert $ "[" ++ show (unwrap off) ++ "]"
     nodeVis n = do
-        LeftSpacedSpan (SpacedSpan (Delta off) (Delta len)) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan n
-        return $ Just $ convert $ show (off, len)
+        len <- IR.getLayer @SpanLength n
+        return $ Just $ convert $ "[" ++ show (unwrap len) ++ "]"

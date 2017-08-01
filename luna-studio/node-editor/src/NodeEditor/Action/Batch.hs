@@ -1,5 +1,6 @@
 module NodeEditor.Action.Batch  where
 
+import           Common.Action.Command               (Command)
 import           Common.Prelude
 import           Data.UUID.Types                     (UUID)
 import           LunaStudio.Data.GraphLocation       (GraphLocation)
@@ -9,7 +10,6 @@ import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', Ou
                                                       dstNodeLoc, nodeLoc)
 import           LunaStudio.Data.Position            (Position)
 import           LunaStudio.Data.Project             (LocationSettings)
-import           NodeEditor.Action.Command           (Command)
 import           NodeEditor.Action.UUID              (registerRequest)
 import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
 import           NodeEditor.Batch.Workspace          (Workspace)
@@ -25,9 +25,15 @@ withWorkspace act = do
     withJustM (use workspace) $ \workspace' ->
         liftIO $ act workspace' uuid $ Just guiID
 
+withMayWorkspace :: (Maybe Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
+withMayWorkspace act = do
+    uuid       <- registerRequest
+    guiID      <- use $ backend . clientId
+    mayWorkspace <- use workspace
+    liftIO $ act mayWorkspace uuid $ Just guiID
+
 withWorkspace' :: (Workspace -> IO ()) -> Command State ()
-withWorkspace' act = do
-    withJustM (use workspace) $ liftIO . act
+withWorkspace' act = withJustM (use workspace) $ liftIO . act
 
 withUUID :: (UUID -> Maybe UUID -> IO ()) -> Command State ()
 withUUID act = do
@@ -112,7 +118,7 @@ saveSettings :: LocationSettings -> Command State ()
 saveSettings = withWorkspace . BatchCmd.saveSettings
 
 searchNodes :: Command State ()
-searchNodes = withWorkspace BatchCmd.searchNodes
+searchNodes = withMayWorkspace BatchCmd.searchNodes
 
 setNodeExpression :: NodeLoc -> Text -> Command State ()
 setNodeExpression = withWorkspace .: BatchCmd.setNodeExpression

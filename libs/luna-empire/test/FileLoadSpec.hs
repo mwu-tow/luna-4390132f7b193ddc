@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 
@@ -19,16 +19,16 @@ import qualified Empire.ASTOps.Parse             as ASTParse
 import qualified Empire.ASTOps.Print             as ASTPrint
 import qualified Empire.ASTOps.Read              as ASTRead
 import qualified Empire.Commands.AST             as AST
-import qualified Empire.Commands.Graph           as Graph
 import qualified Empire.Commands.Code            as Code
+import qualified Empire.Commands.Graph           as Graph
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import qualified Empire.Commands.Library         as Library
 import           Empire.Data.AST                 (SomeASTException)
-import qualified Empire.Data.Graph               as Graph (code, codeMarkers, breadcrumbHierarchy)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
+import qualified Empire.Data.Graph               as Graph (breadcrumbHierarchy, code, codeMarkers)
 import           Empire.Empire                   (CommunicationEnv (..), Empire)
 import qualified Luna.Syntax.Text.Parser.Parser  as Parser (ReparsingChange (..), ReparsingStatus (..))
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem(Definition))
+import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
 import qualified LunaStudio.Data.Node            as Node
@@ -38,15 +38,15 @@ import qualified LunaStudio.Data.NodeMeta        as NodeMeta
 import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
-import           LunaStudio.Data.Vector2         (Vector2(..))
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
+import           LunaStudio.Data.Vector2         (Vector2 (..))
 
 import           Empire.Prelude
 import           Luna.Prelude                    (normalizeQQ)
 
-import           Test.Hspec                      (Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
-                                                  shouldNotBe, shouldSatisfy, shouldStartWith, xit, Expectation)
+import           Test.Hspec                      (Expectation, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
+                                                  shouldMatchList, shouldNotBe, shouldSatisfy, shouldStartWith, xit)
 
 import           EmpireUtils
 
@@ -481,7 +481,7 @@ spec = around withChannels $ parallel $ do
                 let loc' = GraphLocation "TestFile" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Graph.addNode top u1 "4" (atXPos (-20.0))
                 Graph.getCode top
-            code `shouldBe` "def main:\n    node1 = 4\n    None"
+            code `shouldBe` "def main:\n    number1 = 4\n    None"
         it "adds one node and updates it" $ \env -> do
             u1 <- mkUUID
             code <- evalEmp env $ do
@@ -489,7 +489,7 @@ spec = around withChannels $ parallel $ do
                 Graph.markerCodeSpan top 0
                 Graph.setNodeExpression top u1 "5"
                 Graph.getCode top
-            code `shouldBe` "def main:\n    node1 = 5\n    None"
+            code `shouldBe` "def main:\n    number1 = 5\n    None"
         it "disconnect updates code at proper range" $ let
             expectedCode = [r|
                 def main:
@@ -520,7 +520,7 @@ spec = around withChannels $ parallel $ do
                     foo = a: b: a + b
                     c = 4
                     bar = foo 8 c
-                    node1 = 4
+                    number1 = 4
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \top -> do
                 u1 <- mkUUID
@@ -528,7 +528,7 @@ spec = around withChannels $ parallel $ do
         it "adds one node to the beginning of the file via node editor" $ let
             expectedCode = [r|
                 def main:
-                    node1 = 4
+                    number1 = 4
                     pi = 3.14
                     foo = a: b: a + b
                     c = 4
@@ -556,7 +556,7 @@ spec = around withChannels $ parallel $ do
                     foo = a: b: a + b
                     c = 4
                     bar = foo 8 c
-                    node1 = 1
+                    number1 = 1
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -568,7 +568,7 @@ spec = around withChannels $ parallel $ do
                     foo = a: b: a + b
                     c = 4
                     bar = foo 8 c
-                    node1 = a:   b:   a   *  b
+                    lambda1 = a:   b:   a   *  b
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -580,7 +580,7 @@ spec = around withChannels $ parallel $ do
                     foo = a: b: a + b
                     c = 4
                     bar = foo 8 c
-                    node1 = x: x
+                    lambda1 = x: x
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -691,7 +691,7 @@ spec = around withChannels $ parallel $ do
                     foo = a: b: a + b
                     c = 4
                     bar = foo 8 c
-                    node1 = 5
+                    number1 = 5
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -704,8 +704,8 @@ spec = around withChannels $ parallel $ do
                     foo = a: b: a + b
                     c = 4
                     bar = foo 8 c
-                    node1 = (foo +  baz)
-                    node2 = add here
+                    sum1 = (foo +  baz)
+                    add1 = add here
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 u1 <- mkUUID
@@ -1028,3 +1028,53 @@ spec = around withChannels $ parallel $ do
                 (input, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.connect    loc (outPortRef input [Port.Projection 0]) (InPortRef' $ inPortRef output [])
                 Graph.disconnect loc (inPortRef output [])
+        it "handles collapsing nodes into functions" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = bar
+                    «1»baz = buzz foo
+                    «2»spam = eggs baz
+                    «3»a = baz + 1
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = bar
+                    def func1 foo:
+                        baz = buzz foo
+                        spam = eggs baz
+                        baz
+                    baz = func1 foo
+                    a = baz + 1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just baz, Just spam] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [1, 2]
+                Graph.collapseToFunction loc [baz, spam]
+        it "handles collapsing nodes into functions with multiple uses of an argument" $ let
+            initialCode = [r|
+                def main:
+                    «3»uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                    «5»crypto = "BTC"
+                    «6»withCrypto = uri + crypto
+                    «7»fiat = "USD"
+                    «8»fullUri = withCrypto + "&tsyms=" + fiat
+                    «4»response = Http.getJSON fullUri
+                    «9»result = response . lookupReal fiat
+                    «10»foo = id result
+                |]
+            expectedCode = [r|
+                def main:
+                    crypto = "BTC"
+                    fiat = "USD"
+                    def func1 crypto fiat:
+                        uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                        withCrypto = uri + crypto
+                        fullUri = withCrypto + "&tsyms=" + fiat
+                        response = Http.getJSON fullUri
+                        result = response . lookupReal fiat
+                        result
+                    result = func1 crypto fiat
+                    foo = id result
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just uri, Just withCrypto, Just fullUri, Just response, Just result] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [3, 6, 8, 4, 9]
+                Graph.collapseToFunction loc [uri, withCrypto, fullUri, response, result]

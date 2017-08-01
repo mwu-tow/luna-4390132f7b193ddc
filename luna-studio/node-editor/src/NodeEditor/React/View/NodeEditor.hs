@@ -13,9 +13,6 @@ import qualified LunaStudio.Data.Matrix                     as Matrix
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.NodeLoc                    (NodePath)
 import           LunaStudio.Data.PortRef                    (InPortRef (InPortRef))
-import           NodeEditor.Event.Event                     (Event (Shortcut))
-import qualified NodeEditor.Event.Shortcut                  as Shortcut
-import qualified NodeEditor.Event.UI                        as UI
 import           NodeEditor.React.Model.App                 (App)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import qualified NodeEditor.React.Model.Node                as Node
@@ -27,13 +24,12 @@ import           NodeEditor.React.Model.Port                (InPortIndex (Self))
 import qualified NodeEditor.React.Model.Searcher            as Searcher
 import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview), visPropNodeLoc,
                                                              visPropVisualization, visualizationMode)
-import           NodeEditor.React.Store                     (Ref, dispatch, dispatch')
+import           NodeEditor.React.Store                     (Ref)
 import           NodeEditor.React.View.Connection           (connection_, halfConnection_)
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
 import           NodeEditor.React.View.ExpressionNode       (filterOutSearcherIfNotRelated, nodeDynamicStyles_, node_)
 import           NodeEditor.React.View.Monad                (monads_)
-import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, planeNewConnection_,
-                                                             planeNodes_, svgPlane_)
+import           NodeEditor.React.View.Plane                (planeConnections_, planeMonads_, planeNewConnection_, planeNodes_, svgPlane_)
 import           NodeEditor.React.View.SelectionBox         (selectionBox_)
 import           NodeEditor.React.View.Sidebar              (sidebar_)
 import qualified NodeEditor.React.View.Style                as Style

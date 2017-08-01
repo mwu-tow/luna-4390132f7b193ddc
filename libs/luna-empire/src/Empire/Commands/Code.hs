@@ -14,7 +14,7 @@ import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
 import qualified Data.Text.IO            as Text
-import           Data.List               (sort)
+import           Data.List               (sort, sortOn)
 import           Data.Maybe              (listToMaybe)
 import           Empire.Data.Graph       as Graph
 import           Empire.Empire           (Command, Empire)
@@ -274,6 +274,7 @@ getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
         ilen  <- IR.getLayer @SpanLength =<< IR.source i
         recur <- getFirstNonLambdaOffset =<< IR.source o
         return $ ioff + ooff + ilen + recur
+    IR.ASGFunction n as o -> getOffsetRelativeToTarget o
     _ -> return 0
 
 getCurrentBlockEnd :: GraphOp m => m Delta

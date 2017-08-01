@@ -1,5 +1,6 @@
 module NodeEditor.Action.State.Scene where
 
+import           Common.Action.Command              (Command)
 import           Common.Prelude
 import qualified JS.Scene                           as Scene
 import           LunaStudio.Data.Position           (Position)
@@ -7,7 +8,6 @@ import           LunaStudio.Data.ScreenPosition     (ScreenPosition)
 import qualified LunaStudio.Data.ScreenPosition     as ScreenPosition
 import           LunaStudio.Data.Size               (Size)
 import           LunaStudio.Data.Vector2            (x, y)
-import           NodeEditor.Action.Command          (Command)
 import           NodeEditor.Action.State.App        (renderIfNeeded)
 import           NodeEditor.Action.State.NodeEditor (getScreenTransform, modifyNodeEditor)
 import qualified NodeEditor.Action.State.NodeEditor as NE

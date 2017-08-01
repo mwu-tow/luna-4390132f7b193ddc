@@ -1,11 +1,11 @@
 module NodeEditor.Action.Basic.ModifyCamera where
 
+import           Common.Action.Command                      (Command)
 import           Common.Prelude
-import           Data.Matrix                                (Matrix, identity, inverse, multStd2)
+import           Data.Matrix                                (Matrix, inverse, multStd2)
 import           LunaStudio.Data.CameraTransformation       (lastInverse, logicalToScreen, screenToLogical)
 import           LunaStudio.Data.CameraTransformation       (getCameraForRectangle)
 import           LunaStudio.Data.Position                   (minimumRectangle)
-import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.State.NodeEditor         (getExpressionNodes, modifyNodeEditor, setScreenTransform)
 import           NodeEditor.Action.State.Scene              (getScreenSize)
 import           NodeEditor.React.Model.Node.ExpressionNode (position)
