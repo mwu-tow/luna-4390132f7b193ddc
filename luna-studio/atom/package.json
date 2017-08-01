@@ -13,12 +13,13 @@
   },
   "dependencies": {
     "atom-space-pen-views": "^2.0.3",
-    "sub-atom": "1.0.x",
+    "first-mate": "*",
     "jquery": "*",
-    "react": "*",
+    "pako": "*",
     "react-dom": "*",
+    "react": "*",
     "resize-observer-polyfill": "1.3.2",
-    "underscore": "*",
-    "first-mate": "*"
+    "sub-atom": "1.0.x",
+    "underscore": "*"
   }
 }
