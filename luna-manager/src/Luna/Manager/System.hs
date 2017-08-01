@@ -5,6 +5,7 @@ module Luna.Manager.System where
 import Prologue hiding (FilePath,null, filter, appendFile, toText, fromText)
 import System.Directory (executable, setPermissions, getPermissions, doesPathExist, getHomeDirectory)
 import System.Process.Typed
+import qualified System.Environment  as Environment
 import Data.List.Split (splitOn)
 import Data.ByteString.Lazy (null)
 import Data.ByteString.Lazy (ByteString)
@@ -125,14 +126,18 @@ makeExecutable file = case currentHost of
     Windows -> return ()
 
 
-runServicesWindows :: MonadSh m => FilePath -> m ()
-runServicesWindows path = do
+runServicesWindows :: (MonadSh m, MonadIO m) => FilePath -> FilePath -> m ()
+runServicesWindows path logsPath = do
   Shelly.cd path
   let installPath = path </> (Shelly.fromText "installAll.bat")
+  liftIO $ Environment.setEnv "LOGSDIR" (encodeString logsPath)
   Shelly.cmd installPath
 
-stopServicesWindows :: MonadSh m => FilePath -> m ()
+stopServicesWindows ::( MonadSh m, MonadCatch m) => FilePath -> m ()
 stopServicesWindows path = do
     Shelly.cd path
     let uninstallPath = path </> (Shelly.fromText "uninstallAll.bat")
-    Shelly.cmd uninstallPath
+    (Shelly.cmd uninstallPath) `catch` handler where
+
+        handler :: MonadSh m => SomeException -> m ()
+        handler ex = Shelly.liftSh $ print ex

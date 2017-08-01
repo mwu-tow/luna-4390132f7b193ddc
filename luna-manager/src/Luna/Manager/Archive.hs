@@ -90,12 +90,18 @@ unzipFileWindows zipFile = do
       Shelly.rm $ dir </> name </> (filename zipFile)
       Shelly.rm $ dir </> name </> (filename script)
       listed <- Shelly.ls $ dir </> name
-      if length listed == 1 then return $ head listed else return $ dir </> name
+      if length listed == 1
+          then do
+              liftIO $ print $ Shelly.toTextIgnore $ head listed
+              return $ head listed
+              else do
+                  liftIO $ print $ Shelly.toTextIgnore $ dir </> name
+                  return $ dir </> name
 
 zipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> Text -> m FilePath
 zipFileWindows folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".zip")
-    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/zipper.vbs"
+    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/zip.vbs"
     script <- downloadFromURL scriptPath
     Shelly.shelly $ do
         Shelly.cd $ parent folder
