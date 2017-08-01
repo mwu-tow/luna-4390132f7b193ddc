@@ -42,6 +42,7 @@ dependencies:
   - convert
   - data-default
   - ghcjs-base
+  - ghcjs-dom-jsffi
   - hashable
   - lens
   - luna-studio-common
@@ -55,8 +56,6 @@ dependencies:
   - unordered-containers
   - uuid-types
 
-
-
 library:
   source-dirs: src
-  ghc-options: -Wall -O2 -threaded # -DDEBUG_PERF
+  ghc-options: -Wall -O2 -threaded -DCOMPRESS_REQUESTS
