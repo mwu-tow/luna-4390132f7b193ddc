@@ -32,13 +32,27 @@ dependencies:
   - yaml
 
 default-extensions:
-  - DeriveAnyClass
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
   - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - FlexibleContexts
   - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
   - MultiParamTypeClasses
   - NoImplicitPrelude
+  - ScopedTypeVariables
+  - StandaloneDeriving
   - TemplateHaskell
+  - TupleSections
   - TypeSynonymInstances
+  - ViewPatterns
 
 library:
   source-dirs: src
