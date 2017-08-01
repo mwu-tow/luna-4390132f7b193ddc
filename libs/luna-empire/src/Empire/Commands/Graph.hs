@@ -784,9 +784,9 @@ decodeLocation loc@(GraphLocation file crumbs) = case crumbs of
 
 renameNode :: GraphLocation -> NodeId -> Text -> Empire ()
 renameNode loc nid name
-    | GraphLocation _ (Breadcrumb []) <- loc = do
+    | GraphLocation f (Breadcrumb []) <- loc = do
+        let stripped = Text.strip name
         withUnit loc $ do
-            let stripped = Text.strip name
             _ <- liftIO $ ASTParse.runProperVarParser stripped
             oldName <- use $ Graph.clsFuns . ix nid . _1
             Graph.clsFuns %= Map.adjust (_1 .~ (Text.unpack stripped)) nid
@@ -794,22 +794,12 @@ renameNode loc nid name
                 fun     <- ASTRead.getFunByName oldName
                 IR.matchExpr fun $ \case
                     IR.ASGRootedFunction n _ -> flip ASTModify.renameVar (convert stripped) =<< IR.source n
-                    _ -> return ()
-
-                LeftSpacedSpan (SpacedSpan off oldLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan fun
-                let lengthDiff = fromIntegral (Text.length stripped - length oldName)
-                    newLen = oldLen + lengthDiff
-                IR.putLayer @CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off newLen))
-
-                Graph.clsFuns . ix nid . _2 . Graph.bodyOffset += lengthDiff
-                g <- preuse (Graph.clsFuns . ix nid . _2) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Breadcrumb.Definition nid])
-                let funOffset = g ^. Graph.fileOffset
-                Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off > funOffset then off + lengthDiff else off)
-
-                functionStart <- Code.functionBlockStartRef fun
-                let functionNameStart = functionStart + 4 -- "def "
-                    functionNameEnd   = functionNameStart + fromIntegral (length oldName)
-                Code.applyDiff functionNameStart functionNameEnd stripped
+                    _                        -> return ()
+        withGraph (GraphLocation f (Breadcrumb [Breadcrumb.Definition nid])) $ runASTOp $ do
+            self <- use $ Graph.breadcrumbHierarchy . BH.self
+            v    <- ASTRead.getVarNode self
+            ASTModify.renameVar v $ convert stripped
+            Code.replaceAllUses v stripped
         resendCode loc
     | otherwise = do
         withTC loc False $ runASTOp $ do

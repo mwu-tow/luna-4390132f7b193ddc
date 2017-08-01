@@ -53,12 +53,16 @@ runTC imports = do
 
 runInterpreter :: Imports -> Command Graph (Maybe Interpreter.LocalScope)
 runInterpreter imports = runASTOp $ do
-    bodyRef <- use $ Graph.breadcrumbHierarchy . BH.self
-    res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
-    result  <- liftIO $ runIO $ runError $ execStateT res def
-    case result of
-        Left e  -> return Nothing
-        Right r -> return $ Just r
+    selfRef <- use $ Graph.breadcrumbHierarchy . BH.self
+    IR.matchExpr selfRef $ \case
+        IR.ASGFunction _ [] b -> do
+            bodyRef <- IR.source b
+            res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
+            result  <- liftIO $ runIO $ runError $ execStateT res def
+            case result of
+                Left e  -> return Nothing
+                Right r -> return $ Just r
+        _ -> return Nothing
 
 updateNodes :: GraphLocation -> Command Graph ()
 updateNodes loc@(GraphLocation _ br) = do

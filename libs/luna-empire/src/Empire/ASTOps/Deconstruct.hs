@@ -49,10 +49,10 @@ extractLamArguments = extractArguments' FLam
 extractAppArguments :: GraphOp m => NodeRef -> m [NodeRef]
 extractAppArguments = extractArguments' FApp
 
-extractAppPorts :: GraphOp m => NodeRef -> m [Maybe NodeRef]
+extractAppPorts :: GraphOp m => NodeRef -> m [NodeRef]
 extractAppPorts expr = IR.matchExpr expr $ \case
-    Tuple elts -> (mapM . mapM) IR.source elts
-    _          -> reverse . fmap Just <$> extractAppArguments expr
+    Tuple elts -> mapM IR.source elts
+    _          -> reverse <$> extractAppArguments expr
 
 extractArguments' :: GraphOp m => ExtractFilter -> NodeRef -> m [NodeRef]
 extractArguments' FApp expr = match expr $ \case

@@ -187,10 +187,7 @@ getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
 getAllBeginningsOf ref = do
     succs <- toList <$> IR.getLayer @IR.Succs ref
     case succs of
-        [] -> fmap pure $ do
-            fo <- use Graph.fileOffset
-            bo <- use Graph.bodyOffset
-            return $ fo + bo
+        [] -> pure <$> use Graph.fileOffset
         _  -> fmap concat $ forM succs $ \s -> do
             off  <- getOffsetRelativeToTarget s
             begs <- getAllBeginningsOf =<< IR.readTarget s
@@ -261,7 +258,7 @@ getOffset ref = do
 
 getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do
-    tgt           <- ASTRead.getCurrentASTTarget'
+    tgt           <- ASTRead.getCurrentASTTarget
     Just defBegin <- getOffsetRelativeToFile tgt
     off           <- getFirstNonLambdaOffset tgt
     return $ defBegin <> off

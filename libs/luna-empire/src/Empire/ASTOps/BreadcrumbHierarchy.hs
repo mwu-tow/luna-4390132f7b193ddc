@@ -32,7 +32,7 @@ import qualified Luna.IR as IR
 
 makeTopBreadcrumbHierarchy :: GraphOp m => NodeCache -> NodeRef -> m ()
 makeTopBreadcrumbHierarchy nodeCache ref = do
-    item <- prepareLambdaChild nodeCache ref ref
+    item <- prepareFunctionChild nodeCache ref ref
     breadcrumbHierarchy .= item
 
 getMarker :: GraphOp m => NodeRef -> m Word64
