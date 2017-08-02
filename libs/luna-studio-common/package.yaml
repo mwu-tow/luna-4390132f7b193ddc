@@ -30,19 +30,34 @@ dependencies:
   - unordered-containers
   - uuid-types
   - yaml
+  - zlib
 
 default-extensions:
-  - DeriveAnyClass
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
   - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - FlexibleContexts
   - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
   - MultiParamTypeClasses
   - NoImplicitPrelude
+  - ScopedTypeVariables
+  - StandaloneDeriving
   - TemplateHaskell
+  - TupleSections
   - TypeSynonymInstances
+  - ViewPatterns
 
 library:
   source-dirs: src
-  ghc-options: -Wall -O2 -threaded
+  ghc-options: -Wall -O2 -threaded -DCOMPRESS_REQUESTS
 
 
 executables:

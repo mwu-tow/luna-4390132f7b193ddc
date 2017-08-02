@@ -348,7 +348,7 @@ insertAfter s after new textBeginning code = IR.matchExpr s $ \case
 
 putInSequence :: GraphOp m => NodeRef -> Text -> NodeMeta -> m ()
 putInSequence ref code meta = do
-    oldSeq             <- use $ Graph.breadcrumbHierarchy . BH.body
+    oldSeq             <- ASTRead.getCurrentBody
     nodes              <- AST.readSeq oldSeq
     nodesAndMetas      <- mapM (\n -> (n,) <$> AST.readMeta n) nodes
     let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
@@ -390,24 +390,23 @@ reconnectOut seq out blockEnd = IR.matchExpr seq $ \case
 
 setOutputTo :: GraphOp m => NodeRef -> m ()
 setOutputTo out = do
-    oldSeq   <- use $ Graph.breadcrumbHierarchy . BH.body
+    oldSeq   <- ASTRead.getCurrentBody
     blockEnd <- Code.getCurrentBlockEnd
     newSeq   <- reconnectOut oldSeq out blockEnd
-    mapM_ (updateGraphSeq . Just)   newSeq
-    mapM_ Code.gossipUsesChanged newSeq
+    mapM_ (updateGraphSeq . Just) newSeq
+    mapM_ Code.gossipUsesChanged  newSeq
 
 updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
-    oldSeq     <- use $ Graph.breadcrumbHierarchy . BH.body
-    currentTgt <- ASTRead.getCurrentASTTarget
-    outLink    <- ASTRead.getFirstNonLambdaLink currentTgt
-    case (,) <$> outLink <*> newOut of
-        Just (l, o) -> IR.replaceSource o l
-        Nothing     -> return ()
+    currentTgt   <- ASTRead.getCurrentASTTarget
+    Just outLink <- ASTRead.getFirstNonLambdaLink currentTgt
+    oldSeq       <- IR.source outLink
+    case newOut of
+        Just o  -> IR.replaceSource o outLink
+        Nothing -> return ()
     IR.deepDeleteWithWhitelist oldSeq $ Set.fromList $ maybeToList newOut
     oldRef <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == oldSeq) $ forM_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
-    forM_ newOut $ (Graph.breadcrumbHierarchy . BH.body .=)
 
 updateCodeSpan' :: GraphOp m => NodeRef -> m _
 updateCodeSpan' ref = IR.matchExpr ref $ \case
@@ -558,7 +557,7 @@ removeSequenceElement seq ref = IR.matchExpr seq $ \case
 
 removeFromSequence :: GraphOp m => NodeRef -> m ()
 removeFromSequence ref = do
-    oldSeq <- use $ Graph.breadcrumbHierarchy . BH.body
+    oldSeq <- ASTRead.getCurrentBody
     (newS, shouldUpdate) <- removeSequenceElement oldSeq ref
     when shouldUpdate (updateGraphSeq newS)
     mapM_ Code.gossipLengthsChanged newS
@@ -784,9 +783,9 @@ decodeLocation loc@(GraphLocation file crumbs) = case crumbs of
 
 renameNode :: GraphLocation -> NodeId -> Text -> Empire ()
 renameNode loc nid name
-    | GraphLocation _ (Breadcrumb []) <- loc = do
+    | GraphLocation f (Breadcrumb []) <- loc = do
+        let stripped = Text.strip name
         withUnit loc $ do
-            let stripped = Text.strip name
             _ <- liftIO $ ASTParse.runProperVarParser stripped
             oldName <- use $ Graph.clsFuns . ix nid . _1
             Graph.clsFuns %= Map.adjust (_1 .~ (Text.unpack stripped)) nid
@@ -794,22 +793,12 @@ renameNode loc nid name
                 fun     <- ASTRead.getFunByName oldName
                 IR.matchExpr fun $ \case
                     IR.ASGRootedFunction n _ -> flip ASTModify.renameVar (convert stripped) =<< IR.source n
-                    _ -> return ()
-
-                LeftSpacedSpan (SpacedSpan off oldLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan fun
-                let lengthDiff = fromIntegral (Text.length stripped - length oldName)
-                    newLen = oldLen + lengthDiff
-                IR.putLayer @CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off newLen))
-
-                Graph.clsFuns . ix nid . _2 . Graph.bodyOffset += lengthDiff
-                g <- preuse (Graph.clsFuns . ix nid . _2) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Breadcrumb.Definition nid])
-                let funOffset = g ^. Graph.fileOffset
-                Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off > funOffset then off + lengthDiff else off)
-
-                functionStart <- Code.functionBlockStartRef fun
-                let functionNameStart = functionStart + 4 -- "def "
-                    functionNameEnd   = functionNameStart + fromIntegral (length oldName)
-                Code.applyDiff functionNameStart functionNameEnd stripped
+                    _                        -> return ()
+        withGraph (GraphLocation f (Breadcrumb [Breadcrumb.Definition nid])) $ runASTOp $ do
+            self <- use $ Graph.breadcrumbHierarchy . BH.self
+            v    <- ASTRead.getVarNode self
+            ASTModify.renameVar v $ convert stripped
+            Code.replaceAllUses v stripped
         resendCode loc
     | otherwise = do
         withTC loc False $ runASTOp $ do
@@ -863,7 +852,7 @@ substituteCode path start end code cursor = do
         reloadCode loc newCode
 
 lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
-lamItemToMapping (idArg, BH.LamItem portMapping _ _ _) = (idArg, portMapping)
+lamItemToMapping (idArg, BH.LamItem portMapping _ _) = (idArg, portMapping)
 
 extractMarkedMetasAndIds :: GraphOp m => NodeRef -> m [(Word64, (Maybe NodeMeta, Maybe NodeId))]
 extractMarkedMetasAndIds root = IR.matchExpr root $ \case
@@ -882,7 +871,7 @@ reloadCode loc@(GraphLocation file _) code = do
         funs <- use Graph.clsFuns
         return $ Map.keys funs
     oldMetasAndIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        root       <- use $ Graph.breadcrumbHierarchy . BH.body
+        root       <- ASTRead.getCurrentBody
         oldMetas   <- extractMarkedMetasAndIds root
         return $ Map.fromList oldMetas
     previousPortMappings <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
@@ -1080,7 +1069,7 @@ dumpMetadata file = do
         funs <- use Graph.clsFuns
         return $ Map.keys funs
     metas <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        root       <- use $ Graph.breadcrumbHierarchy . BH.body
+        root       <- ASTRead.getCurrentBody
         oldMetas   <- extractMarkedMetasAndIds root
         return [ MarkerNodeMeta marker meta | (marker, (Just meta, _)) <- oldMetas ]
     return $ concat metas
@@ -1171,7 +1160,7 @@ insertCodeBetween :: GraphOp m => [NodeId] -> [NodeId] -> Text -> m Text
 insertCodeBetween beforeNodes afterNodes codeToInsert = do
     beforeRefs <- fmap Set.fromList $ forM beforeNodes ASTRead.getASTRef
     afterRefs  <- fmap Set.fromList $ forM afterNodes  ASTRead.getASTRef
-    topSeq     <- use $ Graph.breadcrumbHierarchy . BH.body
+    topSeq     <- ASTRead.getCurrentBody
     refToInsertAfter <- findRefToInsertAfter beforeRefs afterRefs topSeq
     insertPos        <- case refToInsertAfter of
         Nothing -> Code.getCurrentBlockBeginning

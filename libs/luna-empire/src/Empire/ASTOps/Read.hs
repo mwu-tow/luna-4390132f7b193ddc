@@ -50,11 +50,17 @@ getASTOutForPort nodeId port = do
 getLambdaInputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
 getLambdaInputForPort []                    lam = throwM PortDoesNotExistException
 getLambdaInputForPort (Projection 0 : rest) lam = cutThroughGroups lam >>= flip match `id` \case
-    Lam i _ -> getOutputForPort rest =<< IR.source i
-    _       -> throwM PortDoesNotExistException
+    Lam i _            -> getOutputForPort rest =<< IR.source i
+    ASGFunction _ as _ -> case as of
+        (a : _) -> IR.source a
+        _       -> throwM PortDoesNotExistException
+    _                  -> throwM PortDoesNotExistException
 getLambdaInputForPort (Projection i : rest) lam = cutThroughGroups lam >>= flip match `id` \case
-    Lam _ o -> getLambdaInputForPort (Projection (i - 1) : rest) =<< IR.source o
-    _       -> throwM PortDoesNotExistException
+    Lam _ o            -> getLambdaInputForPort (Projection (i - 1) : rest) =<< IR.source o
+    ASGFunction _ as _ -> case as ^? ix i of
+        Just a -> IR.source a
+        _      -> throwM PortDoesNotExistException
+    _                  -> throwM PortDoesNotExistException
 
 getOutputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
 getOutputForPort []                    ref = cutThroughGroups ref
@@ -114,7 +120,8 @@ getTargetNode node = rightMatchOperand node >>= IR.source
 
 leftMatchOperand :: GraphOp m => NodeRef -> m EdgeRef
 leftMatchOperand node = match node $ \case
-    Unify a _ -> pure a
+    Unify a _         -> pure a
+    ASGFunction n _ _ -> pure n
     _         -> throwM $ NotUnifyException node
 
 getVarNode :: GraphOp m => NodeRef -> m NodeRef
@@ -204,11 +211,8 @@ getCurrentASTTarget = do
     ref <- use $ Graph.breadcrumbHierarchy . BH.self
     getTargetFromMarked ref
 
-getCurrentASTTarget' :: GraphOp m => m NodeRef
-getCurrentASTTarget' = do
-    ref <- use $ Graph.breadcrumbHierarchy . BH.self
-    succs <- toList <$> IR.getLayer @IR.Succs ref
-    if null succs then return ref else getTargetFromMarked ref
+getCurrentBody :: GraphOp m => m NodeRef
+getCurrentBody = getFirstNonLambdaRef =<< getCurrentASTTarget
 
 getASTVar :: GraphOp m => NodeId -> m NodeRef
 getASTVar nodeId = do
@@ -246,11 +250,12 @@ getLambdaSeqRef' firstLam node = match node $ \case
 
 getLambdaOutputRef :: GraphOp m => NodeRef -> m NodeRef
 getLambdaOutputRef node = match node $ \case
-    Grouped g  -> IR.source g >>= getLambdaOutputRef
-    Lam _ o    -> IR.source o >>= getLambdaOutputRef
-    Seq _ r    -> IR.source r >>= getLambdaOutputRef
-    Marked _ m -> IR.source m >>= getLambdaOutputRef
-    _          -> return node
+    ASGFunction _ _ b -> IR.source b >>= getLambdaOutputRef
+    Grouped g         -> IR.source g >>= getLambdaOutputRef
+    Lam _ o           -> IR.source o >>= getLambdaOutputRef
+    Seq _ r           -> IR.source r >>= getLambdaOutputRef
+    Marked _ m        -> IR.source m >>= getLambdaOutputRef
+    _                 -> return node
 
 getFirstNonLambdaRef :: GraphOp m => NodeRef -> m NodeRef
 getFirstNonLambdaRef ref = do

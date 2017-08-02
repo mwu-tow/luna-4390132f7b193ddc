@@ -63,14 +63,11 @@ makeGraphCls fun lastUUID = do
     uuid <- maybe (liftIO UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromMaybeM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
-    let bh    = BH.LamItem portMapping ref def ref
-        graph = Graph.Graph ast bh def def def fileOffset endOfNameOffset
+    let bh    = BH.LamItem portMapping ref def
+        graph = Graph.Graph ast bh def def def fileOffset
     Graph.clsFuns . at uuid ?= (funName, graph)
     withRootedFunction uuid $ do
-        runASTOp $ do
-            propagateLengths ref
-            LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan ref
-            Graph.bodyOffset .= endOfNameOffset + off
+        runASTOp $ propagateLengths ref
         runAliasAnalysis
         runASTOp $ do
             ASTBreadcrumb.makeTopBreadcrumbHierarchy nodeCache ref
@@ -124,12 +121,11 @@ withRootedFunction uuid act = do
                 name <- ASTRead.getVarName' =<< IR.source n
                 if (nameToString name == funName) then do
                     LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
-                    let bodyLen = newGraph ^. Graph.bodyOffset + len
-                    IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off bodyLen))
+                    IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off len))
                     Just (funExpr :: IR.Expr IR.ASGRootedFunction) <- IR.narrow fun
                     let newRooted = IR.Rooted (newGraph ^. Graph.ast . Graph.ir) (newGraph ^. Graph.breadcrumbHierarchy . BH.self)
                     IR.modifyExprTerm funExpr $ wrapped . IR.termASGRootedFunction_body .~ newRooted
-                    return $ Just $ bodyLen - prevLen
+                    return $ Just $ len - prevLen
                     else return Nothing
     let diff = fromMaybe (error "function not in AST?") $ listToMaybe $ catMaybes diffs
         funOffset = properGraph ^. Graph.fileOffset

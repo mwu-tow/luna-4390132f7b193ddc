@@ -1,29 +1,29 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Empire.Server where
 
-import           Control.Concurrent               (forkIO)
-import           Control.Concurrent.STM           (STM)
+import qualified Compress
+import           Control.Concurrent                   (forkIO)
 import           Control.Concurrent.MVar
-import           Control.Concurrent.STM.TChan     (TChan, newTChan, readTChan, tryPeekTChan)
-import           Control.Monad                    (forM_, forever)
-import           Control.Monad.Catch              (try, catchAll)
-import           Control.Monad.State              (StateT, evalStateT)
-import           Control.Monad.STM                (atomically)
-import qualified Data.Binary                      as Bin
-import           Data.ByteString                  (ByteString)
-import           Data.ByteString.Char8            (unpack)
-import           Data.ByteString.Lazy             (fromStrict, toStrict)
-import qualified Data.Map.Strict                  as Map
+import           Control.Concurrent.STM               (STM)
+import           Control.Concurrent.STM.TChan         (TChan, newTChan, readTChan, tryPeekTChan)
+import           Control.Monad                        (forM_, forever)
+import           Control.Monad.Catch                  (catchAll, try)
+import           Control.Monad.State                  (StateT, evalStateT)
+import           Control.Monad.STM                    (atomically)
+import qualified Data.Binary                          as Bin
+import           Data.ByteString.Lazy                 (ByteString)
+import           Data.ByteString.Lazy.Char8           (unpack)
+import qualified Data.Map.Strict                      as Map
 
-import           System.FilePath                  ()
-import           System.FilePath.Find             (always, extension, find, (==?))
-import           System.FilePath.Glob             ()
-import           System.FilePath.Manip            ()
+import           System.FilePath                      ()
+import           System.FilePath.Find                 (always, extension, find, (==?))
+import           System.FilePath.Glob                 ()
+import           System.FilePath.Manip                ()
 
 
 import           Empire.Data.AST                      (SomeASTException)
@@ -35,43 +35,43 @@ import qualified LunaStudio.API.Graph.SetNodesMeta    as SetNodesMeta
 import qualified LunaStudio.API.Topic                 as Topic
 import           LunaStudio.Data.GraphLocation        (GraphLocation)
 
-import qualified Empire.Commands.AST              as AST
-import qualified Empire.Commands.Graph            as Graph (openFile)
-import qualified Empire.Commands.Library          as Library
-import qualified Empire.Commands.Persistence      as Persistence
-import qualified Empire.Commands.Typecheck        as Typecheck
-import           Empire.Commands.Typecheck        (Scope (..))
-import qualified Empire.Empire                    as Empire
-import           Empire.Env                       (Env)
-import qualified Empire.Env                       as Env
-import qualified Empire.Handlers                  as Handlers
-import qualified Empire.Server.Graph              as Graph
-import qualified Empire.Server.Server             as Server
-import qualified Empire.Utils                     as Utils
-import           Prologue                         hiding (Text)
-import qualified System.Log.MLogger               as Logger
-import           ZMQ.Bus.Bus                      (Bus)
-import qualified ZMQ.Bus.Bus                      as Bus
-import qualified ZMQ.Bus.Config                   as Config
-import qualified ZMQ.Bus.Data.Flag                as Flag
-import           ZMQ.Bus.Data.Message             (Message)
-import qualified ZMQ.Bus.Data.Message             as Message
-import           ZMQ.Bus.Data.MessageFrame        (MessageFrame (MessageFrame))
-import           ZMQ.Bus.Data.Topic               (Topic)
-import           ZMQ.Bus.EndPoint                 (BusEndPoints)
-import           ZMQ.Bus.Trans                    (BusT (..))
-import qualified ZMQ.Bus.Trans                    as BusT
+import qualified Empire.Commands.AST                  as AST
+import qualified Empire.Commands.Graph                as Graph (openFile)
+import qualified Empire.Commands.Library              as Library
+import qualified Empire.Commands.Persistence          as Persistence
+import           Empire.Commands.Typecheck            (Scope (..))
+import qualified Empire.Commands.Typecheck            as Typecheck
+import qualified Empire.Empire                        as Empire
+import           Empire.Env                           (Env)
+import qualified Empire.Env                           as Env
+import qualified Empire.Handlers                      as Handlers
+import qualified Empire.Server.Graph                  as Graph
+import qualified Empire.Server.Server                 as Server
+import qualified Empire.Utils                         as Utils
+import           Prologue                             hiding (Text)
+import           System.Directory                     (canonicalizePath)
+import           System.Environment                   (getEnv)
+import qualified System.Log.MLogger                   as Logger
+import           System.Mem                           (performGC)
 import           System.Remote.Monitoring
-import           System.Environment               (getEnv)
-import           System.Directory                 (canonicalizePath)
-import           System.Mem                       (performGC)
+import           ZMQ.Bus.Bus                          (Bus)
+import qualified ZMQ.Bus.Bus                          as Bus
+import qualified ZMQ.Bus.Config                       as Config
+import qualified ZMQ.Bus.Data.Flag                    as Flag
+import           ZMQ.Bus.Data.Message                 (Message)
+import qualified ZMQ.Bus.Data.Message                 as Message
+import           ZMQ.Bus.Data.MessageFrame            (MessageFrame (MessageFrame))
+import           ZMQ.Bus.Data.Topic                   (Topic)
+import           ZMQ.Bus.EndPoint                     (BusEndPoints)
+import           ZMQ.Bus.Trans                        (BusT (..))
+import qualified ZMQ.Bus.Trans                        as BusT
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
 
 sendStarted :: BusEndPoints -> IO ()
 sendStarted endPoints = do
-    let content = toStrict . Bin.encode $ EmpireStarted.Status
+    let content = Compress.pack .  Bin.encode $ EmpireStarted.Status
     void $ Bus.runBus endPoints $ Bus.send Flag.Enable $ Message.Message (Topic.topic EmpireStarted.Status) content
 
 run :: BusEndPoints -> [Topic] -> Bool -> FilePath -> IO (Either Bus.Error ())
@@ -176,14 +176,13 @@ handleMessage = do
                 logMsg = show (crlID ^. Message.messageID) <> ": " <> show senderID
                          <> " -> (last = " <> show lastFrame
                          <> ")\t:: " <> topic
-                content = msg ^. Message.message
+                content = Compress.unpack $ msg ^. Message.message
             case Utils.lastPart '.' topic of
                 "update"  -> handleUpdate        logMsg topic content
                 "status"  -> handleStatus        logMsg topic content
                 "request" -> handleRequest       logMsg topic content
                 "debug"   -> handleDebug         logMsg topic content
                 _         -> handleNotRecognized logMsg topic content
-
 
 defaultHandler :: ByteString -> StateT Env BusT ()
 defaultHandler content = do
@@ -200,13 +199,12 @@ handleUpdate :: String -> String -> ByteString -> StateT Env BusT ()
 handleUpdate logMsg topic content = do
     logger Logger.info logMsg
     let update = if topic == "empire.graph.node.updateMeta.update"
-                      then Just (Bin.decode (fromStrict content) :: SetNodesMeta.Update)
+                      then Just (Bin.decode content :: SetNodesMeta.Update)
                       else Nothing
     forM_ update $ Graph.handleSetNodesMetaUpdate
 
 handleStatus :: String -> String -> ByteString -> StateT Env BusT ()
-handleStatus logMsg _ content = do
-    logger Logger.info logMsg
+handleStatus logMsg _ content = logger Logger.info logMsg
 
 handleDebug :: String -> String -> ByteString -> StateT Env BusT ()
 handleDebug logMsg _ content = do

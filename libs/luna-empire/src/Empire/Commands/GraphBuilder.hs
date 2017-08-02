@@ -122,15 +122,10 @@ hasIO ref = IR.matchExpr ref $ \case
     Unify l r -> (||) <$> (hasIO =<< IR.source l) <*> (hasIO =<< IR.source r)
     _         -> return False
 
-getNodeSeq :: GraphOp m => m (Maybe NodeRef)
-getNodeSeq = ASTRead.getCurrentASTTarget >>= ASTRead.getLambdaBodyRef
-
 getNodeIdSequence :: GraphOp m => m [NodeId]
 getNodeIdSequence = do
-    bodySeq    <- getNodeSeq
-    nodeSeq    <- case bodySeq of
-        Just b -> AST.readSeq b
-        _      -> return []
+    bodySeq <- ASTRead.getCurrentBody
+    nodeSeq <- AST.readSeq bodySeq
     catMaybes <$> mapM getNodeIdWhenMarked nodeSeq
 
 getNodeIdWhenMarked :: GraphOp m => NodeRef -> m (Maybe NodeId)
@@ -218,6 +213,7 @@ getDefault arg = match arg $ \case
         IR.Cons "True"  _ -> return $ Just $ Constant $ BoolValue True
         IR.Cons "False" _ -> return $ Just $ Constant $ BoolValue False
         IR.Blank          -> return $ Nothing
+        IR.Missing        -> return $ Nothing
         _                 -> Just . Expression . Text.unpack <$> Print.printFullExpression arg
 
 getInPortDefault :: GraphOp m => NodeRef -> Int -> m (Maybe PortDefault)
@@ -238,8 +234,9 @@ getPortState node = do
                 "False" -> return . WithDefault . Constant . BoolValue $ False
                 "True"  -> return . WithDefault . Constant . BoolValue $ True
                 _       -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
-        Blank -> return NotConnected
-        _     -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
+        Blank   -> return NotConnected
+        Missing -> return NotConnected
+        _       -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
 
 extractArgTypes :: GraphOp m => NodeRef -> m [TypeRep]
 extractArgTypes node = do
@@ -314,10 +311,10 @@ extractAppliedPorts seenApp seenLam bound node = IR.matchExpr node $ \case
             res          <- if isB || elem arg bound then return Nothing else Just .: (,) <$> Print.getTypeRep argTp <*> getPortState arg
             rest         <- extractAppliedPorts True False bound =<< IR.source f
             return $ res : rest
-    Tuple elts -> flip (mapM . mapM) elts $ \eltLink -> do
+    Tuple elts -> flip mapM elts $ \eltLink -> do
         elt   <- IR.source eltLink
         eltTp <- IR.getLayer @TypeLayer elt >>= IR.source
-        (,) <$> Print.getTypeRep eltTp <*> getPortState elt
+        Just .: (,) <$> Print.getTypeRep eltTp <*> getPortState elt
     _       -> return []
 
 
@@ -460,7 +457,7 @@ deepResolveInputs nid ref portRef@(InPortRef loc id) = do
     currentPortResolution <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
     let currentPortConn = (, portRef) <$> currentPortResolution
     args      <- ASTDeconstruct.extractAppPorts ref
-    argsConns <- fmap catMaybes $ forM (zip args [0..]) $ \(arg, i) -> mapM (\a -> deepResolveInputs nid a (InPortRef loc (id ++ [Arg i]))) arg
+    argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id ++ [Arg i]))
     head      <- ASTDeconstruct.extractFun ref
     self      <- ASTDeconstruct.extractSelf head
     headConns <- case (self, head == ref) of

@@ -26,7 +26,7 @@ import           Empire.ASTOps.Read      as ASTRead
 import           Empire.ASTOps.Modify    as ASTModify
 
 import qualified Luna.IR                 as IR
-import qualified OCI.IR.Combinators      as IR (replace, substitute)
+import qualified OCI.IR.Combinators      as IR (replace, substitute, replaceSource)
 import           Data.Text.Position      (Delta)
 import           Empire.Data.Layers      (SpanOffset, SpanLength)
 import           Data.Text.Span          (LeftSpacedSpan(..), SpacedSpan(..), leftSpacedSpan)
@@ -158,21 +158,19 @@ getNextExprMarker = do
         highestIndex = Safe.maximumMay keys
     return $ maybe 0 succ highestIndex
 
-addCodeMarker :: GraphOp m => NodeRef -> m NodeRef
-addCodeMarker ref = do
+addCodeMarker :: GraphOp m => Delta -> EdgeRef -> m NodeRef
+addCodeMarker beg edge = do
+    ref    <- IR.source edge
     index  <- getNextExprMarker
     marker <- IR.marker' index
-    dummyBl    <- IR.blank
-    markedNode <- IR.marked' marker dummyBl
+    markedNode <- IR.marked' marker ref
     exprLength <- IR.getLayer @SpanLength ref
     let markerLength = convert $ Text.length $ makeMarker index
     IR.putLayer @SpanLength marker markerLength
     IR.putLayer @SpanLength markedNode (exprLength + markerLength)
     addExprMapping index markedNode
-    Just beg <- getOffsetRelativeToFile ref
     insertAt beg (makeMarker index)
-    ASTModify.substitute markedNode ref
-    IR.replace ref dummyBl
+    IR.replaceSource markedNode edge
     gossipUsesChangedBy (fromIntegral $ Text.length $ makeMarker index) markedNode
     return markedNode
 
@@ -187,10 +185,7 @@ getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
 getAllBeginningsOf ref = do
     succs <- toList <$> IR.getLayer @IR.Succs ref
     case succs of
-        [] -> fmap pure $ do
-            fo <- use Graph.fileOffset
-            bo <- use Graph.bodyOffset
-            return $ fo + bo
+        [] -> pure <$> use Graph.fileOffset
         _  -> fmap concat $ forM succs $ \s -> do
             off  <- getOffsetRelativeToTarget s
             begs <- getAllBeginningsOf =<< IR.readTarget s
@@ -261,7 +256,7 @@ getOffset ref = do
 
 getCurrentBlockBeginning :: GraphOp m => m Delta
 getCurrentBlockBeginning = do
-    tgt           <- ASTRead.getCurrentASTTarget'
+    tgt           <- ASTRead.getCurrentASTTarget
     Just defBegin <- getOffsetRelativeToFile tgt
     off           <- getFirstNonLambdaOffset tgt
     return $ defBegin <> off
@@ -279,7 +274,7 @@ getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
 
 getCurrentBlockEnd :: GraphOp m => m Delta
 getCurrentBlockEnd = do
-    body <- use $ Graph.breadcrumbHierarchy . BH.body
+    body <- ASTRead.getCurrentBody
     len  <- IR.getLayer @SpanLength body
     beg  <- getCurrentBlockBeginning
     return $ len + beg

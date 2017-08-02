@@ -36,6 +36,7 @@ dependencies:
   - zeromq4-haskell >= 0.4
   - zmq-bus
   - zmq-bus-config
+  - zlib
 
 default-extensions:
   - NoImplicitPrelude
