@@ -33,19 +33,14 @@ module.exports = LunaStudio =
                 codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
             atom.workspace.getActivePane().activateItem new LunaStudioTab(null, nodeEditor)
         if act == 'FileOpened'
-            activeItem = atom.workspace.getActivePaneItem()
-            unless activeItem instanceof LunaEditorTab && activeItem.uri == path
-                atom.workspace.getActivePane().activateItem new LunaEditorTab(path, codeEditor)
-                codeEditor.pushInternalEvent(tag: "SaveFile", _path: path)
+            atom.workspace.open(path)
     codeEditor.statusListener actStatus
-
-
 
     atom.workspace.addOpener (uri) ->
 
-      if path.extname(uri) is '.luna'
-          codeEditor.pushInternalEvent(tag: "OpenFile", _path: uri)
-          new LunaEditorTab(uri, codeEditor)
+        if path.extname(uri) is '.luna'
+              codeEditor.pushInternalEvent(tag: "OpenFile", _path: uri)
+              new LunaEditorTab(uri, codeEditor)
     @subs = new SubAtom
 
     @subs.add atom.workspace.onDidChangeActivePaneItem (items) ->
