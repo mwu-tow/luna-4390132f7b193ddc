@@ -1116,3 +1116,32 @@ spec = around withChannels $ parallel $ do
                 Graph.removePort loc (outPortRef input [Port.Projection 0])
                 u1 <- mkUUID
                 Graph.addNode loc u1 "foo a b c" (atXPos 30.0)
+
+        it "renames function port" $ let
+            initialCode = [r|
+                def main baz a:
+                    foo a
+                    a
+                |]
+            expectedCode = [r|
+                def main baz newName:
+                    foo newName
+                    newName
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.renamePort loc (outPortRef input [Port.Projection 1]) "newName"
+        it "reorders function ports" $ let
+            initialCode = [r|
+                def main baz a:
+                    foo a
+                    baz
+                |]
+            expectedCode = [r|
+                def main a baz:
+                    foo a
+                    baz
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc (outPortRef input [Port.Projection 1]) 0

@@ -581,7 +581,6 @@ movePort loc portRef newPosition = withGraph loc $ runASTOp $ do
     (input, _) <- GraphBuilder.getEdgePortMapping
     newRef     <- if nodeId == input then ASTModify.moveLambdaArg (portRef ^. PortRef.srcPortId) newPosition ref
                                      else throwM NotInputEdgeException
-    when (ref /= newRef) $ ASTModify.rewireCurrentNode newRef
     ASTBuilder.attachNodeMarkersForArgs nodeId [] ref
     GraphBuilder.buildInputSidebar nodeId
 
