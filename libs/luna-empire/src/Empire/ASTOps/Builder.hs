@@ -18,7 +18,7 @@ import           LunaStudio.Data.PortRef            (OutPortRef (..))
 import           LunaStudio.Data.NodeLoc            (NodeLoc (..))
 import qualified LunaStudio.Data.Port               as Port
 import           Empire.ASTOp                       (GraphOp, match)
-import           Empire.ASTOps.Deconstruct          (deconstructApp, extractArguments, dumpAccessors)
+import           Empire.ASTOps.Deconstruct          (deconstructApp, extractFunctionPorts, dumpAccessors)
 import           Empire.ASTOps.Remove               (removeSubtree)
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Print                as ASTPrint
@@ -316,12 +316,12 @@ attachNodeMarkers marker port ref' = do
 
 detachNodeMarkersForArgs :: GraphOp m => NodeRef -> m ()
 detachNodeMarkersForArgs lam = do
-    args <- extractArguments lam
+    args <- extractFunctionPorts lam
     mapM_ detachNodeMarkers args
 
 attachNodeMarkersForArgs :: GraphOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
 attachNodeMarkersForArgs nid port lam = do
-    args <- extractArguments lam
+    args <- extractFunctionPorts lam
     zipWithM_ (attachNodeMarkers nid) (pure . Port.Projection <$> [0..]) args
 
 data CannotFlipNodeException = CannotFlipNodeException deriving (Show)

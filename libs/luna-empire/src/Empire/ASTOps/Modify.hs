@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 {-| This module contains operations that output modified nodes.
     These functions use reading, deconstructing and building APIs.
@@ -20,27 +21,49 @@ import           Empire.ASTOp                       (GraphOp, ASTOp, match)
 import qualified Empire.ASTOps.Deconstruct          as ASTDeconstruct
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Remove               as ASTRemove
+import qualified Empire.Commands.Code               as Code
 import           Empire.Data.AST                    (EdgeRef, NodeRef, NotLambdaException(..),
                                                      NotUnifyException(..), astExceptionToException,
                                                      astExceptionFromException)
+import           Empire.Data.Layers                 (SpanLength, SpanOffset)
 import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import qualified Empire.Data.Graph                  as Graph
 
-import qualified OCI.IR.Combinators as IR (replaceSource, narrowTerm, replace, substitute)
+import qualified OCI.IR.Combinators                 as IR
+import qualified Luna.IR                            as IR
 import           Luna.IR.Term.Uni
-import qualified Luna.IR as IR
 
 
 
 addLambdaArg :: GraphOp m => Int -> NodeRef -> m ()
-addLambdaArg position lambda = match lambda $ \case
-    Lam _arg _body -> do
-        out'  <- ASTRead.getFirstNonLambdaRef lambda
-        names <- getArgNames lambda
-        let Just nameForNewArg = find (not . flip elem names) allWords
-        addLambdaArg' position nameForNewArg Nothing lambda
-    Grouped g -> IR.source g >>= addLambdaArg position
-    _ -> throwM $ NotLambdaException lambda
+addLambdaArg position lambda = do
+    names <- getArgNames lambda
+    let Just nameForNewArg = find (not . flip elem names) allWords
+    match lambda $ \case
+        Lam _arg _body -> do
+            out'  <- ASTRead.getFirstNonLambdaRef lambda
+            addLambdaArg' position nameForNewArg Nothing lambda
+        Grouped g -> IR.source g >>= addLambdaArg position
+        ASGFunction n as _ -> do
+            let argsBefore        = take position as
+                argsAfter         = drop position as
+            v <- IR.var' $ convert nameForNewArg
+            IR.putLayer @SpanLength v (convert $ length nameForNewArg)
+            l <- IR.unsafeGeneralize <$> IR.link v lambda
+            IR.putLayer @SpanOffset l 1
+            insertPosition <- do
+                let lastEdgeBeforeArg = case argsBefore of
+                        [] -> n
+                        a  -> last a
+                Just funBeg <- Code.getOffsetRelativeToFile lambda
+                lastOff <- Code.getOffsetRelativeToTarget lastEdgeBeforeArg
+                lastLen <- IR.getLayer @SpanLength =<< IR.source lastEdgeBeforeArg
+                return $ funBeg + lastOff + lastLen
+            Code.insertAt insertPosition (" " <> convert nameForNewArg)
+            Just (lam' :: IR.Expr (IR.ASGFunction)) <- IR.narrow lambda
+            IR.modifyExprTerm lam' $ wrapped . IR.termASGFunction_args .~ fmap IR.unsafeGeneralize (argsBefore <> (l : argsAfter))
+            Code.gossipUsesChangedBy (1 + fromIntegral (length nameForNewArg)) v
+        _ -> throwM $ NotLambdaException lambda
 
 allWords :: [String]
 allWords = drop 1 $ allWords' where
@@ -52,6 +75,7 @@ getArgNames ref = match ref $ \case
     Lam a body -> do
         argNames <- ASTRead.getPatternNames =<< IR.source a
         (argNames ++) <$> (getArgNames =<< IR.source body)
+    ASGFunction _ as _ -> concat <$> mapM (ASTRead.getPatternNames <=< IR.source) as
     _ -> return []
 
 replaceWithLam :: GraphOp m => Maybe EdgeRef -> String -> NodeRef -> m ()

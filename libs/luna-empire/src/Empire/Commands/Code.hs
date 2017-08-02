@@ -23,7 +23,6 @@ import qualified Safe
 import           Empire.Data.AST         (NodeRef, EdgeRef)
 import           Empire.ASTOp            (ClassOp, GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
-import           Empire.ASTOps.Modify    as ASTModify
 
 import qualified Luna.IR                 as IR
 import qualified OCI.IR.Combinators      as IR (replace, substitute, replaceSource)
