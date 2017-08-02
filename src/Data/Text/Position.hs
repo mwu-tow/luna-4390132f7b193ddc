@@ -16,7 +16,7 @@ import Control.Monad.State.Dependent
 
 -- === Definition === --
 
-newtype Delta = Delta Int deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Integral, Ix, Num, Ord, PrintfArg, Read, Real, Show, Storable)
+newtype Delta = Delta Int deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Generic, Integral, Ix, NFData, Num, Ord, PrintfArg, Read, Real, Show, Storable)
 makeWrapped ''Delta
 
 
