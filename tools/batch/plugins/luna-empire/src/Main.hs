@@ -51,6 +51,4 @@ run cmd = case cmd of
                         then defaultTopics
                         else Cmd.topics cmd
             formatted = Cmd.formatted cmd
-        Server.run endPoints topics formatted projectRoot >>= \case
-            Left err -> logger criticalFail err
-            _        -> return ()
+        Server.run endPoints topics formatted projectRoot
