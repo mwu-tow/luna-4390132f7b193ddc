@@ -52,7 +52,7 @@ module.exports =
         @getBuffer().setPath(@uri)
         @getBuffer().subscribeToFileOverride(@internal)
 
-        @internal.pushInternalEvent(tag: "GetBuffer", _path: @uri)
+        @internal.pushInternalEvent(tag: "OpenFile", _path: @uri)
 
         omitDiff = (text) =>
             @diffToOmit.add(text)
