@@ -7,8 +7,8 @@ default-extensions: [ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTy
   EmptyDataDecls, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GeneralizedNewtypeDeriving,
   InstanceSigs, LambdaCase, MultiParamTypeClasses, OverloadedStrings, StandaloneDeriving,
   TemplateHaskell, TupleSections, TypeOperators, ViewPatterns, TypeFamilies, GADTs]
-dependencies: [base >=4.6 && <4.10, exceptions, lens, mtl, pretty, pretty-show, primitive,
-  transformers, constraints]
+dependencies: [base, exceptions, lens, mtl, pretty, pretty-show, primitive, transformers,
+  constraints]
 ghc-options: [-Wall, -O2]
 homepage: https://github.com/wdanilo/typelevel
 library: {source-dirs: src}
@@ -17,4 +17,4 @@ maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: typelevel
 stability: experimental
 synopsis: Useful type level operations (type families and related operators).
-version: 1.0.24
+version: 1.0.25
