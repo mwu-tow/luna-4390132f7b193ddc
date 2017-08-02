@@ -16,38 +16,6 @@
 @luna-syntax-text-color:       @syntax-text-color;
 @luna-text-color:              @syntax-text-color;
 
-.graphBackground() {
-    background: @luna-graph-background-color;
-}
-
-.shade(@t; @j) {
-    @{t}: lighten(@luna-graph-background-color, @j * 8%);
-}
-.textShade(@t; @j) {
-    @{t}: fade(@luna-syntax-text-color, @j * 8%);
-}
-
-.background(@n, @i:1, @j:1) when (@i =< @n) {
-    .print() when (@n = @i) { .shade(background, @j) }
-    .background(@n, (@i + 1), (@j * 1.44));
-    .print;
-}
-.color(@n, @i:1, @j:1) when (@i =< @n) {
-    .print() when (@n = @i) { .textShade(color, @j) }
-    .color(@n, (@i + 1), (@j * 1.44));
-    .print;
-}
-.fill(@n, @i:1, @j:1) when (@i =< @n) {
-    .print() when (@n = @i) { .shade(fill, @j) }
-    .fill(@n, (@i + 1), (@j * 1.44));
-    .print;
-}
-.stroke(@n, @i:1, @j:1) when (@i =< @n) {
-    .print() when (@n = @i) { .shade(stroke, @j) }
-    .stroke(@n, (@i + 1), (@j * 1.44));
-    .print;
-}
-
 @colorTextMinor:       #68858a;
 
 @colorSelect:          orange;
@@ -101,11 +69,3 @@
 /////////////////////////////
 
 @strokeWidth:        2.6rem;
-
-/////////////////////////////
-//          mixins         //
-/////////////////////////////
-
-.outlineStroke() {
-    box-shadow: 0 0 0 2px @luna-graph-background-color;
-}
