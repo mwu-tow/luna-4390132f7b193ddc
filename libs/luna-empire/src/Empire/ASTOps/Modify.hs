@@ -108,15 +108,32 @@ lamAny a b = fmap IR.generalize $ IR.lam a b
 lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
 lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
 
-removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m NodeRef
+removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m ()
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
-    Grouped g      -> IR.source g >>= removeLambdaArg p >>= fmap IR.generalize . IR.grouped
+    Grouped g      -> IR.source g >>= removeLambdaArg p
     Lam _arg _body -> do
         args <- ASTDeconstruct.extractArguments lambda
         out  <- ASTRead.getFirstNonLambdaRef lambda
         let newArgs = args ^.. folded . ifiltered (\i _ -> i /= port)
-        lams newArgs out
+        newLam <- lams newArgs out
+        when (lambda /= newLam) $ rewireCurrentNode newLam
+    ASGFunction _ as _ -> do
+        let argsBefore        = take port       as
+            argsAfter         = drop (port + 1) as
+            argToRemove       = as ^? ix port
+        forM_ argToRemove $ \alink -> do
+            Just funBeg <- Code.getOffsetRelativeToFile lambda
+            offToLam    <- Code.getOffsetRelativeToTarget alink
+            ownOff      <- IR.getLayer @SpanOffset alink
+            ownLen      <- IR.getLayer @SpanLength =<< IR.source alink
+            Code.removeAt (funBeg + offToLam - ownOff) (funBeg + offToLam + ownLen)
+            Just (lam' :: IR.Expr (IR.ASGFunction)) <- IR.narrow lambda
+            IR.modifyExprTerm lam' $ wrapped . IR.termASGFunction_args .~ fmap IR.unsafeGeneralize (argsBefore <> argsAfter)
+            arg <- IR.source alink
+            IR.delete alink
+            IR.deleteSubtree arg
+            Code.gossipLengthsChangedBy (-(ownOff + ownLen)) lambda
     _ -> throwM $ NotLambdaException lambda
 
 shiftPosition :: Int -> Int -> [a] -> [a]
