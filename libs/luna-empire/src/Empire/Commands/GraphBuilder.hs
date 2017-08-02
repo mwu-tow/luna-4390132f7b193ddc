@@ -418,7 +418,7 @@ buildInputSidebarTypecheckUpdate nid = do
 buildInputSidebar :: GraphOp m => NodeId -> m API.InputSidebar
 buildInputSidebar nid = do
     ref      <- ASTRead.getCurrentASTTarget
-    args     <- ASTDeconstruct.extractLamArguments ref
+    args     <- ASTDeconstruct.extractFunctionPorts ref
     argTrees <- zipWithM buildOutPortTree (pure . Projection <$> [0..]) args
     return $ API.InputSidebar nid argTrees
 
