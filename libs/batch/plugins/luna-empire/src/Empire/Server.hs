@@ -26,7 +26,7 @@ import           System.FilePath.Find                 (always, extension, find, 
 import           System.FilePath.Glob                 ()
 import           System.FilePath.Manip                ()
 
-
+import           Data.Future                          (minCapabilityNumber, updateCapabilities)
 import           Empire.Data.AST                      (SomeASTException)
 import           Empire.Data.Graph                    (ClsGraph, Graph, ast)
 import qualified Empire.Data.Graph                    as Graph
