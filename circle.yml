@@ -17,6 +17,7 @@ dependencies:
         - "~/.stack"
         - "~/.ghcjs"
         - "build/backend/.stack-work"
+        - "luna-studio/.stack-work"
         - "luna-studio/node-editor/.stack-work"
         - "luna-studio/text-editor/.stack-work"
 
