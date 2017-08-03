@@ -7,7 +7,7 @@ import           Prologue        hiding (Text)
 
 
 
-data PortValue = IntValue    Int
+data PortValue = IntValue    Integer
                | DoubleValue Double
                | BoolValue   Bool
                | StringValue String
