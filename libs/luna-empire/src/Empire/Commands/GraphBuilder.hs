@@ -28,7 +28,7 @@ import           Empire.Data.Graph               (Graph)
 import qualified Empire.Data.Graph               as Graph
 import           Empire.Data.Layers              (Marker, SpanLength, TypeLayer)
 import           Empire.Empire
-import           Empire.Prelude                  hiding (toList)
+import           Empire.Prelude                  hiding (toList, List)
 import qualified Luna.IR                         as IR
 import qualified Luna.IR.Term.Literal            as Lit
 import           Luna.IR.Term.Uni
@@ -390,8 +390,11 @@ buildOutPortTree portId ref' = do
     name  <- Print.printName ref
     tp    <- followTypeRep ref
     let wholePort = Port portId (Text.pack name) tp NotConnected
+    let buildSubtrees as = zipWithM buildOutPortTree ((portId ++) . pure . Port.Projection <$> [0 ..]) =<< mapM IR.source as
     children <- match ref $ \case
-        Cons _ as -> zipWithM buildOutPortTree ((portId ++) . pure . Port.Projection <$> [0 ..]) =<< mapM IR.source as
+        Cons _ as -> buildSubtrees as
+        Tuple as  -> buildSubtrees as
+        List  as  -> buildSubtrees as
         _         -> return []
     return $ LabeledTree (OutPorts children) wholePort
 
