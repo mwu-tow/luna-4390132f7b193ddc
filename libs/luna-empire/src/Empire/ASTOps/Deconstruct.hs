@@ -46,8 +46,20 @@ extractArguments expr = match expr $ \case
 extractLamArguments :: GraphOp m => NodeRef -> m [NodeRef]
 extractLamArguments = extractArguments' FLam
 
+extractFunctionPorts :: GraphOp m => NodeRef -> m [NodeRef]
+extractFunctionPorts ref = IR.matchExpr ref $ \case
+    ASGFunction _ as _ -> mapM IR.source as
+    Lam i o            -> (:) <$> IR.source i <*> (extractFunctionPorts =<< IR.source o)
+    Grouped g          -> extractFunctionPorts =<< IR.source g
+    _                  -> return []
+
 extractAppArguments :: GraphOp m => NodeRef -> m [NodeRef]
 extractAppArguments = extractArguments' FApp
+
+extractAppPorts :: GraphOp m => NodeRef -> m [NodeRef]
+extractAppPorts expr = IR.matchExpr expr $ \case
+    Tuple elts -> mapM IR.source elts
+    _          -> reverse <$> extractAppArguments expr
 
 extractArguments' :: GraphOp m => ExtractFilter -> NodeRef -> m [NodeRef]
 extractArguments' FApp expr = match expr $ \case

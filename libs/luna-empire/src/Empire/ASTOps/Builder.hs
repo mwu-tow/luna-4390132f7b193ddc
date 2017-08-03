@@ -75,6 +75,7 @@ replaceEdgeSource edge beg newSrc = do
 
 countArguments :: GraphOp m => NodeRef -> m Int
 countArguments expr = IR.matchExpr expr $ \case
+    Tuple        e   -> return $ length e
     App          f _ -> (+ 1) <$> (countArguments =<< IR.source f)
     LeftSection  f _ -> return 2
     RightSection f _ -> return 1
@@ -100,7 +101,7 @@ getArgumentOf fun beg = IR.matchExpr fun $ \case
 
 getOrCreateArgument :: GraphOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
 getOrCreateArgument currentFun codeBegin currentArgument neededArgument
-    | currentArgument <=  neededArgument = do
+    | currentArgument <= neededArgument = do
         padArgs currentFun codeBegin (neededArgument - currentArgument)
         flip getArgumentOf codeBegin =<< IR.source currentFun
     | otherwise = do
@@ -367,18 +368,12 @@ flipNode nid = do
     pointer <- ASTRead.getASTPointer nid
     IR.replace uni pointer
 
-generateNodeName :: GraphOp m => m Text
-generateNodeName = do
-    lastNameId <- use Graph.lastNameId
-    let newNameId = lastNameId + 1
-    Graph.lastNameId .= newNameId
-    return $ convert $ "node" <> show newNameId
-
-makeNodeRep :: GraphOp m => NodeId -> Maybe Text -> NodeRef -> m (NodeRef, Maybe Text)
-makeNodeRep marker name node = do
+makeNodeRep :: GraphOp m => NodeId -> Maybe Text -> m Text -> NodeRef -> m (NodeRef, Maybe Text)
+makeNodeRep marker name generateNodeName node = do
     (pat, uni, newName) <- match node $ \case
-        Unify l r -> (, node, Nothing) <$> IR.source l
-        _         -> do
+        Unify l r         -> (, node, Nothing) <$> IR.source l
+        ASGFunction n a b -> (, node, Nothing) <$> IR.source n
+        _                 -> do
             n   <- maybe generateNodeName pure name
             var <- IR.var' $ convert n
             IR.putLayer @SpanLength var (convert $ Text.length n)

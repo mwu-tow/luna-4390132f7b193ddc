@@ -12,17 +12,17 @@ module NodeEditor.Action.Connect
     , stopConnectingUnsafe
     ) where
 
+import           Common.Action.Command                      (Command)
 import           Common.Prelude
 import           Control.Monad.Trans.Maybe                  (MaybeT (MaybeT), runMaybeT)
-import           Data.ScreenPosition                        (ScreenPosition)
 import qualified JS.GoogleAnalytics                         as GA
 import qualified LunaStudio.Data.Connection                 as ConnectionAPI
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'))
 import qualified LunaStudio.Data.PortRef                    as PortRef
+import           LunaStudio.Data.ScreenPosition             (ScreenPosition)
 import           NodeEditor.Action.Basic                    (connect, localAddConnection, localRemovePort, removeConnection,
                                                              updateAllPortsMode)
 import qualified NodeEditor.Action.Batch                    as Batch
-import           NodeEditor.Action.Command                  (Command)
 import           NodeEditor.Action.NodeDrag                 (startNodeDrag)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)

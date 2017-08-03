@@ -50,12 +50,10 @@ import           Luna.Pass.Data.ExprMapping
 
 data Graph = Graph { _ast                   :: AST Graph
                    , _breadcrumbHierarchy   :: LamItem
-                   , _lastNameId            :: Integer
                    , _codeMarkers           :: Map Luna.MarkerId NodeRef
                    , _graphCode             :: Text
                    , _parseError            :: Maybe SomeASTException
                    , _fileOffset            :: Delta
-                   , _bodyOffset            :: Delta
                    } deriving Show
 
 data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph

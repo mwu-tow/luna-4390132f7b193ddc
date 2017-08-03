@@ -1,12 +1,15 @@
 module NodeEditor.Action.Batch  where
 
+import           Common.Action.Command               (Command)
 import           Common.Prelude
 import           Data.UUID.Types                     (UUID)
+import           LunaStudio.Data.GraphLocation       (GraphLocation)
 import           LunaStudio.Data.NodeMeta            (NodeMeta)
 import           LunaStudio.Data.PortDefault         (PortDefault)
 import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), OutPortRef (OutPortRef),
                                                       dstNodeLoc, nodeLoc)
-import           NodeEditor.Action.Command           (Command)
+import           LunaStudio.Data.Position            (Position)
+import           LunaStudio.Data.Project             (LocationSettings)
 import           NodeEditor.Action.UUID              (registerRequest)
 import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
 import           NodeEditor.Batch.Workspace          (Workspace)
@@ -22,9 +25,15 @@ withWorkspace act = do
     withJustM (use workspace) $ \workspace' ->
         liftIO $ act workspace' uuid $ Just guiID
 
+withMayWorkspace :: (Maybe Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
+withMayWorkspace act = do
+    uuid       <- registerRequest
+    guiID      <- use $ backend . clientId
+    mayWorkspace <- use workspace
+    liftIO $ act mayWorkspace uuid $ Just guiID
+
 withWorkspace' :: (Workspace -> IO ()) -> Command State ()
-withWorkspace' act = do
-    withJustM (use workspace) $ liftIO . act
+withWorkspace' act = withJustM (use workspace) $ liftIO . act
 
 withUUID :: (UUID -> Maybe UUID -> IO ()) -> Command State ()
 withUUID act = do
@@ -40,7 +49,7 @@ dumpGraphViz :: Command State ()
 dumpGraphViz = withWorkspace BatchCmd.dumpGraphViz
 
 
-getProgram :: Bool -> Command State ()
+getProgram :: Maybe (GraphLocation, LocationSettings) -> Command State ()
 getProgram = withWorkspace . BatchCmd.getProgram
 
 
@@ -71,6 +80,10 @@ collapseToFunction :: [NodeLoc] -> Command State ()
 collapseToFunction []  = return ()
 collapseToFunction nls = withWorkspace $ BatchCmd.collapseToFunction nls
 
+copy :: [NodeLoc] -> Command State ()
+copy []  = return ()
+copy nls = withWorkspace $ BatchCmd.copy nls
+
 getSubgraph :: NodeLoc -> Command State ()
 getSubgraph nl = withWorkspace (BatchCmd.getSubgraph nl)
 
@@ -98,8 +111,14 @@ renameNode = withWorkspace .:  BatchCmd.renameNode
 renamePort :: OutPortRef -> Text -> Command State ()
 renamePort = withWorkspace .: BatchCmd.renamePort
 
+paste :: Position -> String -> Command State ()
+paste = withWorkspace .: BatchCmd.paste
+
+saveSettings :: LocationSettings -> Command State ()
+saveSettings = withWorkspace . BatchCmd.saveSettings
+
 searchNodes :: Command State ()
-searchNodes = withWorkspace BatchCmd.searchNodes
+searchNodes = withMayWorkspace BatchCmd.searchNodes
 
 setNodeExpression :: NodeLoc -> Text -> Command State ()
 setNodeExpression = withWorkspace .: BatchCmd.setNodeExpression

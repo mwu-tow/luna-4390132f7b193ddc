@@ -4,12 +4,10 @@
 
 module UndoListSpec (spec) where
 
-import           Control.Error                 (runExceptT)
-import           Control.Error                 (ExceptT, hoistEither)
+import           Control.Error                 (ExceptT, hoistEither, runExceptT)
 import           Control.Monad.Reader          (runReaderT)
 import           Control.Monad.State           (evalStateT, forever)
 import           Data.Binary                   (Binary, encode)
-import           Data.ByteString.Lazy          (toStrict)
 import qualified Data.List                     as List
 import qualified Data.UUID.V4                  as UUID
 import           Test.Hspec                    (Spec, around, describe, expectationFailure, it, shouldBe, shouldSatisfy)
@@ -22,10 +20,9 @@ import qualified ZMQ.Bus.EndPoint              as EP
 import qualified ZMQ.Bus.Trans                 as Bus
 
 import qualified Data.Binary                   as Binary
-import           Data.ByteString.Lazy          (fromStrict, toStrict)
-
 import qualified Data.Text.Lazy                as Text
 
+import qualified Compress
 import           Prologue
 
 import           LunaStudio.API.Graph.AddNode  (Request (..))
@@ -76,7 +73,7 @@ spec = describe "Undo-Redo for single user" $ do
         let nodeId = node ^. Node.nodeId
             response = Response.Response reqID (Just guiID) (AddNode.Request graphLocation (NodeLoc def nodeId) "3" def Nothing) (Response.Ok ()) (Response.Ok emptyResult)
             topic = "empire.graph.node.add.response"
-        (_, state1) <- run' state $ handleMessage $ Message.Message topic $ toStrict $ encode response
+        (_, state1) <- run' state $ handleMessage $ Message.Message topic $ Compress.pack $ encode response
         case state1 of UndoState undo redo history -> do
                                                         undo    `shouldSatisfy` ((== 1) . length)
                                                         redo    `shouldSatisfy` ((== 0) . length)
@@ -90,7 +87,7 @@ spec = describe "Undo-Redo for single user" $ do
         let nodeId   = node ^. Node.nodeId
             response = Response.Response reqID (Just guiID) (AddNode.Request graphLocation (NodeLoc def nodeId) "3" def Nothing) (Response.Ok ()) (Response.Ok emptyResult)
             topic    = "empire.graph.node.add.response"
-        (_, state1) <- run' state $ handleMessage $ Message.Message topic $ toStrict $ encode response
+        (_, state1) <- run' state $ handleMessage $ Message.Message topic $ Compress.pack $ encode response
         case state1 of UndoState undo redo history -> do
                                                         let msg = head undo
                                                         List.find (checkGuiId guiID) undo `shouldBe` (Just msg)
@@ -107,8 +104,8 @@ spec = describe "Undo-Redo for single user" $ do
             topic    = Topic.topic response
             undoReq  = Request.Request reqID2 (Just guiID) (Undo.Request Undo.UndoRequest)
         (_, UndoState undo redo _) <- run' state $ do
-            handleMessage $ Message.Message topic $ toStrict $ encode response
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq
         undo `shouldSatisfy` null
         redo `shouldSatisfy` ((== 1) . length)
 
@@ -128,9 +125,9 @@ spec = describe "Undo-Redo for single user" $ do
             topic     = Topic.topic response1
             undoReq   = Request.Request reqID3 (Just guiID) (Undo.Request Undo.UndoRequest)
         (_, UndoState undo redo history) <- run' state $ do
-            handleMessage $ Message.Message topic $ toStrict $ encode response1
-            handleMessage $ Message.Message topic $ toStrict $ encode response2
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response1
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response2
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq
         undo    `shouldSatisfy` ((== 1) . length)
         redo    `shouldSatisfy` ((== 1) . length)
         history `shouldSatisfy` ((== 3) . length)
@@ -153,10 +150,10 @@ spec = describe "Undo-Redo for single user" $ do
             undoReq1  = Request.Request reqID3 (Just guiID) (Undo.Request Undo.UndoRequest)
             undoReq2  = Request.Request reqID4 (Just guiID) (Undo.Request Undo.UndoRequest)
         (_, UndoState undo redo history) <- run' state $ do
-            handleMessage $ Message.Message topic $ toStrict $ encode response1
-            handleMessage $ Message.Message topic $ toStrict $ encode response2
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq1
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq2
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response1
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response2
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq1
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq2
         undo    `shouldSatisfy` null
         redo    `shouldSatisfy` ((== 2) . length)
         history `shouldSatisfy` ((== 4) . length)
@@ -179,10 +176,10 @@ spec = describe "Undo-Redo for single user" $ do
             undoReq   = Request.Request reqID3 (Just guiID) (Undo.Request Undo.UndoRequest)
             redoReq   = Request.Request reqID4 (Just guiID) (Redo.Request Redo.RedoRequest)
         (_,  UndoState undo redo history) <- run' state $ do
-            handleMessage $ Message.Message topic $ toStrict $ encode response1
-            handleMessage $ Message.Message topic $ toStrict $ encode response2
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq
-            handleMessage $ Message.Message "empire.redo.request" $ toStrict $ encode redoReq
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response1
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response2
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq
+            handleMessage $ Message.Message "empire.redo.request" $ Compress.pack $ encode redoReq
         undo    `shouldSatisfy` ((== 2) . length)
         redo    `shouldSatisfy` null
         history `shouldSatisfy` ((== 4) . length)
@@ -208,10 +205,10 @@ spec = describe "Undo-Redo for single user" $ do
             topic     = Topic.topic response1
             undoReq   = Request.Request reqID4 (Just guiID) (Undo.Request Undo.UndoRequest)
         (_, UndoState undo redo history) <- run' state $ do
-            handleMessage $ Message.Message topic $ toStrict $ encode response1
-            handleMessage $ Message.Message topic $ toStrict $ encode response2
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq
-            handleMessage $ Message.Message topic $ toStrict $ encode response3
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response1
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response2
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response3
         undo    `shouldSatisfy` ((== 2) . length)
         redo    `shouldSatisfy` null
         history `shouldSatisfy` ((== 4) . length)
@@ -237,10 +234,10 @@ spec = describe "Undo-Redo for single user" $ do
             topic     = Topic.topic response1
             undoReq   = Request.Request reqID4 (Just guiID) (Undo.Request Undo.UndoRequest)
         (_, UndoState undo redo history) <- run' state $ do
-            handleMessage $ Message.Message topic $ toStrict $ encode response1
-            handleMessage $ Message.Message topic $ toStrict $ encode response2
-            handleMessage $ Message.Message "empire.undo.request" $ toStrict $ encode undoReq
-            handleMessage $ Message.Message topic $ toStrict $ encode response3
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response1
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response2
+            handleMessage $ Message.Message "empire.undo.request" $ Compress.pack $ encode undoReq
+            handleMessage $ Message.Message topic $ Compress.pack $ encode response3
         undo    `shouldSatisfy` ((== 1) . length)
         redo    `shouldSatisfy` ((== 1) . length)
         history `shouldSatisfy` ((== 3) . length)

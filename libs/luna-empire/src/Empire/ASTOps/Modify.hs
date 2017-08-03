@@ -16,7 +16,7 @@ import           Empire.Prelude
 
 import           LunaStudio.Data.Node               (NodeId)
 import qualified LunaStudio.Data.Port               as Port
-import           Empire.ASTOp                       (GraphOp, match)
+import           Empire.ASTOp                       (GraphOp, ASTOp, match)
 import qualified Empire.ASTOps.Deconstruct          as ASTDeconstruct
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Remove               as ASTRemove
@@ -183,24 +183,22 @@ rewireCurrentNode newTarget = do
     replaceTargetNode matchNode newTarget
     ASTRemove.removeSubtree oldTarget
 
-renameVar :: GraphOp m => NodeRef -> String -> m ()
+renameVar :: ASTOp a m => NodeRef -> String -> m ()
 renameVar vref name = do
     var <- IR.narrowTerm @IR.Var vref
     mapM_ (flip IR.modifyExprTerm $ IR.name .~ (stringToName name)) var
 
-replaceWhenBodyOrRef :: GraphOp m => NodeRef -> NodeRef -> m ()
-replaceWhenBodyOrRef to from = do
-    oldBody <- use $ Graph.breadcrumbHierarchy . BH.body
-    when (oldBody == from) $ Graph.breadcrumbHierarchy . BH.body .= to
+replaceWhenBHSelf :: GraphOp m => NodeRef -> NodeRef -> m ()
+replaceWhenBHSelf to from = do
     oldRef  <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == from)  $ Graph.breadcrumbHierarchy . BH.self .= to
 
 replace :: GraphOp m => NodeRef -> NodeRef -> m ()
 replace to from = do
     IR.replace to from
-    replaceWhenBodyOrRef to from
+    replaceWhenBHSelf to from
 
 substitute :: GraphOp m => NodeRef -> NodeRef -> m ()
 substitute to from = do
     IR.substitute to from
-    replaceWhenBodyOrRef to from
+    replaceWhenBHSelf to from

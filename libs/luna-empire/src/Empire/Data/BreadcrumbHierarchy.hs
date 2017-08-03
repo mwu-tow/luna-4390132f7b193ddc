@@ -17,7 +17,6 @@ import qualified Data.Map                   as Map
 data LamItem = LamItem { _portMapping :: (NodeId, NodeId)
                        , _lamRef      :: NodeRef
                        , _children    :: Map NodeId BChild
-                       , _body        :: NodeRef
                        } deriving (Show, Eq)
 
 data ExprItem = ExprItem { _portChildren :: Map Int LamItem
@@ -63,7 +62,7 @@ instance {-# OVERLAPPABLE #-} (Traversable t, HasRefs a) => HasRefs (t a) where
     refs = traverse . refs
 
 instance HasRefs LamItem where
-    refs f (LamItem pm ref children body) = LamItem pm <$> refs f ref <*> refs f children <*> refs f body
+    refs f (LamItem pm ref children) = LamItem pm <$> refs f ref <*> refs f children
 
 instance HasRefs ExprItem where
     refs f (ExprItem children ref) = ExprItem <$> refs f children <*> refs f ref

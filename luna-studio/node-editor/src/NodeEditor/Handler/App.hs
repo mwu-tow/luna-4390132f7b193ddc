@@ -4,9 +4,9 @@ module NodeEditor.Handler.App
 
 import           Common.Prelude
 
+import           Common.Action.Command          (Command)
 import           NodeEditor.Action.Basic        (setFile, unselectAll, unsetFile, updateScene)
 import qualified NodeEditor.Action.Batch        as Batch
-import           NodeEditor.Action.Command      (Command)
 import           NodeEditor.Action.State.Action (endActions, endAllActions)
 import qualified NodeEditor.Event.Atom          as Atom
 import           NodeEditor.Event.Event         (Event (Atom, Init, Shortcut, UI))
@@ -25,7 +25,7 @@ handle (UI (AppEvent (App.MouseMove evt _))) = Just $ Global.ui . UI.mousePos <~
 handle (UI (AppEvent  App.Resize          )) = Just   updateScene
 handle (UI (AppEvent  App.MouseLeave      )) = Just $ endActions actionsClosingOnMouseLeave
 handle (Shortcut (Shortcut.Event command _)) = Just $ handleCommand command
-handle  Init                                 = Just $ Batch.getProgram True >> Batch.searchNodes
+handle  Init                                 = Just $ Batch.getProgram def >> Batch.searchNodes
 handle (Atom (Atom.SetFile path)           ) = Just $ setFile path
 handle (Atom  Atom.UnsetFile               ) = Just   unsetFile
 handle _                                     = Nothing

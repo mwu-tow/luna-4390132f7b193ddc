@@ -1,9 +1,9 @@
 module NodeEditor.Action.State.App where
 
+import           Common.Action.Command              (Command)
 import           Common.Prelude                     hiding (lens)
 import           Control.Lens.Internal.Zoom         (Focusing)
 import qualified Control.Monad.State                as M
-import           NodeEditor.Action.Command          (Command)
 import           NodeEditor.React.Model.App         (App, breadcrumbs)
 import           NodeEditor.React.Model.Breadcrumbs (Breadcrumb, BreadcrumbItem, Named)
 import           NodeEditor.React.Store             (Ref, commit, continueModify)
@@ -29,7 +29,7 @@ modifyApp action = do
     withApp $ continueModify action
 
 renderIfNeeded :: Command State ()
-renderIfNeeded = whenM (use $ ui . renderNeeded) $ do
+renderIfNeeded = whenM (use $ ui . renderNeeded) $ timeIt "render" $ do
     withApp commit
     ui . renderNeeded .= False
 

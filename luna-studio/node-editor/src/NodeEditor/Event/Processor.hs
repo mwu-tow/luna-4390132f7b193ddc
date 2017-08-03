@@ -1,15 +1,15 @@
 module NodeEditor.Event.Processor where
 
 import           Control.Concurrent.MVar
-import           Control.Exception                      (handle)
+import           Control.Exception                      (SomeException, handle)
 import           Data.DateTime                          (getCurrentTime)
 import           Data.Monoid                            (Last (..))
 import           GHCJS.Prim                             (JSException)
 
+import           Common.Action.Command                  (Command, execCommand)
 import           Common.Prelude
 import           Common.Report
 import qualified JS.Debug
-import           NodeEditor.Action.Command              (Command, execCommand)
 import           NodeEditor.Action.State.App            (renderIfNeeded)
 import           NodeEditor.Event.Event                 (Event)
 import qualified NodeEditor.Event.Event                 as Event
@@ -83,11 +83,10 @@ preprocessEvent ev = do
     return $ fromMaybe ev $ getLast $ Last batchEvent <> Last shortcutEvent
 
 processEvent :: LoopRef -> Event -> IO ()
-processEvent loop ev = modifyMVar_ (loop ^. Loop.state) $ \state -> do
+processEvent loop ev = handle handleAnyException $ modifyMVar_ (loop ^. Loop.state) $ \state -> do
     realEvent <- preprocessEvent ev
     when displayProcessingTime $ do
         consoleTimeStart $ (realEvent ^. Event.name) <>" show and force"
-        --putStrLn . show . length $ show realEvent
         JS.Debug.error (convert $ realEvent ^. Event.name) ()
         consoleTimeEnd $ (realEvent ^. Event.name) <> " show and force"
         consoleTimeStart (realEvent ^. Event.name)
@@ -108,6 +107,9 @@ connectEventSources conn loop = do
                    ]
         mkSource (AddHandler rh) = rh $ scheduleEvent loop
     sequence_ $ mkSource <$> handlers
+
+handleAnyException :: SomeException -> IO ()
+handleAnyException = error . show
 
 handleExcept :: State -> Event -> JSException -> IO State
 handleExcept oldState event except = do

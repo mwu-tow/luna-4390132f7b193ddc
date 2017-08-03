@@ -15,21 +15,23 @@ import           Prologue                      hiding (TypeRep)
 
 data Request = Request { _location :: GraphLocation
                        , _nodeLocs :: [NodeLoc]
-                       } deriving (Eq, Generic, NFData, Show)
+                       } deriving (Eq, Generic, Show)
 
 data Inverse = Inverse { _nodes       :: [ExpressionNode]
                        , _connections :: [Connection]
-                       } deriving (Eq, Generic, NFData, Show)
+                       } deriving (Eq, Generic, Show)
 
 makeLenses ''Request
 makeLenses ''Inverse
 instance Binary Request
+instance NFData Request
 instance Binary Inverse
+instance NFData Inverse
 instance G.GraphRequest Request where location = location
 
-
-type Response = Response.Response Request Inverse Result
-instance Response.ResponseResult Request Inverse Result
+-- TODO[MK]: handle inverses
+type Response = Response.Response Request () Result
+instance Response.ResponseResult Request () Result
 
 topicPrefix :: T.Topic
 topicPrefix = "empire.graph.node.collapsetofunction"

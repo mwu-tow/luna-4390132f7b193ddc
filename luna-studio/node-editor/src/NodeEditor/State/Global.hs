@@ -2,18 +2,21 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module NodeEditor.State.Global where
 
+import           Common.Action.Command                    (Command)
+import           Common.Debug                             (HasRequestTimes, requestTimes)
 import           Common.Prelude
 import           Data.DateTime                            (DateTime)
 import           Data.HashMap.Lazy                        (HashMap)
 import           Data.Map                                 (Map)
 import           Data.Set                                 (Set)
+import           Data.Time.Clock                          (UTCTime)
 import           Data.UUID.Types                          (UUID)
 import           Data.Word                                (Word8)
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
+import           LunaStudio.Data.Node                     (ExpressionNode)
 import           LunaStudio.Data.NodeLoc                  (NodeLoc)
 import           LunaStudio.Data.NodeValue                (Visualizer, VisualizerMatcher, VisualizerName)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
-import           NodeEditor.Action.Command                (Command)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import qualified NodeEditor.Batch.Workspace               as Workspace
 import           NodeEditor.Event.Event                   (Event)
@@ -24,6 +27,8 @@ import qualified NodeEditor.State.Collaboration           as Collaboration
 import qualified NodeEditor.State.UI                      as UI
 import           System.Random                            (StdGen)
 import qualified System.Random                            as Random
+import           Text.ScopeSearcher.Item                  (Items)
+
 
 
 -- TODO: Reconsider our design. @wdanilo says that we shouldn't use MonadState at all
@@ -35,6 +40,7 @@ data State = State
         , _debug                :: DebugState
         , _selectionHistory     :: [Set NodeLoc]
         , _workspace            :: Maybe Workspace
+        , _nodeSearcherData     :: Items ExpressionNode
         , _preferedVisualizers  :: HashMap TypeRep Visualizer
         , _visualizers          :: Map VisualizerName VisualizerMatcher
         , _lastEventTimestamp   :: DateTime
@@ -48,7 +54,7 @@ data ActionState = ActionState
         } deriving (Default, Generic)
 
 data BackendState = BackendState
-        { _pendingRequests      :: Set UUID
+        { _pendingRequests      :: Map UUID UTCTime
         , _clientId             :: ClientId
         }
 
@@ -71,6 +77,10 @@ mkState ref clientId' mpath = State
     {- debug                -} def
     {- selectionHistory     -} def
     {- workspace            -} (Workspace.mk <$> mpath)
+    {- nodeSearcherData     -} def
 
 nextRandom :: Command State Word8
 nextRandom = uses random Random.random >>= \(val, rnd) -> random .= rnd >> return val
+
+instance HasRequestTimes State where
+    requestTimes = backend . pendingRequests

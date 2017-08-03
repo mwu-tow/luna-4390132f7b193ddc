@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeFamilies           #-}
 module NodeEditor.Action.State.NodeEditor where
 
+import           Common.Action.Command                       (Command)
 import           Common.Prelude                              hiding (get)
 import           Control.Arrow                               ((&&&))
 import qualified Control.Monad.State                         as M
@@ -13,7 +14,6 @@ import           Data.Map.Lazy                               (Map)
 import qualified Data.Map.Lazy                               as Map
 import           Data.Monoid                                 (First (First), getFirst)
 import qualified Data.Set                                    as Set
-import           JS.LocalStorage                             (saveVisualizationPreferences)
 import           JS.Visualizers                              (registerVisualizerFrame)
 import           LunaStudio.Data.CameraTransformation        (CameraTransformation)
 import           LunaStudio.Data.MonadPath                   (MonadPath)
@@ -28,11 +28,9 @@ import qualified LunaStudio.Data.PortRef                     as PortRef
 import           LunaStudio.Data.Position                    (Position)
 import           LunaStudio.Data.TypeRep                     (TypeRep)
 import qualified NodeEditor.Action.Batch                     as Batch
-import           NodeEditor.Action.Command                   (Command)
 import           NodeEditor.Action.State.App                 (get, modify, modifyApp)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
 import           NodeEditor.Action.UUID                      (getUUID)
-import           NodeEditor.Batch.Workspace                  (nodeSearcherData)
 import           NodeEditor.Data.Graph                       (Graph (Graph))
 import           NodeEditor.React.Model.App                  (nodeEditor)
 import           NodeEditor.React.Model.Connection           (Connection, ConnectionId, ConnectionsMap, HalfConnection, PosConnection,
@@ -52,7 +50,7 @@ import           NodeEditor.React.Model.Searcher             (Searcher)
 import qualified NodeEditor.React.Model.Searcher             as Searcher
 import           NodeEditor.React.Model.Visualization        (NodeVisualizations)
 import qualified NodeEditor.React.Model.Visualization        as Visualization
-import           NodeEditor.State.Global                     (State, preferedVisualizers, visualizers, workspace)
+import           NodeEditor.State.Global                     (State, nodeSearcherData, preferedVisualizers, visualizers)
 import           Text.ScopeSearcher.Item                     (Items, isElement)
 
 
@@ -246,14 +244,17 @@ getLayout = view NE.layout <$> getNodeEditor
 getScene :: Command State (Maybe Scene)
 getScene = view Scene.scene <$> getLayout
 
-getScreenTranform :: Command State CameraTransformation
-getScreenTranform = view Scene.screenTransform <$> getLayout
+getScreenTransform :: Command State CameraTransformation
+getScreenTransform = view Scene.screenTransform <$> getLayout
+
+setScreenTransform :: CameraTransformation -> Command State ()
+setScreenTransform camera = modifyNodeEditor $ NE.layout . Scene.screenTransform .= camera
 
 globalFunctions :: Items a -> Items a
 globalFunctions = Map.filter isElement
 
 getNodeSearcherData :: Command State (Items Empire.ExpressionNode)
-getNodeSearcherData = maybe def id <$> preuse (workspace . traverse . nodeSearcherData)
+getNodeSearcherData = use nodeSearcherData
 
 class NodeEditorElementId a where
     inGraph :: a -> Command State Bool
@@ -366,10 +367,7 @@ updateVisualizationsForNode nl mayTpe = do
                 NE.nodeVisualizations . at nl ?= Visualization.NodeVisualizations running ready visualizers'
 
 updatePreferedVisualizer :: TypeRep -> Visualizer -> Command State ()
-updatePreferedVisualizer tpe vis = do
-    preferedVisualizers . at tpe ?= vis
-    prefVis <- use preferedVisualizers
-    liftIO $ saveVisualizationPreferences prefVis
+updatePreferedVisualizer tpe vis = preferedVisualizers . at tpe ?= vis
 
 getExpressionNodeType :: NodeLoc -> Command State (Maybe TypeRep)
 getExpressionNodeType = fmap (maybe def (view ExpressionNode.nodeType)) . getExpressionNode
