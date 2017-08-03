@@ -5,19 +5,21 @@ uniqueTabNo = 0
 
 module.exports =
 class LunaStudioTab extends View
-  mountPoint = ""
-  constructor: (@uri, @code) ->
-      super
-      @on 'contextmenu', -> false
-      @code.start(@uri, mountPoint)
+    mountPoint = ""
+    constructor: (@uri, @code) ->
+        super
+        @on 'contextmenu', -> false
 
-  @content: ->
-    mountPoint = "luna-studio-mount" + uniqueTabNo
-    uniqueTabNo = uniqueTabNo + 1
-    @div
-      id: mountPoint
-      =>
-        @h1 "Loading ..."
+    attached: ->
+        @code.start(@uri, mountPoint)
 
-  # getTitle:     -> path.basename(@uri)
-  getTitle:     -> 'Node editor'
+    @content: ->
+      mountPoint = "luna-studio-mount" + uniqueTabNo
+      uniqueTabNo = uniqueTabNo + 1
+      @div
+          id: mountPoint
+          =>
+              @h1 "Loading ..."
+
+    # getTitle:     -> path.basename(@uri)
+    getTitle:     -> 'Node editor'

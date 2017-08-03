@@ -8,6 +8,7 @@ nodeEditor = (require './gen/node-editor-ghcjs.js')()
 path = require 'path'
 LunaSemanticGrammar = require './luna-grammar'
 
+lunaStudioFakePath = 'luna-studio'
 
 pushShortcutEvent = (name, arg = null) -> nodeEditor.pushEvent({_shortcut: name, _arg : arg})
 pushSearcherEvent = (name, arg = null) -> nodeEditor.pushEvent(if arg == null then {tag: name} else {tag: name, contents : arg})
@@ -17,7 +18,7 @@ module.exports = LunaStudio =
   deserializeLunaEditorTab: ({uri}) ->
       actStatus = (status) ->
           if status == 'Init'
-              atom.workspace.open(uri)
+              atom.workspace.open(uri, {split: "left"})
 
       codeEditor.statusListener actStatus
 
@@ -31,13 +32,15 @@ module.exports = LunaStudio =
             rootPath = atom.project.getPaths().shift()
             if rootPath? and rootPath != ""
                 codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
-            atom.workspace.getActivePane().activateItem new LunaStudioTab(null, nodeEditor)
+                atom.workspace.open(lunaStudioFakePath, {split: "right"})
         if act == 'FileOpened'
             codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
     codeEditor.statusListener actStatus
 
     atom.workspace.addOpener (uri) ->
-        if path.extname(uri) is '.luna'
+        if path.basename(uri) is lunaStudioFakePath
+              new LunaStudioTab(null, nodeEditor)
+        else if path.extname(uri) is '.luna'
               new LunaEditorTab(uri, codeEditor)
     @subs = new SubAtom
 
