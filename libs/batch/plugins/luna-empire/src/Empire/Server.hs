@@ -76,6 +76,10 @@ sendStarted endPoints = do
     let content = Compress.pack .  Bin.encode $ EmpireStarted.Status
     void $ Bus.runBus endPoints $ Bus.send Flag.Enable $ Message.Message (Topic.topic EmpireStarted.Status) content
 
+requestCapability, tcCapability :: Int
+requestCapability = 0
+tcCapability      = 1
+
 run :: BusEndPoints -> [Topic] -> Bool -> FilePath -> IO ()
 run endPoints topics formatted projectRoot = do
     sendStarted endPoints
@@ -90,9 +94,9 @@ run endPoints topics formatted projectRoot = do
     let commEnv = Empire.CommunicationEnv fromEmpireChan tcReq scope
     forkIO $ void $ Bus.runBus endPoints $ BusT.runBusT $ evalStateT (startAsyncUpdateWorker fromEmpireChan) env
     forkIO $ void $ Bus.runBus endPoints $ startToBusWorker toBusChan
-    forkIO $ void $ Bus.runBus endPoints $ startTCWorker commEnv tcReq scope
+    forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker commEnv tcReq scope
     waiting <- newEmptyMVar
-    requestThread <- forkOn 0 $ void $ Bus.runBus endPoints $ do
+    requestThread <- forkOn requestCapability $ void $ Bus.runBus endPoints $ do
         mapM_ Bus.subscribe topics
         BusT.runBusT $ evalStateT (runBus formatted projectRoot) env
         liftIO $ putMVar waiting ()
