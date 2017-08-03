@@ -81,8 +81,6 @@ instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
         reconfig cfg = cfg & buildScriptPath .~ "build-package.bat"
 
 
-
-
 ----------------------
 -- === Appimage === --
 ----------------------
@@ -191,7 +189,10 @@ runPkgBuildScript repoPath = do
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
     pkgConfig         <- get @PackageConfig
-    packageRepoFolder <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
+    packageRepoFolder <- case currentHost of
+        Darwin -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Linux -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Windows -> expand $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
     Shelly.shelly $ Shelly.mkdir_p $ parent packageRepoFolder
     Shelly.shelly $ Shelly.mv expandedCopmponents packageRepoFolder

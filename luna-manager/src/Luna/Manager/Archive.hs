@@ -25,9 +25,12 @@ extensionError = toException ExtensionError
 
 unpackArchive :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
 unpackArchive file = do
-    print $ "Unpacking archive"
     case currentHost of
-        Windows -> unzipFileWindows file
+        Windows ->  do
+            ext <- tryJust extensionError $ extension file
+            case ext of
+                "zip" -> unzipFileWindows file
+                "gz"  -> untarWin file
         Darwin  -> do
             ext <- tryJust extensionError $ extension file
             case ext of
@@ -98,15 +101,44 @@ unzipFileWindows zipFile = do
                   liftIO $ print $ Shelly.toTextIgnore $ dir </> name
                   return $ dir </> name
 
+untarWin :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath
+untarWin zipFile = do
+  let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar1.py"
+  --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
+
+  script <- downloadFromURL scriptPath
+  let dir = directory zipFile
+      name = dir </> basename zipFile
+  -- Shelly.shelly $ Shelly.cp script dir
+  Shelly.shelly $ do
+    Shelly.cd dir
+    Shelly.mkdir_p name
+    -- Shelly.cp zipFile name
+    Shelly.cp script dir
+    -- Shelly.cd $ dir </> name
+    liftIO $ print name
+    Shelly.cmd "python" (filename script) "untar" (filename zipFile) name
+    -- Shelly.rm $ dir </> name </> (filename zipFile)
+    -- Shelly.rm $ dir </> name </> (filename script)
+    listed <- Shelly.ls $ dir </> name
+    liftIO $ print listed
+    if length listed == 1
+        then do
+            liftIO $ print $ Shelly.toTextIgnore $ head listed
+            return $ head listed
+            else do
+                liftIO $ print $ Shelly.toTextIgnore $ dir </> name
+                return $ dir </> name
+
 zipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> Text -> m FilePath
 zipFileWindows folder appName = do
-    let name = parent folder </> Shelly.fromText (appName <> ".zip")
-    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/zip.vbs"
+    let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
+    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar1.py"
     script <- downloadFromURL scriptPath
     Shelly.shelly $ do
         Shelly.cd $ parent folder
         Shelly.cp script $ parent folder
-        Shelly.cmd "cscript" (filename script) folder name
+        Shelly.cmd "python" (filename script) "tar" name folder
         return name
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
