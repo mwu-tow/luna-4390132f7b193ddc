@@ -7,10 +7,11 @@
 module Empire.Server.Graph where
 
 import           Control.Arrow                           ((&&&))
+import           Control.Concurrent                      (forkIO)
 import           Control.Concurrent.MVar                 (readMVar)
 import           Control.Monad.Catch                     (handle, try)
 import           Control.Monad.Reader                    (asks)
-import           Control.Monad.State                     (StateT)
+import           Control.Monad.State                     (StateT, evalStateT, get)
 import qualified Data.Binary                             as Bin
 import           Data.ByteString                         (ByteString)
 import           Data.ByteString.Lazy                    (fromStrict)
@@ -105,7 +106,11 @@ import           Prologue                                hiding (Item)
 import           System.Environment                      (getEnv)
 import           System.FilePath                         (replaceFileName, (</>))
 import qualified System.Log.MLogger                      as Logger
+import qualified ZMQ.Bus.Bus                             as Bus
+import qualified ZMQ.Bus.Config                          as Config
+import qualified ZMQ.Bus.EndPoint                        as EP
 import           ZMQ.Bus.Trans                           (BusT (..))
+import qualified ZMQ.Bus.Trans                           as BusT
 
 import           GHC.Stack                               (renderStack, whoCreated)
 
@@ -142,6 +147,7 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
     request          <- liftIO $ webGUIHack request'
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
+    endPoints        <- EP.clientFromConfig <$> (liftIO Config.load)
     inv'             <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ inverse request
     case inv' of
         Left (exc :: SomeASTException) -> do
@@ -233,11 +239,14 @@ getSrcPortByNodeId nid = OutPortRef (NodeLoc def nid) []
 getDstPortByNodeLoc :: NodeLoc -> AnyPortRef
 getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
 
+projectConfigPath :: FilePath -> FilePath
+projectConfigPath = flip replaceFileName ".config-luna.yaml"
+
 saveSettings :: GraphLocation -> LocationSettings -> Empire ()
 saveSettings gl settings = do
     bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
     let filePath = gl ^. GraphLocation.filePath
-    liftIO $ Project.updateLocationSettings (replaceFileName filePath ".config.luna") filePath bc settings
+    liftIO $ Project.updateLocationSettings (projectConfigPath filePath) filePath bc settings
 
 
 -- Handlers
@@ -255,7 +264,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 graph <- Graph.getGraph location
                 crumb <- Graph.decodeLocation location
                 let filePath = location ^. GraphLocation.filePath
-                mayModuleSettings <- liftIO $ Project.getModuleSettings (replaceFileName filePath ".config.luna") filePath
+                mayModuleSettings <- liftIO $ Project.getModuleSettings (projectConfigPath filePath) filePath
                 let defaultCamera = maybe def (flip Camera.getCameraForRectangle def) . Position.minimumRectangle . map (view Node.position) $ graph ^. GraphAPI.nodes
                     (typeRepToVisMap, camera) = case mayModuleSettings of
                         Nothing -> (mempty, defaultCamera)
@@ -423,8 +432,21 @@ handleSaveSettings = modifyGraphOk defInverse action where
     action (SaveSettings.Request gl settings) = saveSettings gl settings
 
 handleSearchNodes :: Request SearchNodes.Request -> StateT Env BusT ()
-handleSearchNodes = modifyGraph defInverse action replyResult where
-    action _ = (\sMap -> SearchNodes.Result (sMap ^. Empire.functions) (sMap ^. Empire.classes)) <$> (liftIO . readMVar =<< view Empire.scopeVar)
+handleSearchNodes = modifyGraph defInverse replyResult where
+    modifyGraph inverse success origReq@(Request uuid guiID request') = do
+        env <- get
+        currentEmpireEnv <- use Env.empireEnv
+        empireNotifEnv   <- use Env.empireNotif
+        let invStatus = Response.Ok ()
+        endPoints <- EP.clientFromConfig <$> (liftIO Config.load)
+        liftIO $ void $ forkIO $ do
+            result <- Empire.execEmpire empireNotifEnv currentEmpireEnv $ do
+                sMap <- liftIO . readMVar =<< view Empire.scopeVar
+                return $ SearchNodes.Result (sMap ^. Empire.functions) (sMap ^. Empire.classes)
+            a <- Bus.runBus endPoints $ BusT.runBusT $ flip evalStateT env $ success origReq () result
+            case a of
+                Left  a -> error (show a)
+                Right _ -> return ()
 
 handleSetNodeExpression :: Request SetNodeExpression.Request -> StateT Env BusT ()-- fixme [SB] returns Result with no new informations and change node expression has addNode+removeNodes
 handleSetNodeExpression = modifyGraph inverse action replyResult where

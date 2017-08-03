@@ -10,23 +10,21 @@ class LunaSemanticGrammar extends Grammar
                         })
         @lex = lex
 
-    tokenizeLine: (line, ruleStack, firstLine = false) ->
+    tokenizeLine: (line, ruleStack, firstLine = false) =>
         ruleStack = 0 unless ruleStack?
         lexerLine = @lex(line)
         buffer = line
         tags = []
         tokens = []
-        outerRegistry = @registry
-        outerScopeName = @scopeName
-        addToken = (text, lexerTags) ->
-            scopes = outerScopeName
+        addToken = (text, lexerTags) =>
+            scopes = @scopeName
             for lexerTag in lexerTags
                 cls = lunaClass(lexerTag)
                 if cls?
                     scopes += "." + cls
-            tags.push outerRegistry.startIdForScope(scopes)
+            tags.push @registry.startIdForScope(scopes)
             tags.push text.length
-            tags.push outerRegistry.endIdForScope(scopes)
+            tags.push @registry.endIdForScope(scopes)
             tokens.push { value: text, scopes: [scopes] }
 
         while buffer.length != 0

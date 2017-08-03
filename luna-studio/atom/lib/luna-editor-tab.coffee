@@ -4,14 +4,14 @@
 path = require 'path'
 SubAtom = require 'sub-atom'
 
-TextBuffer::subscribeToFileOverride = (internal) ->
+TextBuffer::subscribeToFileOverride = (codeEditor) ->
     @fileSubscriptions?.dispose()
     @fileSubscriptions = new CompositeDisposable
 
     @fileSubscriptions.add @file.onDidChange =>
         @conflict = true if @isModified()
         console.log "FileChanged"
-        internal.pushInternalEvent(tag: "FileChanged", _path: @getPath())
+        codeEditor.pushInternalEvent(tag: "FileChanged", _path: @getPath())
       #   previousContents = @cachedDiskContents
       #
       #   # Synchrounously update the disk contents because the {File} has already cached them. If the
@@ -45,14 +45,14 @@ subscribe = null
 module.exports =
   class LunaEditorTab extends TextEditor
 
-    constructor: (@uri, @internal) ->
+    constructor: (@uri, @codeEditor) ->
 
         super
         @diffToOmit = new Set()
         @getBuffer().setPath(@uri)
-        @getBuffer().subscribeToFileOverride(@internal)
+        @getBuffer().subscribeToFileOverride(@codeEditor)
 
-        @internal.pushInternalEvent(tag: "GetBuffer", _path: @uri)
+        @codeEditor.pushInternalEvent(tag: "OpenFile", _path: @uri)
 
         omitDiff = (text) =>
             @diffToOmit.add(text)
@@ -64,7 +64,7 @@ module.exports =
                 @getBuffer().setText(text)
                 console.log("setBuffer")
 
-        @internal.bufferListener setBuffer
+        @codeEditor.bufferListener setBuffer
 
         setCode = (uri_send, start_send, end_send, text) =>
             if @uri == uri_send
@@ -74,7 +74,9 @@ module.exports =
             #   @.scrollToBufferPosition(start)
                 omitDiff(text)
                 @getBuffer().setText(text)
-        @internal.codeListener setCode
+        @codeEditor.codeListener setCode
+
+        @handleEvents()
 
         @subscribe = new SubAtom
         @subscribe.add @getBuffer().onDidStopChanging (event) =>
@@ -89,11 +91,26 @@ module.exports =
                         text:  change.newText
                         cursor: @.getCursorBufferPosition()
                       #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
-                    @internal.pushDiff(diff)
+                    @codeEditor.pushDiff(diff)
 
     serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
 
     getTitle: -> path.basename(@uri)
 
-    deactivate: ->
-        @subscribe.dispose()
+    deactivate: -> @subscribe.dispose()
+
+    handleEvents: =>
+        atom.commands.add @element,
+            'core:copy':     => @handleCopy()
+            'core:save': (e) => @handleSave(e)
+
+    handleCopy: =>
+        buffer     = @getBuffer()
+        selections = @getSelections()
+        spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: spanList)
+
+    handleSave: (e) =>
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)

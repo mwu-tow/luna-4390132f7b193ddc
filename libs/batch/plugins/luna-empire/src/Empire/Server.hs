@@ -7,7 +7,7 @@
 module Empire.Server where
 
 import qualified Compress
-import           Control.Concurrent                   (forkIO)
+import           Control.Concurrent                   (forkIO, forkOn)
 import           Control.Concurrent.MVar
 import           Control.Concurrent.STM               (STM)
 import           Control.Concurrent.STM.TChan         (TChan, newTChan, readTChan, tryPeekTChan)
@@ -18,6 +18,7 @@ import           Control.Monad.STM                    (atomically)
 import qualified Data.Binary                          as Bin
 import           Data.ByteString.Lazy                 (ByteString)
 import           Data.ByteString.Lazy.Char8           (unpack)
+import           Data.IORef
 import qualified Data.Map.Strict                      as Map
 
 import           System.FilePath                      ()
@@ -25,7 +26,7 @@ import           System.FilePath.Find                 (always, extension, find, 
 import           System.FilePath.Glob                 ()
 import           System.FilePath.Manip                ()
 
-
+import           Data.Future                          (minCapabilityNumber, updateCapabilities)
 import           Empire.Data.AST                      (SomeASTException)
 import           Empire.Data.Graph                    (ClsGraph, Graph, ast)
 import qualified Empire.Data.Graph                    as Graph
@@ -53,6 +54,7 @@ import           System.Directory                     (canonicalizePath)
 import           System.Environment                   (getEnv)
 import qualified System.Log.MLogger                   as Logger
 import           System.Mem                           (performGC)
+
 import           System.Remote.Monitoring
 import           ZMQ.Bus.Bus                          (Bus)
 import qualified ZMQ.Bus.Bus                          as Bus
@@ -74,7 +76,11 @@ sendStarted endPoints = do
     let content = Compress.pack .  Bin.encode $ EmpireStarted.Status
     void $ Bus.runBus endPoints $ Bus.send Flag.Enable $ Message.Message (Topic.topic EmpireStarted.Status) content
 
-run :: BusEndPoints -> [Topic] -> Bool -> FilePath -> IO (Either Bus.Error ())
+requestCapability, tcCapability :: Int
+requestCapability = 0
+tcCapability      = 1
+
+run :: BusEndPoints -> [Topic] -> Bool -> FilePath -> IO ()
 run endPoints topics formatted projectRoot = do
     sendStarted endPoints
     forkServer "localhost" 1234
@@ -88,10 +94,13 @@ run endPoints topics formatted projectRoot = do
     let commEnv = Empire.CommunicationEnv fromEmpireChan tcReq scope
     forkIO $ void $ Bus.runBus endPoints $ BusT.runBusT $ evalStateT (startAsyncUpdateWorker fromEmpireChan) env
     forkIO $ void $ Bus.runBus endPoints $ startToBusWorker toBusChan
-    forkIO $ void $ Bus.runBus endPoints $ startTCWorker commEnv tcReq scope
-    Bus.runBus endPoints $ do
+    forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker commEnv tcReq scope
+    waiting <- newEmptyMVar
+    requestThread <- forkOn requestCapability $ void $ Bus.runBus endPoints $ do
         mapM_ Bus.subscribe topics
         BusT.runBusT $ evalStateT (runBus formatted projectRoot) env
+        liftIO $ putMVar waiting ()
+    takeMVar waiting
 
 runBus :: Bool -> FilePath ->  StateT Env BusT ()
 runBus formatted projectRoot = do
@@ -108,6 +117,8 @@ prepareStdlib = do
 
 startTCWorker :: Empire.CommunicationEnv -> MVar (GraphLocation, ClsGraph, Bool) -> MVar Empire.SymbolMap -> Bus ()
 startTCWorker env reqs scopeVar = liftIO $ do
+    writeIORef minCapabilityNumber 1
+    updateCapabilities
     (Scope std, symbolMap, cleanup) <- prepareStdlib
     putMVar scopeVar symbolMap
     pmState <- Graph.defaultPMState

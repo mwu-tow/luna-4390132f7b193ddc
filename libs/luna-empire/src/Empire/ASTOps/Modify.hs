@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 {-| This module contains operations that output modified nodes.
     These functions use reading, deconstructing and building APIs.
@@ -20,27 +21,49 @@ import           Empire.ASTOp                       (GraphOp, ASTOp, match)
 import qualified Empire.ASTOps.Deconstruct          as ASTDeconstruct
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Remove               as ASTRemove
+import qualified Empire.Commands.Code               as Code
 import           Empire.Data.AST                    (EdgeRef, NodeRef, NotLambdaException(..),
                                                      NotUnifyException(..), astExceptionToException,
                                                      astExceptionFromException)
+import           Empire.Data.Layers                 (SpanLength, SpanOffset)
 import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import qualified Empire.Data.Graph                  as Graph
 
-import qualified OCI.IR.Combinators as IR (replaceSource, narrowTerm, replace, substitute)
+import qualified OCI.IR.Combinators                 as IR
+import qualified Luna.IR                            as IR
 import           Luna.IR.Term.Uni
-import qualified Luna.IR as IR
 
 
 
 addLambdaArg :: GraphOp m => Int -> NodeRef -> m ()
-addLambdaArg position lambda = match lambda $ \case
-    Lam _arg _body -> do
-        out'  <- ASTRead.getFirstNonLambdaRef lambda
-        names <- getArgNames lambda
-        let Just nameForNewArg = find (not . flip elem names) allWords
-        addLambdaArg' position nameForNewArg Nothing lambda
-    Grouped g -> IR.source g >>= addLambdaArg position
-    _ -> throwM $ NotLambdaException lambda
+addLambdaArg position lambda = do
+    names <- getArgNames lambda
+    let Just nameForNewArg = find (not . flip elem names) allWords
+    match lambda $ \case
+        Lam _arg _body -> do
+            out'  <- ASTRead.getFirstNonLambdaRef lambda
+            addLambdaArg' position nameForNewArg Nothing lambda
+        Grouped g -> IR.source g >>= addLambdaArg position
+        ASGFunction n as _ -> do
+            let argsBefore        = take position as
+                argsAfter         = drop position as
+            v <- IR.var' $ convert nameForNewArg
+            IR.putLayer @SpanLength v (convert $ length nameForNewArg)
+            l <- IR.unsafeGeneralize <$> IR.link v lambda
+            IR.putLayer @SpanOffset l 1
+            insertPosition <- do
+                let lastEdgeBeforeArg = case argsBefore of
+                        [] -> n
+                        a  -> last a
+                Just funBeg <- Code.getOffsetRelativeToFile lambda
+                lastOff <- Code.getOffsetRelativeToTarget lastEdgeBeforeArg
+                lastLen <- IR.getLayer @SpanLength =<< IR.source lastEdgeBeforeArg
+                return $ funBeg + lastOff + lastLen
+            Code.insertAt insertPosition (" " <> convert nameForNewArg)
+            Just (lam' :: IR.Expr (IR.ASGFunction)) <- IR.narrow lambda
+            IR.modifyExprTerm lam' $ wrapped . IR.termASGFunction_args .~ fmap IR.unsafeGeneralize (argsBefore <> (l : argsAfter))
+            Code.gossipUsesChangedBy (1 + fromIntegral (length nameForNewArg)) v
+        _ -> throwM $ NotLambdaException lambda
 
 allWords :: [String]
 allWords = drop 1 $ allWords' where
@@ -52,6 +75,7 @@ getArgNames ref = match ref $ \case
     Lam a body -> do
         argNames <- ASTRead.getPatternNames =<< IR.source a
         (argNames ++) <$> (getArgNames =<< IR.source body)
+    ASGFunction _ as _ -> concat <$> mapM (ASTRead.getPatternNames <=< IR.source) as
     _ -> return []
 
 replaceWithLam :: GraphOp m => Maybe EdgeRef -> String -> NodeRef -> m ()
@@ -84,15 +108,32 @@ lamAny a b = fmap IR.generalize $ IR.lam a b
 lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
 lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
 
-removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m NodeRef
+removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m ()
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
-    Grouped g      -> IR.source g >>= removeLambdaArg p >>= fmap IR.generalize . IR.grouped
+    Grouped g      -> IR.source g >>= removeLambdaArg p
     Lam _arg _body -> do
         args <- ASTDeconstruct.extractArguments lambda
         out  <- ASTRead.getFirstNonLambdaRef lambda
         let newArgs = args ^.. folded . ifiltered (\i _ -> i /= port)
-        lams newArgs out
+        newLam <- lams newArgs out
+        when (lambda /= newLam) $ rewireCurrentNode newLam
+    ASGFunction _ as _ -> do
+        let argsBefore        = take port       as
+            argsAfter         = drop (port + 1) as
+            argToRemove       = as ^? ix port
+        forM_ argToRemove $ \alink -> do
+            Just funBeg <- Code.getOffsetRelativeToFile lambda
+            offToLam    <- Code.getOffsetRelativeToTarget alink
+            ownOff      <- IR.getLayer @SpanOffset alink
+            ownLen      <- IR.getLayer @SpanLength =<< IR.source alink
+            Code.removeAt (funBeg + offToLam - ownOff) (funBeg + offToLam + ownLen)
+            Just (lam' :: IR.Expr (IR.ASGFunction)) <- IR.narrow lambda
+            IR.modifyExprTerm lam' $ wrapped . IR.termASGFunction_args .~ fmap IR.unsafeGeneralize (argsBefore <> argsAfter)
+            arg <- IR.source alink
+            IR.delete alink
+            IR.deleteSubtree arg
+            Code.gossipLengthsChangedBy (-(ownOff + ownLen)) lambda
     _ -> throwM $ NotLambdaException lambda
 
 shiftPosition :: Int -> Int -> [a] -> [a]
@@ -103,15 +144,30 @@ shiftPosition from to lst = uncurry (insertAt to) $ getAndRemove from lst where
     getAndRemove 0 (x : xs) = (x, xs)
     getAndRemove i (x : xs) = let (r, rs) = getAndRemove (i - 1) xs in (r, x : rs)
 
-moveLambdaArg :: GraphOp m => Port.OutPortId -> Int -> NodeRef -> m NodeRef
+moveLambdaArg :: GraphOp m => Port.OutPortId -> Int -> NodeRef -> m ()
 moveLambdaArg [] _ _ = throwM $ CannotRemovePortException
 moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ \case
-    Grouped g -> IR.source g >>= moveLambdaArg p newPosition >>= fmap IR.generalize . IR.grouped
+    Grouped g -> IR.source g >>= moveLambdaArg p newPosition
     Lam _ _   -> do
         args <- ASTDeconstruct.extractArguments lambda
         out  <- ASTRead.getLambdaOutputRef      lambda
         let newArgs = shiftPosition port newPosition args
-        lams newArgs out
+        newRef <- lams newArgs out
+        when (lambda /= newRef) $ rewireCurrentNode newRef
+    ASGFunction _ as _ -> do
+        forM_ (as ^? ix port) $ \alink -> do
+            Just funBeg   <- Code.getOffsetRelativeToFile   lambda
+            initialOffset <- Code.getOffsetRelativeToTarget alink
+            let newArgs = shiftPosition port newPosition as
+            Just (lam' :: IR.Expr (IR.ASGFunction)) <- IR.narrow lambda
+            IR.modifyExprTerm lam' $ wrapped . IR.termASGFunction_args .~ fmap IR.unsafeGeneralize newArgs
+            newOffset <- Code.getOffsetRelativeToTarget alink
+            ownOff    <- IR.getLayer @SpanOffset alink
+            ownLen    <- IR.getLayer @SpanLength =<< IR.source alink
+            code      <- Code.getAt (initialOffset - ownOff) (initialOffset + ownLen)
+            Code.applyMany [ (initialOffset - ownOff, initialOffset + ownLen, "")
+                           , (newOffset     - ownOff, newOffset     - ownOff, code)
+                           ]
     _ -> throwM $ NotLambdaException lambda
 
 renameLambdaArg :: GraphOp m => Port.OutPortId -> String -> NodeRef -> m ()
@@ -122,6 +178,12 @@ renameLambdaArg p@(Port.Projection port : []) newName lam = match lam $ \case
         args <- ASTDeconstruct.extractArguments lam
         let arg = args !! port
         renameVar arg newName
+        Code.replaceAllUses arg $ convert newName
+    ASGFunction _ as _ -> do
+        forM_ (as ^? ix port) $ \alink -> do
+            arg <- IR.source alink
+            renameVar arg newName
+            Code.replaceAllUses arg $ convert newName
     _ -> throwM $ NotLambdaException lam
 
 redirectLambdaOutput :: GraphOp m => NodeRef -> NodeRef -> m NodeRef

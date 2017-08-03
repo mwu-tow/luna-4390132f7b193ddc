@@ -1078,3 +1078,70 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just uri, Just withCrypto, Just fullUri, Just response, Just result] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [3, 6, 8, 4, 9]
                 Graph.collapseToFunction loc [uri, withCrypto, fullUri, response, result]
+        it "adds arguments in toplevel defs and adds a node" $ let
+            initialCode = [r|
+                def main:
+                    foo bar
+                    baz
+                |]
+            expectedCode = [r|
+                def main a c b:
+                    foo bar
+                    baz
+                    foo1 = foo a b c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.addPort loc (outPortRef input [Port.Projection 0])
+                Graph.addPort loc (outPortRef input [Port.Projection 1])
+                Graph.addPort loc (outPortRef input [Port.Projection 1])
+                u1 <- mkUUID
+                Graph.addNode loc u1 "foo a b c" (atXPos 30.0)
+        it "removes arguments in toplevel defs and adds a node" $ let
+            initialCode = [r|
+                def main a bar c:
+                    foo bar
+                    baz
+                |]
+            expectedCode = [r|
+                def main:
+                    foo bar
+                    baz
+                    foo1 = foo a b c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.removePort loc (outPortRef input [Port.Projection 1])
+                Graph.removePort loc (outPortRef input [Port.Projection 1])
+                Graph.removePort loc (outPortRef input [Port.Projection 0])
+                u1 <- mkUUID
+                Graph.addNode loc u1 "foo a b c" (atXPos 30.0)
+
+        it "renames function port" $ let
+            initialCode = [r|
+                def main baz a:
+                    foo a
+                    a
+                |]
+            expectedCode = [r|
+                def main baz newName:
+                    foo newName
+                    newName
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.renamePort loc (outPortRef input [Port.Projection 1]) "newName"
+        it "reorders function ports" $ let
+            initialCode = [r|
+                def main baz a:
+                    foo a
+                    baz
+                |]
+            expectedCode = [r|
+                def main a baz:
+                    foo a
+                    baz
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc (outPortRef input [Port.Projection 1]) 0

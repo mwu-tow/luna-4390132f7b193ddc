@@ -23,7 +23,6 @@ import qualified Safe
 import           Empire.Data.AST         (NodeRef, EdgeRef)
 import           Empire.ASTOp            (ClassOp, GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
-import           Empire.ASTOps.Modify    as ASTModify
 
 import qualified Luna.IR                 as IR
 import qualified OCI.IR.Combinators      as IR (replace, substitute, replaceSource)
@@ -82,6 +81,9 @@ applyDiff (fromIntegral -> start) (fromIntegral -> end) code = do
         newCode        = Text.concat [prefix', code, suffix]
     Graph.code .= newCode
     return newCode
+
+applyMany :: (MonadState state m, Integral a, Graph.HasCode state) => [(a, a, Text)] -> m ()
+applyMany = mapM_ (uncurry applyDiff) . reverse . sortOn (view _1)
 
 insertAt :: (MonadState state m, Graph.HasCode state) => Delta -> Text -> m Text
 insertAt at code = applyDiff at at code
