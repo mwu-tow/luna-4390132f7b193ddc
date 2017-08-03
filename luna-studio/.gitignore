@@ -39,4 +39,5 @@ lib/common.cabal
 text-editor/text-editor.cabal
 node-editor/node-editor.cabal
 
+.config-luna.yaml
 .config.luna

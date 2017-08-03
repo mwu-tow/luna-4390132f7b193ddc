@@ -106,11 +106,11 @@ import           Prologue                                hiding (Item)
 import           System.Environment                      (getEnv)
 import           System.FilePath                         (replaceFileName, (</>))
 import qualified System.Log.MLogger                      as Logger
-import           ZMQ.Bus.Trans                           (BusT (..))
+import qualified ZMQ.Bus.Bus                             as Bus
 import qualified ZMQ.Bus.Config                          as Config
 import qualified ZMQ.Bus.EndPoint                        as EP
+import           ZMQ.Bus.Trans                           (BusT (..))
 import qualified ZMQ.Bus.Trans                           as BusT
-import qualified ZMQ.Bus.Bus                             as Bus
 
 import           GHC.Stack                               (renderStack, whoCreated)
 
@@ -239,11 +239,14 @@ getSrcPortByNodeId nid = OutPortRef (NodeLoc def nid) []
 getDstPortByNodeLoc :: NodeLoc -> AnyPortRef
 getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
 
+projectConfigPath :: FilePath -> FilePath
+projectConfigPath = flip replaceFileName ".config-luna.yaml"
+
 saveSettings :: GraphLocation -> LocationSettings -> Empire ()
 saveSettings gl settings = do
     bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
     let filePath = gl ^. GraphLocation.filePath
-    liftIO $ Project.updateLocationSettings (replaceFileName filePath ".config.luna") filePath bc settings
+    liftIO $ Project.updateLocationSettings (projectConfigPath filePath) filePath bc settings
 
 
 -- Handlers
@@ -261,7 +264,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 graph <- Graph.getGraph location
                 crumb <- Graph.decodeLocation location
                 let filePath = location ^. GraphLocation.filePath
-                mayModuleSettings <- liftIO $ Project.getModuleSettings (replaceFileName filePath ".config.luna") filePath
+                mayModuleSettings <- liftIO $ Project.getModuleSettings (projectConfigPath filePath) filePath
                 let defaultCamera = maybe def (flip Camera.getCameraForRectangle def) . Position.minimumRectangle . map (view Node.position) $ graph ^. GraphAPI.nodes
                     (typeRepToVisMap, camera) = case mayModuleSettings of
                         Nothing -> (mempty, defaultCamera)
