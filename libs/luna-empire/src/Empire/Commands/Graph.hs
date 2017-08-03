@@ -425,10 +425,12 @@ updateCodeSpan ref = do
     fileOffset <- use Graph.fileOffset
     setCodeSpan ref (leftSpacedSpan fileOffset len)
 
-addPort :: GraphLocation -> OutPortRef -> Empire InputSidebar
-addPort loc portRef = withTC loc False $ addPortNoTC loc portRef
+addPort :: GraphLocation -> OutPortRef -> Empire ()
+addPort loc portRef = do
+    withTC loc False $ addPortNoTC loc portRef
+    resendCode loc
 
-addPortNoTC :: GraphLocation -> OutPortRef -> Command Graph InputSidebar
+addPortNoTC :: GraphLocation -> OutPortRef -> Command Graph ()
 addPortNoTC loc (OutPortRef nl pid) = runASTOp $ do
     let nid      = nl ^. NodeLoc.nodeId
         position = getPortNumber pid
@@ -439,13 +441,14 @@ addPortNoTC loc (OutPortRef nl pid) = runASTOp $ do
     ASTModify.addLambdaArg position ref
     newLam <- ASTRead.getCurrentASTTarget
     ASTBuilder.attachNodeMarkersForArgs nid [] newLam
-    GraphBuilder.buildInputSidebar nid
 
-addPortWithConnections :: GraphLocation -> OutPortRef -> [AnyPortRef] -> Empire InputSidebar
-addPortWithConnections loc portRef connectTo = withTC loc False $ do
-    newPorts <- addPortNoTC loc portRef
-    forM_ connectTo $ connectNoTC loc portRef
-    return newPorts
+addPortWithConnections :: GraphLocation -> OutPortRef -> [AnyPortRef] -> Empire ()
+addPortWithConnections loc portRef connectTo = do
+    withTC loc False $ do
+        newPorts <- addPortNoTC loc portRef
+        forM_ connectTo $ connectNoTC loc portRef
+        return newPorts
+    resendCode loc
 
 addSubgraph :: GraphLocation -> [ExpressionNode] -> [Connection] -> Empire [ExpressionNode]
 addSubgraph loc@(GraphLocation _ (Breadcrumb [])) nodes _ = do
@@ -562,36 +565,42 @@ removeFromSequence ref = do
     when shouldUpdate (updateGraphSeq newS)
     mapM_ Code.gossipLengthsChanged newS
 
-removePort :: GraphLocation -> OutPortRef -> Empire InputSidebar
-removePort loc portRef = withGraph loc $ runASTOp $ do
-    let nodeId = portRef ^. PortRef.srcNodeId
-    ref <- ASTRead.getCurrentASTTarget
-    ASTBuilder.detachNodeMarkersForArgs ref
-    (inE, _) <- GraphBuilder.getEdgePortMapping
-    if nodeId == inE then ASTModify.removeLambdaArg (portRef ^. PortRef.srcPortId) ref
-                     else throwM NotInputEdgeException
-    newLam <- ASTRead.getCurrentASTTarget
-    ASTBuilder.attachNodeMarkersForArgs nodeId [] newLam
-    GraphBuilder.buildInputSidebar nodeId
+removePort :: GraphLocation -> OutPortRef -> Empire ()
+removePort loc portRef = do
+    withTC loc False $ runASTOp $ do
+        let nodeId = portRef ^. PortRef.srcNodeId
+        ref <- ASTRead.getCurrentASTTarget
+        ASTBuilder.detachNodeMarkersForArgs ref
+        (inE, _) <- GraphBuilder.getEdgePortMapping
+        if nodeId == inE then ASTModify.removeLambdaArg (portRef ^. PortRef.srcPortId) ref
+                         else throwM NotInputEdgeException
+        newLam <- ASTRead.getCurrentASTTarget
+        ASTBuilder.attachNodeMarkersForArgs nodeId [] newLam
+        GraphBuilder.buildInputSidebar nodeId
+    resendCode loc
 
-movePort :: GraphLocation -> OutPortRef -> Int -> Empire InputSidebar
-movePort loc portRef newPosition = withGraph loc $ runASTOp $ do
-    let nodeId = portRef ^. PortRef.srcNodeId
-    ref        <- ASTRead.getCurrentASTTarget
-    (input, _) <- GraphBuilder.getEdgePortMapping
-    newRef     <- if nodeId == input then ASTModify.moveLambdaArg (portRef ^. PortRef.srcPortId) newPosition ref
-                                     else throwM NotInputEdgeException
-    ASTBuilder.attachNodeMarkersForArgs nodeId [] ref
-    GraphBuilder.buildInputSidebar nodeId
+movePort :: GraphLocation -> OutPortRef -> Int -> Empire ()
+movePort loc portRef newPosition = do
+    withTC loc False $ runASTOp $ do
+        let nodeId = portRef ^. PortRef.srcNodeId
+        ref        <- ASTRead.getCurrentASTTarget
+        (input, _) <- GraphBuilder.getEdgePortMapping
+        newRef     <- if nodeId == input then ASTModify.moveLambdaArg (portRef ^. PortRef.srcPortId) newPosition ref
+                                         else throwM NotInputEdgeException
+        ASTBuilder.attachNodeMarkersForArgs nodeId [] ref
+        GraphBuilder.buildInputSidebar nodeId
+    resendCode loc
 
-renamePort :: GraphLocation -> OutPortRef -> Text -> Empire InputSidebar
-renamePort loc portRef newName = withGraph loc $ runASTOp $ do
-    let nodeId = portRef ^. PortRef.srcNodeId
-    ref        <- ASTRead.getCurrentASTTarget
-    (input, _) <- GraphBuilder.getEdgePortMapping
-    if nodeId == input then ASTModify.renameLambdaArg (portRef ^. PortRef.srcPortId) (Text.unpack newName) ref
-                       else throwM NotInputEdgeException
-    GraphBuilder.buildInputSidebar nodeId
+renamePort :: GraphLocation -> OutPortRef -> Text -> Empire ()
+renamePort loc portRef newName = do
+    withTC loc False $ runASTOp $ do
+        let nodeId = portRef ^. PortRef.srcNodeId
+        ref        <- ASTRead.getCurrentASTTarget
+        (input, _) <- GraphBuilder.getEdgePortMapping
+        if nodeId == input then ASTModify.renameLambdaArg (portRef ^. PortRef.srcPortId) (Text.unpack newName) ref
+                           else throwM NotInputEdgeException
+        GraphBuilder.buildInputSidebar nodeId
+    resendCode loc
 
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
 setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
