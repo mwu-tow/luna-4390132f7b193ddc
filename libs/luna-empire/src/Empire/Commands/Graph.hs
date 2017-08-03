@@ -629,7 +629,7 @@ updateExprMap new old = do
 
 resendCode :: GraphLocation -> Empire ()
 resendCode loc@(GraphLocation file _) = do
-    code <- fmap Text.pack $ getCode loc
+    code <- getCode loc
     Publisher.notifyCodeUpdate file
                                (Code.deltaToPoint 0 code)
                                (Code.deltaToPoint (fromIntegral $ Text.length code) code)
@@ -728,7 +728,7 @@ disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
 getNodeMeta :: GraphLocation -> NodeId -> Empire (Maybe NodeMeta)
 getNodeMeta loc = withGraph loc . runASTOp . AST.getNodeMeta
 
-getCode :: GraphLocation -> Empire String
+getCode :: GraphLocation -> Empire Text
 getCode loc@(GraphLocation file _) = do
     code <- withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ do
         unit     <- use Graph.clsClass
@@ -740,11 +740,11 @@ getCode loc@(GraphLocation file _) = do
                 Code.getAt 0 metaStart
             _         ->
                 use Graph.code
-    return $ Text.unpack . Code.removeMarkers $ code
+    return $ Code.removeMarkers code
 
 -- TODO[MK]: handle span
 getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
-getBuffer file span = Text.pack <$> getCode (GraphLocation file (Breadcrumb []))
+getBuffer file span = getCode (GraphLocation file (Breadcrumb []))
 
 getGraphCondTC :: Bool -> GraphLocation -> Empire APIGraph.Graph
 getGraphCondTC tc loc = (if tc then withTC' loc True else withGraph' loc) (runASTOp $ do
@@ -1326,9 +1326,6 @@ runTC :: GraphLocation -> Bool -> Command ClsGraph ()
 runTC loc flush = do
     g <- get
     Publisher.requestTC loc g flush
-
-printNodeLine :: GraphOp m => NodeId -> m String
-printNodeLine nodeId = GraphUtils.getASTPointer nodeId >>= ASTPrint.printExpression
 
 withTC' :: GraphLocation -> Bool -> Command Graph a -> Command ClsGraph a -> Empire a
 withTC' loc@(GraphLocation file bs) flush actG actC = do
