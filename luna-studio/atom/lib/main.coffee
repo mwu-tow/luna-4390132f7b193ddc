@@ -39,6 +39,7 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)
         @subscribe.add atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
+        @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
 
     lunaOpener: (uri) ->
         if path.basename(uri) is lunaStudioFakePath
