@@ -70,6 +70,7 @@ data InstallConfig = InstallConfig { _defaultConfPath        :: FilePath
                                    , _privateBinPath         :: FilePath
                                    , _configPath             :: FilePath
                                    , _logsFolder             :: FilePath
+                                   , _thirdParty             :: FilePath
                                    }
 makeLenses ''InstallConfig
 
@@ -93,6 +94,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
         , _privateBinPath          = "bin/private"
         , _configPath              = "config"
         , _logsFolder              = "logs"
+        , _thirdParty              = "third-party"
         }
 
 instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
@@ -156,7 +158,11 @@ downloadAndUnpack pkgPath installPath appName = do
     if testInstallPath then Shelly.shelly $ Shelly.rm_rf installPath else return ()
 
     Shelly.shelly $ Shelly.mkdir_p $ parent installPath
-    tmp <- getTmpPath
+    tmp <- case currentHost of
+                Darwin  -> getTmpPath
+                Linux   -> getTmpPath
+                Windows -> return $ fromText "C:\\a"
+    Shelly.shelly $ Shelly.mkdir_p tmp
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
     case currentHost of
@@ -165,6 +171,7 @@ downloadAndUnpack pkgPath installPath appName = do
              Shelly.shelly $ Shelly.cmd "mv" unpacked  $ installPath </> convert appName
          Darwin -> Shelly.shelly $ Shelly.cmd "mv" unpacked  installPath
          Windows -> Shelly.shelly $ Shelly.mv unpacked  installPath
+    Shelly.shelly $ Shelly.rm_rf tmp
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
@@ -276,6 +283,17 @@ copyLibs installPath = case currentHost of
             listedLibs <- Shelly.ls libFolderPath
             mapM_ (`Shelly.mv` binsFolderPath) listedLibs
 
+copyWinSW :: MonadInstall m => FilePath -> m ()
+copyWinSW installPath = case currentHost of
+    Linux -> return ()
+    Darwin -> return ()
+    Windows -> do
+        installConfig <- get @InstallConfig
+        let winSW = installPath </> (installConfig ^. thirdParty) </> fromText "WinSW.Net4.exe"
+            winConfigFolderPath = installPath </> (installConfig ^. configPath) </> fromText "windows"
+        Shelly.shelly $ Shelly.mv winSW winConfigFolderPath
+
+
 askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
@@ -331,6 +349,7 @@ runInstaller opts = do
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
     downloadAndUnpack (appPkgDesc ^. path) installPath appName
     copyLibs installPath
+    copyWinSW installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
     Shelly.shelly $ Shelly.cmd "Console.ReadKey ()"
 
