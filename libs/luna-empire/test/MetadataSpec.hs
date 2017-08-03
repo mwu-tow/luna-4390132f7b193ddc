@@ -198,7 +198,7 @@ spec = around withChannels $ parallel $ do
                     Graph.getNodeIdForMarker 0
                 Graph.removeNodes (loc |>= main ^. Node.nodeId) [pi]
                 Graph.getCode loc
-            code `shouldBe` normalizeQQ [r|
+            Text.unpack code `shouldBe` normalizeQQ [r|
                 def main:
                     None
 

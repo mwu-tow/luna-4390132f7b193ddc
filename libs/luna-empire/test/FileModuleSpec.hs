@@ -80,7 +80,7 @@ specifyCodeChange initialCode expectedCode act env = do
         [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
         let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
         act loc'
-        Text.pack <$> Graph.getCode loc'
+        Graph.getCode loc'
     Text.strip actualCode `shouldBe` normalize expectedCode
 
 
@@ -108,7 +108,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def quux a b c:
                     None
 
@@ -131,7 +131,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -154,7 +154,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -177,7 +177,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def quux:
                     None
 
@@ -213,7 +213,7 @@ spec = around withChannels $ parallel $ do
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "foo") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -231,7 +231,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "qwerty") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -254,7 +254,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "qwerty") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -277,7 +277,7 @@ spec = around withChannels $ parallel $ do
                 Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
                 Graph.addNode (loc |>= main ^. Node.nodeId) u1 "1" (atXPos (-10))
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -298,7 +298,7 @@ spec = around withChannels $ parallel $ do
                 Graph.renameNode loc (bar ^. Node.nodeId) ")" `catch` (\(_e :: SomeParserException) -> return ())
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
 
@@ -321,7 +321,7 @@ spec = around withChannels $ parallel $ do
             find (\n -> n ^. Node.name == Just "foo") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isNothing
-            normalizeQQ code `shouldBe` normalizeQQ multiFunCode
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ multiFunCode
         it "decodes breadcrumbs in function" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
                     def main:
@@ -554,7 +554,7 @@ spec = around withChannels $ parallel $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 starts <- Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
                 code <- Graph.getCode loc
-                return (starts, code)
+                return (starts, Text.unpack code)
             normalizeQQ code `shouldBe` normalizeQQ [r|
                 def foo:
                     number1 = 5
@@ -568,7 +568,7 @@ spec = around withChannels $ parallel $ do
                 |]
             starts `shouldMatchList` [0, 38, 61]
         it "maintains proper function file offsets after adding node" $ \env -> do
-            (offsets, code) <- evalEmp env $ do
+            offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
@@ -580,11 +580,10 @@ spec = around withChannels $ parallel $ do
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
                     return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
-                code <- Graph.getCode loc
-                return (offsets, code)
+                return offsets
             offsets `shouldMatchList` [("foo",0), ("bar",38), ("main",61)]
         it "maintains proper function file offsets after adding a function" $ \env -> do
-            (offsets, code) <- evalEmp env $ do
+            offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
@@ -596,11 +595,10 @@ spec = around withChannels $ parallel $ do
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
                     return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
-                code <- Graph.getCode loc
-                return (offsets, code)
+                return offsets
             offsets `shouldMatchList` [("foo",0), ("bar",19), ("aaa",42), ("main",61)]
         it "maintains proper function file offsets after removing a function" $ \env -> do
-            (offsets, code) <- evalEmp env $ do
+            offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
@@ -611,12 +609,11 @@ spec = around withChannels $ parallel $ do
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
                     return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
-                code <- Graph.getCode loc
-                return (offsets, code)
+                return offsets
             offsets `shouldMatchList` [("foo",0), ("main",19)]
         it "maintains proper function file offsets after renaming a function" $ \env -> do
             u1 <- mkUUID
-            (offsets, code) <- evalEmp env $ do
+            offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
@@ -627,8 +624,7 @@ spec = around withChannels $ parallel $ do
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
                     return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
-                code <- Graph.getCode loc
-                return (offsets, code)
+                return offsets
             offsets `shouldMatchList` [("foo", 0), ("qwerty", 19), ("main", 45)]
         it "adds the first function in a file" $ \env -> do
             u1 <- mkUUID
@@ -640,7 +636,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 1
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def main:
                     None
                 |]
@@ -654,7 +650,7 @@ spec = around withChannels $ parallel $ do
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 1
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
-            normalizeQQ code `shouldBe` normalizeQQ [r|
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 import Std
                 import Foo
 
