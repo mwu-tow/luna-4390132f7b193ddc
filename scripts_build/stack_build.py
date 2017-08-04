@@ -26,11 +26,39 @@ def build_ghcjs(frontend):
         subprocess.check_output(['stack', 'build'])
     else: print("unknown system")
 
-def build(backend,runner):
+def build_runner(runner):
+    os.chdir(runner)
+    print ("build runner")
+    runnerPath = runner + '/src/StudioRunner.hs'
+    hostPath = runner + '/src/System/Host.hs'
+    resPath = runner + '../resources/my.res'
+    if system.system == system.systems.WINDOWS:
+        print ("build runner")
+        os.system('stack exec ghc -- ' + runnerPath + ' ' + hostPath + ' ' + resPath)
+    elif system.system == system.systems.LINUX:
+        subprocess.check_output(['stack', 'build'])
+    elif system.system == system.systems.DARWIN:
+        subprocess.check_output(['stack', 'build'])
+    else: print("unknown system")
+
+def build_backend(backend):
     os.chdir(backend)
     subprocess.check_output(['stack', 'build', '--copy-bins'])
-    os.chdir(runner)
-    subprocess.check_output(['stack', 'build', '--copy-bins'])
+
+def mv_runner(runner):
+    if system.system == system.systems.WINDOWS:
+        runner_src = runner + '/src/' + '/StudioRunner.exe'
+        runner_dst = ap.prep_path('../dist/bin/public/luna-studio/luna-studio.exe')
+        print (runner_src)
+        print (runner_dst)
+        os.rename(runner_src, runner_dst)
+    elif system.system == system.systems.LINUX:
+        return ()
+    elif system.system == system.systems.DARWIN:
+        return ()
+    else: print("unknown system")
+
+
 
 def link_main_bin ():
     os.chdir(ap.prep_path('../dist/bin'))
@@ -38,8 +66,10 @@ def link_main_bin ():
 
 def run():
     create_bin_dirs()
+    build_runner(runner_dir)
+    mv_runner(runner_dir)
     build_ghcjs(frontend_dir)
-    build(backend_dir, runner_dir)
+    build(backend_dir)
     link_main_bin ()
 
 if __name__ == '__main__':
