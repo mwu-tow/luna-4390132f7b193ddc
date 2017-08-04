@@ -103,7 +103,7 @@ unzipFileWindows zipFile = do
 
 untarWin :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath
 untarWin zipFile = do
-  let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar1.py"
+  let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar.exe"
   --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
   script <- downloadFromURL scriptPath
@@ -117,7 +117,7 @@ untarWin zipFile = do
     Shelly.cp script dir
     -- Shelly.cd $ dir </> name
     liftIO $ print name
-    Shelly.cmd "python" (filename script) "untar" (filename zipFile) name
+    Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name
     -- Shelly.rm $ dir </> name </> (filename zipFile)
     -- Shelly.rm $ dir </> name </> (filename script)
     listed <- Shelly.ls $ dir </> name
@@ -133,12 +133,12 @@ untarWin zipFile = do
 zipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> Text -> m FilePath
 zipFileWindows folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
-    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar1.py"
+    let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar.exe"
     script <- downloadFromURL scriptPath
     Shelly.shelly $ do
         Shelly.cd $ parent folder
         Shelly.cp script $ parent folder
-        Shelly.cmd "python" (filename script) "tar" name folder
+        Shelly.cmd (parent folder </> filename script) "tar" name folder
         return name
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
