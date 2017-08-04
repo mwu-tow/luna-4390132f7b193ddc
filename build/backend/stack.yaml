@@ -1,6 +1,6 @@
 resolver: lts-8.2
 ghc-options:
-  '*': -threaded -fconstraint-solver-iterations=100
+  '*': -threaded -fconstraint-solver-iterations=100 -O2
 local-bin-path:
   ../../dist/bin/private
 
