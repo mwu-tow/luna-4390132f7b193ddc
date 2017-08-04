@@ -375,6 +375,6 @@
       newOptions.series = []
       currentData = data;
     }
-    chart.setOption(applyData(newOptions, currentData));
+    chart.setOption(applyData(newOptions, currentData.map( function (s) { return s.slice(-500)})));
   });
 }());
