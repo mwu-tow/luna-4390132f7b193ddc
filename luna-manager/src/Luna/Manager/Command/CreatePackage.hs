@@ -25,6 +25,7 @@ import qualified Data.Yaml as Yaml
 import qualified Luna.Manager.Command.Options as Opts
 import qualified Shelly.Lifted as Shelly
 import qualified System.Process.Typed as Process
+import System.Directory (renameDirectory)
 
 
 
@@ -79,6 +80,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
 instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & buildScriptPath .~ "build-package.bat"
+                           & defaultPackagePath .~ "C:\\luna_tmp"
 
 
 ----------------------
@@ -190,12 +192,12 @@ copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
     pkgConfig         <- get @PackageConfig
     packageRepoFolder <- case currentHost of
-        Darwin -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
-        Linux -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
-        Windows -> expand $ (pkgConfig ^. defaultPackagePath) </> convert appName
+        Darwin  -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Linux   -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
     Shelly.shelly $ Shelly.mkdir_p $ parent packageRepoFolder
-    Shelly.shelly $ Shelly.mv expandedCopmponents packageRepoFolder
+    Shelly.shelly $ Shelly.mv expandedCopmponents  packageRepoFolder
 
 downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do
@@ -282,11 +284,14 @@ createPkg resolvedApplication = do
     mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
     runPkgBuildScript $ convert appPath
     copyFromDistToDistPkg appName $ convert appPath
-    mainAppDir <- expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
+    mainAppDir <- case currentHost of
+        Linux  -> expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Darwin ->  expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let versionFile = mainAppDir </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
         binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
         libsFolder  = mainAppDir </> (pkgConfig ^. libPath)
-
+    Shelly.shelly $ Shelly.mkdir_p $ parent versionFile
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
     case currentHost of
         Linux -> return ()
