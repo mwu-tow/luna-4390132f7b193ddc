@@ -1119,6 +1119,48 @@ spec = around withChannels $ parallel $ do
                     , (outPortRef u2 [Port.Projection 0], inPortRef u3 [Port.Arg 0])
                     , (outPortRef u2 [Port.Projection 1], inPortRef u3 [Port.Arg 1])
                     ]
+        it "displays proper connections and ports on a pattern matching node" $ \env -> do
+            u1 <- mkUUID
+            u2 <- mkUUID
+            u3 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = Tuple2 1 2" def
+                Graph.addNode top u2 "Tuple2 x y = foo" def
+                Graph.addNode top u3 "bar = x + 1" def
+                Graph.withGraph top $ runASTOp $
+                    (,) <$> GraphBuilder.buildNode u2
+                        <*> GraphBuilder.buildConnections
+            withResult res $ \(pattern, connections) -> do
+                pattern ^.. Node.outPorts . traverse `shouldMatchList` [
+                      Port.Port [] "Tuple2 x y" TStar Port.NotConnected
+                    , Port.Port [Port.Projection 0] "x" TStar Port.NotConnected
+                    , Port.Port [Port.Projection 1] "y" TStar Port.NotConnected
+                    ]
+                connections `shouldMatchList` [
+                      (outPortRef u1 [], inPortRef u2 [])
+                    , (outPortRef u2 [Port.Projection 0], inPortRef u3 [Port.Arg 0])
+                    ]
+        it "displays proper connections and ports on a pattern matching node with tuple pattern" $ \env -> do
+            u1 <- mkUUID
+            u2 <- mkUUID
+            u3 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = (1, 2)" def
+                Graph.addNode top u2 "(x, y) = foo" def
+                Graph.addNode top u3 "bar = x + 1" def
+                Graph.withGraph top $ runASTOp $
+                    (,) <$> GraphBuilder.buildNode u2
+                        <*> GraphBuilder.buildConnections
+            withResult res $ \(pattern, connections) -> do
+                pattern ^.. Node.outPorts . traverse `shouldMatchList` [
+                      Port.Port [] "(x, y)" TStar Port.NotConnected
+                    , Port.Port [Port.Projection 0] "x" TStar Port.NotConnected
+                    , Port.Port [Port.Projection 1] "y" TStar Port.NotConnected
+                    ]
+                connections `shouldMatchList` [
+                      (outPortRef u1 [], inPortRef u2 [])
+                    , (outPortRef u2 [Port.Projection 0], inPortRef u3 [Port.Arg 0])
+                    ]
         it "connects two outputs when one of them is nested pattern match with literals" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID

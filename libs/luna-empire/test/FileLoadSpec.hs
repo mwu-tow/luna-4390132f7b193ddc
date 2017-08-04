@@ -104,7 +104,7 @@ specifyCodeChange initialCode expectedCode act env = do
             when (elem nodeId toplevel) $
                 Graph.setNodeMeta loc' nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
         act loc'
-        Text.pack <$> Graph.getCode loc'
+        Graph.getCode loc'
     Text.strip actualCode `shouldBe` normalize expectedCode
 
 

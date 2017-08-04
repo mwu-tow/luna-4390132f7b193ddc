@@ -274,7 +274,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                                        cam    = maybe defaultCamera (view Project.breadcrumbCameraSettings) bs
                             in (visMap, cam)
                 return (Right graph, crumb, typeRepToVisMap, camera)
-        return $ GetProgram.Result graph (Text.pack code) crumb typeRepToVisMap camera
+        return $ GetProgram.Result graph code crumb typeRepToVisMap camera
 
 handleAddConnection :: Request AddConnection.Request -> StateT Env BusT ()
 handleAddConnection = modifyGraph inverse action replyResult where

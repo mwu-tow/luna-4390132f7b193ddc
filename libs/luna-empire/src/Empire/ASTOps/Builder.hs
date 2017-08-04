@@ -11,14 +11,14 @@ import           Control.Monad                      (foldM, replicateM, forM_, z
 import           Data.Maybe                         (isNothing)
 import qualified Data.Text                          as Text
 import           Empire.Prelude                     (stringToName)
-import           Prologue
+import           Prologue                           hiding (List)
 
 import           LunaStudio.Data.Node               (NodeId)
 import           LunaStudio.Data.PortRef            (OutPortRef (..))
 import           LunaStudio.Data.NodeLoc            (NodeLoc (..))
 import qualified LunaStudio.Data.Port               as Port
 import           Empire.ASTOp                       (GraphOp, match)
-import           Empire.ASTOps.Deconstruct          (deconstructApp, extractFunctionPorts, dumpAccessors)
+import           Empire.ASTOps.Deconstruct          (extractAppPorts, deconstructApp, extractFunctionPorts, dumpAccessors)
 import           Empire.ASTOps.Remove               (removeSubtree)
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Print                as ASTPrint
@@ -305,14 +305,16 @@ detachNodeMarkers ref' = do
     mapM_ (IR.source >=> detachNodeMarkers) inps
 
 attachNodeMarkers :: GraphOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
-attachNodeMarkers marker port ref' = do
-    ref <- ASTRead.cutThroughGroups ref'
-    IR.putLayer @Marker ref $ Just $ OutPortRef (NodeLoc def marker) port
-    match ref $ \case
-        Cons _ as -> do
-            args <- mapM IR.source as
-            zipWithM_ (attachNodeMarkers marker) ((port ++) . pure . Port.Projection <$> [0..]) args
-        _ -> return ()
+attachNodeMarkers marker port ref' = go port ref' where
+    goOn args = zipWithM_ go ((port ++) . pure . Port.Projection <$> [0..]) args
+    go port ref' = do
+        ref <- ASTRead.cutThroughGroups ref'
+        match ref $ \case
+            Cons _ as -> goOn =<< mapM IR.source as
+            App{}     -> goOn =<< extractAppPorts ref
+            Tuple as  -> goOn =<< mapM IR.source as
+            List  as  -> goOn =<< mapM IR.source as
+            _         -> IR.putLayer @Marker ref $ Just $ OutPortRef (NodeLoc def marker) port
 
 detachNodeMarkersForArgs :: GraphOp m => NodeRef -> m ()
 detachNodeMarkersForArgs lam = do
