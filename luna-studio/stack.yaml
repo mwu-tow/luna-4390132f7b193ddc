@@ -17,6 +17,7 @@ extra-deps:
   - datetime-0.3.1
   - ghcjs-dom-0.7.0.4
   - ghcjs-dom-jsffi-0.7.0.4
+  - foundation-0.0.7
 
 packages:
 - {location: ./node-editor}
