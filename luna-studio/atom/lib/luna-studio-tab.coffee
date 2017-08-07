@@ -110,4 +110,4 @@ class LunaStudioTab extends View
     handleSave: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
