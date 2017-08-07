@@ -16,18 +16,20 @@ import Control.Monad.State.Dependent
 
 -- === Definition === --
 
-newtype Delta = Delta Int deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Generic, Integral, Ix, NFData, Num, Ord, PrintfArg, Read, Real, Show, Storable)
+newtype Delta = Delta Int deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Generic, Integral, Ix, NFData, Num, Ord, PrintfArg, Read, Real, Storable)
 makeWrapped ''Delta
 
 
 -- === Instances === --
 
-instance Convertible Int   Delta where convert = wrap
-instance Convertible Delta Int   where convert = unwrap
+instance Convertible Int   Delta where convert = coerce
+instance Convertible Delta Int   where convert = coerce
 
 instance Default   Delta where def    = 0
 instance Mempty    Delta where mempty = 0
 instance Semigroup Delta where (<>)   = (+)
+
+instance Show Delta where show = show . unwrap ; {-# INLINE show #-}
 
 
 
@@ -54,8 +56,8 @@ incOffset i = modify_ @Offset (+i)
 
 -- === Instances === --
 
-instance Convertible Delta  Offset where convert = wrap
-instance Convertible Offset Delta  where convert = unwrap
+instance Convertible Delta  Offset where convert = coerce
+instance Convertible Offset Delta  where convert = coerce
 instance Convertible Int    Offset where convert = convertVia @Delta
 instance Convertible Offset Int    where convert = convertVia @Delta
 
