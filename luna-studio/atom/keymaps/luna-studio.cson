@@ -123,6 +123,12 @@
   'backspace'         : 'luna-studio:remove-selected-nodes'       # RemoveSelectedNodes
   'ctrl-a'            : 'luna-studio:select-all'                  # SelectAll
   'cmd-a'             : 'luna-studio:select-all'                  # SelectAll
+  'ctrl-c'            : 'luna-studio:copy'                        # Copy
+  'cmd-c'             : 'luna-studio:copy'                        # Copy
+  'ctrl-x'            : 'luna-studio:cut'                         # Cut
+  'cmd-x'             : 'luna-studio:cut'                         # Cut
+  'ctrl-v'            : 'luna-studio:paste'                       # Paste
+  'cmd-v'             : 'luna-studio:paste'                       # Paste
   'ctrl-e'            : 'luna-studio:unfold-selected-nodes'       # UnfoldSelectedNodes
   'cmd-e'             : 'luna-studio:unfold-selected-nodes'       # UnfoldSelectedNodes
   'delete'            : 'luna-studio:remove-selected-nodes'       # RemoveSelectedNodes
