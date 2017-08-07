@@ -128,10 +128,11 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
             showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression    = n ^. Node.expression
-            highlight     = if n ^. Node.isMouseOver
-                         && (n ^. Node.argConstructorMode /= Port.Highlighted)
-                         && (not $ any Port.isHighlighted (inPortsList n))
-                         && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
+            highlight     = if n ^. Node.isMouseOver then ["hover"] else []
+                        --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
+                        --  && (not $ any Port.isHighlighted (inPortsList n))
+                        --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
+            ifPortConstructor = if (n ^. Node.argConstructorMode == Port.Highlighted) then ["has-port-constructor"] else []
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
@@ -139,7 +140,8 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
                                                                        ++ (if returnsError n then ["node--error"] else [])
                                                                        ++ (if n ^. Node.isSelected then ["node--selected"] else [])
                                                                        ++ (if hasSelf then ["node--has-self"] else ["node--no-self"])
-                                                                       ++ highlight)
+                                                                       ++ highlight
+                                                                       ++ ifPortConstructor)
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc

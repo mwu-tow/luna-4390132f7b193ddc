@@ -41,7 +41,7 @@ modeClass :: Mode -> [String]
 modeClass Invisible      = ["port--invisible"]
 modeClass Inactive       = ["port--inactive"]
 modeClass TypeNotMatched = ["port--type-not-matched"]
-modeClass Highlighted    = ["hover"]
+modeClass Highlighted    = ["port--highlighted"]
 modeClass _               = []
 
 jsShow2 :: Double -> JSString
@@ -286,7 +286,7 @@ argumentConstructor_ :: Ref App -> NodeLoc -> Int -> Bool -> ReactElementM ViewE
 argumentConstructor_ ref nl numOfPorts isConnectionSource = do
     let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
         offsetY   = fromIntegral numOfPorts * gridSize + argumentConstructorShift
-        highlight = if isConnectionSource then ["hover"] else []
+        highlight = if isConnectionSource then ["port--highlighted"] else []
     g_
         [ "key"       $= "argument-constructor"
         , "className" $= Style.prefixFromList (["port", "port--i", "port--i--constructor"] ++ highlight)
