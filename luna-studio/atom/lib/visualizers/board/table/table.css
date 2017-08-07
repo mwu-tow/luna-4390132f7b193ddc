@@ -11,6 +11,11 @@ body {
 }
 table {
   border-collapse: collapse;
+  width: 90%;
+  height: 100%;
+  display: block;
+  overflow: scroll;
+  margin: 13px 10%;
 }
 tr:first-child td { padding-top:    6rem; }
 tr:last-child td  { padding-bottom: 6rem; }
