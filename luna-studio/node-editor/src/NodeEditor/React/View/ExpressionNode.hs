@@ -204,7 +204,6 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                                               port
                                               (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
                                               (withOut isAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
-                                              (n ^. Node.inPorts . LabeledTree.value . Port.state == Port.Connected)
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]
