@@ -746,7 +746,7 @@ getCode loc@(GraphLocation file _) = do
             Just meta -> do
                 metaStart <- Code.functionBlockStartRef meta
                 LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
-                Code.getAt 0 metaStart
+                Code.getAt 0 (metaStart - off)
             _         ->
                 use Graph.code
     return $ Code.removeMarkers code
@@ -1098,25 +1098,28 @@ addMetadataToCode file = do
                 Code.applyDiff metaStart (metaStart + len) metadataJSONWithHeader
                 IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan off (fromIntegral $ Text.length metadataJSONWithHeader))
             Nothing   -> do
-                lastFun <- last <$> ASTRead.classFunctions unit
-                lastFunStart <- Code.functionBlockStartRef lastFun
-                LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan lastFun
-                let metaOffset = 2
-                    metaStart  = lastFunStart + len
-                    metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
-                Code.insertAt metaStart metadataJSONWithHeaderAndOffset
-                meta <- IR.metadata metadataJSONWithHeader
-                IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
+                mayLastFun <- Safe.lastMay <$> ASTRead.classFunctions unit
+                case mayLastFun of
+                    Just lastFun -> do
+                        lastFunStart <- Code.functionBlockStartRef lastFun
+                        LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan lastFun
+                        let metaOffset = 2
+                            metaStart  = lastFunStart + len
+                            metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
+                        Code.insertAt metaStart metadataJSONWithHeaderAndOffset
+                        meta <- IR.metadata metadataJSONWithHeader
+                        IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
 
-                IR.matchExpr unit $ \case
-                    IR.Unit _ _ cls -> do
-                        cls' <- IR.source cls
-                        Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
-                        l <- IR.unsafeGeneralize <$> IR.link meta cls''
-                        links <- IR.matchExpr cls' $ \case
-                            IR.ClsASG _ _ _ decls -> return decls
-                        newFuns <- putNewFunctionRef l (Just lastFun) links
-                        IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
+                        IR.matchExpr unit $ \case
+                            IR.Unit _ _ cls -> do
+                                cls' <- IR.source cls
+                                Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
+                                l <- IR.unsafeGeneralize <$> IR.link meta cls''
+                                links <- IR.matchExpr cls' $ \case
+                                    IR.ClsASG _ _ _ decls -> return decls
+                                newFuns <- putNewFunctionRef l (Just lastFun) links
+                                IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
+                    Nothing      -> return ()
 
 parseMetadata :: MonadIO m => Text -> m FileMetadata
 parseMetadata meta =

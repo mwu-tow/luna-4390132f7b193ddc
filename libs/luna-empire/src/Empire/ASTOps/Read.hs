@@ -338,6 +338,7 @@ classFunctions unit = IR.matchExpr unit $ \case
                 catMaybes <$> forM funs' (\f -> IR.matchExpr f $ \case
                     IR.ASGRootedFunction{} -> return (Just f)
                     _                      -> return Nothing)
+    _ -> return []
 
 getMetadataRef :: ClassOp m => NodeRef -> m (Maybe NodeRef)
 getMetadataRef unit = IR.matchExpr unit $ \case
