@@ -79,7 +79,7 @@ unzipFileWindows zipFile = do
     let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/j_unzip.vbs"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
-    script <- downloadFromURL scriptPath
+    script <- downloadFromURL "Downloading archiving tool" scriptPath
     let dir = directory zipFile
         name = dir </> basename zipFile
     -- Shelly.shelly $ Shelly.cp script dir
@@ -106,7 +106,7 @@ untarWin zipFile = do
   let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar.exe"
   --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
-  script <- downloadFromURL scriptPath
+  script <- downloadFromURL scriptPath "Downloading archiving tool"
   let dir = directory zipFile
       name = dir </> basename zipFile
   -- Shelly.shelly $ Shelly.cp script dir
@@ -134,7 +134,7 @@ zipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> Text -> m FilePath
 zipFileWindows folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
     let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar.exe"
-    script <- downloadFromURL scriptPath
+    script <- downloadFromURL scriptPath "Downloading archiving tool" 
     Shelly.shelly $ do
         Shelly.cd $ parent folder
         Shelly.cp script $ parent folder

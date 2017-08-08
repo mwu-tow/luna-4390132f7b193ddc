@@ -42,10 +42,10 @@ takeFileNameFromURL url = convert <$> name where
 
 type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m)
 
-downloadFromURL :: MonadNetwork m => URIPath -> m FilePath
-downloadFromURL address = tryJust downloadError =<< go where
+downloadFromURL :: MonadNetwork m => URIPath -> Text -> m FilePath
+downloadFromURL address info = tryJust downloadError =<< go where
     go = withJust (takeFileNameFromURL address) $ \name -> do
-        putStrLn $ "Downloading repository configuration file (" <> convert address <> ")"
+        putStrLn $ (convert info) <>" (" <> convert address <> ")"
         dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
         request <- tryRight' $ HTTP.parseRequest (convert address)

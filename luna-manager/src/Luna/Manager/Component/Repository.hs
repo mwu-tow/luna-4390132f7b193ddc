@@ -1,6 +1,6 @@
 module Luna.Manager.Component.Repository where
 
-import Prologue
+import Prologue hiding (FilePath)
 
 import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
@@ -20,7 +20,7 @@ import qualified Data.Yaml           as Yaml
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
-import Filesystem.Path.CurrentOS (encodeString)
+import Filesystem.Path.CurrentOS (encodeString, decodeString, FilePath)
 
 ------------------------
 -- === Errors === --
@@ -142,7 +142,10 @@ makeLenses ''RepoConfig
 type MonadRepo m = (MonadStates '[RepoConfig, EnvConfig] m, MonadNetwork m)
 
 parseConfig :: (MonadIO m, MonadException SomeException m) => FilePath -> m Repo
-parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither cfgPath)
+parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither $ encodeString cfgPath)
+
+downloadRepo :: MonadNetwork m => URIPath -> m FilePath
+downloadRepo address = downloadFromURL address "Downloading repository configuration file"
 
 getRepo :: MonadRepo m => m Repo
 getRepo = do
@@ -151,8 +154,8 @@ getRepo = do
         Just r  -> return r
         Nothing -> do
             setTmpCwd
-            downloadedConfig <- downloadFromURL . view repoPath =<< get @RepoConfig
-            repo <- parseConfig $ encodeString downloadedConfig
+            downloadedConfig <- downloadRepo . view repoPath =<< get @RepoConfig
+            repo <- parseConfig downloadedConfig
             put @RepoConfig $ cfg & cachedRepo .~ Just repo
             return repo
 
