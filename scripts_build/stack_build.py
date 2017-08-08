@@ -32,7 +32,7 @@ def build_runner(runner):
     print ("build runner")
     runnerPath = runner + '/src/StudioRunner.hs'
     hostPath = runner + '/src/System/Host.hs'
-    resPath = runner + '../resources/my.res'
+    resPath = runner + '/../resources/my.res'
     if system.system == system.systems.WINDOWS:
         print ("build runner")
         os.system('stack exec ghc -- ' + runnerPath + ' ' + hostPath + ' ' + resPath)
