@@ -692,9 +692,10 @@ connect loc outPort anyPort = do
 
 connectPersistent :: GraphOp m => OutPortRef -> AnyPortRef -> m Connection
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst@(InPortRef (NodeLoc _ dstNodeId) dstPort)) = do
+    srcAst <- ASTRead.getASTOutForPort srcNodeId srcPort
     case dstPort of
-        []        -> makeWhole srcNodeId dstNodeId srcPort
-        _         -> makeInternalConnection srcNodeId dstNodeId srcPort dstPort
+        [] -> makeWhole srcAst dstNodeId
+        _  -> makeInternalConnection srcAst dstNodeId dstPort
     return $ Connection src dst
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (OutPortRef' dst@(OutPortRef d@(NodeLoc _ dstNodeId) dstPort)) = do
     case dstPort of
@@ -718,16 +719,16 @@ getPortDefault loc port@(InPortRef  _ (Self : _))              = throwM $ SelfPo
 getPortDefault loc (InPortRef  (NodeLoc _ nodeId) (Arg x : _)) = withGraph loc $ runASTOp $ flip GraphBuilder.getInPortDefault x =<< GraphUtils.getASTTarget nodeId
 
 setPortDefault :: GraphLocation -> InPortRef -> Maybe PortDefault -> Empire ()
-setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = withTC loc False $ runASTOp $ do
-    parsed <- ASTParse.parsePortDefault val
-    refBeg <- Code.getASTTargetBeginning nodeId
-    e <- ASTRead.getTargetEdge nodeId
-    case port of
-        [Self]    -> do
-            ASTBuilder.makeAccessor parsed e refBeg
-        [Arg num] -> do
-            ASTBuilder.applyFunction e refBeg parsed num
-setPortDefault loc port Nothing = withTC loc False $ runASTOp $ disconnectPort port
+setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = do
+    withTC loc False $ runASTOp $ do
+        parsed <- ASTParse.parsePortDefault val
+        case port of
+            [] -> makeWhole parsed nodeId
+            _  -> makeInternalConnection parsed nodeId port
+    resendCode loc
+setPortDefault loc port Nothing = do
+    withTC loc False $ runASTOp $ disconnectPort port
+    resendCode loc
 
 disconnect :: GraphLocation -> InPortRef -> Empire ()
 disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
@@ -1396,16 +1397,14 @@ removeInternalConnection nodeId port = do
     beg    <- Code.getASTTargetBeginning nodeId
     ASTBuilder.removeArgument dstAst beg port
 
-makeInternalConnection :: GraphOp m => NodeId -> NodeId -> OutPortId -> InPortId -> m ()
-makeInternalConnection src dst outPort inPort = do
+makeInternalConnection :: GraphOp m => NodeRef -> NodeId -> InPortId -> m ()
+makeInternalConnection srcAst dst inPort = do
     dstBeg <- Code.getASTTargetBeginning dst
-    srcAst <- ASTRead.getASTOutForPort src outPort
     dstAst <- ASTRead.getTargetEdge dst
     ASTBuilder.makeConnection dstAst dstBeg inPort srcAst
 
-makeWhole :: GraphOp m => NodeId -> NodeId -> OutPortId -> m ()
-makeWhole src dst outPort = do
+makeWhole :: GraphOp m => NodeRef -> NodeId -> m ()
+makeWhole srcAst dst = do
     (_, out) <- GraphBuilder.getEdgePortMapping
     let connectToOutputEdge = out == dst
-    srcAst   <- ASTRead.getASTOutForPort src outPort
     if connectToOutputEdge then setOutputTo srcAst else GraphUtils.rewireNode dst srcAst
