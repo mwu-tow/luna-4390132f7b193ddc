@@ -22,7 +22,7 @@ import qualified Empire.Commands.Code            as Code
 import qualified Empire.Commands.AST             as AST
 import           Empire.Data.AST                 (NodeRef, EdgeRef)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               as Graph (NodeCache, breadcrumbHierarchy, nodeIdMap, nodeMetaMap)
+import           Empire.Data.Graph               as Graph (NodeCache, nodeCache, breadcrumbHierarchy, nodeIdMap, nodeMetaMap)
 import           Empire.Data.Layers              (Marker)
 import           LunaStudio.Data.Node            (NodeId)
 import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
@@ -31,9 +31,9 @@ import qualified LunaStudio.Data.Port            as Port
 
 import qualified Luna.IR as IR
 
-makeTopBreadcrumbHierarchy :: GraphOp m => NodeCache -> NodeRef -> m ()
-makeTopBreadcrumbHierarchy nodeCache ref = do
-    item <- prepareFunctionChild nodeCache ref ref
+makeTopBreadcrumbHierarchy :: GraphOp m => NodeRef -> m ()
+makeTopBreadcrumbHierarchy ref = do
+    item <- prepareFunctionChild ref ref
     breadcrumbHierarchy .= item
 
 getMarker :: GraphOp m => NodeRef -> m Word64
@@ -41,19 +41,19 @@ getMarker marker = do
     IR.matchExpr marker $ \case
         IR.Marker index -> return index
 
-childrenFromSeq :: GraphOp m => NodeCache -> Delta -> EdgeRef -> m (Map NodeId BH.BChild)
-childrenFromSeq nodeCache tgtBeg edge = do
+childrenFromSeq :: GraphOp m => Delta -> EdgeRef -> m (Map NodeId BH.BChild)
+childrenFromSeq tgtBeg edge = do
     ref <- IR.source edge
     off <- Code.getOffsetRelativeToTarget edge
     let beg = tgtBeg + off
     IR.matchExpr ref $ \case
-        IR.Seq    l r    -> Map.union <$> (childrenFromSeq nodeCache beg l) <*> (childrenFromSeq nodeCache beg r)
+        IR.Seq    l r    -> Map.union <$> (childrenFromSeq beg l) <*> (childrenFromSeq beg r)
         IR.Marked m expr -> do
             expr'      <- IR.source expr
             index      <- getMarker =<< IR.source m
             newNodeId  <- liftIO UUID.nextRandom
-            let nodeId = nodeCache ^. nodeIdMap . at index
-                uid    = fromMaybe newNodeId nodeId
+            nodeId     <- use $ Graph.nodeCache . nodeIdMap . at index
+            let uid    = fromMaybe newNodeId nodeId
             childTarget <- IR.matchExpr expr' $ \case
                 IR.Unify l r -> do
                     ASTBuilder.attachNodeMarkers uid []      =<< IR.source l
@@ -61,56 +61,57 @@ childrenFromSeq nodeCache tgtBeg edge = do
                 _ -> do
                     IR.putLayer @Marker expr' $ Just $ OutPortRef (NodeLoc def uid) []
                     return expr'
-            child <- prepareChild nodeCache ref childTarget
-            forM (nodeCache ^? Graph.nodeMetaMap . ix index) $ AST.writeMeta ref
+            child    <- prepareChild ref childTarget
+            nodeMeta <- use $ Graph.nodeCache . nodeMetaMap . at index
+            forM nodeMeta $ AST.writeMeta ref
             return $ Map.singleton uid child
         _ -> do
             Code.addCodeMarker beg edge
-            childrenFromSeq nodeCache tgtBeg edge
+            childrenFromSeq tgtBeg edge
 
 isNone :: GraphOp m => NodeRef -> m Bool
 isNone = flip IR.matchExpr $ \case
     IR.Cons n _ -> return $ n == "None"
     _           -> return False
 
-lambdaChildren :: GraphOp m => NodeCache -> Delta -> EdgeRef -> m (Map NodeId BH.BChild)
-lambdaChildren nodeCache tgtBeg edge = do
+lambdaChildren :: GraphOp m => Delta -> EdgeRef -> m (Map NodeId BH.BChild)
+lambdaChildren tgtBeg edge = do
     ref <- IR.source edge
     off <- Code.getOffsetRelativeToTarget edge
     let beg = tgtBeg + off
     IR.matchExpr ref $ \case
-        IR.Seq l r -> Map.union <$> (childrenFromSeq nodeCache beg l) <*> (lambdaChildren nodeCache beg r)
+        IR.Seq l r -> Map.union <$> (childrenFromSeq beg l) <*> (lambdaChildren beg r)
         _          -> do
             marker <- IR.getLayer @Marker ref
             isN    <- isNone ref
-            if isJust marker || isN then return Map.empty else childrenFromSeq nodeCache tgtBeg edge
+            if isJust marker || isN then return Map.empty else childrenFromSeq tgtBeg edge
 
-prepareChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
-prepareChild nodeCache marked ref = go ref where
+prepareChild :: GraphOp m => NodeRef -> NodeRef -> m BH.BChild
+prepareChild marked ref = go ref where
     go r = IR.matchExpr r $ \case
-        IR.Lam {}         -> BH.LambdaChild <$> prepareLambdaChild   nodeCache marked ref
-        IR.ASGFunction {} -> BH.LambdaChild <$> prepareFunctionChild nodeCache marked ref
+        IR.Lam {}         -> BH.LambdaChild <$> prepareLambdaChild   marked ref
+        IR.ASGFunction {} -> BH.LambdaChild <$> prepareFunctionChild marked ref
         IR.Grouped g      -> go =<< IR.source g
-        _                 -> prepareExprChild nodeCache marked ref
+        _                 -> prepareExprChild marked ref
 
-prepareChildWhenLambda :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m (Maybe BH.LamItem)
-prepareChildWhenLambda nodeCache marked ref = do
+prepareChildWhenLambda :: GraphOp m => NodeRef -> NodeRef -> m (Maybe BH.LamItem)
+prepareChildWhenLambda marked ref = do
     isLambda <- ASTRead.isLambda ref
-    if isLambda then Just <$> prepareLambdaChild nodeCache marked ref else return Nothing
+    if isLambda then Just <$> prepareLambdaChild marked ref else return Nothing
 
-prepareLambdaChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.LamItem
-prepareLambdaChild nodeCache marked ref = do
+prepareLambdaChild :: GraphOp m => NodeRef -> NodeRef -> m BH.LamItem
+prepareLambdaChild marked ref = do
     portMapping <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
     Just lambdaBodyLink <- ASTRead.getFirstNonLambdaLink ref
     lambdaBody          <- IR.source lambdaBodyLink
     Just lambdaCodeBeg  <- Code.getOffsetRelativeToFile =<< IR.readTarget lambdaBodyLink
     ASTBuilder.attachNodeMarkersForArgs (fst portMapping) [] ref
-    children            <- lambdaChildren nodeCache lambdaCodeBeg lambdaBodyLink
+    children            <- lambdaChildren lambdaCodeBeg lambdaBodyLink
     newBody             <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children
 
-prepareFunctionChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.LamItem
-prepareFunctionChild nodeCache marked ref = do
+prepareFunctionChild :: GraphOp m => NodeRef -> NodeRef -> m BH.LamItem
+prepareFunctionChild marked ref = do
     portMapping      <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
     (args, bodyLink) <- IR.matchExpr ref $ \case
         IR.ASGFunction n as b -> do
@@ -119,15 +120,15 @@ prepareFunctionChild nodeCache marked ref = do
     body         <- IR.source bodyLink
     Just codeBeg <- Code.getOffsetRelativeToFile ref
     forM_ (zip args [0..]) $ \(a, i) -> ASTBuilder.attachNodeMarkers (fst portMapping) [Port.Projection i] a
-    children <- lambdaChildren nodeCache codeBeg bodyLink
+    children <- lambdaChildren codeBeg bodyLink
     newBody  <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children
 
-prepareExprChild :: GraphOp m => NodeCache -> NodeRef -> NodeRef -> m BH.BChild
-prepareExprChild nodeCache marked ref = do
+prepareExprChild :: GraphOp m => NodeRef -> NodeRef -> m BH.BChild
+prepareExprChild marked ref = do
     let bareItem = BH.ExprItem Map.empty marked
     args  <- ASTDeconstruct.extractAppArguments ref
-    items <- mapM (uncurry (prepareChildWhenLambda nodeCache) . (id &&& id)) args
+    items <- mapM (uncurry (prepareChildWhenLambda) . (id &&& id)) args
     let addItem par (port, child) = case child of
           Just ch -> par & BH.portChildren . at port ?~ ch
           _       -> par

@@ -619,7 +619,7 @@ setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
         node <- runASTOp $ do
             expr      <- ASTRead.getASTTarget nodeId
             marked    <- ASTRead.getASTRef nodeId
-            item      <- prepareChild (NodeCache Map.empty Map.empty Map.empty) marked parsedRef
+            item      <- prepareChild marked parsedRef
             Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
             let len = fromIntegral $ Text.length expression
             Code.applyDiff oldBeg oldEnd expression
@@ -902,7 +902,7 @@ putChildrenIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putChildrenIntoHierarchy uuid expr = do
     target       <- ASTRead.getASTTarget uuid
     marked       <- ASTRead.getASTRef uuid
-    item         <- prepareChild (NodeCache Map.empty Map.empty Map.empty) marked target
+    item         <- prepareChild marked target
     Graph.breadcrumbHierarchy . BH.children . ix uuid .= item
 
 copyMeta :: GraphOp m => NodeRef -> NodeRef -> m ()
