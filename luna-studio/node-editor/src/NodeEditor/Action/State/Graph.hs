@@ -6,6 +6,7 @@ import qualified Data.List                          as List
 import           LunaStudio.Data.Breadcrumb         (Breadcrumb (Breadcrumb), items)
 import           LunaStudio.Data.GraphLocation      (GraphLocation, breadcrumb, filePath)
 import           LunaStudio.Data.NodeLoc            (NodePath)
+import           NodeEditor.Action.Batch            (getProgram)
 import           NodeEditor.Action.State.NodeEditor (isGraphLoaded)
 import           NodeEditor.Batch.Workspace         (currentLocation)
 import           NodeEditor.State.Global            (State, workspace)
@@ -28,8 +29,10 @@ isCurrentLocationAndGraphLoaded location = do
     return $ icl && igl
 
 inCurrentLocation :: GraphLocation -> (NodePath -> Command State ()) -> Command State ()
-inCurrentLocation location action =
-    whenM isGraphLoaded $ do
+inCurrentLocation location action = do
+    igl <- isGraphLoaded
+    if igl then do
         currentBc <- fromMaybe def <$> preuse (workspace . _Just . currentLocation . breadcrumb . items)
         withJust (List.stripPrefix currentBc $ location ^. breadcrumb . items) $
             action . convert . Breadcrumb
+    else whenM (isCurrentLocation location) $ getProgram def
