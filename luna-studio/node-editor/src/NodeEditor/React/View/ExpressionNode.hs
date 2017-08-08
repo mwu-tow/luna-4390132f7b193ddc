@@ -11,7 +11,6 @@ import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
 import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
-import qualified LunaStudio.Data.LabeledTree                          as LabeledTree
 import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
 import qualified NodeEditor.Event.Mouse                               as Mouse
@@ -204,7 +203,6 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                                               port
                                               (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
                                               (withOut isAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
-                                              (n ^. Node.inPorts . LabeledTree.value . Port.state == Port.Connected)
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]
