@@ -15,8 +15,6 @@ class LunaStudioTab extends View
         @handleEvents()
         pushShortcutEvent = (name, arg = null) => @nodeEditor.pushEvent({_shortcut: name, _arg : arg})
         pushSearcherEvent = (name, arg = null) => @nodeEditor.pushEvent(if arg == null then {tag: name} else {tag: name, contents : arg})
-
-    attached: =>
         @nodeEditor.start(@uri, mountPoint)
 
     @content: ->
