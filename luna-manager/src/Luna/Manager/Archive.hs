@@ -70,7 +70,7 @@ unpackTarGzUnix file = do
         name = basename file
     Shelly.cd dir
     Shelly.mkdir_p name
-    Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+    Shelly.cmd  "tar" "-xpzf" file "--total" "--strip=1" "-C" name
     return $ dir </> name
 
 -- TODO: download unzipper if missing
