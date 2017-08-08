@@ -349,6 +349,7 @@ getMetadataRef unit = IR.matchExpr unit $ \case
                 (Safe.headMay . catMaybes) <$> forM funs' (\f -> IR.matchExpr f $ \case
                     IR.Metadata{} -> return (Just f)
                     _             -> return Nothing)
+    _ -> return Nothing
 
 getFunByName :: ClassOp m => String -> m NodeRef
 getFunByName name = do

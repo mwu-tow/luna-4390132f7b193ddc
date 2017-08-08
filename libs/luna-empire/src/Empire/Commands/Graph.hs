@@ -70,7 +70,7 @@ module Empire.Commands.Graph
 
 import           Control.Arrow                    ((&&&))
 import           Control.Monad                    (forM, forM_)
-import           Control.Monad.Catch              (handle, onException)
+import           Control.Monad.Catch              (finally, handle, try)
 import           Control.Monad.State              hiding (when)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
@@ -830,7 +830,8 @@ openFile path = do
     code <- liftIO (Text.readFile path) <!!> "readFile"
     Library.createLibrary Nothing path  <!!> "createLibrary"
     let loc = GraphLocation path $ Breadcrumb []
-    result <- handle (\(e :: SomeASTException) -> return $ Left e) $ fmap Right $ do
+    withUnit loc (Graph.code .= code)
+    result <- try $ do
         loadCode loc code <!!> "loadCode"
         withUnit loc $ Graph.clsParseError .= Nothing
     case result of
