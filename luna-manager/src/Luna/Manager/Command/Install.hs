@@ -27,12 +27,11 @@ import qualified Data.Text as Text
 import qualified Data.Yaml as Yaml
 
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, basename, hasExtension, parent)
-import Shelly.Lifted (toTextIgnore)
+import Shelly.Lifted (toTextIgnore, MonadSh)
 import qualified Shelly.Lifted as Shelly
 import System.IO (hFlush, stdout)
 import qualified System.Directory as System
 import Luna.Manager.Archive
-
 
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
@@ -87,7 +86,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
         , _selectedVersionPath     = "current"
         , _mainBinPath             = "bin/main"
         , _resourcesPath           = "resources"
-        , _localBinPath            = ".local/bin"
+        , _localBinPath            = "~/.local/bin"
         , _logoFileName            = "logo.png"
         , _infoFileName            = "app.desktop"
         , _libPath                 = "lib"
@@ -239,13 +238,15 @@ linkingLocalBin currentBin appName = do
     installConfig <- get @InstallConfig
     case currentHost of
         Linux -> do
-            let localBin = home </> (installConfig ^. localBinPath) </> convert (mkSystemPkgName appName)
+            localBin <- expand $ (installConfig ^. localBinPath) </> convert (mkSystemPkgName appName)
             linking currentBin localBin
             exportPath' localBin
         Darwin -> do
-            let localBin = (installConfig ^. localBinPath) </> convert appName
+            localBin <- expand $ (installConfig ^. localBinPath) </> convert appName
             linking currentBin localBin
         Windows -> exportPath' currentBin
+
+-----Windows specific-----
 
 stopServices :: MonadInstall m => FilePath -> AppType -> m ()
 stopServices installPath appType = case currentHost of
@@ -271,6 +272,7 @@ runServices installPath appType appName version = case currentHost of
         BatchApp -> return ()
     otherwise -> return ()
 
+
 copyLibs :: MonadInstall m => FilePath -> m ()
 copyLibs installPath = case currentHost of
     Linux -> return ()
@@ -293,8 +295,14 @@ copyWinSW installPath = case currentHost of
             winConfigFolderPath = installPath </> (installConfig ^. configPath) </> fromText "windows"
         Shelly.shelly $ Shelly.mv winSW winConfigFolderPath
 
+prepareWindowsPkgForRunning :: MonadInstall m => FilePath -> m ()
+prepareWindowsPkgForRunning installPath = do
+    copyLibs installPath
+    copyWinSW installPath
 
-askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
+-----InstallationUtils------
+
+askLocation :: (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m) => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
     let pkgInstallDefPath = case appType of
@@ -311,18 +319,32 @@ installApp opts package = do
         appType    = package ^. resolvedAppType
         pkgVersion = showPretty $ package ^. header . version
     binPath     <- askLocation opts appType pkgName
-    installPath <- prepareInstallPath appType (convert binPath)  pkgName $ pkgVersion
+
+    installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
+    stopServices installPath appType
     pathExists  <- Shelly.shelly $ Shelly.test_d installPath
     if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
     downloadAndUnpack (package ^. desc . path) installPath pkgName
+    prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
 
+data VersionError = VersionError deriving (Show)
+instance Exception VersionError
+
+versionError :: SomeException
+versionError = toException VersionError
+
+readVersion :: Text -> Version
+readVersion v = case readPretty v of
+    Left e -> error $ convert e
+    Right v -> v
 
 -- === Running === --
 
 runInstaller :: MonadInstall m => InstallOpts -> m ()
 runInstaller opts = do
     repo <- getRepo
+
     (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
         $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
         & help   .~ choiceHelp "components" (repo ^. apps)
@@ -339,20 +361,20 @@ runInstaller opts = do
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
     let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
+        resolvedApp = ResolvedPackage (PackageHeader appName $ readVersion appVersion) appPkgDesc (appPkg ^. appType)
+        allApps = resolvedApp : appsToInstall
+    -- binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
+    mapM_ (installApp opts) $ allApps
 
-        -- resolvedApp = ResolvedPackage (PackageHeader appName $ convert appVersion) appPkgDesc (appPkg ^. appType)
-    binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
-    mapM_ (installApp opts) $ appsToInstall
-    installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
-    pathExists <- Shelly.shelly $ Shelly.test_d installPath
-    stopServices installPath (appPkg ^. appType)
-    if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
-    downloadAndUnpack (appPkgDesc ^. path) installPath appName
-    copyLibs installPath
-    copyWinSW installPath
-    postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
-    Shelly.shelly $ Shelly.cmd "Console.ReadKey ()"
-
+    -- installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
+    -- pathExists <- Shelly.shelly $ Shelly.test_d installPath
+    -- stopServices installPath (appPkg ^. appType)
+    -- if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
+    -- downloadAndUnpack (appPkgDesc ^. path) installPath appName
+    -- copyLibs installPath
+    -- copyWinSW installPath
+    -- postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
+    -- Shelly.shelly $ Shelly.cmd "Console.ReadKey ()"
 
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
@@ -363,4 +385,4 @@ runInstaller opts = do
 
 
 
-    return ()
+    -- return ()
