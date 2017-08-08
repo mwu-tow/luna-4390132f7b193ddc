@@ -36,9 +36,9 @@ def build_runner(runner):
         print ("build runner")
         os.system('stack exec ghc -- ' + runnerPath + ' ' + hostPath + ' ' + resPath)
     elif system.system == system.systems.LINUX:
-        subprocess.check_output(['stack', 'build'])
+        subprocess.check_output(['stack', 'build', '--copy-bins'])
     elif system.system == system.systems.DARWIN:
-        subprocess.check_output(['stack', 'build'])
+        subprocess.check_output(['stack', 'build', '--copy-bins'])
     else: print("unknown system")
 
 def build_backend(backend):
@@ -69,7 +69,7 @@ def run():
     build_runner(runner_dir)
     mv_runner(runner_dir)
     build_ghcjs(frontend_dir)
-    build(backend_dir)
+    build_backend(backend_dir)
     link_main_bin ()
 
 if __name__ == '__main__':
