@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from . import atom_prepare as ap
+from glob import glob
 import os
 import subprocess
 from . import system as system
@@ -62,7 +63,19 @@ def mv_runner(runner):
 
 def link_main_bin ():
     os.chdir(ap.prep_path('../dist/bin'))
-    os.symlink('./public/luna-studio', 'main', target_is_directory=True)
+    os.makedirs('main')
+    for src_path in glob('public/luna-studio/*'):
+        print(src_path)
+        if os.path.isfile(src_path):
+            print(os.getcwd())
+            print(os.path.join('main', os.path.basename(src_path)))
+
+            os.symlink(os.path.relpath(src_path,'main/'),os.path.join('main', os.path.basename(src_path)))
+        else: return ()
+
+    # os.symlink('./public/luna-studio', 'main', target_is_directory=True)
+
+
 
 def run():
     create_bin_dirs()
