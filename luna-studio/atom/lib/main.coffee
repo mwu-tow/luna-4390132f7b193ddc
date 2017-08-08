@@ -1,14 +1,17 @@
-LunaEditorTab = require './luna-editor-tab'
-LunaStudioTab = require './luna-studio-tab'
-SubAtom       = require 'sub-atom'
+path     = require 'path'
+SubAtom  = require 'sub-atom'
+
+LunaEditorTab  = require './luna-editor-tab'
+LunaStudioTab  = require './luna-studio-tab'
+LunaWelcomeTab = require './luna-welcome-tab'
+LunaSemanticGrammar = require './luna-grammar'
 
 (require './luna-visualizers')()
 codeEditor = (require './gen/text-editor-ghcjs.js')()
 nodeEditor = (require './gen/node-editor-ghcjs.js')()
-path = require 'path'
-LunaSemanticGrammar = require './luna-grammar'
 
-LUNA_STUDIO_URI = 'atom://luna/studio'
+LUNA_STUDIO_URI  = 'atom://luna/studio'
+LUNA_WELCOME_URI = 'atom://luna/welcome'
 
 module.exports = LunaStudio =
 
@@ -24,6 +27,7 @@ module.exports = LunaStudio =
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
         codeEditor.start()
+        atom.workspace.open(LUNA_WELCOME_URI, {split: "left"})
         actStatus = (act, uri, status) ->
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
@@ -42,6 +46,8 @@ module.exports = LunaStudio =
     lunaOpener: (uri) ->
         if uri is LUNA_STUDIO_URI
               new LunaStudioTab(null, nodeEditor, codeEditor)
+        else if uri is LUNA_WELCOME_URI
+              new LunaWelcomeTab(codeEditor)
         else if path.extname(uri) is '.luna'
               new LunaEditorTab(uri, codeEditor)
 
