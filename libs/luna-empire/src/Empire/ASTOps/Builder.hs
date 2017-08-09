@@ -370,6 +370,36 @@ flipNode nid = do
     pointer <- ASTRead.getASTPointer nid
     IR.replace uni pointer
 
+attachName :: GraphOp m => NodeRef -> Text -> m (NodeRef, NodeRef)
+attachName node n = do
+    var <- IR.var' $ convert n
+    IR.putLayer @SpanLength var (convert $ Text.length n)
+    uni    <- IR.unify' var node
+    [l, r] <- IR.inputs uni
+    IR.putLayer @SpanOffset l 0
+    IR.putLayer @SpanOffset r 3
+    IR.putLayer @SpanLength uni =<< Code.computeLength uni
+    return (var, uni)
+
+
+ensureNodeHasName :: GraphOp m => (NodeRef -> m Text) -> NodeId -> m ()
+ensureNodeHasName generateNodeName nid = do
+    ref <- ASTRead.getASTRef nid
+    IR.matchExpr ref $ \case
+        Marked _ e -> do
+            expr  <- IR.source e
+            isUni <- ASTRead.isMatch expr
+            if isUni then return () else do
+                name     <- generateNodeName expr
+                (var, uni) <- attachName expr name
+                IR.replaceSource uni e
+                Just codeBeg <- Code.getOffsetRelativeToFile ref
+                off          <- Code.getOffsetRelativeToTarget e
+                Code.insertAt (codeBeg + off) (name <> " = ")
+                Code.gossipUsesChangedBy (fromIntegral $ Text.length name + 3) uni
+                attachNodeMarkers nid [] var
+        _ -> throwM $ ASTRead.MalformedASTRef ref
+
 makeNodeRep :: GraphOp m => NodeId -> Maybe Text -> m Text -> NodeRef -> m (NodeRef, Maybe Text)
 makeNodeRep marker name generateNodeName node = do
     (pat, uni, newName) <- match node $ \case
@@ -377,13 +407,7 @@ makeNodeRep marker name generateNodeName node = do
         ASGFunction n a b -> (, node, Nothing) <$> IR.source n
         _                 -> do
             n   <- maybe generateNodeName pure name
-            var <- IR.var' $ convert n
-            IR.putLayer @SpanLength var (convert $ Text.length n)
-            uni    <- IR.generalize <$> IR.unify var node
-            [l, r] <- IR.inputs uni
-            IR.putLayer @SpanOffset l 0
-            IR.putLayer @SpanOffset r 3
-            IR.putLayer @SpanLength uni =<< Code.computeLength uni
-            return (IR.generalize var, IR.generalize uni, Just n)
+            (var, uni) <- attachName node n
+            return (var, uni, Just n)
     attachNodeMarkers marker [] pat
     return (uni, newName)

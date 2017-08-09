@@ -40,11 +40,16 @@ cutThroughGroups r = match r $ \case
     Grouped g -> cutThroughGroups =<< IR.source g
     _         -> return r
 
+isInputSidebar :: GraphOp m => NodeId -> m Bool
+isInputSidebar nid = do
+    lambda <- use Graph.breadcrumbHierarchy
+    return $ lambda ^. BH.portMapping . _1 == nid
+
 getASTOutForPort :: GraphOp m => NodeId -> OutPortId -> m NodeRef
 getASTOutForPort nodeId port = do
-    lambda <- use Graph.breadcrumbHierarchy
-    if lambda ^. BH.portMapping . _1 == nodeId
-      then getLambdaInputForPort port =<< getTargetFromMarked (lambda ^. BH.self)
+    isSidebar <- isInputSidebar nodeId
+    if isSidebar
+      then getLambdaInputForPort port =<< getTargetFromMarked =<< use (Graph.breadcrumbHierarchy . BH.self)
       else getOutputForPort      port =<< getASTVar nodeId
 
 getLambdaInputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
@@ -170,6 +175,7 @@ getTargetFromMarked marked = match marked $ \case
             IR.Unify l r -> IR.source r
             _            -> return expr'
     _ -> return marked
+
 
 getTargetEdge :: GraphOp m => NodeId -> m EdgeRef
 getTargetEdge nid = do
