@@ -338,6 +338,7 @@ classFunctions unit = IR.matchExpr unit $ \case
                 catMaybes <$> forM funs' (\f -> IR.matchExpr f $ \case
                     IR.ASGRootedFunction{} -> return (Just f)
                     _                      -> return Nothing)
+    _ -> return []
 
 getMetadataRef :: ClassOp m => NodeRef -> m (Maybe NodeRef)
 getMetadataRef unit = IR.matchExpr unit $ \case
@@ -349,6 +350,7 @@ getMetadataRef unit = IR.matchExpr unit $ \case
                 (Safe.headMay . catMaybes) <$> forM funs' (\f -> IR.matchExpr f $ \case
                     IR.Metadata{} -> return (Just f)
                     _             -> return Nothing)
+    _ -> return Nothing
 
 getFunByName :: ClassOp m => String -> m NodeRef
 getFunByName name = do

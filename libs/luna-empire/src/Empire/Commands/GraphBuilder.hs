@@ -218,7 +218,7 @@ getDefault arg = match arg $ \case
 
 getInPortDefault :: GraphOp m => NodeRef -> Int -> m (Maybe PortDefault)
 getInPortDefault ref pos = do
-    (_, args)  <- ASTDeconstruct.deconstructApp ref
+    args <- ASTDeconstruct.extractAppPorts ref
     let argRef = args ^? ix pos
     join <$> mapM getDefault argRef
 

@@ -27,14 +27,16 @@ import           Data.Char                    (isUpper)
 import           Data.List                    (partition)
 import qualified Data.Map                     as Map
 import qualified Data.Text                    as Text
+import           Data.Text.Position           (Delta)
 
 import           Empire.ASTOp                    (GraphOp, PMStack, runPass, runPM)
 import           Empire.ASTOps.Print
 import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.Graph               (ClsGraph, Graph)
 import qualified Empire.Data.Graph               as Graph (codeMarkers)
-import           Empire.Data.Layers              (attachEmpireLayers)
+import           Empire.Data.Layers              (attachEmpireLayers, SpanLength)
 import           Empire.Data.Parser              (ParserPass)
+import qualified Empire.Commands.Code            as Code
 
 import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
 
@@ -195,10 +197,20 @@ instance Exception PortDefaultNotConstructibleException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
+infixr 0 `withLength`
+withLength :: GraphOp m => m NodeRef -> Int -> m NodeRef
+withLength act len = do
+    ref <- act
+    IR.putLayer @SpanLength ref (convert len)
+    return ref
+
 parsePortDefault :: GraphOp m => PortDefault -> m NodeRef
-parsePortDefault (Expression expr)          = parseExpr expr
-parsePortDefault (Constant (IntValue    i)) = IR.generalize <$> IR.number (fromIntegral i)
-parsePortDefault (Constant (StringValue s)) = IR.generalize <$> IR.string s
-parsePortDefault (Constant (DoubleValue d)) = IR.generalize <$> IR.number (Lit.fromDouble d)
-parsePortDefault (Constant (BoolValue   b)) = IR.generalize <$> IR.cons_ (convert $ show b)
+parsePortDefault (Expression expr)          = do
+    ref <- parseExpr expr
+    Code.propagateLengths ref
+    return ref
+parsePortDefault (Constant (IntValue    i)) = IR.generalize <$> IR.number (fromIntegral i)   `withLength` (length $ show i)
+parsePortDefault (Constant (StringValue s)) = IR.generalize <$> IR.string s                  `withLength` (length s)
+parsePortDefault (Constant (DoubleValue d)) = IR.generalize <$> IR.number (Lit.fromDouble d) `withLength` (length $ show d)
+parsePortDefault (Constant (BoolValue   b)) = IR.generalize <$> IR.cons_ (convert $ show b)  `withLength` (length $ show b)
 parsePortDefault d = throwM $ PortDefaultNotConstructibleException d

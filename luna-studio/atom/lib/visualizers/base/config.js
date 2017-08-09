@@ -1,0 +1,7 @@
+module.exports = function (type) {
+    var listVis = type.constructor === "List" ? [{name: "table", path: "table/table.html"}] : [];
+    var textVis = type.constructor === "Text" ? [{name: "text",  path: "text/text.html"}]   : [];
+    var yamlVis = [{name: "yaml", path: "yaml/yaml.html"}];
+    var jsonVis = [{name: "json", path: "json/json.html"}];
+    return [].concat(listVis, textVis, yamlVis, jsonVis);
+};

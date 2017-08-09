@@ -160,10 +160,18 @@ getNextExprMarker = do
         highestIndex = Safe.maximumMay keys
     return $ maybe 0 succ highestIndex
 
+invalidateMarker :: GraphOp m => Word64 -> m ()
+invalidateMarker index = do
+    oldId <- use $ Graph.nodeCache . Graph.nodeIdMap . at index
+    Graph.nodeCache . Graph.nodeIdMap . at index .= Nothing
+    Graph.nodeCache . Graph.nodeMetaMap . at index .= Nothing
+    Graph.nodeCache . Graph.portMappingMap %= Map.filterWithKey (\(nid,_) _ -> Just nid /= oldId)
+
 addCodeMarker :: GraphOp m => Delta -> EdgeRef -> m NodeRef
 addCodeMarker beg edge = do
     ref    <- IR.source edge
     index  <- getNextExprMarker
+    invalidateMarker index
     marker <- IR.marker' index
     markedNode <- IR.marked' marker ref
     exprLength <- IR.getLayer @SpanLength ref

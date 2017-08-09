@@ -1,14 +1,17 @@
-LunaEditorTab = require './luna-editor-tab'
-LunaStudioTab = require './luna-studio-tab'
-SubAtom       = require 'sub-atom'
+path     = require 'path'
+SubAtom  = require 'sub-atom'
+
+LunaEditorTab  = require './luna-editor-tab'
+LunaStudioTab  = require './luna-studio-tab'
+LunaWelcomeTab = require './luna-welcome-tab'
+LunaSemanticGrammar = require './luna-grammar'
 
 (require './luna-visualizers')()
 codeEditor = (require './gen/text-editor-ghcjs.js')()
 nodeEditor = (require './gen/node-editor-ghcjs.js')()
-path = require 'path'
-LunaSemanticGrammar = require './luna-grammar'
 
-lunaStudioFakePath = 'luna-studio'
+LUNA_STUDIO_URI  = 'atom://luna/studio'
+LUNA_WELCOME_URI = 'atom://luna/welcome'
 
 module.exports = LunaStudio =
 
@@ -21,20 +24,19 @@ module.exports = LunaStudio =
 
     activate: (state) ->
         atom.grammars.addGrammar(new LunaSemanticGrammar(atom.grammars, codeEditor.lex))
+        atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
         codeEditor.start()
+        atom.workspace.open(LUNA_WELCOME_URI, {split: "left"})
         actStatus = (act, uri, status) ->
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
                 if rootPath? and rootPath != ""
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
-                    atom.workspace.open(lunaStudioFakePath, {split: "right"})
+                atom.workspace.open(LUNA_STUDIO_URI, {split: "right"})
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
         codeEditor.statusListener actStatus
-
-        atom.workspace.addOpener (uri) => @lunaOpener(uri)
-
         @subscribe = new SubAtom()
         @subscribe.add atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)
         @subscribe.add atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
@@ -42,8 +44,10 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
 
     lunaOpener: (uri) ->
-        if path.basename(uri) is lunaStudioFakePath
+        if uri is LUNA_STUDIO_URI
               new LunaStudioTab(null, nodeEditor, codeEditor)
+        else if uri is LUNA_WELCOME_URI
+              new LunaWelcomeTab(codeEditor)
         else if path.extname(uri) is '.luna'
               new LunaEditorTab(uri, codeEditor)
 

@@ -54,6 +54,7 @@ data Graph = Graph { _ast                   :: AST Graph
                    , _graphCode             :: Text
                    , _parseError            :: Maybe SomeASTException
                    , _fileOffset            :: Delta
+                   , _graphNodeCache        :: NodeCache
                    } deriving Show
 
 data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
@@ -62,7 +63,7 @@ data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
                          , _clsCode        :: Text
                          , _clsParseError  :: Maybe SomeASTException
                          , _clsFuns        :: Map NodeId (String, Graph)
-                         , _nodeCache      :: NodeCache
+                         , _clsNodeCache   :: NodeCache
                          } deriving Show
 
 data NodeCache = NodeCache { _nodeIdMap      :: Map Word64 NodeId
@@ -178,3 +179,12 @@ instance HasCode Graph where
 
 instance HasCode ClsGraph where
     code = clsCode
+
+class HasNodeCache g where
+    nodeCache :: Lens' g NodeCache
+
+instance HasNodeCache Graph where
+    nodeCache = graphNodeCache
+
+instance HasNodeCache ClsGraph where
+    nodeCache = clsNodeCache

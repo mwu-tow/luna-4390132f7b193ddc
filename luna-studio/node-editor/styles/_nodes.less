@@ -19,6 +19,11 @@
             display: flex;
         }
     }
+    &.luna-has-port-constructor {
+        .luna-port--i--constructor {
+            display: block !important;
+        }
+    }
     * { box-sizing: content-box; }
 }
 
@@ -86,29 +91,29 @@
     .outlineStroke;
 }
 
-.luna-node__expression--long {
-    white-space:   initial;
-    width:         444px;
-    text-overflow: ellipsis;
-    white-space:   nowrap;
-    .luna-searcher__input {
-        width:          448px;
-        transform:      translate(-40px, -4px);
-        height:         20px;
-        padding-bottom: 4px;
-    }
-    .luna-searcher__results {
-        left: -40px;
-    }
-    &:hover {
-        height:      auto;
-        white-space: normal;
-    }
-}
+// .luna-node__expression--long {
+//     white-space:   initial;
+//     width:         444px;
+//     text-overflow: ellipsis;
+//     white-space:   nowrap;
+//     .luna-searcher__input {
+//         width:          448px;
+//         transform:      translate(-40px, -4px);
+//         height:         20px;
+//         padding-bottom: 4px;
+//     }
+//     .luna-searcher__results {
+//         left: -40px;
+//     }
+//     &:hover {
+//         height:      auto;
+//         white-space: normal;
+//     }
+// }
 
 .luna-port {
     stroke-width: 0;
-    &.luna-hover {
+    &.luna-port--highlighted {
         .luna-port__shape {
             fill: #fff !important;
         }
@@ -376,36 +381,4 @@
     y:     -100px;
     width:  10px;
     height: 10px;
-}
-
-/////////////////////////////
-//         dropdown        //
-/////////////////////////////
-
-.luna-dropdown {
-    color:         #888;
-    border-radius: 8px;
-    padding:       0 8px;
-    position:      absolute;
-    line-height:   16px;
-    z-index:       1;
-    background:    rgba(255,255,255,.1);
-    top:           8px;
-    left:          8px;
-    &:hover {
-        .luna-dropdown__menu {
-            display: block;
-        }
-    }
-}
-
-.luna-dropdown__menu {
-    display:       none;
-    margin-bottom: 4px;
-    list-style:    none;
-    li {
-        &:hover {
-            color: #ccc;
-        }
-    }
 }

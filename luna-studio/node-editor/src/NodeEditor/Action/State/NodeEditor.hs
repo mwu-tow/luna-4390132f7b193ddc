@@ -323,11 +323,12 @@ addVisualizationForNode nl = withJustM (maybe def (view ExpressionNode.defaultVi
                                                                (Visualization.NodeVisualizations def [newVis] def)
 
 updateDefaultVisualizer :: NodeLoc -> Maybe Visualizer -> Bool -> Command State ()
-updateDefaultVisualizer nl vis sendAsRequest = do
-    modifyExpressionNode nl $ ExpressionNode.defaultVisualizer .= vis
-    withJustM (getNodeMeta nl) $ \nm -> if sendAsRequest
-        then Batch.setNodesMeta [(nl, nm)]
-        else Batch.sendNodesMetaUpdate [(nl, nm)]
+updateDefaultVisualizer nl vis sendAsRequest = withJustM (getExpressionNode nl) $ \n ->
+    when (n ^. ExpressionNode.defaultVisualizer /= vis) $ do
+        modifyExpressionNode nl $ ExpressionNode.defaultVisualizer .= vis
+        withJustM (getNodeMeta nl) $ \nm -> if sendAsRequest
+            then Batch.setNodesMeta [(nl, nm)]
+            else Batch.sendNodesMetaUpdate [(nl, nm)]
 
 recoverVisualizations :: NodeLoc -> Command State [VisualizationId]
 recoverVisualizations nl = getNodeVisualizations nl >>= \case

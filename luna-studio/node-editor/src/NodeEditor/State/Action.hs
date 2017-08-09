@@ -48,7 +48,7 @@ data SliderDrag = SliderDrag { _sliderDragPortRef   :: InPortRef
                              , _sliderDragInitValue :: InitValue
                              } deriving (Eq, Show, Generic, Typeable)
 
-data InitValue = Discrete  Int
+data InitValue = Discrete  Integer
                | Continous Double
                deriving (Eq, Show, Generic, Typeable)
 

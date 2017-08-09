@@ -1,0 +1,4 @@
+def main:
+    «0»list = [1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192]
+
+### META {"metas":[{"marker":0,"meta":{"_displayResult":true,"_selectedVisualizer":["board: table","/Users/k/nbo/luna-studio/luna-studio/atom/lib/visualizers/board/table/table.html"],"_position":{"fromPosition":{"_vector2_y":-80,"_vector2_x":0}}}}]}

@@ -63,8 +63,9 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
         div_
             [ "className" $= Style.prefix "node-translate"
             ] $ do
-            visualizersMenu_ ref nl (vis ^. visualizationId) (vis ^. runningVisualizer . _1) visualizers' menuVisible
             visualization_   ref nl vis
+            visualizersMenu_ ref nl (vis ^. visualizationId) (vis ^. runningVisualizer . _1) visualizers' menuVisible
+
 
 visualizersMenu_ :: Ref App -> NodeLoc -> VisualizationId -> VisualizerName -> Map VisualizerName VisualizerPath -> Bool -> ReactElementM ViewEventHandler ()
 visualizersMenu_ ref nl visId actVisName visMap visible = React.view visualizersMenu (ref, nl, visId, actVisName, visMap, visible) mempty

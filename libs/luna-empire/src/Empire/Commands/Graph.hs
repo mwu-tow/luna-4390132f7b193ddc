@@ -70,7 +70,7 @@ module Empire.Commands.Graph
 
 import           Control.Arrow                    ((&&&))
 import           Control.Monad                    (forM, forM_)
-import           Control.Monad.Catch              (handle, onException)
+import           Control.Monad.Catch              (finally, handle, try)
 import           Control.Monad.State              hiding (when)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
@@ -619,7 +619,7 @@ setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
         node <- runASTOp $ do
             expr      <- ASTRead.getASTTarget nodeId
             marked    <- ASTRead.getASTRef nodeId
-            item      <- prepareChild (NodeCache Map.empty Map.empty Map.empty) marked parsedRef
+            item      <- prepareChild marked parsedRef
             Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
             let len = fromIntegral $ Text.length expression
             Code.applyDiff oldBeg oldEnd expression
@@ -692,9 +692,10 @@ connect loc outPort anyPort = do
 
 connectPersistent :: GraphOp m => OutPortRef -> AnyPortRef -> m Connection
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst@(InPortRef (NodeLoc _ dstNodeId) dstPort)) = do
+    srcAst <- ASTRead.getASTOutForPort srcNodeId srcPort
     case dstPort of
-        []        -> makeWhole srcNodeId dstNodeId srcPort
-        _         -> makeInternalConnection srcNodeId dstNodeId srcPort dstPort
+        [] -> makeWhole srcAst dstNodeId
+        _  -> makeInternalConnection srcAst dstNodeId dstPort
     return $ Connection src dst
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (OutPortRef' dst@(OutPortRef d@(NodeLoc _ dstNodeId) dstPort)) = do
     case dstPort of
@@ -718,16 +719,16 @@ getPortDefault loc port@(InPortRef  _ (Self : _))              = throwM $ SelfPo
 getPortDefault loc (InPortRef  (NodeLoc _ nodeId) (Arg x : _)) = withGraph loc $ runASTOp $ flip GraphBuilder.getInPortDefault x =<< GraphUtils.getASTTarget nodeId
 
 setPortDefault :: GraphLocation -> InPortRef -> Maybe PortDefault -> Empire ()
-setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = withTC loc False $ runASTOp $ do
-    parsed <- ASTParse.parsePortDefault val
-    refBeg <- Code.getASTTargetBeginning nodeId
-    e <- ASTRead.getTargetEdge nodeId
-    case port of
-        [Self]    -> do
-            ASTBuilder.makeAccessor parsed e refBeg
-        [Arg num] -> do
-            ASTBuilder.applyFunction e refBeg parsed num
-setPortDefault loc port Nothing = withTC loc False $ runASTOp $ disconnectPort port
+setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = do
+    withTC loc False $ runASTOp $ do
+        parsed <- ASTParse.parsePortDefault val
+        case port of
+            [] -> makeWhole parsed nodeId
+            _  -> makeInternalConnection parsed nodeId port
+    resendCode loc
+setPortDefault loc port Nothing = do
+    withTC loc False $ runASTOp $ disconnectPort port
+    resendCode loc
 
 disconnect :: GraphLocation -> InPortRef -> Empire ()
 disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
@@ -746,7 +747,7 @@ getCode loc@(GraphLocation file _) = do
             Just meta -> do
                 metaStart <- Code.functionBlockStartRef meta
                 LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
-                Code.getAt 0 metaStart
+                Code.getAt 0 (metaStart - off)
             _         ->
                 use Graph.code
     return $ Code.removeMarkers code
@@ -830,7 +831,8 @@ openFile path = do
     code <- liftIO (Text.readFile path) <!!> "readFile"
     Library.createLibrary Nothing path  <!!> "createLibrary"
     let loc = GraphLocation path $ Breadcrumb []
-    result <- handle (\(e :: SomeASTException) -> return $ Left e) $ fmap Right $ do
+    withUnit loc (Graph.code .= code)
+    result <- try $ do
         loadCode loc code <!!> "loadCode"
         withUnit loc $ Graph.clsParseError .= Nothing
     case result of
@@ -901,7 +903,7 @@ putChildrenIntoHierarchy :: GraphOp m => NodeId -> NodeRef -> m ()
 putChildrenIntoHierarchy uuid expr = do
     target       <- ASTRead.getASTTarget uuid
     marked       <- ASTRead.getASTRef uuid
-    item         <- prepareChild (NodeCache Map.empty Map.empty Map.empty) marked target
+    item         <- prepareChild marked target
     Graph.breadcrumbHierarchy . BH.children . ix uuid .= item
 
 copyMeta :: GraphOp m => NodeRef -> NodeRef -> m ()
@@ -1097,25 +1099,28 @@ addMetadataToCode file = do
                 Code.applyDiff metaStart (metaStart + len) metadataJSONWithHeader
                 IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan off (fromIntegral $ Text.length metadataJSONWithHeader))
             Nothing   -> do
-                lastFun <- last <$> ASTRead.classFunctions unit
-                lastFunStart <- Code.functionBlockStartRef lastFun
-                LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan lastFun
-                let metaOffset = 2
-                    metaStart  = lastFunStart + len
-                    metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
-                Code.insertAt metaStart metadataJSONWithHeaderAndOffset
-                meta <- IR.metadata metadataJSONWithHeader
-                IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
+                mayLastFun <- Safe.lastMay <$> ASTRead.classFunctions unit
+                case mayLastFun of
+                    Just lastFun -> do
+                        lastFunStart <- Code.functionBlockStartRef lastFun
+                        LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan lastFun
+                        let metaOffset = 2
+                            metaStart  = lastFunStart + len
+                            metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
+                        Code.insertAt metaStart metadataJSONWithHeaderAndOffset
+                        meta <- IR.metadata metadataJSONWithHeader
+                        IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
 
-                IR.matchExpr unit $ \case
-                    IR.Unit _ _ cls -> do
-                        cls' <- IR.source cls
-                        Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
-                        l <- IR.unsafeGeneralize <$> IR.link meta cls''
-                        links <- IR.matchExpr cls' $ \case
-                            IR.ClsASG _ _ _ decls -> return decls
-                        newFuns <- putNewFunctionRef l (Just lastFun) links
-                        IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
+                        IR.matchExpr unit $ \case
+                            IR.Unit _ _ cls -> do
+                                cls' <- IR.source cls
+                                Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
+                                l <- IR.unsafeGeneralize <$> IR.link meta cls''
+                                links <- IR.matchExpr cls' $ \case
+                                    IR.ClsASG _ _ _ decls -> return decls
+                                newFuns <- putNewFunctionRef l (Just lastFun) links
+                                IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
+                    Nothing      -> return ()
 
 parseMetadata :: MonadIO m => Text -> m FileMetadata
 parseMetadata meta =
@@ -1392,16 +1397,14 @@ removeInternalConnection nodeId port = do
     beg    <- Code.getASTTargetBeginning nodeId
     ASTBuilder.removeArgument dstAst beg port
 
-makeInternalConnection :: GraphOp m => NodeId -> NodeId -> OutPortId -> InPortId -> m ()
-makeInternalConnection src dst outPort inPort = do
+makeInternalConnection :: GraphOp m => NodeRef -> NodeId -> InPortId -> m ()
+makeInternalConnection srcAst dst inPort = do
     dstBeg <- Code.getASTTargetBeginning dst
-    srcAst <- ASTRead.getASTOutForPort src outPort
     dstAst <- ASTRead.getTargetEdge dst
     ASTBuilder.makeConnection dstAst dstBeg inPort srcAst
 
-makeWhole :: GraphOp m => NodeId -> NodeId -> OutPortId -> m ()
-makeWhole src dst outPort = do
+makeWhole :: GraphOp m => NodeRef -> NodeId -> m ()
+makeWhole srcAst dst = do
     (_, out) <- GraphBuilder.getEdgePortMapping
     let connectToOutputEdge = out == dst
-    srcAst   <- ASTRead.getASTOutForPort src outPort
     if connectToOutputEdge then setOutputTo srcAst else GraphUtils.rewireNode dst srcAst

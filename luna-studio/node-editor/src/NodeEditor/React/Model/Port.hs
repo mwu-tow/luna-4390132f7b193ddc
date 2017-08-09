@@ -87,7 +87,7 @@ outPortTreeLeafs (LabeledTree (OutPorts []) p) = [p]
 outPortTreeLeafs (LabeledTree (OutPorts ps) _) = concatMap outPortTreeLeafs ps
 
 inPortTreeLeafs :: Bool -> InPortTree (Port i) -> [Port i]
-inPortTreeLeafs forceTop (LabeledTree (InPorts Nothing     _ []) p) = if p ^. state == Connected || forceTop then [p] else []
+inPortTreeLeafs forceTop (LabeledTree (InPorts _ _ []) p) = if p ^. state == Connected || forceTop then [p] else []
 inPortTreeLeafs _        inPortTree  = inPortTreeLeafs' inPortTree where
     inPortTreeLeafs' (LabeledTree (InPorts Nothing _ []) p) = [p]
     inPortTreeLeafs' (LabeledTree (InPorts maySelf _ ps) _) = maybe [] findSelf maySelf <> concatMap inPortTreeLeafs' ps

@@ -11,7 +11,6 @@ import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
 import qualified JS.Config                                            as Config
 import qualified JS.UI                                                as UI
-import qualified LunaStudio.Data.LabeledTree                          as LabeledTree
 import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
 import qualified NodeEditor.Event.Mouse                               as Mouse
@@ -129,10 +128,11 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
             showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression    = n ^. Node.expression
-            highlight     = if n ^. Node.isMouseOver
-                         && (n ^. Node.argConstructorMode /= Port.Highlighted)
-                         && (not $ any Port.isHighlighted (inPortsList n))
-                         && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
+            highlight     = if n ^. Node.isMouseOver then ["hover"] else []
+                        --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
+                        --  && (not $ any Port.isHighlighted (inPortsList n))
+                        --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
+            ifPortConstructor = if (n ^. Node.argConstructorMode == Port.Highlighted) then ["has-port-constructor"] else []
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
@@ -140,7 +140,8 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
                                                                        ++ (if returnsError n then ["node--error"] else [])
                                                                        ++ (if n ^. Node.isSelected then ["node--selected"] else [])
                                                                        ++ (if hasSelf then ["node--has-self"] else ["node--no-self"])
-                                                                       ++ highlight)
+                                                                       ++ highlight
+                                                                       ++ ifPortConstructor)
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
@@ -204,7 +205,6 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                                               port
                                               (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
                                               (withOut isAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
-                                              (n ^. Node.inPorts . LabeledTree.value . Port.state == Port.Connected)
     svg_
         [ "key"       $= "nodePorts"
         , "className" $= Style.prefixFromList [ "node__ports" ]

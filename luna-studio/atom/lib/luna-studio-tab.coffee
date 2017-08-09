@@ -15,8 +15,6 @@ class LunaStudioTab extends View
         @handleEvents()
         pushShortcutEvent = (name, arg = null) => @nodeEditor.pushEvent({_shortcut: name, _arg : arg})
         pushSearcherEvent = (name, arg = null) => @nodeEditor.pushEvent(if arg == null then {tag: name} else {tag: name, contents : arg})
-
-    attached: =>
         @nodeEditor.start(@uri, mountPoint)
 
     @content: ->
@@ -48,9 +46,9 @@ class LunaStudioTab extends View
             'luna-studio:zoom-in':      -> pushShortcutEvent("ZoomIn")
             'luna-studio:zoom-out':     -> pushShortcutEvent("ZoomOut")
             # clipboard
-            'core:copy':  -> pushShortcutEvent("Copy")
-            'core:cut':   -> pushShortcutEvent("Cut")
-            'core:paste': -> pushShortcutEvent("Paste", atom.clipboard.readWithMetadata().metadata[0])
+            'luna-studio:copy':  -> pushShortcutEvent("Copy")
+            'luna-studio:cut':   -> pushShortcutEvent("Cut")
+            'luna-studio:paste': -> pushShortcutEvent("Paste", atom.clipboard.readWithMetadata().metadata[0])
             # navigation
             'luna-studio:exit-graph':    -> pushShortcutEvent("ExitGraph")
             'luna-studio:go-cone-down':  -> pushShortcutEvent("GoConeDown")
@@ -110,4 +108,4 @@ class LunaStudioTab extends View
     handleSave: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
