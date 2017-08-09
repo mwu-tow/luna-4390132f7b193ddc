@@ -39,6 +39,7 @@ dependencies:
   - shelly
   - conduit-extra
   - system-filepath
+  - signal
 
 
 default-extensions:
