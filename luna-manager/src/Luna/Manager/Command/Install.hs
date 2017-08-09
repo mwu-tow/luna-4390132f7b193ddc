@@ -26,7 +26,7 @@ import qualified Data.Text as Text
 
 import qualified Data.Yaml as Yaml
 
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, basename, hasExtension, parent)
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
 import Shelly.Lifted (toTextIgnore, MonadSh)
 import qualified Shelly.Lifted as Shelly
 import System.IO (hFlush, stdout)
@@ -183,10 +183,11 @@ linkingCurrent appType installPath = do
 makeShortcuts :: MonadIO m => FilePath -> Text -> m ()
 makeShortcuts packageBinPath appName = case currentHost of
     Windows -> do
-            -- bin = "\'C:\\Program Files\\LunaStudio\\0.0.3\\bin\\public\\luna-studio\\luna-studio.exe \'"
+        bin <- liftIO $ System.getSymbolicLinkTarget $ encodeString packageBinPath
+        binAbsPath <- Shelly.shelly $ Shelly.canonicalize $ (parent packageBinPath) </> (decodeString bin)
         userProfile <- liftIO $ Environment.getEnv "userprofile"
-        let menuPrograms = " \'" <> userProfile <> "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\" <> convert appName <> ".lnk\' "
-        liftIO $ Process.runProcess_ $ Process.shell ("powershell" <> " \"$s=New-Object -ComObject WScript.Shell; $sc=$s.createShortcut(" <> menuPrograms <> ");$sc.TargetPath=" <> (encodeString packageBinPath) <> ";$sc.Save()\"" )
+        let menuPrograms = (decodeString userProfile) </> "AppData" </> "Roaming" </> "Microsoft" </> "Windows" </> "Start Menu" </> "Programs" </> convert (appName <> ".lnk")
+        liftIO $ Process.runProcess_ $ Process.shell ("powershell" <> " \"$s=New-Object -ComObject WScript.Shell; $sc=$s.createShortcut(" <> "\'" <> (encodeString menuPrograms) <> "\'" <> ");$sc.TargetPath=" <> "\'" <> (encodeString binAbsPath) <> "\'" <> ";$sc.Save()\"" )
         exportPathWindows packageBinPath
     otherwise -> return ()
 
