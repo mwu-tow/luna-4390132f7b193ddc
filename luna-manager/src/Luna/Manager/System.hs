@@ -129,6 +129,7 @@ makeExecutable file = case currentHost of
 runServicesWindows :: (MonadSh m, MonadIO m) => FilePath -> FilePath -> m ()
 runServicesWindows path logsPath = do
   Shelly.cd path
+  Shelly.mkdir_p logsPath
   let installPath = path </> (Shelly.fromText "installAll.bat")
   liftIO $ Environment.setEnv "LOGSDIR" (encodeString logsPath)
   Shelly.cmd installPath

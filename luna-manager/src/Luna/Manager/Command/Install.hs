@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows, stopServicesWindows)
+import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows, stopServicesWindows, exportPathWindows)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -30,7 +30,9 @@ import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, basenam
 import Shelly.Lifted (toTextIgnore, MonadSh)
 import qualified Shelly.Lifted as Shelly
 import System.IO (hFlush, stdout)
+import qualified System.Process.Typed as Process
 import qualified System.Directory as System
+import qualified System.Environment as Environment
 import Luna.Manager.Archive
 
 
@@ -121,7 +123,7 @@ makeLenses ''UnresolvedDepsError
 instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
-type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m) -- TODO: add MonadSh to MonadInstall
 
 
 -- === Utils === --
@@ -160,7 +162,7 @@ downloadAndUnpack pkgPath installPath appName = do
     tmp <- case currentHost of
                 Darwin  -> getTmpPath
                 Linux   -> getTmpPath
-                Windows -> return $ fromText "C:\\a"
+                Windows -> return $ fromText "C:\\tmp\\luna" -- TODO : move it to getTempPath check that it is aways removed from disk even if the installation is killed (except kill -9)
     Shelly.shelly $ Shelly.mkdir_p tmp
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
@@ -178,6 +180,15 @@ linkingCurrent appType installPath = do
     let currentPath = (parent installPath) </> (installConfig ^. selectedVersionPath)
     createSymLinkDirectory installPath currentPath
 
+makeShortcuts :: MonadIO m => FilePath -> Text -> m ()
+makeShortcuts packageBinPath appName = case currentHost of
+    Windows -> do
+            -- bin = "\'C:\\Program Files\\LunaStudio\\0.0.3\\bin\\public\\luna-studio\\luna-studio.exe \'"
+        userProfile <- liftIO $ Environment.getEnv "userprofile"
+        let menuPrograms = " \'" <> userProfile <> "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\" <> convert appName <> ".lnk\' "
+        liftIO $ Process.runProcess_ $ Process.shell ("powershell" <> " \"$s=New-Object -ComObject WScript.Shell; $sc=$s.createShortcut(" <> menuPrograms <> ");$sc.TargetPath=" <> (encodeString packageBinPath) <> ";$sc.Save()\"" )
+        exportPathWindows packageBinPath
+    otherwise -> return ()
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> Text -> m ()
 postInstallation appType installPath binPath appName version = do
@@ -186,7 +197,7 @@ postInstallation appType installPath binPath appName version = do
     packageBin <- case currentHost of
         Linux   -> return $ installPath </> convert appName
         Darwin  -> return $ installPath </> (installConfig ^. mainBinPath) </> convert appName
-        Windows -> return $ installPath </> (installConfig ^. mainBinPath) </> convert ((mkSystemPkgName appName) <> ".exe")
+        Windows -> return $ installPath </> (installConfig ^. mainBinPath) </> convert (appName <> ".exe")
     currentBin <- case currentHost of
         Linux -> return $ parent installPath </> (installConfig ^. selectedVersionPath)  </> convert (mkSystemPkgName appName)
         Darwin -> case appType of
@@ -208,6 +219,7 @@ postInstallation appType installPath binPath appName version = do
 
     copyResources appType installPath appName
     runServices installPath appType appName version
+    makeShortcuts packageBin appName
 
 copyResources :: MonadInstall m => AppType -> FilePath -> Text -> m ()
 copyResources appType installPath appName = case currentHost of
@@ -272,11 +284,12 @@ runServices installPath appType appName version = case currentHost of
         BatchApp -> return ()
     otherwise -> return ()
 
+-- whenHost :: forall system a. m a -> m ()
+-- whenHost f = when (currentHost == fromType @a) (void f) --TODO : use for matching on single host + refactor -> mv function to utils
 
-copyLibs :: MonadInstall m => FilePath -> m ()
-copyLibs installPath = case currentHost of
-    Linux -> return ()
-    Darwin -> return ()
+-- call copyLibs and copyWinSW as single function for Windows prepareing
+copyLibs :: MonadInstall m => FilePath -> m () --rename to copyDllFilesOnWindows
+copyLibs installPath = case currentHost of -- whenHost @'Windows $ do
     Windows -> do
         installConfig <- get @InstallConfig
         let libFolderPath = installPath </> (installConfig ^. libPath)
@@ -284,6 +297,7 @@ copyLibs installPath = case currentHost of
         Shelly.shelly $ do
             listedLibs <- Shelly.ls libFolderPath
             mapM_ (`Shelly.mv` binsFolderPath) listedLibs
+    otherwise -> return ()
 
 copyWinSW :: MonadInstall m => FilePath -> m ()
 copyWinSW installPath = case currentHost of

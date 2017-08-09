@@ -73,6 +73,7 @@ default-extensions:
     - OverloadedLabels
     - OverloadedStrings
     - PackageImports
+    - PolyKinds
     - QuasiQuotes
     - RankNTypes
     - RecursiveDo

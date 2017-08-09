@@ -88,7 +88,7 @@ instance FromJSON System  where parseJSON  = lensJSONParse
 instance FromJSON SysArch where parseJSON  = lensJSONParse
 instance FromJSON SysDesc where parseJSON  = lensJSONParse
 instance FromJSONKey SysDesc where
-    fromJSONKey = JSON.FromJSONKeyTextParser $ either (fail . convert) return . readPretty 
+    fromJSONKey = JSON.FromJSONKeyTextParser $ either (fail . convert) return . readPretty
 instance ToJSONKey   SysDesc where
     toJSONKey = JSON.ToJSONKeyText f g
         where f = showPretty
@@ -119,7 +119,6 @@ instance Pretty SysArch where
 
 class Monad m => MonadHostConfig cfg (system :: System) (arch :: SysArch) m where
     defaultHostConfig :: m cfg
-
 
 -- === Utils === --
 

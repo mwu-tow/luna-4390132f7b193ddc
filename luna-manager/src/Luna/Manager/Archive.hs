@@ -110,7 +110,7 @@ untarWin zipFile = do
   let dir = directory zipFile
       name = dir </> basename zipFile
   -- Shelly.shelly $ Shelly.cp script dir
-  Shelly.shelly $ do
+  Shelly.shelly $ Shelly.silently $ do
     Shelly.cd dir
     Shelly.mkdir_p name
     -- Shelly.cp zipFile name
