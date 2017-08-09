@@ -25,6 +25,7 @@ extensionError = toException ExtensionError
 
 unpackArchive :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
 unpackArchive file = do
+    putStrLn $ "Unpacking archive"
     case currentHost of
         Windows ->  do
             ext <- tryJust extensionError $ extension file
@@ -134,7 +135,7 @@ zipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> Text -> m FilePath
 zipFileWindows folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
     let scriptPath = "https://s3-us-west-2.amazonaws.com/packages-luna/windows/tar.exe"
-    script <- downloadFromURL scriptPath "Downloading archiving tool" 
+    script <- downloadFromURL scriptPath "Downloading archiving tool"
     Shelly.shelly $ do
         Shelly.cd $ parent folder
         Shelly.cp script $ parent folder
