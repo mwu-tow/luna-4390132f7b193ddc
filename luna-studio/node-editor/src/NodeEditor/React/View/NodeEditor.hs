@@ -75,24 +75,25 @@ nodeEditor_ ref ne = React.viewWithSKey nodeEditor name (ref, ne) mempty
 
 nodeEditor :: ReactView (Ref App, NodeEditor)
 nodeEditor = React.defineView name $ \(ref, ne') -> do
-    let ne             = applySearcherHints ne'
-        camera         = ne ^. NodeEditor.screenTransform . CameraTransformation.logicalToScreen
-        nodes          = ne ^. NodeEditor.expressionNodes . to HashMap.elems
-        input          = ne ^. NodeEditor.inputNode
-        output         = ne ^. NodeEditor.outputNode
-        lookupNode m   = ( m ^. MonadPath.monadType
-                         , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
-        monads         = map lookupNode $ ne ^. NodeEditor.monads
-        maySearcher    = ne ^. NodeEditor.searcher
-        visualizations = NodeEditor.getVisualizations ne
-        isAnyVisActive = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
-        nodesWithVis   = Set.fromList $ map (^. visPropNodeLoc) visualizations
+    let ne              = applySearcherHints ne'
+        camera          = ne ^. NodeEditor.screenTransform . CameraTransformation.logicalToScreen
+        nodes           = ne ^. NodeEditor.expressionNodes . to HashMap.elems
+        input           = ne ^. NodeEditor.inputNode
+        output          = ne ^. NodeEditor.outputNode
+        lookupNode m    = ( m ^. MonadPath.monadType
+                          , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
+        monads          = map lookupNode $ ne ^. NodeEditor.monads
+        maySearcher     = ne ^. NodeEditor.searcher
+        visualizations  = NodeEditor.getVisualizations ne
+        isAnyVisActive  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
+        isAnyFullscreen = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
+        nodesWithVis    = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-            div_ [ "className" $= Style.prefix "studio--window", "key" $= "studio--window"] $ do
-                div_ [ "className" $= Style.prefix "studio--window__center", "key" $= "studio--window__center" ] $
+            div_ [ "className" $= Style.prefixFromList (["studio-window"] ++ if isAnyFullscreen then ["studio-window--has-visualization-fullscreen"] else []), "key" $= "studio-window"] $ do
+                div_ [ "className" $= Style.prefix "studio-window__center", "key" $= "studio-window__center" ] $
                     div_
-                        [ "className"   $= Style.prefixFromList (["graph"]++if isAnyVisActive then ["graph--has-visualization-active"] else [])
+                        [ "className"   $= Style.prefixFromList (["graph"] ++ if isAnyVisActive  then ["graph--has-visualization-active"] else [])
                         , "key"         $= "graph"
                         ] $ do
 
