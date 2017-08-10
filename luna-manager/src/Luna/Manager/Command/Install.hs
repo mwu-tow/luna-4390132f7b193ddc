@@ -356,8 +356,8 @@ readVersion v = case readPretty v of
 
 -- === Running === --
 
-runInstaller :: MonadInstall m => InstallOpts -> m ()
-runInstaller opts = do
+run :: MonadInstall m => InstallOpts -> m ()
+run opts = do
     repo <- getRepo
 
     (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
