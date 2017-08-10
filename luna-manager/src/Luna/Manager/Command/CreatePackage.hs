@@ -157,7 +157,7 @@ copyFromDistToDistPkg appName repoPath = do
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
     Shelly.mkdir_p $ parent packageRepoFolder
-    Shelly.shelly $ Shelly.mv expandedCopmponents packageRepoFolder
+    Shelly.mv expandedCopmponents packageRepoFolder
 
 downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do
@@ -170,7 +170,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
     unpacked           <- Archive.unpack downloadedPkg
-    Shelly.shelly $ Shelly.mkdir_p thirdPartyFullPath
+    Shelly.mkdir_p thirdPartyFullPath
     case packageType of
         BatchApp -> Shelly.mv unpacked thirdPartyFullPath
         GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
@@ -191,7 +191,7 @@ isSubPath systemLibPath dylibPath = do
         firstL = take l dylibSplited
     (firstL /= systemSplited) && (not $ Filesystem.Path.CurrentOS.null $ convert dylibPath)
 
-changeExecutableLibPathToRelative :: MonadIO m => FilePath -> FilePath -> FilePath -> m ()
+changeExecutableLibPathToRelative :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
 changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
     let dylibName = filename libSystemPath
         relativeLibraryPath = "@executable_path/../../lib/" <> Shelly.toTextIgnore dylibName
@@ -199,20 +199,20 @@ changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
         binName = "./"  <> (Shelly.toTextIgnore $ filename binPath)
 
     if filename libLocalPath == filename libSystemPath
-        then Shelly.shelly $ do
+        then do
             Shelly.cd binFolder
             Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binName
         else return ()
 
-changeExecutablesLibPaths :: MonadIO m => FilePath -> FilePath -> FilePath -> m ()
+changeExecutablesLibPaths :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
 changeExecutablesLibPaths binaryPath librariesFolderPath linkedDylib = do
-    listedLibrariesFolder <- Shelly.shelly $ Shelly.ls librariesFolderPath
+    listedLibrariesFolder <- Shelly.ls librariesFolderPath
     mapM_ (changeExecutableLibPathToRelative binaryPath linkedDylib) listedLibrariesFolder
 
 
-checkAndChangeExecutablesLibPaths :: MonadIO m => FilePath -> FilePath -> m()
+checkAndChangeExecutablesLibPaths :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> m()
 checkAndChangeExecutablesLibPaths libFolderPath binaryPath = do
-    deps <- Shelly.shelly $ Shelly.cmd "otool" "-L" binaryPath
+    deps <- Shelly.cmd "otool" "-L" binaryPath
     let splited = drop 1 $ Text.strip <$> Text.splitOn "\n" deps
         filePaths = Text.takeWhile (/= ' ') <$> splited
         filtered = convert <$> filterSystemLibraries filePaths
@@ -221,8 +221,8 @@ checkAndChangeExecutablesLibPaths libFolderPath binaryPath = do
 
     mapM_ (changeExecutablesLibPaths binaryPath libFolderPath) filtered
 
-linkLibs :: MonadIO m => FilePath -> FilePath -> m ()
-linkLibs binPath libPath = Shelly.shelly $ do
+linkLibs :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> m ()
+linkLibs binPath libPath = do
     allBins <- Shelly.ls binPath
     mapM_ (checkAndChangeExecutablesLibPaths libPath) allBins
 
@@ -251,7 +251,7 @@ createPkg resolvedApplication = do
     let versionFile = mainAppDir </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
         binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
         libsFolder  = mainAppDir </> (pkgConfig ^. libPath)
-    Shelly.shelly $ Shelly.mkdir_p $ parent versionFile
+    Shelly.mkdir_p $ parent versionFile
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
     case currentHost of
         Linux -> return ()
@@ -259,8 +259,8 @@ createPkg resolvedApplication = do
         Windows -> return ()
 
     case currentHost of
-        Linux  -> createAppimage appName $ convert appPath
-        Darwin -> void . Shelly.shelly $ createTarGzUnix mainAppDir appName
+        Linux   -> createAppimage appName $ convert appPath
+        Darwin  -> void $ createTarGzUnix mainAppDir appName
         Windows -> void $ zipFileWindows mainAppDir appName
 
 run :: MonadCreatePackage m => MakePackageOpts -> m ()
