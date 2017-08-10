@@ -285,9 +285,9 @@ runServices installPath appType appName version = case currentHost of
 -- whenHost :: forall system a. m a -> m ()
 -- whenHost f = when (currentHost == fromType @a) (void f) --TODO : use for matching on single host + refactor -> mv function to utils
 
--- call copyLibs and copyWinSW as single function for Windows prepareing
-copyLibs :: MonadInstall m => FilePath -> m () --rename to copyDllFilesOnWindows
-copyLibs installPath = case currentHost of -- whenHost @'Windows $ do
+-- call copyDllFilesOnWindows and copyWinSW as single function for Windows prepareing
+copyDllFilesOnWindows :: MonadInstall m => FilePath -> m () --rename to copyDllFilesOnWindows
+copyDllFilesOnWindows installPath = case currentHost of -- whenHost @'Windows $ do
     Windows -> do
         installConfig <- get @InstallConfig
         let libFolderPath = installPath </> (installConfig ^. libPath)
@@ -309,7 +309,7 @@ copyWinSW installPath = case currentHost of
 
 prepareWindowsPkgForRunning :: MonadInstall m => FilePath -> m ()
 prepareWindowsPkgForRunning installPath = do
-    copyLibs installPath
+    copyDllFilesOnWindows installPath
     copyWinSW installPath
 
 -----InstallationUtils------
