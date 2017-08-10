@@ -11,18 +11,18 @@ import Luna.Manager.Command         (chooseCommand)
 
 import Control.Concurrent (myThreadId)
 import qualified Control.Exception.Safe as Exception
-
-
+import qualified Shelly.Lifted as Shelly
 
 
 main :: IO ()
-main = do
-    tmp <- evalGetTmp
-    threadId <- myThreadId
-    handleSignal threadId
-    evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
+main = run
 
-instance Exception e => MonadException e IO where raise = Exception.throwM
+run :: (MonadIO m, MonadException SomeException m, MonadMask m) => m () -- MonadException SomeException m -- wywalic!
+run = Shelly.shelly $ do
+    tmp <- evalGetTmp
+    threadId <- liftIO myThreadId
+    liftIO $ handleSignal threadId
+    evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()
 handleTopLvlError e = do

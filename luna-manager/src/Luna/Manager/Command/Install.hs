@@ -123,7 +123,7 @@ makeLenses ''UnresolvedDepsError
 instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
-type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m) -- TODO: add MonadSh to MonadInstall
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m, Shelly.MonadSh m) -- TODO: add MonadSh to MonadInstall
 
 
 -- === Utils === --
@@ -156,24 +156,24 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
 -- FIXME[WD -> SB]: This name is too general
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> Text -> m ()
 downloadAndUnpack pkgPath installPath appName = do
-    testInstallPath <- Shelly.shelly $ Shelly.test_d installPath
-    if testInstallPath then Shelly.shelly $ Shelly.rm_rf installPath else return ()
+    testInstallPath <- Shelly.test_d installPath
+    if testInstallPath then Shelly.rm_rf installPath else return ()
 
-    Shelly.shelly $ Shelly.mkdir_p $ parent installPath
+    Shelly.mkdir_p $ parent installPath
     tmp <- case currentHost of
                 Darwin  -> getTmpPath
                 Linux   -> getTmpPath
                 Windows -> return $ fromText "C:\\tmp\\luna" -- TODO : move it to getTempPath check that it is aways removed from disk even if the installation is killed (except kill -9)
-    Shelly.shelly $ Shelly.mkdir_p tmp
+    Shelly.mkdir_p tmp
     pkg <- downloadWithProgressBar pkgPath tmp
     unpacked <- unpackArchive pkg
     case currentHost of
          Linux -> do
-             Shelly.shelly $ Shelly.mkdir_p installPath
-             Shelly.shelly $ Shelly.cmd "mv" unpacked  $ installPath </> convert appName
-         Darwin -> Shelly.shelly $ Shelly.cmd "mv" unpacked  installPath
-         Windows -> Shelly.shelly $ Shelly.mv unpacked  installPath
-    Shelly.shelly $ Shelly.rm_rf tmp
+             Shelly.mkdir_p installPath
+             Shelly.cmd "mv" unpacked  $ installPath </> convert appName
+         Darwin -> Shelly.cmd "mv" unpacked  installPath
+         Windows -> Shelly.mv unpacked  installPath
+    Shelly.rm_rf tmp
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
@@ -181,11 +181,11 @@ linkingCurrent appType installPath = do
     let currentPath = (parent installPath) </> (installConfig ^. selectedVersionPath)
     createSymLinkDirectory installPath currentPath
 
-makeShortcuts :: MonadIO m => FilePath -> Text -> m ()
+makeShortcuts :: MonadInstall m => FilePath -> Text -> m ()
 makeShortcuts packageBinPath appName = case currentHost of
     Windows -> do
         bin <- liftIO $ System.getSymbolicLinkTarget $ encodeString packageBinPath
-        binAbsPath <- Shelly.shelly $ Shelly.canonicalize $ (parent packageBinPath) </> (decodeString bin)
+        binAbsPath <- Shelly.canonicalize $ (parent packageBinPath) </> (decodeString bin)
         userProfile <- liftIO $ Environment.getEnv "userprofile"
         let menuPrograms = (decodeString userProfile) </> "AppData" </> "Roaming" </> "Microsoft" </> "Windows" </> "Start Menu" </> "Programs" </> convert (appName <> ".lnk")
         liftIO $ Process.runProcess_ $ Process.shell ("powershell" <> " \"$s=New-Object -ComObject WScript.Shell; $sc=$s.createShortcut(" <> "\'" <> (encodeString menuPrograms) <> "\'" <> ");$sc.TargetPath=" <> "\'" <> (encodeString binAbsPath) <> "\'" <> ";$sc.Save()\"" )
@@ -234,16 +234,16 @@ copyResources appType installPath appName = case currentHost of
                 packageInfoPlist = resources </> (installConfig ^. infoFileName)
                 appLogo          = parent installPath </> convert (appName <> ".icns")
                 -- appInfoPlist     = (parent $ parent installPath) </> "Info.plist"
-            -- Shelly.shelly $ Shelly.rm appLogo
-            Shelly.shelly $ Shelly.cp packageLogo appLogo
-            -- Shelly.shelly $ Shelly.rm appInfoPlist
-            Shelly.shelly $ Shelly.cp packageInfoPlist (parent $ parent installPath)
+            -- Shelly.rm appLogo
+            Shelly.cp packageLogo appLogo
+            -- Shelly.rm appInfoPlist
+            Shelly.cp packageInfoPlist (parent $ parent installPath)
         BatchApp -> return ()
     Windows -> return ()
 
 linking :: MonadInstall m => FilePath -> FilePath -> m ()
 linking src dst = do
-    Shelly.shelly $ Shelly.mkdir_p $ parent dst
+    Shelly.mkdir_p $ parent dst
     createSymLink src dst
 
 linkingLocalBin :: (MonadInstall m, MonadIO m) => FilePath -> Text -> m ()
@@ -268,7 +268,7 @@ stopServices installPath appType = case currentHost of
         GuiApp -> do
             installConfig<- get @InstallConfig
             let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. configPath) </> fromText "windows"
-            Shelly.shelly $ do
+            do
                 testservices <- Shelly.test_d currentServices
                 if testservices then stopServicesWindows currentServices else return ()
         BatchApp -> return ()
@@ -282,7 +282,7 @@ runServices installPath appType appName version = case currentHost of
             installConfig <- get @InstallConfig
             let services = installPath </> (installConfig ^. configPath) </> fromText "windows"
             logs <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. logsFolder) </> fromText appName </> (fromText $ showPretty version)
-            Shelly.shelly $ runServicesWindows services logs
+            runServicesWindows services logs
         BatchApp -> return ()
     otherwise -> return ()
 
@@ -296,7 +296,7 @@ copyLibs installPath = case currentHost of -- whenHost @'Windows $ do
         installConfig <- get @InstallConfig
         let libFolderPath = installPath </> (installConfig ^. libPath)
             binsFolderPath = installPath </> (installConfig ^. privateBinPath)
-        Shelly.shelly $ do
+        do
             listedLibs <- Shelly.ls libFolderPath
             mapM_ (`Shelly.mv` binsFolderPath) listedLibs
     otherwise -> return ()
@@ -309,7 +309,7 @@ copyWinSW installPath = case currentHost of
         installConfig <- get @InstallConfig
         let winSW = installPath </> (installConfig ^. thirdParty) </> fromText "WinSW.Net4.exe"
             winConfigFolderPath = installPath </> (installConfig ^. configPath) </> fromText "windows"
-        Shelly.shelly $ Shelly.mv winSW winConfigFolderPath
+        Shelly.mv winSW winConfigFolderPath
 
 prepareWindowsPkgForRunning :: MonadInstall m => FilePath -> m ()
 prepareWindowsPkgForRunning installPath = do
@@ -338,8 +338,8 @@ installApp opts package = do
 
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
     stopServices installPath appType
-    pathExists  <- Shelly.shelly $ Shelly.test_d installPath
-    if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
+    pathExists  <- Shelly.test_d installPath
+    if pathExists then Shelly.rm_rf installPath else return ()
     downloadAndUnpack (package ^. desc . path) installPath pkgName
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
@@ -383,14 +383,14 @@ run opts = do
     mapM_ (installApp opts) $ allApps
 
     -- installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
-    -- pathExists <- Shelly.shelly $ Shelly.test_d installPath
+    -- pathExists <- Shelly.test_d installPath
     -- stopServices installPath (appPkg ^. appType)
-    -- if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
+    -- if pathExists then Shelly.rm_rf installPath else return ()
     -- downloadAndUnpack (appPkgDesc ^. path) installPath appName
     -- copyLibs installPath
     -- copyWinSW installPath
     -- postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
-    -- Shelly.shelly $ Shelly.cmd "Console.ReadKey ()"
+    -- Shelly.cmd "Console.ReadKey ()"
 
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
