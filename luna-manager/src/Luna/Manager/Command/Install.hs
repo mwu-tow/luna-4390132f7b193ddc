@@ -153,6 +153,7 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
 
+-- FIXME[WD -> SB]: This name is too general
 downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> Text -> m ()
 downloadAndUnpack pkgPath installPath appName = do
     testInstallPath <- Shelly.shelly $ Shelly.test_d installPath
