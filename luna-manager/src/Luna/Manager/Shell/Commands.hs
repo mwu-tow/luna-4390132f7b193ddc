@@ -10,7 +10,7 @@ import           Luna.Manager.Shell.Shelly (MonadSh)
 import qualified Data.Text as Text
 default (Text.Text)
 
-data CmdError = CmdError Text deriving (Show)
+newtype CmdError = CmdError Text deriving (Show)
 instance Exception CmdError where
     displayException (CmdError t) = convert $ "External command error: " <> t
 
@@ -19,7 +19,7 @@ cmdEither :: (MonadSh m, MonadException SomeException m) => Shelly.FilePath -> [
 cmdEither name args = do
     out <- Shelly.run name args
     err <- Shelly.lastStderr
-    return $ if (err /= "") then Left $ CmdError err
+    return $ if err /= "" then Left $ CmdError err
                             else Right out
 
 cmd :: (MonadSh m, MonadException SomeException m) => Shelly.FilePath -> [Text] -> m Text

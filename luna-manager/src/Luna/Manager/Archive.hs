@@ -57,8 +57,8 @@ unzipUnix file = do
     Shelly.mkdir_p name
     Shelly.cp file name
     Shelly.cd $ dir </> name
-    out <- Shelly.cmd  "unzip" $ dir </> name </> (filename file)
-    Shelly.rm $ dir </> name </> (filename file)
+    out <- Shelly.cmd  "unzip" $ dir </> name </> filename file
+    Shelly.rm $ dir </> name </> filename file
     listed <- Shelly.ls $ dir </> name
     if length listed == 1 then return $ head listed else return $ dir </> name
 
@@ -88,8 +88,8 @@ unzipFileWindows zipFile = do
       Shelly.cp script name
       Shelly.cd $ dir </> name
       Shelly.cmd "cscript" (filename script) (filename zipFile)
-      Shelly.rm $ dir </> name </> (filename zipFile)
-      Shelly.rm $ dir </> name </> (filename script)
+      Shelly.rm $ dir </> name </> filename zipFile
+      Shelly.rm $ dir </> name </> filename script
       listed <- Shelly.ls $ dir </> name
       if length listed == 1
           then do
@@ -135,7 +135,7 @@ zipFileWindows folder appName = do
         return name
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
-unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " ++ (encodeString file) ++ " | cpio -idmv"
+unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " <> encodeString file <> " | cpio -idmv"
 
 createTarGzUnix :: Shelly.MonadSh m => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do
