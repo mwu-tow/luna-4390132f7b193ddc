@@ -35,20 +35,20 @@ makeLenses ''Scene
 screenCenter :: Getter Scene ScreenPosition
 screenCenter = to $ (ScreenPosition . flip scalarProduct 0.5 . view Size.vector) . view size
 
-translateToWorkspace :: ScreenPosition -> CameraTransformation -> Maybe ScreenPosition -> Position
-translateToWorkspace pos' screenTransform' mayScreenCenter =
-    let pos             = maybe pos' (pos' -) mayScreenCenter
+translateToWorkspace :: ScreenPosition -> ScreenPosition -> CameraTransformation -> Position
+translateToWorkspace pos' nodeEditorCenter screenTransform' =
+    let pos             = pos' - nodeEditorCenter
         transformMatrix = screenTransform' ^. screenToLogical
         posMatrix       = Matrix.fromList 1 4 [ pos ^. x, pos ^. y, 1, 1]
         posInWorkspace  = Matrix.multStd2 posMatrix transformMatrix
     in Position.fromDoubles (Matrix.getElem 1 1 posInWorkspace) (Matrix.getElem 1 2 posInWorkspace)
 
-translateToScreen :: Position -> CameraTransformation -> ScreenPosition
-translateToScreen pos screenTransform' =
+translateToScreen :: Position -> ScreenPosition -> CameraTransformation -> ScreenPosition
+translateToScreen pos nodeEditorCenter screenTransform' =
     let transformMatrix = screenTransform' ^. logicalToScreen
-        posMatrix      = Matrix.fromList 1 4 [ pos ^. x, pos ^. y, 1, 1]
-        posInWorkspace = Matrix.multStd2 posMatrix transformMatrix
-    in ScreenPosition.fromDoubles (Matrix.getElem 1 1 posInWorkspace) (Matrix.getElem 1 2 posInWorkspace)
+        posMatrix       = Matrix.fromList 1 4 [ pos ^. x, pos ^. y, 1, 1]
+        posInWorkspace  = Matrix.multStd2 posMatrix transformMatrix
+    in (ScreenPosition.fromDoubles (Matrix.getElem 1 1 posInWorkspace) (Matrix.getElem 1 2 posInWorkspace)) + nodeEditorCenter
 
 inputSidebarPortPosition :: OutPort -> Layout -> Maybe Position
 inputSidebarPortPosition p layout = case layout ^? scene . traverse . inputSidebar . traverse of
@@ -58,7 +58,7 @@ inputSidebarPortPosition p layout = case layout ^? scene . traverse . inputSideb
             siz   = inputSidebar' ^. inputSidebarSize
             pos   = ScreenPosition . view ScreenPosition.vector . move shift $
                 maybe (portPositionInInputSidebar siz pid) id (getPositionInSidebar p)
-        in Just $ translateToWorkspace pos (layout ^. screenTransform) (layout ^? scene . _Just . screenCenter)
+        in Just $ translateToWorkspace pos (fromMaybe def $ layout ^? scene . _Just . screenCenter) (layout ^. screenTransform)
     _ -> Nothing
 
 outputSidebarPortPosition :: InPort -> Layout -> Maybe Position
@@ -68,5 +68,5 @@ outputSidebarPortPosition p layout = case layout ^? scene . traverse . outputSid
             shift = outputSidebar' ^. outputSidebarPosition . vector + Vector2 0 gridSize
             pos   = ScreenPosition . view ScreenPosition.vector . move shift $
                 maybe (portPositionInOutputSidebar pid) id (getPositionInSidebar p)
-        in Just $ translateToWorkspace pos (layout ^. screenTransform) (layout ^? scene . _Just . screenCenter)
+        in Just $ translateToWorkspace pos (fromMaybe def $ layout ^? scene . _Just . screenCenter) (layout ^. screenTransform)
     _ -> Nothing

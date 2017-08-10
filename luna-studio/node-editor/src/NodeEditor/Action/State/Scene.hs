@@ -20,10 +20,10 @@ import           NodeEditor.State.Global            (State)
 
 
 translateToWorkspace :: ScreenPosition -> Command State Position
-translateToWorkspace pos = Scene.translateToWorkspace pos <$> getScreenTransform <*> getScreenCenter
+translateToWorkspace pos = Scene.translateToWorkspace pos <$> (fmap (fromMaybe def) getScreenCenter) <*> getScreenTransform
 
 translateToScreen :: Position -> Command State ScreenPosition
-translateToScreen pos = Scene.translateToScreen pos <$> getScreenTransform
+translateToScreen pos = Scene.translateToScreen pos <$> (fmap (fromMaybe def) getScreenCenter) <*> getScreenTransform
 
 getScene :: Command State (Maybe Scene)
 getScene = NE.getScene >>= maybe (updateScene >> NE.getScene) (return . return . id)
