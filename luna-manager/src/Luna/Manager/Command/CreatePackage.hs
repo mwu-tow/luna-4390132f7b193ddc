@@ -305,8 +305,8 @@ createPkg resolvedApplication = do
 
 
 
-createPkgFromConfig :: MonadCreatePackage m => MakePackageOpts -> m ()
-createPkgFromConfig opts = do
+run :: MonadCreatePackage m => MakePackageOpts -> m ()
+run opts = do
     repo <- parseConfig $ convert (opts ^. Opts.cfgPath)
     let appsToPack = repo ^. apps
 

@@ -18,6 +18,6 @@ chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options 
 chooseCommand = do
     opts <- get @Options
     case opts ^. command of
-        Install opt     -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.runInstaller opt
-        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig] $ CreatePackage.createPkgFromConfig opt
+        Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.run       opt
+        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig]             $ CreatePackage.run opt
         -- TODO: other commands
