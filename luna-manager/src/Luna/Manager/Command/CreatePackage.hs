@@ -279,6 +279,7 @@ createPkg resolvedApplication = do
         appHeader  = app ^. header
         appName    = appHeader ^. name
         appVersion = appHeader ^. version
+        appType    = app ^. resolvedAppType
     mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
     runPkgBuildScript $ convert appPath
     copyFromDistToDistPkg appName $ convert appPath
@@ -286,11 +287,13 @@ createPkg resolvedApplication = do
     let versionFile = mainAppDir </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
         binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
         libsFolder  = mainAppDir </> (pkgConfig ^. libPath)
-
+    Shelly.shelly $ Shelly.mkdir_p $ parent versionFile
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
     case currentHost of
         Linux -> return ()
-        Darwin -> linkLibs binsFolder libsFolder
+        Darwin -> case appType of
+            GuiApp -> linkLibs binsFolder libsFolder
+            BatchApp -> return ()
         Windows -> return ()
 
     case currentHost of

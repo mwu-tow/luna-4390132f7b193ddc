@@ -193,7 +193,7 @@ postInstallation appType installPath binPath appName version = do
         Darwin -> case appType of
             --TODO[1.1] lets think about making it in config
             GuiApp   -> expand $ convert binPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "MacOS" </> convert (mkSystemPkgName appName)
-            BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName)
+            BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. mainBinPath) </> convert appName
         Windows -> case appType of
             BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
             GuiApp   -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (mkSystemPkgName appName) </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
@@ -283,6 +283,14 @@ copyLibs installPath = case currentHost of
             listedLibs <- Shelly.ls libFolderPath
             mapM_ (`Shelly.mv` binsFolderPath) listedLibs
 
+touchApp :: MonadInstall m => FilePath -> AppType -> m ()
+touchApp appPath appType = case currentHost of
+    Linux -> return ()
+    Windows -> return ()
+    Darwin -> case appType of
+        BatchApp -> return ()
+        GuiApp -> Shelly.shelly $ Shelly.cmd "touch" $ toTextIgnore appPath
+
 copyWinSW :: MonadInstall m => FilePath -> m ()
 copyWinSW installPath = case currentHost of
     Linux -> return ()
@@ -351,7 +359,7 @@ runInstaller opts = do
     copyLibs installPath
     copyWinSW installPath
     postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
-    Shelly.shelly $ Shelly.cmd "Console.ReadKey ()"
+    touchApp (convert binPath </> convert ((mkSystemPkgName appName) <> ".app")) (appPkg ^. appType)
 
 
 
