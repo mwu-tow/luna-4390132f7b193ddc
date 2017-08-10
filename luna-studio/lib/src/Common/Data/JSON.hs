@@ -11,8 +11,8 @@ fromJSONVal :: (Show a, FromJSON a) => JSVal -> IO (Maybe a)
 fromJSONVal jsval = fromJSVal jsval >>= \case
     Just jsonValue -> case fromJSON jsonValue of
         Success r -> return $ Just r
-        e         -> putStrLn ("Cannot parse event " ++ show jsonValue ++ " " ++ show e) >>  return Nothing
-    _ -> putStrLn ("Unparseable JSON event") >>  return Nothing
+        e         -> putStrLn ("Cannot parse object " ++ show jsonValue ++ " " ++ show e) >>  return Nothing
+    _ -> putStrLn "Unparseable JSON object" >> return Nothing
 
 toJSONVal :: ToJSON a => a -> IO JSVal
 toJSONVal = toJSVal . toJSON

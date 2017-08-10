@@ -10,9 +10,9 @@ class LunaSemanticGrammar extends Grammar
                         })
 
     tokenizeLine: (line, ruleStack, firstLine = false) =>
-        ruleStack = {stack:[], line:0} if not ruleStack?
+        ruleStack = {stack:null, line:0} if not ruleStack?
         result = @lex(ruleStack.stack, line)
-        ruleStack.stack = result.stack
+        newRuleStack = {stack: result.stack, line: ruleStack.line + 1}
         lexerLine = result.tokens
         buffer = line
         tags = []
@@ -37,5 +37,4 @@ class LunaSemanticGrammar extends Grammar
             else
                 addToken(buffer, [])
                 buffer = ""
-        ruleStack.line++
-        return { line: line, tags: tags, tokens: tokens, ruleStack: ruleStack }
+        return { line: line, tags: tags, tokens: tokens, ruleStack: newRuleStack }
