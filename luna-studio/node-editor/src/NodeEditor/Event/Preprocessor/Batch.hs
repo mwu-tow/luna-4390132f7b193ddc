@@ -4,7 +4,6 @@ module NodeEditor.Event.Preprocessor.Batch (process) where
 import           Common.Prelude                    hiding (cons)
 import           Data.Binary                       (Binary, decode)
 import           Data.ByteString.Lazy.Char8        (ByteString)
-import qualified Data.ByteString.Lazy              as BSL
 import qualified Data.Map.Lazy                     as Map
 import qualified GZip
 

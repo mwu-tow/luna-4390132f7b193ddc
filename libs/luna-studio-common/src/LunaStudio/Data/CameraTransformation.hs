@@ -4,7 +4,7 @@
 module LunaStudio.Data.CameraTransformation  where
 
 import           Control.DeepSeq          (NFData)
-import           Control.Lens.Aeson       (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
+import qualified Control.Lens.Aeson       as Lens
 import           Data.Aeson               (FromJSON (..), ToJSON (..))
 import           Data.Binary              (Binary (..))
 import           Data.Matrix              (multStd2)
@@ -13,8 +13,7 @@ import           LunaStudio.Data.Matrix   (invertedScaleMatrix, invertedTranslat
 import           LunaStudio.Data.Position (Position, vector, x, y)
 import           LunaStudio.Data.Size     (Size (Size))
 import           LunaStudio.Data.Vector2  (Vector2 (Vector2), scalarProduct)
-import           LunaStudio.Data.Vector2  (Vector2 (Vector2), scalarProduct)
-import           Prologue
+import           Prologue                 hiding (s, span)
 
 --TODO[react]: Consider if we can require those Matrices to be squared and of size 4
 data CameraTransformation = CameraTransformation { _screenToLogical :: Matrix Double
@@ -25,7 +24,7 @@ makeLenses ''CameraTransformation
 
 instance Binary a => Binary (Matrix a) where
     put = put . toLists
-    get = fromLists . get
+    get = fromLists <$> get
 
 instance Binary CameraTransformation
 
@@ -37,9 +36,9 @@ instance (FromJSON a, Read a) => FromJSON (Matrix a) where
         either fail return $ fromLists <$> tryReads s
 
 instance ToJSON CameraTransformation where
-    toJSON     = lensJSONToJSON
-    toEncoding = lensJSONToEncoding
-instance FromJSON CameraTransformation where parseJSON = lensJSONParse
+    toJSON     = Lens.toJSON
+    toEncoding = Lens.toEncoding
+instance FromJSON CameraTransformation where parseJSON = Lens.parse
 
 instance Default CameraTransformation where
     def = CameraTransformation (identity 4) (identity 4) 0

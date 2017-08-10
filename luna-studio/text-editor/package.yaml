@@ -53,6 +53,7 @@ dependencies:
   - time
   - transformers
   - uuid-types
+  - vector-text
 
 
 

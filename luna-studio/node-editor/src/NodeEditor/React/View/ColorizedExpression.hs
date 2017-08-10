@@ -13,11 +13,11 @@ colorizedExpression_ expr = React.viewWithSKey colorizedExpression "color-expr" 
 
 colorizedExpression :: ReactView Text
 colorizedExpression = defineView "color-expr" $ \expr -> do
-    let classes t = map ("syntax--" ++) $ "source" : "luna" : concatMap (wordsBy (=='.')) (mapMaybe lunaClass t)
-        tags token = [ (fromIntegral $ unwrap $ token ^. Lexer.guiSpan, classes $ Lexer.getTags token)
-                     , (fromIntegral $ unwrap $ token ^. Lexer.guiOffset, [])
+    let classes t = map ("syntax--" ++) $ "source" : "luna" : concatMap (wordsBy (=='.')) (mapMaybe (lunaClass . convert) t)
+        tags token = [ (fromIntegral $ token ^. Lexer.span, classes $ Lexer.getTags $ token ^. Lexer.element)
+                     , (fromIntegral $ token ^. Lexer.offset, [])
                      ]
-        lexerData = concatMap tags $ Lexer.runGUILexer $ convert expr
+        lexerData = concatMap tags $ Lexer.evalDefLexer $ convert expr
     div_ $ spans_ lexerData $ convert expr
 
 spans_ :: [(Int, [String])] -> String -> ReactElementM ViewEventHandler ()
