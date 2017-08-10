@@ -18,8 +18,8 @@ import Control.Monad.Raise
 import Luna.Manager.System.Env
 import Luna.Manager.System.Host
 
-import qualified Shelly.Lifted as Shelly
-import Shelly.Lifted (MonadSh)
+import qualified Luna.Manager.Shell.Shelly as Shelly
+import Luna.Manager.Shell.Shelly (MonadSh)
 
 data Shell = Bash | Zsh | Unknown deriving (Show)
 
@@ -125,19 +125,18 @@ makeExecutable file = case currentHost of
     Windows -> return ()
 
 
-runServicesWindows :: (MonadSh m, MonadIO m) => FilePath -> FilePath -> m ()
-runServicesWindows path logsPath = do
-  Shelly.cd path
-  Shelly.mkdir_p logsPath
-  let installPath = path </> Shelly.fromText "installAll.bat"
-  Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
-  Shelly.cmd installPath
+runServicesWindows :: (MonadSh m, MonadIO m, Shelly.MonadShControl m) => FilePath -> FilePath -> m ()
+runServicesWindows path logsPath = Shelly.chdir path $ do
+    Shelly.mkdir_p logsPath
+    let installPath = path </> Shelly.fromText "installAll.bat"
+    Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
+    Shelly.cmd installPath
 
 stopServicesWindows :: MonadIO m => FilePath -> m ()
 stopServicesWindows path = Shelly.shelly $ do
-    Shelly.cd path
-    let uninstallPath = path </> Shelly.fromText "uninstallAll.bat"
-    Shelly.cmd uninstallPath `catch` handler where
+    Shelly.chdir path $ do
+        let uninstallPath = path </> Shelly.fromText "uninstallAll.bat"
+        Shelly.cmd uninstallPath `catch` handler where
 
-        handler :: MonadSh m => SomeException -> m ()
-        handler ex = Shelly.liftSh $ print ex
+            handler :: MonadSh m => SomeException -> m ()
+            handler ex = return () -- Shelly.liftSh $ print ex
