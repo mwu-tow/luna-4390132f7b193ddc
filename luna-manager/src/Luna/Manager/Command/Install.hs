@@ -27,8 +27,8 @@ import qualified Data.Text as Text
 import qualified Data.Yaml as Yaml
 
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
-import Shelly.Lifted (toTextIgnore, MonadSh)
-import qualified Shelly.Lifted as Shelly
+import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh)
+import qualified Luna.Manager.Shell.Shelly as Shelly
 import System.IO (hFlush, stdout)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
@@ -164,8 +164,8 @@ downloadAndUnpackApp pkgPath installPath appName = do
     case currentHost of
          Linux -> do
              Shelly.mkdir_p installPath
-             Shelly.cmd "mv" unpacked  $ installPath </> convert appName
-         Darwin -> Shelly.cmd "mv" unpacked  installPath
+             Shelly.mv unpacked  $ installPath </> convert appName
+         Darwin -> Shelly.mv unpacked  installPath
          Windows -> Shelly.mv unpacked  installPath
     -- Shelly.rm_rf tmp -- FIXME[WD -> SB]: I commented it out, we use downloadWithProgressBar now which automatically downloads to tmp.
                         --                  However, manuall tmp removing is error prone! Create a wrapper like `withTmp $ \tmp -> downloadWithProgressBarTo pkgPath tmp; ...`
@@ -341,15 +341,16 @@ installApp opts package = do
     postInstallation appType installPath binPath pkgName pkgVersion
 
 data VersionError = VersionError deriving (Show)
-instance Exception VersionError
+instance Exception VersionError where
+    displayException err = "Incorrect version: " <> show err
 
 versionError :: SomeException
 versionError = toException VersionError
 
-readVersion :: Text -> Version
+readVersion :: (MonadIO m, MonadException SomeException m) => Text -> m Version
 readVersion v = case readPretty v of
-    Left e -> error $ convert e
-    Right v -> v
+    Left e -> raise versionError
+    Right v -> return $ v
 
 -- === Running === --
 
@@ -372,22 +373,11 @@ run opts = do
     let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
+    version <- readVersion appVersion
     let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
-        resolvedApp = ResolvedPackage (PackageHeader appName $ readVersion appVersion) appPkgDesc (appPkg ^. appType)
+        resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
         allApps = resolvedApp : appsToInstall
-    -- binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
     mapM_ (installApp opts) $ allApps
-
-    -- installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
-    -- pathExists <- Shelly.test_d installPath
-    -- stopServices installPath (appPkg ^. appType)
-    -- if pathExists then Shelly.rm_rf installPath else return ()
-    -- downloadAndUnpack (appPkgDesc ^. path) installPath appName
-    -- copyLibs installPath
-    -- copyWinSW installPath
-    -- postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
-    -- Shelly.cmd "Console.ReadKey ()"
-
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     -- print $ "TODO: Add new exports to bashRC if not already present"

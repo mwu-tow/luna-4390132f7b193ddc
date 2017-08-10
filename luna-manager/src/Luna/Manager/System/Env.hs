@@ -74,13 +74,6 @@ copyDir src dst = do
         mapM_ (flip Shelly.cp_r dst) listedDirectory
     else Shelly.cp src dst
 
--- FIXME[WD->SB]: rename to `mv` to be consistent with Shelly
-move :: MonadIO m => FilePath -> FilePath -> m ()
-move src dst = case currentHost of
-    Linux   -> Shelly.shelly $ Shelly.cmd "mv" src dst
-    Darwin  -> Shelly.shelly $ Shelly.cmd "mv" src dst
-    Windows -> Shelly.shelly $ Shelly.mv src dst
-
 
 -- === Instances === --
 
@@ -90,4 +83,4 @@ instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m 
 
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig 'Windows arch m where
     -- | Too long paths are often problem on Windows, therefore we use C:\tmp to store temporary data
-    defaultHostConfig = return $ EnvConfig "C:\\tmp"
+    defaultHostConfig = return $ EnvConfig "C:\\tmp\\luna"

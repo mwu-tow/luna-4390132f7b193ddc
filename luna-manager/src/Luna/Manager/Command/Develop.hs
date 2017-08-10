@@ -7,7 +7,6 @@ import Luna.Manager.System.Env
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Luna.Manager.Shell.Shelly   (MonadSh)
-import Luna.Manager.System.Env     (move)
 import Filesystem.Path.CurrentOS   (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
 
 import qualified Luna.Manager.Shell.Shelly as Shelly
@@ -24,7 +23,7 @@ run opts = do
     -- Stack installation
     stackArch  <- downloadWithProgressBar "https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64-static.tar.gz"
     stackArch' <- Archive.unpack stackArch
-    move stackArch' stackPath
+    Shelly.mv stackArch' stackPath
 
     -- cloning repo
     -- Shelly.sh
