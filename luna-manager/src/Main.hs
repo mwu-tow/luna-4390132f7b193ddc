@@ -23,8 +23,8 @@ evalGetTmp = evalDefHostConfigs @'[EnvConfig] $ getTmpPath
 cleanUp :: MonadIO m => FilePath -> m ()
 cleanUp tmp = do
     print "cleanUp"
-    runProcess_ $ shell ("RD /S /Q " ++ (encodeString tmp))
-    -- liftIO $ removeDirectoryRecursive $ encodeString tmp
+    -- runProcess_ $ shell ("RD /S /Q " ++ (encodeString tmp))
+    liftIO $ removeDirectoryRecursive $ encodeString tmp
 
 termHandler :: ThreadId -> Signal.Signal -> IO ()
 termHandler tId s = do
