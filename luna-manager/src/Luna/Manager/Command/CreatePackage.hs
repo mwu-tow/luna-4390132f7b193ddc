@@ -80,7 +80,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
 instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & buildScriptPath .~ "build-package.bat"
-                           & defaultPackagePath .~ "C:\\luna_tmp"
+                           & defaultPackagePath .~ "C:\\tmp\\luna-package"
 
 
 ----------------------
@@ -119,13 +119,13 @@ createAppimage appName repoPath = do
 
     let logoFile    = utilsPath </> convert (pkgConfig ^. logoFileName)
         desktopFile = utilsPath </> convert (pkgConfig ^. desktopFileName)
-        dstPath = tmpAppDirPath </> "usr"
-    srcPkgPath    <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        dstPath     = tmpAppDirPath </> "usr"
+    srcPkgPath <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
 
     Shelly.cp logoFile    $ tmpAppDirPath </> convert (appName <> ".png")
     Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
     copyDir srcPkgPath dstPath
-    print "Downloading AppImage desktopIntegration"
+    putStrLn "Downloading AppImage desktopIntegration"
     appWrapper <- downloadWithProgressBarTo "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
     let dstWrapperPath = dstPath </> convert (appName <> ".wrapper")
     Shelly.mv appWrapper dstWrapperPath
@@ -176,27 +176,24 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
         Lib      -> Shelly.mv unpacked libFullPath
 
-
-
-
 --------------------
 --linkingLibsMacOS--
 --------------------
 
 isSubPath :: Text -> Text -> Bool
 isSubPath systemLibPath dylibPath = do
-    let dylibSplited = splitDirectories $ convert dylibPath
+    let dylibSplited  = splitDirectories $ convert dylibPath
         systemSplited = splitDirectories $ convert systemLibPath
-        l = length systemSplited
-        firstL = take l dylibSplited
+        l             = length systemSplited
+        firstL        = take l dylibSplited
     (firstL /= systemSplited) && (not $ Filesystem.Path.CurrentOS.null $ convert dylibPath)
 
 changeExecutableLibPathToRelative :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
 changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
-    let dylibName = filename libSystemPath
+    let dylibName           = filename libSystemPath
         relativeLibraryPath = "@executable_path/../../lib/" <> Shelly.toTextIgnore dylibName
-        binFolder = parent binPath
-        binName = "./"  <> (Shelly.toTextIgnore $ filename binPath)
+        binFolder           = parent binPath
+        binName             = "./"  <> (Shelly.toTextIgnore $ filename binPath)
 
     if filename libLocalPath == filename libSystemPath
         then do
@@ -213,11 +210,11 @@ changeExecutablesLibPaths binaryPath librariesFolderPath linkedDylib = do
 checkAndChangeExecutablesLibPaths :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> m()
 checkAndChangeExecutablesLibPaths libFolderPath binaryPath = do
     deps <- Shelly.cmd "otool" "-L" binaryPath
-    let splited = drop 1 $ Text.strip <$> Text.splitOn "\n" deps
-        filePaths = Text.takeWhile (/= ' ') <$> splited
-        filtered = convert <$> filterSystemLibraries filePaths
+    let splited                 = drop 1 $ Text.strip <$> Text.splitOn "\n" deps
+        filePaths               = Text.takeWhile (/= ' ') <$> splited
+        filtered                = convert <$> filterSystemLibraries filePaths
         filterSystemLibraries s = filter checkIfSystemLibrary s
-        checkIfSystemLibrary = isSubPath "/usr/lib/"
+        checkIfSystemLibrary    = isSubPath "/usr/lib/"
 
     mapM_ (changeExecutablesLibPaths binaryPath libFolderPath) filtered
 
@@ -245,8 +242,8 @@ createPkg resolvedApplication = do
     runPkgBuildScript $ convert appPath
     copyFromDistToDistPkg appName $ convert appPath
     mainAppDir <- case currentHost of
-        Linux  -> expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
-        Darwin ->  expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Linux   -> expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Darwin  ->  expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let versionFile = mainAppDir </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
         binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
@@ -254,8 +251,8 @@ createPkg resolvedApplication = do
     Shelly.mkdir_p $ parent versionFile
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
     case currentHost of
-        Linux -> return ()
-        Darwin -> linkLibs binsFolder libsFolder
+        Linux   -> return ()
+        Darwin  -> linkLibs binsFolder libsFolder
         Windows -> return ()
 
     case currentHost of

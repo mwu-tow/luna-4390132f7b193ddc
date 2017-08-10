@@ -7,8 +7,7 @@ import System.Directory (executable, setPermissions, getPermissions, doesPathExi
 import System.Process.Typed
 import qualified System.Environment  as Environment
 import Data.List.Split (splitOn)
-import Data.ByteString.Lazy (null)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy (ByteString, null)
 import Data.ByteString.Lazy.Char8 (filter)
 import Data.Text.IO (appendFile)
 import qualified Data.Text  as Text
@@ -100,17 +99,17 @@ exportPath pathToExport shellType = do
     case shellType of
         Bash    -> do
             filesAvailable <- mapM runControlCheck [".bashrc", ".bash_profile", ".profile"]
-            let justFiles = catMaybes $ filesAvailable
+            let justFiles = catMaybes filesAvailable
                 exportToAppend = Text.concat ["export PATH=", pathToExportText, ":$PATH"]
             file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
             liftIO $ appendFile (encodeString file) exportToAppend
         Zsh     -> do
             filesAvailable <- mapM runControlCheck [".zshrc", ".zprofile"]
-            let justFiles = catMaybes $ filesAvailable
+            let justFiles = catMaybes filesAvailable
                 exportToAppend = Text.concat ["path+=", pathToExportText]
             file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
             liftIO $ appendFile (encodeString file) exportToAppend
-        Unknown -> raise' (unrecognizedShellError)
+        Unknown -> raise' unrecognizedShellError
 
 exportPathWindows :: MonadIO m => FilePath -> m ()
 exportPathWindows path = Shelly.shelly $ Shelly.appendToPath $ parent path -- $ Shelly.cmd "setx" "/M" "\"%PATH%;" (encodeString path) "\""
@@ -130,15 +129,15 @@ runServicesWindows :: (MonadSh m, MonadIO m) => FilePath -> FilePath -> m ()
 runServicesWindows path logsPath = do
   Shelly.cd path
   Shelly.mkdir_p logsPath
-  let installPath = path </> (Shelly.fromText "installAll.bat")
+  let installPath = path </> Shelly.fromText "installAll.bat"
   Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
   Shelly.cmd installPath
 
 stopServicesWindows :: MonadIO m => FilePath -> m ()
 stopServicesWindows path = Shelly.shelly $ do
     Shelly.cd path
-    let uninstallPath = path </> (Shelly.fromText "uninstallAll.bat")
-    (Shelly.cmd uninstallPath) `catch` handler where
+    let uninstallPath = path </> Shelly.fromText "uninstallAll.bat"
+    Shelly.cmd uninstallPath `catch` handler where
 
         handler :: MonadSh m => SomeException -> m ()
         handler ex = Shelly.liftSh $ print ex

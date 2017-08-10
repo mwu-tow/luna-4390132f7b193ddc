@@ -26,5 +26,4 @@ run = Shelly.shelly $ do
     print "WARNING! [WD]: I disabled cleanUp while developing `develop` cmd, to be enabled"
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()
-handleTopLvlError e = do
-    putStrLn $ "Fatal: " <> displayException e
+handleTopLvlError e = putStrLn $ "Fatal: " <> displayException e
