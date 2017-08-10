@@ -26,7 +26,7 @@ import qualified Luna.Manager.Command.Options as Opts
 import qualified Shelly.Lifted as Shelly
 import qualified System.Process.Typed as Process
 import System.Directory (renameDirectory)
-
+import Shelly.Lifted (MonadSh)
 
 
 ----------------------------
@@ -52,7 +52,7 @@ data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
 
 makeLenses ''PackageConfig
 
-type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNetwork m)
+type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNetwork m, MonadSh m)
 
 
 -- === Instances === --
@@ -143,15 +143,15 @@ createAppimage appName repoPath = do
     let tmpAppDirPath = tmpAppPath </> convert (appName <> ".AppDir")
 
 
-    Shelly.shelly $ Shelly.mkdir_p tmpAppDirPath
-    Shelly.shelly $ Shelly.cd tmpAppPath
+    Shelly.mkdir_p tmpAppDirPath
+    Shelly.cd tmpAppPath
     print "Downloading AppImage functions.sh"
     functions <- downloadWithProgressBar "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
     let mainAppImageFolder = "usr"
         apprun             = "get_apprun"
         generateAppimage   = "generate_type2_appimage"
     utilsPath <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName </> (pkgConfig ^. binFolder)  </> (pkgConfig ^. mainBin) </> (pkgConfig ^. utilsFolder)
-    Shelly.shelly $ Shelly.mkdir_p $ tmpAppDirPath </> mainAppImageFolder
+    Shelly.mkdir_p $ tmpAppDirPath </> mainAppImageFolder
 
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> apprun
 
@@ -160,14 +160,13 @@ createAppimage appName repoPath = do
         dstPath = tmpAppDirPath </> "usr"
     srcPkgPath    <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
 
-    Shelly.shelly $ do
-        Shelly.cp logoFile    $ tmpAppDirPath </> convert (appName <> ".png")
-        Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
-        copyDir srcPkgPath dstPath
+    Shelly.cp logoFile    $ tmpAppDirPath </> convert (appName <> ".png")
+    Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
+    copyDir srcPkgPath dstPath
     print "Downloading AppImage desktopIntegration"
     appWrapper <- downloadWithProgressBar "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
     let dstWrapperPath = dstPath </> convert (appName <> ".wrapper")
-    Shelly.shelly $ Shelly.mv appWrapper dstWrapperPath
+    Shelly.mv appWrapper dstWrapperPath
     makeExecutable dstWrapperPath
     modifyDesktopFileToUseWrapperAppImageToRunApp appName tmpAppDirPath
     Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
@@ -184,9 +183,8 @@ runPkgBuildScript :: MonadCreatePackage m => FilePath -> m ()
 runPkgBuildScript repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-    Shelly.shelly $ do
-        Shelly.cd $ parent buildPath
-        Shelly.cmd buildPath
+    Shelly.cd $ parent buildPath
+    Shelly.cmd buildPath
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -196,8 +194,8 @@ copyFromDistToDistPkg appName repoPath = do
         Linux   -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
-    Shelly.shelly $ Shelly.mkdir_p $ parent packageRepoFolder
-    Shelly.shelly $ Shelly.mv expandedCopmponents  packageRepoFolder
+    Shelly.mkdir_p $ parent packageRepoFolder
+    Shelly.shelly $ Shelly.mv expandedCopmponents packageRepoFolder
 
 downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do

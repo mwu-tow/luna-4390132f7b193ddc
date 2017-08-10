@@ -12,9 +12,9 @@ import qualified Luna.Manager.Command.Install as Install
 import           Luna.Manager.Command.Install (InstallConfig)
 import qualified Luna.Manager.Command.CreatePackage as CreatePackage
 import           Luna.Manager.Command.CreatePackage (PackageConfig)
-import Shelly.Lifted (MonadSh)
+import qualified Shelly.Lifted as Shelly
 
-chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m) => m ()
+chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m, Shelly.MonadSh m) => m ()
 chooseCommand = do
     opts <- get @Options
     case opts ^. command of
