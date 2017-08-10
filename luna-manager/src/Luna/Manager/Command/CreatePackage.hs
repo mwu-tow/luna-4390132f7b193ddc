@@ -23,10 +23,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Yaml as Yaml
 import qualified Luna.Manager.Command.Options as Opts
-import qualified Shelly.Lifted as Shelly
+import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified System.Process.Typed as Process
 import System.Directory (renameDirectory)
-import Shelly.Lifted (MonadSh)
+import Luna.Manager.Shell.Shelly (MonadSh)
 
 
 ----------------------------
@@ -210,9 +210,9 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     unpacked           <- Archive.unpack downloadedPkg
     Shelly.shelly $ Shelly.mkdir_p thirdPartyFullPath
     case packageType of
-        BatchApp -> move unpacked thirdPartyFullPath
-        GuiApp   -> move unpacked thirdPartyFullPath
-        Lib      -> move unpacked libFullPath
+        BatchApp -> Shelly.mv unpacked thirdPartyFullPath
+        GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
+        Lib      -> Shelly.mv unpacked libFullPath
 
 
 

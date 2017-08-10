@@ -7,7 +7,7 @@ import Luna.Manager.System.Env
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Luna.Manager.Shell.Shelly   (MonadSh)
-import Luna.Manager.System.Env     (move)
+
 
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified Luna.Manager.Archive      as Archive

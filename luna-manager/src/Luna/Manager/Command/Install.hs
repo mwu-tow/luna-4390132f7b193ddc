@@ -27,8 +27,8 @@ import qualified Data.Text as Text
 import qualified Data.Yaml as Yaml
 
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
-import Shelly.Lifted (toTextIgnore, MonadSh)
-import qualified Shelly.Lifted as Shelly
+import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh)
+import qualified Luna.Manager.Shell.Shelly as Shelly
 import System.IO (hFlush, stdout)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
@@ -164,8 +164,8 @@ downloadAndUnpackApp pkgPath installPath appName = do
     case currentHost of
          Linux -> do
              Shelly.mkdir_p installPath
-             Shelly.cmd "mv" unpacked  $ installPath </> convert appName
-         Darwin -> Shelly.cmd "mv" unpacked  installPath
+             Shelly.mv unpacked  $ installPath </> convert appName
+         Darwin -> Shelly.mv unpacked  installPath
          Windows -> Shelly.mv unpacked  installPath
     -- Shelly.rm_rf tmp -- FIXME[WD -> SB]: I commented it out, we use downloadWithProgressBar now which automatically downloads to tmp.
                         --                  However, manuall tmp removing is error prone! Create a wrapper like `withTmp $ \tmp -> downloadWithProgressBarTo pkgPath tmp; ...`
