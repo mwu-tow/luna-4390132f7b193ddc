@@ -1,6 +1,6 @@
 module LunaStudio.Data.Project where
 
-import qualified Control.Lens.Aeson                   as Lens
+import           Control.Lens.Aeson                   (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
 import           Data.Aeson                           (FromJSON (parseJSON), ToJSON (toEncoding, toJSON))
 import           Data.Binary                          (Binary)
 import           Data.Binary                          (Binary (..))
@@ -55,27 +55,27 @@ makeLenses ''LocationSettings
 
 instance Binary   LocationSettings
 instance NFData   LocationSettings
-instance FromJSON BreadcrumbSettings where parseJSON = Lens.parse
-instance FromJSON ModuleSettings     where parseJSON = Lens.parse
-instance FromJSON ProjectSettings    where parseJSON = Lens.parse
-instance FromJSON LocationSettings   where parseJSON = Lens.parse
+instance FromJSON BreadcrumbSettings where parseJSON = lensJSONParse
+instance FromJSON ModuleSettings     where parseJSON = lensJSONParse
+instance FromJSON ProjectSettings    where parseJSON = lensJSONParse
+instance FromJSON LocationSettings   where parseJSON = lensJSONParse
 instance ToJSON   BreadcrumbSettings where
-    toJSON     = Lens.toJSON
-    toEncoding = Lens.toEncoding
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 instance ToJSON   ModuleSettings     where
-    toJSON     = Lens.toJSON
-    toEncoding = Lens.toEncoding
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 instance ToJSON   ProjectSettings    where
-    toJSON     = Lens.toJSON
-    toEncoding = Lens.toEncoding
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 instance ToJSON   LocationSettings   where
-    toJSON     = Lens.toJSON
-    toEncoding = Lens.toEncoding
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 
 --FIXME[MM, LJK, PM]: We should allow sending HashMap here without convert to list
 instance (Hashable k, Eq k, Binary k, Binary v) => Binary (HashMap k v) where
     put = put . HashMap.toList
-    get = HashMap.fromList <$> get
+    get = HashMap.fromList . get
 
 
 getModuleSettings :: FilePath -> FilePath -> IO (Maybe ModuleSettings)

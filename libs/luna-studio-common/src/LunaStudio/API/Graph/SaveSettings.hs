@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Graph.SaveSettings where
 
-import qualified Control.Lens.Aeson                   as Lens
+import           Control.Lens.Aeson                   (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
 import           Data.Aeson.Types                     (FromJSON (..), ToJSON (..))
 import           Data.Binary                          (Binary (..))
 import           Data.Hashable                        (Hashable)
@@ -28,10 +28,10 @@ makeLenses ''Request
 
 instance Binary Request
 instance NFData Request
-instance FromJSON Request where parseJSON = Lens.parse
+instance FromJSON Request where parseJSON = lensJSONParse
 instance ToJSON Request where
-    toJSON     = Lens.toJSON
-    toEncoding = Lens.toEncoding
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding
 instance G.GraphRequest Request where location = location
 
 type Response = Response.SimpleResponse Request ()

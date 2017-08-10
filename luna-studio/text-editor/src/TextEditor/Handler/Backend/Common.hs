@@ -13,8 +13,9 @@ import qualified Data.UUID.Types         as UUID (toString)
 import qualified LunaStudio.API.Response as Response
 import qualified LunaStudio.API.Topic    as Topic
 import           TextEditor.Action.UUID  (isOwnRequest, unregisterRequest)
-import           TextEditor.State.Global (State)
+import           TextEditor.State.Global (State, pendingRequests)
 
+import           Data.Time.Clock         (diffUTCTime, getCurrentTime)
 
 whenOk :: Response.Response req inv res -> (res -> Command State ()) -> Command State ()
 whenOk (Response.Response _ _ _ _ (Response.Ok    res)) handler = handler res

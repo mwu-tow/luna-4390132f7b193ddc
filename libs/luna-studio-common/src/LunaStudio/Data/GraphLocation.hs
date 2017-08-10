@@ -1,6 +1,6 @@
 module LunaStudio.Data.GraphLocation where
 
-import qualified Control.Lens.Aeson         as Lens
+import           Control.Lens.Aeson         (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
 import           Data.Aeson.Types           (FromJSON (..), ToJSON (..))
 import           Data.Binary                (Binary)
 import           LunaStudio.Data.Breadcrumb (Breadcrumb, BreadcrumbItem)
@@ -14,7 +14,7 @@ data GraphLocation = GraphLocation { _filePath   :: FilePath
 makeLenses ''GraphLocation
 instance Binary   GraphLocation
 instance NFData   GraphLocation
-instance FromJSON GraphLocation where parseJSON = Lens.parse
+instance FromJSON GraphLocation where parseJSON = lensJSONParse
 instance ToJSON   GraphLocation where
-    toJSON     = Lens.toJSON
-    toEncoding = Lens.toEncoding
+    toJSON     = lensJSONToJSON
+    toEncoding = lensJSONToEncoding

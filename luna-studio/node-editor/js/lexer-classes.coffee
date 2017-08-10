@@ -41,7 +41,7 @@ lunaClasses = {
 
         # --- Comments ---
         Comment     : 'comment'
-        Disable     : 'comment.disabled'
+        Disabled    : 'comment.disabled'
         Doc         : 'comment.doc'
 
         # --- Helpers ---

@@ -7,7 +7,7 @@ import           Common.Prelude
 import qualified Data.Text                                  as Text
 import qualified JS.GoogleAnalytics                         as GA
 import qualified JS.Searcher                                as Searcher
-import           Luna.Syntax.Text.Lexer                     (evalDefLexer)
+import           Luna.Syntax.Text.Lexer                     (runGUILexer)
 import           LunaStudio.Data.Geometry                   (snap)
 import           LunaStudio.Data.NodeLoc                    (NodeLoc, NodePath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
@@ -94,7 +94,7 @@ openWith input mode = do
 
 updateInput :: Text -> Int -> Int -> Searcher -> Command State ()
 updateInput input selectionStart selectionEnd action = do
-    let inputStream = evalDefLexer $ convert input
+    let inputStream = runGUILexer $ convert input
         newInput    = if selectionStart /= selectionEnd
                           then Searcher.Raw input
                       else if Text.null input
@@ -104,7 +104,7 @@ updateInput input selectionStart selectionEnd action = do
     m <- fmap2 (view Searcher.mode) $ getSearcher
     if      isNothing $ newInput ^? Searcher._Divided then clearHints action
     else if isJust $ maybe def (^? Searcher._Node) m  then do
-        case Searcher.findLambdaArgsAndEndOfLambdaArgs (convert input) inputStream of
+        case Searcher.findLambdaArgsAndEndOfLambdaArgs inputStream of
             Nothing             -> do
                 modifySearcher $ Searcher.mode %= Searcher.updateNodeArgs []
                 updateHints action

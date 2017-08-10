@@ -33,9 +33,10 @@ import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan, realSpan)
 import qualified Luna.Syntax.Text.Parser.Marker   as Luna
 
-import           Luna.Syntax.Text.Lexer.Grammar     (isOperator)
-import qualified Luna.Syntax.Text.Lexer             as Lexer
-import           Luna.Syntax.Text.Analysis.SpanTree as SpanTree
+import           Luna.Syntax.Text.Lexer.Name (isOperator)
+import qualified Luna.Syntax.Text.Lexer      as Lexer
+import           Luna.Syntax.Text.SpanTree   as SpanTree
+import           Data.VectorText             (VectorText)
 
 import           LunaStudio.Data.Breadcrumb         (Breadcrumb(..), BreadcrumbItem(..))
 import           LunaStudio.Data.Node               (NodeId)
@@ -55,17 +56,17 @@ deltaToPoint delta code = Point col row where
     col = pred $ Text.length $ Text.takeWhileEnd (/= '\n') codePrefix
 
 removeMarkers :: Text -> Text
-removeMarkers (convert -> code) = convertVia @String $ SpanTree.foldlSpans concatNonMarker "" spanTree where
+removeMarkers (convertVia @String -> code) = convertVia @String $ SpanTree.foldlSpans concatNonMarker "" spanTree where
     spanTree    = SpanTree.buildSpanTree code lexerStream
-    lexerStream = Lexer.evalDefLexer code
+    lexerStream = Lexer.runLexer @Text code
     concatNonMarker t (Spanned span t1) = if span ^. spanType == MarkerSpan then t else t <> t1
 
 viewDeltasToReal :: Text -> (Delta, Delta) -> (Delta, Delta)
-viewDeltasToReal (convert -> code) (b, e) = if b == e then (bAf, bAf) else block where
+viewDeltasToReal (convertVia @String -> code) (b, e) = if b == e then (bAf, bAf) else block where
     bAf         = SpanTree.viewToRealCursorAfterMarker spantree b
     block       = SpanTree.viewToRealBlock spantree (b, e)
     spantree    = SpanTree.buildSpanTree code lexerStream
-    lexerStream = Lexer.evalDefLexer code
+    lexerStream = Lexer.runLexer @Text code
 
 -- TODO: switch to Deltas exclusively
 applyDiff :: (MonadState state m, Integral a, Graph.HasCode state) => a -> a -> Text -> m Text
