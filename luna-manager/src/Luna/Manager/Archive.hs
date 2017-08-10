@@ -107,17 +107,12 @@ untarWin zipFile = do
   script <- downloadFromURL scriptPath "Downloading archiving tool"
   let dir = directory zipFile
       name = dir </> basename zipFile
-  -- Shelly.shelly $ Shelly.cp script dir
   Shelly.shelly $ Shelly.silently $ do
     Shelly.cd dir
     Shelly.mkdir_p name
-    -- Shelly.cp zipFile name
     Shelly.cp script dir
-    -- Shelly.cd $ dir </> name
     liftIO $ print name
     Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name
-    -- Shelly.rm $ dir </> name </> (filename zipFile)
-    -- Shelly.rm $ dir </> name </> (filename script)
     listed <- Shelly.ls $ dir </> name
     liftIO $ print listed
     if length listed == 1
