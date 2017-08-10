@@ -6,37 +6,52 @@ import Luna.Manager.Network
 import Luna.Manager.System.Env
 import Control.Monad.Raise
 import Control.Monad.State.Layered
-import Luna.Manager.Shell.Shelly   (MonadSh)
+import Luna.Manager.Shell.Shelly   (MonadSh, MonadShControl)
 import Filesystem.Path.CurrentOS   (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
 
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified Luna.Manager.Archive      as Archive
 
 
-run :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m) => DevelopOpts -> m ()
+instance Convertible FilePath Text where
+    convert = convert . encodeString
+
+run :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m, MonadShControl m) => DevelopOpts -> m ()
 run opts = do
     let devPath   = "luna-workspace"
-        toolsPath = devPath </> "tools"
+        toolsPath = devPath   </> "tools"
+        appsPath  = devPath   </> "apps"
         stackPath = toolsPath </> "stack"
+        stackBin  = stackPath </> "stack"
     Shelly.mkdir_p toolsPath
+    Shelly.mkdir_p appsPath
 
     -- Stack installation
-    stackArch  <- downloadWithProgressBar "https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64-static.tar.gz"
+    let stackName    = "stack"
+        stackVersion = "1.5.1"
+    putStrLn . convert $ "Downloading " <> stackName <> " (" <> stackVersion <> ")"
+    stackArch  <- downloadWithProgressBar $ "https://github.com/commercialhaskell/stack/releases/download/v" <> stackVersion <> "/stack-" <> stackVersion <> "-linux-x86_64-static.tar.gz"
     stackArch' <- Archive.unpack stackArch
     Shelly.mv stackArch' stackPath
 
     -- cloning repo
-    -- Shelly.sh
+    let appName  = "luna-studio"
+        repoPath = "git@github.com:luna/" <> convert appName <> ".git"
+        appPath  = appsPath </> appName
+    putStrLn . convert $ "Clonning repository " <> repoPath
+    Shelly.run "git" ["clone", repoPath, convert appPath]
+
+    -- building backend
+    Shelly.chdir (appPath </> "build" </> "backend") $ do
+        Shelly.run stackBin ["build", "--copy-bins", "--fast", "--install-ghc"]
 
 
-    print stackArch'
     print "hello"
 
-
 -- - luna-workspace
---   - tools
---     - stack
---   - components
+--   - apps
 --     - luna
 --     - luna-studio
+--   - tools
+--     - stack
 --
