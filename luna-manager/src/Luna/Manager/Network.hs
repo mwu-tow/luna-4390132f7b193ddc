@@ -59,7 +59,7 @@ newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.manag
 
 downloadWithProgressBar :: (MonadIO m, MonadException SomeException m) => URIPath -> FilePath -> m FilePath
 downloadWithProgressBar address dstPath = do
-    req <- tryRight' $ HTTP.parseRequest (convert address)
+    req     <- tryRight' $ HTTP.parseRequest (convert address)
     manager <- newHTTPManager
     tryRight' @SomeException <=< liftIO . Exception.try . runResourceT $ do
     -- Start the request
@@ -74,3 +74,9 @@ downloadWithProgressBar address dstPath = do
             HTTP.responseBody res $=+ updateProgress pg $$+- sinkFile (encodeString dstFile)
             putStrLn "Download completed!"
             return dstFile
+
+downloadWithProgressBarAndUnpack :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m) => URIPath -> m FilePath
+downloadWithProgressBarAndUnpack address = do
+    tmp <- getTmpPath
+    print =<< downloadWithProgressBar address tmp
+    return undefined

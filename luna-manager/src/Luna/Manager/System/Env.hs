@@ -36,11 +36,17 @@ getCurrentPath = do
     return $ fromText $ convert current
 
 getTmpPath, getDownloadPath :: (MonadIO m, MonadGetter EnvConfig m) => m FilePath
-getTmpPath      = do
+getTmpPath = case currentHost of
+    Darwin  -> getTmpPathUnix
+    Linux   -> getTmpPathUnix
+    Windows -> return $ "C:\\tmp"
+getDownloadPath = getTmpPath
+
+getTmpPathUnix :: (MonadIO m, MonadGetter EnvConfig m) => m FilePath
+getTmpPathUnix = do
     tmp <- view localTempPath <$> get @EnvConfig
     Shelly.shelly $ Shelly.mkdir_p tmp
     return tmp
-getDownloadPath = getTmpPath
 
 
 setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
@@ -83,4 +89,4 @@ move src dst = case currentHost of
 -- === Instances === --
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m where
     defaultHostConfig = EnvConfig <$> tmp where
-        tmp =  (</> "tmp/luna") <$> decodeString <$> liftIO System.getTemporaryDirectory
+        tmp = (</> "luna") <$> decodeString <$> liftIO System.getTemporaryDirectory
