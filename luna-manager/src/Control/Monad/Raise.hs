@@ -17,6 +17,7 @@ import Data.Constraint            (Constraint)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans        (MonadTrans, lift)
 import qualified Control.Exception.Safe as Exception
+import qualified Shelly.Lifted as Shelly
 
 -------------------------------
 -- === Exception raising === --
@@ -68,6 +69,7 @@ instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (Except
 instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT SomeException m) where raise = throwE . toException
 instance                      (Monad m)              => MonadException SomeException (ExceptT SomeException m) where raise = throwE
 instance                      Exception e            => MonadException e IO where raise = Exception.throwM
+instance                      Exception e            => MonadException e Shelly.Sh where raise = Exception.throwM
 
 
 -- === Utils === --
