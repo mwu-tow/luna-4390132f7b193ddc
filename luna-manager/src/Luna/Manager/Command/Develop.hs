@@ -12,7 +12,7 @@ import Filesystem.Path.CurrentOS   (FilePath, (</>), encodeString, decodeString,
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified Luna.Manager.Archive      as Archive
 
-
+-- TODO: To refactor
 instance Convertible FilePath Text where
     convert = convert . encodeString
 
