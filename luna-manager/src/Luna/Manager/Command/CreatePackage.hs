@@ -243,7 +243,7 @@ createPkg resolvedApplication = do
     copyFromDistToDistPkg appName $ convert appPath
     mainAppDir <- case currentHost of
         Linux   -> expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
-        Darwin  ->  expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
+        Darwin  -> expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let versionFile = mainAppDir </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
         binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)

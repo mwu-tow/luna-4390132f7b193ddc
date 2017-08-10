@@ -18,7 +18,8 @@ instance Convertible FilePath Text where
 
 run :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m, MonadShControl m) => DevelopOpts -> m ()
 run opts = do
-    let devPath   = "luna-workspace"
+    root <- Shelly.pwd
+    let devPath   = root      </> "luna-workspace"
         toolsPath = devPath   </> "tools"
         appsPath  = devPath   </> "apps"
         stackPath = toolsPath </> "stack"
@@ -42,11 +43,13 @@ run opts = do
     Shelly.run "git" ["clone", repoPath, convert appPath]
 
     -- building backend
+    putStrLn "Building Luna Studio Backend"
     Shelly.chdir (appPath </> "build" </> "backend") $ do
-        Shelly.run stackBin ["build", "--copy-bins", "--fast", "--install-ghc"]
+        Shelly.run stackBin ["build", "--copy-bins", "--fast", "--install-ghc", convert appPath]
+
+    return ()
 
 
-    print "hello"
 
 -- - luna-workspace
 --   - apps
