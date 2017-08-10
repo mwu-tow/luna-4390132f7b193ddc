@@ -22,8 +22,6 @@ main = do
     handleSignal threadId
     evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
 
-instance Exception e => MonadException e IO where raise = Exception.throwM
-
 handleTopLvlError :: MonadIO m => SomeException -> m ()
 handleTopLvlError e = do
     putStrLn $ "Fatal: " <> displayException e
