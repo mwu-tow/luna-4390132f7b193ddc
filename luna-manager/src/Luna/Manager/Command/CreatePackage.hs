@@ -301,8 +301,6 @@ createPkg resolvedApplication = do
         Darwin -> void . Shelly.shelly $ createTarGzUnix mainAppDir appName
         Windows -> void $ zipFileWindows mainAppDir appName
 
-
-
 run :: MonadCreatePackage m => MakePackageOpts -> m ()
 run opts = do
     repo <- parseConfig $ convert (opts ^. Opts.cfgPath)
