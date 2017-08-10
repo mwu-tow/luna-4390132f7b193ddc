@@ -33,7 +33,7 @@ import System.IO (hFlush, stdout)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
 import qualified System.Environment as Environment
-import Luna.Manager.Archive
+import Luna.Manager.Archive as Archive
 
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
@@ -160,7 +160,7 @@ downloadAndUnpackApp pkgPath installPath appName = do
 
     Shelly.mkdir_p $ parent installPath
     pkg <- downloadWithProgressBar pkgPath
-    unpacked <- unpackArchive pkg
+    unpacked <- Archive.unpack pkg
     case currentHost of
          Linux -> do
              Shelly.mkdir_p installPath

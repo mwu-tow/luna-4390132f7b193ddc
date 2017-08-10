@@ -23,6 +23,7 @@ run = Shelly.shelly $ do
     threadId <- liftIO myThreadId
     liftIO $ handleSignal threadId
     evalOptionsParserT chooseCommand -- `Exception.finally` (cleanUp tmp)
+    print "WARNING! [WD]: I disabled cleanUp while developing `develop` cmd, to be enabled"
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()
 handleTopLvlError e = do

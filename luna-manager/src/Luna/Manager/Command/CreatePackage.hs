@@ -8,7 +8,7 @@ import           Control.Lens.Aeson
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
 import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, parent,splitDirectories,null, filename)
-import           Luna.Manager.Archive
+import           Luna.Manager.Archive as Archive
 import           Luna.Manager.Command.Options (MakePackageOpts)
 import           Luna.Manager.Component.Repository as Repo
 import           Luna.Manager.Network
@@ -207,7 +207,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
-    unpacked           <- unpackArchive downloadedPkg
+    unpacked           <- Archive.unpack downloadedPkg
     Shelly.shelly $ Shelly.mkdir_p thirdPartyFullPath
     case packageType of
         BatchApp -> move unpacked thirdPartyFullPath
