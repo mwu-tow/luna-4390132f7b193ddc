@@ -52,7 +52,7 @@ data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
 
 makeLenses ''PackageConfig
 
-type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNetwork m, MonadSh m)
+type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)
 
 
 -- === Instances === --
@@ -116,7 +116,7 @@ createAppimage appName repoPath = do
     let tmpAppDirPath = tmpAppPath </> convert (appName <> ".AppDir")
 
     Shelly.mkdir_p tmpAppDirPath
-    Shelly.cd tmpAppPath
+    -- Shelly.cd tmpAppPath
 
     putStrLn "Downloading AppImage functions.sh"
     functions <- downloadWithProgressBarTo "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
@@ -150,8 +150,8 @@ runPkgBuildScript :: MonadCreatePackage m => FilePath -> m ()
 runPkgBuildScript repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-    Shelly.cd $ parent buildPath
-    Shelly.cmd buildPath
+    Shelly.chdir (parent buildPath) $ do
+        Shelly.cmd buildPath
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -181,9 +181,9 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
         Lib      -> Shelly.mv unpacked libFullPath
 
---------------------
---linkingLibsMacOS--
---------------------
+------------------------------
+-- === linkingLibsMacOS === --
+------------------------------
 
 isSubPath :: Text -> Text -> Bool
 isSubPath systemLibPath dylibPath = do
@@ -193,7 +193,7 @@ isSubPath systemLibPath dylibPath = do
         firstL        = take l dylibSplited
     (firstL /= systemSplited) && (not $ Filesystem.Path.CurrentOS.null $ convert dylibPath)
 
-changeExecutableLibPathToRelative :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
+changeExecutableLibPathToRelative :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => FilePath -> FilePath -> FilePath -> m ()
 changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
     let dylibName           = filename libSystemPath
         relativeLibraryPath = "@executable_path/../../lib/" <> Shelly.toTextIgnore dylibName
@@ -202,17 +202,17 @@ changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
 
     if filename libLocalPath == filename libSystemPath
         then do
-            Shelly.cd binFolder
-            Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binName
+            Shelly.chdir binFolder $ do
+                Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binName
         else return ()
 
-changeExecutablesLibPaths :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> FilePath -> m ()
+changeExecutablesLibPaths :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => FilePath -> FilePath -> FilePath -> m ()
 changeExecutablesLibPaths binaryPath librariesFolderPath linkedDylib = do
     listedLibrariesFolder <- Shelly.ls librariesFolderPath
     mapM_ (changeExecutableLibPathToRelative binaryPath linkedDylib) listedLibrariesFolder
 
 
-checkAndChangeExecutablesLibPaths :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> m()
+checkAndChangeExecutablesLibPaths :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => FilePath -> FilePath -> m()
 checkAndChangeExecutablesLibPaths libFolderPath binaryPath = do
     deps <- Shelly.cmd "otool" "-L" binaryPath
     let splited                 = drop 1 $ Text.strip <$> Text.splitOn "\n" deps
@@ -223,7 +223,7 @@ checkAndChangeExecutablesLibPaths libFolderPath binaryPath = do
 
     mapM_ (changeExecutablesLibPaths binaryPath libFolderPath) filtered
 
-linkLibs :: (MonadIO m, MonadSh m) => FilePath -> FilePath -> m ()
+linkLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => FilePath -> FilePath -> m ()
 linkLibs binPath libPath = do
     allBins <- Shelly.ls binPath
     mapM_ (checkAndChangeExecutablesLibPaths libPath) allBins

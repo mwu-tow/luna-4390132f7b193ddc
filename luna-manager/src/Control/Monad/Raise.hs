@@ -8,6 +8,8 @@ module Control.Monad.Raise (module Control.Monad.Raise, module X) where
 import Prelude
 import Data.Kind
 
+import qualified Luna.Manager.Shell.Shelly as Shelly
+
 import Control.Lens.Utils
 import Control.Exception   as X (Exception, SomeException, toException)
 import Control.Monad.Catch (MonadThrow, throwM)
@@ -17,7 +19,6 @@ import Data.Constraint            (Constraint)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans        (MonadTrans, lift)
 import qualified Control.Exception.Safe as Exception
-import qualified Shelly.Lifted as Shelly
 
 -------------------------------
 -- === Exception raising === --

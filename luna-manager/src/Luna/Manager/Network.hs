@@ -5,6 +5,7 @@ import Prologue hiding (FilePath, fromText)
 import Luna.Manager.System.Env
 import Luna.Manager.Shell.ProgressBar
 import Luna.Manager.System.Path
+import Luna.Manager.Shell.Shelly (MonadSh)
 
 import Control.Monad.Raise
 import Control.Monad.State.Layered
@@ -23,7 +24,6 @@ import Data.Conduit.Binary (sinkFile)
 import Network.HTTP.Types (hContentLength)
 import qualified Data.ByteString.Char8 as ByteStringChar (unpack, writeFile)
 import qualified Data.Text as Text
-import Shelly.Lifted (MonadSh)
 
 
 -- === Errors === --

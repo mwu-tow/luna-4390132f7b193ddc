@@ -123,7 +123,7 @@ makeLenses ''UnresolvedDepsError
 instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
-type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m, Shelly.MonadSh m) -- TODO: add MonadSh to MonadInstall
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m, Shelly.MonadSh m, Shelly.MonadShControl m) 
 
 
 -- === Utils === --
@@ -258,7 +258,7 @@ linkingLocalBin currentBin appName = do
 
 -----Windows specific-----
 
-stopServices :: MonadInstall m => FilePath -> AppType -> m ()
+stopServices ::MonadInstall m => FilePath -> AppType -> m ()
 stopServices installPath appType = case currentHost of
     Windows -> case appType of
         GuiApp -> do
@@ -282,11 +282,10 @@ runServices installPath appType appName version = case currentHost of
         BatchApp -> return ()
     otherwise -> return ()
 
--- whenHost :: forall system a. m a -> m ()
+-- whenHost :: MonadInstall m => forall system a. m a -> m ()
 -- whenHost f = when (currentHost == fromType @a) (void f) --TODO : use for matching on single host + refactor -> mv function to utils
 
--- call copyDllFilesOnWindows and copyWinSW as single function for Windows prepareing
-copyDllFilesOnWindows :: MonadInstall m => FilePath -> m () --rename to copyDllFilesOnWindows
+copyDllFilesOnWindows :: MonadInstall m => FilePath -> m ()
 copyDllFilesOnWindows installPath = case currentHost of -- whenHost @'Windows $ do
     Windows -> do
         installConfig <- get @InstallConfig
