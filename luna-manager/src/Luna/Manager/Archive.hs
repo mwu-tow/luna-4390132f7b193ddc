@@ -23,34 +23,31 @@ instance Exception ExtensionError
 extensionError :: SomeException
 extensionError = toException ExtensionError
 
-unpackArchive :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
-unpackArchive file = do
-    putStrLn $ "Unpacking archive"
-    case currentHost of
-        Windows ->  do
-            ext <- tryJust extensionError $ extension file
-            case ext of
-                "zip" -> unzipFileWindows file
-                "gz"  -> untarWin file
-        Darwin  -> do
-            ext <- tryJust extensionError $ extension file
-            case ext of
-                "gz"  -> Shelly.shelly $ unpackTarGzUnix file
-                "zip" -> Shelly.shelly $ unzipUnix file
-        Linux   -> do
-            ext <- tryJust extensionError $ extension file
-            case ext of
-                "AppImage" -> return file
-                "gz"       -> Shelly.shelly $ unpackTarGzUnix file
-                "rpm"      -> Shelly.shelly $ do
-                    let name = basename file
-                        dir = directory file
-                        fullFilename = filename file
-                    Shelly.mkdir_p $ dir </> name
-                    Shelly.cp_r file $ dir </> name
-                    unpackRPM (dir </> name </> fullFilename) (dir </> name)
-                    -- Shelly.rm fullFilename
-                    return $ dir </> name
+unpack :: (MonadIO m, MonadNetwork m) => FilePath -> m FilePath
+unpack file = putStrLn "Unpacking archive" >> case currentHost of
+    Windows ->  do
+        ext <- tryJust extensionError $ extension file
+        case ext of
+            "zip" -> unzipFileWindows file
+            "gz"  -> untarWin file
+    Darwin  -> do
+        ext <- tryJust extensionError $ extension file
+        case ext of
+            "gz"  -> Shelly.shelly $ unpackTarGzUnix file
+            "zip" -> Shelly.shelly $ unzipUnix file
+    Linux   -> do
+        ext <- tryJust extensionError $ extension file
+        case ext of
+            "AppImage" -> return file
+            "gz"       -> Shelly.shelly $ unpackTarGzUnix file
+            "rpm"      -> Shelly.shelly $ do
+                let name = basename file
+                    dir = directory file
+                    fullFilename = filename file
+                Shelly.mkdir_p $ dir </> name
+                Shelly.cp_r file $ dir </> name
+                unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                return $ dir </> name
 
 unzipUnix :: Shelly.MonadSh m => FilePath -> m FilePath
 unzipUnix file = do

@@ -5,8 +5,8 @@ import Prologue hiding (FilePath)
 import Control.Monad.Raise
 import Control.Monad.State.Layered
 
-import qualified Shelly.Lifted as Shelly
-import           Shelly.Lifted (MonadSh)
+import qualified Luna.Manager.Shell.Shelly as Shelly
+import           Luna.Manager.Shell.Shelly (MonadSh)
 import qualified Data.Text as Text
 default (Text.Text)
 
@@ -24,5 +24,3 @@ cmdEither name args = do
 
 cmd :: (MonadSh m, MonadException SomeException m) => Shelly.FilePath -> [Text] -> m Text
 cmd name args = tryRight' =<< cmdEither name args
-
-deriving instance MonadSh m => MonadSh (StateT s m)

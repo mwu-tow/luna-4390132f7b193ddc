@@ -33,7 +33,7 @@ import System.IO (hFlush, stdout)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
 import qualified System.Environment as Environment
-import Luna.Manager.Archive
+import Luna.Manager.Archive as Archive
 
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
@@ -159,20 +159,17 @@ downloadAndUnpackApp pkgPath installPath appName = do
     if testInstallPath then Shelly.rm_rf installPath else return ()
 
     Shelly.mkdir_p $ parent installPath
-    tmp <- case currentHost of
-                Darwin  -> getTmpPath
-                Linux   -> getTmpPath
-                Windows -> return $ fromText "C:\\tmp\\luna" -- TODO : move it to getTempPath check that it is aways removed from disk even if the installation is killed (except kill -9)
-    Shelly.mkdir_p tmp
-    pkg <- downloadWithProgressBar pkgPath tmp
-    unpacked <- unpackArchive pkg
+    pkg <- downloadWithProgressBar pkgPath
+    unpacked <- Archive.unpack pkg
     case currentHost of
          Linux -> do
              Shelly.mkdir_p installPath
              Shelly.cmd "mv" unpacked  $ installPath </> convert appName
          Darwin -> Shelly.cmd "mv" unpacked  installPath
          Windows -> Shelly.mv unpacked  installPath
-    Shelly.rm_rf tmp
+    -- Shelly.rm_rf tmp -- FIXME[WD -> SB]: I commented it out, we use downloadWithProgressBar now which automatically downloads to tmp.
+                        --                  However, manuall tmp removing is error prone! Create a wrapper like `withTmp $ \tmp -> downloadWithProgressBarTo pkgPath tmp; ...`
+                        --                  which automatically removes tmp on the end!
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do

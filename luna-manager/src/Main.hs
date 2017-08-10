@@ -11,7 +11,7 @@ import Luna.Manager.Command         (chooseCommand)
 
 import Control.Concurrent (myThreadId)
 import qualified Control.Exception.Safe as Exception
-import qualified Shelly.Lifted as Shelly
+import qualified Luna.Manager.Shell.Shelly as Shelly
 
 
 main :: IO ()
@@ -22,7 +22,8 @@ run = Shelly.shelly $ do
     tmp <- evalGetTmp
     threadId <- liftIO myThreadId
     liftIO $ handleSignal threadId
-    evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
+    evalOptionsParserT chooseCommand -- `Exception.finally` (cleanUp tmp)
+    print "WARNING! [WD]: I disabled cleanUp while developing `develop` cmd, to be enabled"
 
 handleTopLvlError :: MonadIO m => SomeException -> m ()
 handleTopLvlError e = do
