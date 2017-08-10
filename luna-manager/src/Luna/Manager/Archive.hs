@@ -49,7 +49,6 @@ unpackArchive file = do
                     Shelly.mkdir_p $ dir </> name
                     Shelly.cp_r file $ dir </> name
                     unpackRPM (dir </> name </> fullFilename) (dir </> name)
-                    -- Shelly.rm fullFilename
                     return $ dir </> name
 
 unzipUnix :: Shelly.MonadSh m => FilePath -> m FilePath

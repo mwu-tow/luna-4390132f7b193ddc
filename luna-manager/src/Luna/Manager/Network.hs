@@ -23,6 +23,7 @@ import Data.Conduit.Binary (sinkFile)
 import Network.HTTP.Types (hContentLength)
 import qualified Data.ByteString.Char8 as ByteStringChar (unpack, writeFile)
 import qualified Data.Text as Text
+import Shelly.Lifted (MonadSh)
 
 
 -- === Errors === --
@@ -40,7 +41,7 @@ takeFileNameFromURL :: URIPath -> Maybe Text
 takeFileNameFromURL url = convert <$> name where
     name = maybeLast . URI.pathSegments =<< URI.parseURI (convert url)
 
-type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m)
+type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m, MonadSh m)
 
 downloadFromURL :: MonadNetwork m => URIPath -> Text -> m FilePath
 downloadFromURL address info = tryJust downloadError =<< go where
@@ -57,8 +58,13 @@ downloadFromURL address info = tryJust downloadError =<< go where
 newHTTPManager :: MonadIO m => m HTTP.Manager
 newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.managerResponseTimeout = HTTP.responseTimeoutMicro 5000000}
 
-downloadWithProgressBar :: (MonadIO m, MonadException SomeException m) => URIPath -> FilePath -> m FilePath
-downloadWithProgressBar address dstPath = do
+downloadWithProgressBar  :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m) => URIPath -> m FilePath
+downloadWithProgressBar address = do
+    tmp <- getTmpPath
+    downloadWithProgressBarTo address tmp
+
+downloadWithProgressBarTo :: (MonadIO m, MonadException SomeException m) => URIPath -> FilePath -> m FilePath
+downloadWithProgressBarTo address dstPath = do
     req     <- tryRight' $ HTTP.parseRequest (convert address)
     manager <- newHTTPManager
     tryRight' @SomeException <=< liftIO . Exception.try . runResourceT $ do
@@ -75,8 +81,8 @@ downloadWithProgressBar address dstPath = do
             putStrLn "Download completed!"
             return dstFile
 
-downloadWithProgressBarAndUnpack :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m) => URIPath -> m FilePath
-downloadWithProgressBarAndUnpack address = do
-    tmp <- getTmpPath
-    print =<< downloadWithProgressBar address tmp
-    return undefined
+-- downloadWithProgressBarAndUnpack :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m) => URIPath -> m FilePath
+-- downloadWithProgressBarAndUnpack address = do
+--     tmp <- getTmpPath
+--     print =<< downloadWithProgressBar address tmp
+--     return undefined

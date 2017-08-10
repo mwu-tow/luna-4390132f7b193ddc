@@ -14,8 +14,10 @@ import Filesystem.Path.CurrentOS (encodeString, decodeString, FilePath)
 import GHC.ConsoleHandler
 import qualified System.Signal as Signal
 import System.Directory (removeDirectoryRecursive)
+import Luna.Manager.Shell.Shelly (MonadSh)
 
-evalGetTmp :: (MonadIO m) => m FilePath
+
+evalGetTmp :: (MonadIO m, MonadSh m) => m FilePath
 evalGetTmp = evalDefHostConfigs @'[EnvConfig] $ getTmpPath
 
 cleanUp :: MonadIO m => FilePath -> m ()
