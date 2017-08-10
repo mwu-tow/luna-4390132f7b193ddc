@@ -124,7 +124,7 @@ import           Empire.Empire
 import           Empire.Prelude                   hiding (toList)
 import qualified Luna.IR                          as IR
 import qualified Luna.IR.Term.Core                as Term
-import qualified Luna.Syntax.Text.Lexer.Name      as Lexer
+import qualified Luna.Syntax.Text.Lexer.Grammar   as Lexer
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
@@ -1110,7 +1110,7 @@ addMetadataToCode file = do
                             metaStart  = lastFunStart + len
                             metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
                         Code.insertAt metaStart metadataJSONWithHeaderAndOffset
-                        meta <- IR.metadata metadataJSONWithHeader
+                        meta <- IR.metadata (convert metadataJSONWithHeader)
                         IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
 
                         IR.matchExpr unit $ \case
