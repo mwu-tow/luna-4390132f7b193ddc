@@ -22,14 +22,11 @@ evalGetTmp = evalDefHostConfigs @'[EnvConfig] $ getTmpPath
 
 cleanUp :: MonadIO m => FilePath -> m ()
 cleanUp tmp = do
-    print "cleanUp"
     -- runProcess_ $ shell ("RD /S /Q " ++ (encodeString tmp))
     liftIO $ removeDirectoryRecursive $ encodeString tmp
 
 termHandler :: ThreadId -> Signal.Signal -> IO ()
 termHandler tId s = do
-
-    -- cleanUp tmp
     killThread tId
 
 termHandler2 :: ThreadId -> Handler
@@ -40,7 +37,6 @@ main :: IO ()
 main = do
     tmp <- evalGetTmp
     threadId <- myThreadId
-    print threadId
     case currentHost of
         Windows -> void $ installHandler (termHandler2 threadId )
         Linux -> do
