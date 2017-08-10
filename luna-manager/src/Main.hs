@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Main where
 
 import Prologue hiding (FilePath)
@@ -25,26 +27,29 @@ cleanUp tmp = do
     -- runProcess_ $ shell ("RD /S /Q " ++ (encodeString tmp))
     liftIO $ removeDirectoryRecursive $ encodeString tmp
 
-termHandler :: ThreadId -> Signal.Signal -> IO ()
-termHandler tId s = do
-    killThread tId
 
-termHandler2 :: ThreadId -> Handler
-termHandler2 tid  = Catch $ \_ -> do
-    killThread tid
+#ifdef mingw32_HOST_OS
+termHandler :: ThreadId -> Handler
+termHandler threadId  = Catch $ \_ -> do
+    killThread threadId
+handleSignal :: ThreadId -> IO ()
+handleSignal threadId = void $ installHandler (termHandler threadId)
+#else
+termHandler :: ThreadId -> Signal.Signal -> IO ()
+termHandler threadId s = do
+    killThread threadId
+handleSignal :: ThreadId -> IO ()
+handleSignal threadId = do
+    Signal.installHandler Signal.sigTERM (termHandler threadId)
+    Signal.installHandler Signal.sigINT (termHandler threadId)
+#endif
+
 
 main :: IO ()
 main = do
     tmp <- evalGetTmp
     threadId <- myThreadId
-    case currentHost of
-        Windows -> void $ installHandler (termHandler2 threadId )
-        Linux -> do
-            Signal.installHandler Signal.sigTERM (termHandler threadId)
-            Signal.installHandler Signal.sigINT (termHandler threadId)
-        Darwin -> do
-            Signal.installHandler Signal.sigTERM (termHandler threadId)
-            Signal.installHandler Signal.sigINT (termHandler threadId)
+    handleSignal threadId
     evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
 
 instance Exception e => MonadException e IO where raise = Exception.throwM
