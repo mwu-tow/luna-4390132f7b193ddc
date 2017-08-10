@@ -74,6 +74,7 @@ copyDir src dst = do
         mapM_ (flip Shelly.cp_r dst) listedDirectory
     else Shelly.cp src dst
 
+-- FIXME[WD->SB]: rename to `mv` to be consistent with Shelly
 move :: MonadIO m => FilePath -> FilePath -> m ()
 move src dst = case currentHost of
     Linux   -> Shelly.shelly $ Shelly.cmd "mv" src dst
