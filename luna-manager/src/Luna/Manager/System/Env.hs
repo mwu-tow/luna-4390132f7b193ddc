@@ -83,4 +83,4 @@ instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m 
 
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig 'Windows arch m where
     -- | Too long paths are often problem on Windows, therefore we use C:\tmp to store temporary data
-    defaultHostConfig = return $ EnvConfig "C:\\tmp"
+    defaultHostConfig = return $ EnvConfig "C:\\tmp\\luna"
