@@ -35,7 +35,7 @@ hardcodedRepo = Repo defpkgs ["studio"] where
 instance Convertible FilePath Text where
     convert = convert . encodeString
 
-run :: (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m, MonadShControl m) => DevelopOpts -> m ()
+run :: (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m) => DevelopOpts -> m ()
 run opts = do
     root <- Shelly.pwd
     let devPath   = root      </> "luna-workspace"
@@ -67,7 +67,7 @@ run opts = do
     resolvedApplication <- resolvePackageApp repo appName
     mapM_ (downloadAndUnpackDependency $ appsPath </> convert appName) $ resolvedApplication ^. pkgsToPack
     --generate packageConfig.yaml
-    generateYaml repo resolvedApplication (appsPath </> convert appName) (appsPath </> convert appName </> "packageConfig.yaml")
+    generateYaml repo resolvedApplication (appsPath </> convert appName) (appsPath </> convert appName </> "luna-package.yaml")
 
 
     -- building backend
