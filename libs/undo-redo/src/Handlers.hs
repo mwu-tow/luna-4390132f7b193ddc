@@ -175,7 +175,7 @@ handleMovePortUndo (Response.Response _ _ req _ (Response.Ok _)) =
 
 getUndoPaste :: Paste.Request -> Result -> RemoveNodes.Request
 getUndoPaste request result = RemoveNodes.Request
-    (request ^. Paste.location) (convert . view Node.nodeId <$> result ^. Result.graphUpdates . Graph.nodes)
+    (request ^. Paste.location) (result ^.. Result.graphUpdates . _Right . Graph.nodes . traverse . Node.nodeId . to convert)
 
 handlePasteUndo :: Paste.Response -> Maybe (RemoveNodes.Request, Paste.Request)
 handlePasteUndo (Response.Response _ _ req _ (Response.Ok rsp)) =
