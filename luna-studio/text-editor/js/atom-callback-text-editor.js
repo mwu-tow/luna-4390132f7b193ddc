@@ -73,8 +73,8 @@ module.exports = function () {
         unsetLexer: function() {
             listeners.lexer = null;
         },
-        lex: function(data) {
-            return listeners.lexer(data);
+        lex: function(stack, data) {
+            return listeners.lexer(stack, data);
         }
     };
 };

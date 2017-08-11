@@ -3,16 +3,17 @@
 
 module.exports =
 class LunaSemanticGrammar extends Grammar
-    constructor: (registry, lex) ->
+    constructor: (registry, @lex) ->
         super(registry, { name: "Luna"
                         , fileTypes: ["luna"]
                         , scopeName: "source.luna"
                         })
-        @lex = lex
 
     tokenizeLine: (line, ruleStack, firstLine = false) =>
-        ruleStack = 0 unless ruleStack?
-        lexerLine = @lex(line)
+        ruleStack = {stack:null, line:0} if not ruleStack?
+        result = @lex(ruleStack.stack, line)
+        newRuleStack = {stack: result.stack, line: ruleStack.line + 1}
+        lexerLine = result.tokens
         buffer = line
         tags = []
         tokens = []
@@ -36,5 +37,4 @@ class LunaSemanticGrammar extends Grammar
             else
                 addToken(buffer, [])
                 buffer = ""
-
-        return { line: line, tags: tags, tokens: tokens, ruleStack: ruleStack + 1 }
+        return { line: line, tags: tags, tokens: tokens, ruleStack: newRuleStack }

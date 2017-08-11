@@ -10,7 +10,6 @@ import qualified Data.Curve               as Curve
 import           Data.Timestamp           (Timestamp)
 import           LunaStudio.Data.Position (Position (Position), distance, vector, x, y)
 import           LunaStudio.Data.Vector2  (scalarProduct)
-import           Prologue                 (unwrap)
 
 
 fingerDragSmoothing :: Bool
@@ -51,7 +50,7 @@ addSegmentToCurve curve controlPoint timestamp mayVelocity minLengthToApprove = 
 
 getCurrentVelocity :: Timestamp -> Timestamp -> Position -> Position -> Maybe Double -> Double
 getCurrentVelocity prevTimestamp currentTimestamp prevPos currentPos mayLastVelocity = do
-    let timeDiff = fromIntegral $ unwrap currentTimestamp - unwrap prevTimestamp
+    let timeDiff = fromIntegral $ currentTimestamp - prevTimestamp
         dist     = distance prevPos currentPos
     if fingerDragSmoothing && isJust mayLastVelocity then do
         let lastVelocity = fromJust mayLastVelocity

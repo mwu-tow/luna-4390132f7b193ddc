@@ -9,11 +9,9 @@ module JS.Atom
     , subscribeEventListenerInternal
     ) where
 
-
+import           Common.Data.JSON              (fromJSONVal)
 import           Common.Prelude
 import           Control.Monad.Trans.Maybe     (MaybeT (MaybeT), runMaybeT)
-import           Data.Aeson                    (Result (Success), fromJSON)
-import           Data.Aeson.Types              (FromJSON)
 import qualified Data.Text                     as Text
 import           GHCJS.Foreign.Callback
 import           GHCJS.Marshal.Pure            (PFromJSVal (pFromJSVal), PToJSVal (pToJSVal))
@@ -60,13 +58,6 @@ instance PFromJSVal Point where
 
 instance PToJSVal Point where
     pToJSVal point = mkPoint (point ^. Point.column) (point ^. Point.row)
-
-fromJSONVal :: (Show a, FromJSON a) => JSVal -> IO (Maybe a)
-fromJSONVal jsval = fromJSVal jsval >>= \case
-    Just jsonValue -> case fromJSON jsonValue of
-        Success r -> return $ Just r
-        e         -> putStrLn ("Cannot parse event " ++ show jsonValue ++ " " ++ show e) >>  return Nothing
-    _ -> putStrLn ("Unparseable JSON event") >>  return Nothing
 
 instance FromJSVal GraphLocation where fromJSVal = fromJSONVal
 instance FromJSVal InternalEvent where fromJSVal = fromJSONVal

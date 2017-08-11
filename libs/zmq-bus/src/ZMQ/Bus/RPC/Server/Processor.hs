@@ -81,4 +81,4 @@ process handlerMap correlationID msg = either handleError (\message -> do
         handleMessage = do
             let hmap = HandlerMap.lookupAndCall handlerMap call :: FunctionName -> StateT s m (Result, [Value])
             f <- mkResponse
-            (fmap . fmap) (respond . f) $ hmap . functionName
+            (fmap . fmap) (respond . f) $ hmap <$> functionName

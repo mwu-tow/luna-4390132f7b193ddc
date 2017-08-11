@@ -23,7 +23,7 @@ import           LunaStudio.Data.Node           (NodeId)
 import           LunaStudio.Data.TypeRep
 import           LunaStudio.Data.TypeRep
 
-import           Luna.Syntax.Text.Lexer.Name    (isOperator)
+import           Luna.Syntax.Text.Lexer.Grammar (isOperator)
 import           Luna.Syntax.Text.Pretty.Pretty as CodeGen
 
 getTypeRep :: GraphOp m => NodeRef -> m TypeRep

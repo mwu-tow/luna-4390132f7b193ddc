@@ -4,7 +4,7 @@
 module LunaStudio.Data.Breadcrumb where
 
 import           Control.DeepSeq      (NFData)
-import           Control.Lens.Aeson   (lensJSONParse, lensJSONToEncoding, lensJSONToJSON)
+import qualified Control.Lens.Aeson   as Lens
 import           Data.Aeson.Types     (FromJSON (..), FromJSONKey, ToJSON (..), ToJSONKey)
 import           Data.Binary          (Binary)
 import           Data.Monoid          (Monoid (..))
@@ -51,12 +51,12 @@ toNames :: Breadcrumb (Named BreadcrumbItem) -> Breadcrumb Text
 toNames = Breadcrumb . map (view name) . view items
 
 instance FromJSON a => FromJSONKey (Breadcrumb a)
-instance {-# OVERLAPPABLE #-} FromJSON a => FromJSON (Breadcrumb a) where parseJSON = lensJSONParse
-instance FromJSON a => FromJSON (Named a)      where parseJSON = lensJSONParse
+instance {-# OVERLAPPABLE #-} FromJSON a => FromJSON (Breadcrumb a) where parseJSON = Lens.parse
+instance FromJSON a => FromJSON (Named a)      where parseJSON = Lens.parse
 instance ToJSON a => ToJSONKey (Breadcrumb a)
 instance {-# OVERLAPPABLE #-} ToJSON a => ToJSON (Breadcrumb a) where
-    toJSON     = lensJSONToJSON
-    toEncoding = lensJSONToEncoding
+    toJSON     = Lens.toJSON
+    toEncoding = Lens.toEncoding
 
 instance ToJSON (Breadcrumb Text) where
     toJSON     = toJSON . intercalate "." . unwrap
@@ -64,12 +64,12 @@ instance ToJSON (Breadcrumb Text) where
 instance FromJSON (Breadcrumb Text) where parseJSON = fmap (Breadcrumb . Text.split (== '.')) . parseJSON
 
 instance ToJSON a => ToJSON (Named a) where
-    toJSON     = lensJSONToJSON
-    toEncoding = lensJSONToEncoding
+    toJSON     = Lens.toJSON
+    toEncoding = Lens.toEncoding
 
-instance FromJSON BreadcrumbItem where parseJSON = lensJSONParse
+instance FromJSON BreadcrumbItem where parseJSON = Lens.parse
 instance FromJSONKey BreadcrumbItem
 instance ToJSON BreadcrumbItem where
-    toJSON     = lensJSONToJSON
-    toEncoding = lensJSONToEncoding
+    toJSON     = Lens.toJSON
+    toEncoding = Lens.toEncoding
 instance ToJSONKey BreadcrumbItem
