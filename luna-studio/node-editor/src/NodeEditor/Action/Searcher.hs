@@ -23,15 +23,14 @@ import           NodeEditor.Action.Basic                    (modifyCamera)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.App                (renderIfNeeded)
-import           NodeEditor.Action.State.NodeEditor         (findSuccessorPosition, getExpressionNode, getPort,
-                                                             getSearcher, getSelectedNodes, getSelectedNodes, modifyNodeEditor,
-                                                             modifySearcher)
+import           NodeEditor.Action.State.NodeEditor         (findSuccessorPosition, getExpressionNode, getPort, getSearcher,
+                                                             getSelectedNodes, getSelectedNodes, modifyNodeEditor, modifySearcher)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
 import           NodeEditor.Action.State.Scene              (getScreenSize, translateToScreen)
 import           NodeEditor.Action.UUID                     (getUUID)
 import           NodeEditor.Event.Event                     (Event (Shortcut))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
-import           NodeEditor.React.Model.Constants           (nameEditWidth, searcherHeight, searcherWidth)
+import           NodeEditor.React.Model.Constants           (searcherHeight, searcherWidth)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import qualified NodeEditor.React.Model.Port                as Port
@@ -106,16 +105,12 @@ openWith input mode = do
             return $ (,) <$> maySearcherBottom <*> maySearcherTop
     mayScreenSize <- getScreenSize
     withJust ((,) <$> mayNodePosAndTop <*> mayScreenSize) $ \((searcherBottom, searcherTop), screenSize) -> do
-        let distToSearcherEdge = case mode of
-                Searcher.NodeName {} -> nameEditWidth / 2
-                Searcher.Node     {} -> searcherWidth / 2
-                _                    -> 0
-        let overRightEdge = searcherTop ^. x + distToSearcherEdge > screenSize ^. width
-            overLeftEdge  = searcherTop ^. x - distToSearcherEdge < 0
+        let overRightEdge = searcherTop ^. x + searcherWidth / 2 > screenSize ^. width
+            overLeftEdge  = searcherTop ^. x - searcherWidth / 2 < 0
             overTopEdge   = searcherTop ^. y < 0
             xShift = if searcherWidth > screenSize ^. width then Nothing
-                else if overRightEdge then Just $ searcherTop ^. x + distToSearcherEdge - screenSize ^. width
-                else if overLeftEdge  then Just $ searcherTop ^. x - distToSearcherEdge
+                else if overRightEdge then Just $ searcherTop ^. x + searcherWidth / 2 - screenSize ^. width
+                else if overLeftEdge  then Just $ searcherTop ^. x - searcherWidth / 2
                 else Nothing
             yShift = if searcherBottom ^. y - searcherTop ^. y > screenSize ^. height then Just $ searcherBottom ^. y - screenSize ^. height
                 else if overTopEdge then Just $ searcherTop ^. y

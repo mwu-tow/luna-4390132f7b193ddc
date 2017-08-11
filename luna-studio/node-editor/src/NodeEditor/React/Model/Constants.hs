@@ -6,7 +6,7 @@ module NodeEditor.React.Model.Constants
 import           Common.Prelude
 import           LunaStudio.Data.Constants as X
 
-fontSize, lineHeight, connectionWidth, nodeRadius, nodeRadius', portRadius, argumentConstructorShift, nodeExpandedWidth, searcherWidth, searcherHeight, nameEditWidth :: Double
+fontSize, lineHeight, connectionWidth, nodeRadius, nodeRadius', portRadius, argumentConstructorShift, nodeExpandedWidth, searcherWidth, searcherHeight :: Double
 
 fontSize          = 12
 lineHeight        = gridSize
@@ -19,6 +19,5 @@ argumentConstructorShift = portRadius
 
 searcherWidth  = 460
 searcherHeight = 24
-nameEditWidth  = 16
 
 nodeExpandedWidth = X.nodePropertiesWidth
