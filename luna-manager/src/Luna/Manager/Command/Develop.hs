@@ -60,10 +60,13 @@ run opts = do
         appPath  = appsPath </> appName
     putStrLn . convert $ "Clonning repository " <> repoPath
     Shelly.run "git" ["clone", repoPath, convert appPath]
+
+    --downloading and installing dependencies
     let appName  = "luna-studio"
     repo <- getRepo
     resolvedApplication <- resolvePackageApp repo appName
     mapM_ (downloadAndUnpackDependency $ appsPath </> convert appName) $ resolvedApplication ^. pkgsToPack
+    --generate packageConfig.yaml
     generateYaml repo resolvedApplication (appsPath </> convert appName) (appsPath </> convert appName </> "packageConfig.yaml")
 
 
