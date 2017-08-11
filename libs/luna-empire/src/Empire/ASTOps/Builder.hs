@@ -102,7 +102,7 @@ getArgumentOf fun beg = IR.matchExpr fun $ \case
 getOrCreateArgument :: GraphOp m => EdgeRef -> Delta -> Int -> Int -> m (EdgeRef, Delta)
 getOrCreateArgument currentFun codeBegin currentArgument neededArgument
     | currentArgument <= neededArgument = do
-        padArgs currentFun codeBegin (neededArgument - currentArgument)
+        padArgs currentFun codeBegin 1 (neededArgument - currentArgument)
         flip getArgumentOf codeBegin =<< IR.source currentFun
     | otherwise = do
         fun <- IR.source currentFun
@@ -114,39 +114,43 @@ getOrCreateArgument currentFun codeBegin currentArgument neededArgument
                 foff <- Code.getOffsetRelativeToTarget f
                 getOrCreateArgument f (codeBegin + foff) (pred currentArgument) neededArgument
             LeftSection f a -> do
-                foff <- Code.getOffsetRelativeToTarget f
-                padArgs f (codeBegin + foff) 1
+                foff      <- Code.getOffsetRelativeToTarget f
+                argOffset <- IR.getLayer @SpanOffset a
+                padArgs f (codeBegin + foff) argOffset 1
                 newFun <- IR.source f
                 arg    <- IR.source a
                 ap     <- IR.app newFun arg
-                IR.putLayer @SpanLength newFun =<< IR.getLayer @SpanLength fun
+                IR.putLayer @SpanLength ap =<< IR.getLayer @SpanLength fun
                 [f', a'] <- IR.inputs ap
                 IR.putLayer @SpanOffset f' =<< IR.getLayer @SpanOffset f
                 IR.putLayer @SpanOffset a' =<< IR.getLayer @SpanOffset a
                 IR.replace ap fun
                 getOrCreateArgument currentFun codeBegin currentArgument neededArgument
 
-padArgs :: GraphOp m => EdgeRef -> Delta -> Int -> m ()
-padArgs e beg i | i <= 0    = return ()
-                | otherwise = do
+padArgs :: GraphOp m => EdgeRef -> Delta -> Delta -> Int -> m ()
+padArgs e beg argOffset i | i <= 0    = return ()
+                          | otherwise = do
     bl     <- IR.blank
     fun    <- IR.source e
     ap     <- IR.generalize <$> IR.app fun bl
     [f, a] <- IR.inputs ap
     isOp   <- Code.isOperatorVar fun
     funLen <- IR.getLayer @SpanLength fun
-    IR.putLayer @SpanLength ap (funLen + 2)
-    IR.putLayer @SpanLength bl 1
+    let offset, blankLen :: Num a => a
+        offset   = fromIntegral argOffset
+        blankLen = 1
+    IR.putLayer @SpanLength ap (funLen + offset + blankLen)
+    IR.putLayer @SpanLength bl blankLen
     if isOp
         then do
-            IR.putLayer @SpanOffset f  1
-            Code.insertAt beg "_ "
+            IR.putLayer @SpanOffset f  offset
+            Code.insertAt beg $ Text.cons '_' $ Text.replicate offset " "
         else do
-            IR.putLayer @SpanOffset a  1
-            Code.insertAt (beg + funLen) " _"
+            IR.putLayer @SpanOffset a  offset
+            Code.insertAt (beg + funLen) $ Text.snoc (Text.replicate offset " ") '_'
     IR.replaceSource ap e
-    Code.gossipLengthsChangedBy 2 =<< IR.readTarget e
-    padArgs e beg $ pred i
+    Code.gossipLengthsChangedBy (offset + blankLen) =<< IR.readTarget e
+    padArgs e beg argOffset $ pred i
 
 dropBlankArgumentsAtTailPosition :: GraphOp m => EdgeRef -> Delta -> m ()
 dropBlankArgumentsAtTailPosition e beg = do

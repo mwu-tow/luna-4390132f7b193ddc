@@ -506,7 +506,6 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
                 fooNodes <- Graph.getNodes (loc |>= foo)
-                print fooNodes
                 let Just n1   = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "n1") fooNodes
                     Just five = view Node.nodeId <$> find (\n -> n ^. Node.name == Nothing) fooNodes
                 Graph.connect (loc |>= foo) (outPortRef five []) (InPortRef' $ inPortRef n1 [Port.Arg 0])
