@@ -18,7 +18,7 @@ module.exports = LunaStudio =
     config:
         showWelcomeScreen:
             title: 'Welcome screen'
-            description: 'Show welcome screen when on start up.'
+            description: 'Show welcome screen on start up'
             type: 'boolean'
             default: true
         preferredNodeEditorPosition:
