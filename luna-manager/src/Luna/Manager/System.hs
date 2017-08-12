@@ -7,8 +7,7 @@ import System.Directory (executable, setPermissions, getPermissions, doesPathExi
 import System.Process.Typed
 import qualified System.Environment  as Environment
 import Data.List.Split (splitOn)
-import Data.ByteString.Lazy (null)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy (ByteString, null)
 import Data.ByteString.Lazy.Char8 (filter)
 import Data.Text.IO (appendFile)
 import qualified Data.Text  as Text
@@ -19,8 +18,8 @@ import Control.Monad.Raise
 import Luna.Manager.System.Env
 import Luna.Manager.System.Host
 
-import qualified Shelly.Lifted as Shelly
-import Shelly.Lifted (MonadSh)
+import qualified Luna.Manager.Shell.Shelly as Shelly
+import Luna.Manager.Shell.Shelly (MonadSh)
 
 data Shell = Bash | Zsh | Unknown deriving (Show)
 
@@ -100,17 +99,17 @@ exportPath pathToExport shellType = do
     case shellType of
         Bash    -> do
             filesAvailable <- mapM runControlCheck [".bashrc", ".bash_profile", ".profile"]
-            let justFiles = catMaybes $ filesAvailable
+            let justFiles = catMaybes filesAvailable
                 exportToAppend = Text.concat ["export PATH=", pathToExportText, ":$PATH"]
             file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
             liftIO $ appendFile (encodeString file) exportToAppend
         Zsh     -> do
             filesAvailable <- mapM runControlCheck [".zshrc", ".zprofile"]
-            let justFiles = catMaybes $ filesAvailable
+            let justFiles = catMaybes filesAvailable
                 exportToAppend = Text.concat ["path+=", pathToExportText]
             file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
             liftIO $ appendFile (encodeString file) exportToAppend
-        Unknown -> raise' (unrecognizedShellError)
+        Unknown -> raise' unrecognizedShellError
 
 exportPathWindows :: MonadIO m => FilePath -> m ()
 exportPathWindows path = Shelly.shelly $ Shelly.appendToPath $ parent path -- $ Shelly.cmd "setx" "/M" "\"%PATH%;" (encodeString path) "\""
@@ -126,18 +125,18 @@ makeExecutable file = case currentHost of
     Windows -> return ()
 
 
-runServicesWindows :: (MonadSh m, MonadIO m) => FilePath -> FilePath -> m ()
-runServicesWindows path logsPath = do
-  Shelly.cd path
-  let installPath = path </> (Shelly.fromText "installAll.bat")
-  liftIO $ Environment.setEnv "LOGSDIR" (encodeString logsPath)
-  Shelly.cmd installPath
+runServicesWindows :: (MonadSh m, MonadIO m, Shelly.MonadShControl m) => FilePath -> FilePath -> m ()
+runServicesWindows path logsPath = Shelly.chdir path $ do
+    Shelly.mkdir_p logsPath
+    let installPath = path </> Shelly.fromText "installAll.bat"
+    Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
+    Shelly.cmd installPath
 
-stopServicesWindows ::( MonadSh m, MonadCatch m) => FilePath -> m ()
-stopServicesWindows path = do
-    Shelly.cd path
-    let uninstallPath = path </> (Shelly.fromText "uninstallAll.bat")
-    (Shelly.cmd uninstallPath) `catch` handler where
+stopServicesWindows :: MonadIO m => FilePath -> m ()
+stopServicesWindows path = Shelly.shelly $ do
+    Shelly.chdir path $ do
+        let uninstallPath = path </> Shelly.fromText "uninstallAll.bat"
+        Shelly.cmd uninstallPath `catch` handler where
 
-        handler :: MonadSh m => SomeException -> m ()
-        handler ex = Shelly.liftSh $ print ex
+            handler :: MonadSh m => SomeException -> m ()
+            handler ex = return () -- Shelly.liftSh $ print ex

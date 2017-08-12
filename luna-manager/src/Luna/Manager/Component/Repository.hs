@@ -1,6 +1,6 @@
 module Luna.Manager.Component.Repository where
 
-import Prologue
+import Prologue hiding (FilePath)
 
 import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
@@ -14,13 +14,15 @@ import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Data.Map                      (Map)
 import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON)
+import qualified Data.ByteString     as BS
 import qualified Data.Map            as Map
 import qualified Data.Text           as Text
 import qualified Data.Yaml           as Yaml
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
-import Filesystem.Path.CurrentOS (encodeString)
+import Filesystem.Path.CurrentOS (encodeString, decodeString, FilePath)
+import Luna.Manager.Shell.Shelly (toTextIgnore)
 
 ------------------------
 -- === Errors === --
@@ -53,7 +55,7 @@ data AppType = BatchApp | GuiApp | Lib deriving (Show, Generic, Eq)
 
 -- Core
 data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                          } deriving (Show, Generic, Eq)
-data Package       = Package       { _synopsis :: Text             , _versions :: VersionMap, _appType :: AppType } deriving (Show, Generic, Eq)
+data Package       = Package       { _synopsis :: Text             , _appType :: AppType , _versions :: VersionMap} deriving (Show, Generic, Eq)
 data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: Text                            } deriving (Show, Generic, Eq)
 data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                         } deriving (Show, Generic, Eq)
 type VersionMap    = Map Version (Map SysDesc PackageDesc)
@@ -99,14 +101,47 @@ resolvePackageApp repo appName = do
     appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
     let version = fst $ head $ toList $ appPkg ^. versions
         applicationType = appPkg ^. appType
-    appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ head $ toList $ appPkg ^. versions
+    appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ last $ toList $ appPkg ^. versions
     return $ ResolvedApplication (ResolvedPackage (PackageHeader appName version) appDesc applicationType) (snd $ resolve repo appDesc)
 
+getSynopis :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Text
+getSynopis repo appName = do
+    appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
+    return $ appPkg ^. synopsis
+
+generatePackage :: (MonadIO m, MonadException SomeException m) => Repo -> Maybe FilePath -> ResolvedPackage -> m (Text, Package)
+generatePackage repo repoPath resPkg = do
+    let pkgName = resPkg ^. header . name
+    pkgSynopsis <- getSynopis repo pkgName
+    pkgDesc <- case repoPath of
+        Just p  -> return $ (resPkg & desc . path .~ (toTextIgnore p)) ^. desc
+        Nothing -> return $ resPkg ^. desc
+
+    let sysDescMap = Map.singleton currentSysDesc pkgDesc
+        versionMap = Map.singleton (resPkg ^. header . version) sysDescMap
+    return $ (pkgName, Package pkgSynopsis (resPkg ^. resolvedAppType) versionMap)
+
+
+addPackageToMap :: Map Text Package -> (Text, Package) -> Map Text Package
+addPackageToMap pkgMap pkg = Map.insert (fst pkg) (snd pkg) pkgMap
+
+emptyMapPkgs :: Map Text Package
+emptyMapPkgs = Map.empty
+
+generateYaml :: (MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> FilePath -> m ()
+generateYaml repo resolvedApplication repositoryPath filePath = do
+    let appName = resolvedApplication ^. resolvedApp . header . name
+    pkg <- generatePackage repo (Just repositoryPath) $ resolvedApplication ^. resolvedApp
+    deps <- mapM (generatePackage repo Nothing) (resolvedApplication ^. pkgsToPack)
+
+    let defpkgs = foldl addPackageToMap emptyMapPkgs $ pkg : deps
+    liftIO $ BS.writeFile (encodeString filePath) $ Yaml.encode $ Repo defpkgs [appName]
+    -- return ()
 
 -- === Instances === --
 
 -- JSON
-instance ToJSON   AppType        where toEncoding = lensJSONToEncoding . show; toJSON = lensJSONToJSON . show
+instance ToJSON   AppType        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Repo           where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   Package        where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
 instance ToJSON   PackageDesc    where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
@@ -142,7 +177,10 @@ makeLenses ''RepoConfig
 type MonadRepo m = (MonadStates '[RepoConfig, EnvConfig] m, MonadNetwork m)
 
 parseConfig :: (MonadIO m, MonadException SomeException m) => FilePath -> m Repo
-parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither cfgPath)
+parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither $ encodeString cfgPath)
+
+downloadRepo :: MonadNetwork m => URIPath -> m FilePath
+downloadRepo address = downloadFromURL address "Downloading repository configuration file"
 
 getRepo :: MonadRepo m => m Repo
 getRepo = do
@@ -150,9 +188,9 @@ getRepo = do
     case cfg ^. cachedRepo of
         Just r  -> return r
         Nothing -> do
-            setTmpCwd
-            downloadedConfig <- downloadFromURL . view repoPath =<< get @RepoConfig
-            repo <- parseConfig $ encodeString downloadedConfig
+            -- setTmpCwd
+            downloadedConfig <- downloadRepo . view repoPath =<< get @RepoConfig
+            repo <- parseConfig downloadedConfig
             put @RepoConfig $ cfg & cachedRepo .~ Just repo
             return repo
 

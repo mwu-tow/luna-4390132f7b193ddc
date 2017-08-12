@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows, stopServicesWindows)
+import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows, stopServicesWindows, exportPathWindows)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -26,13 +26,14 @@ import qualified Data.Text as Text
 
 import qualified Data.Yaml as Yaml
 
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, basename, hasExtension, parent)
-import Shelly.Lifted (toTextIgnore)
-import qualified Shelly.Lifted as Shelly
+import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
+import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh)
+import qualified Luna.Manager.Shell.Shelly as Shelly
 import System.IO (hFlush, stdout)
+import qualified System.Process.Typed as Process
 import qualified System.Directory as System
-import Luna.Manager.Archive
-
+import qualified System.Environment as Environment
+import Luna.Manager.Archive as Archive
 
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
@@ -87,7 +88,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
         , _selectedVersionPath     = "current"
         , _mainBinPath             = "bin/main"
         , _resourcesPath           = "resources"
-        , _localBinPath            = ".local/bin"
+        , _localBinPath            = "~/.local/bin"
         , _logoFileName            = "logo.png"
         , _infoFileName            = "app.desktop"
         , _libPath                 = "lib"
@@ -122,7 +123,7 @@ makeLenses ''UnresolvedDepsError
 instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
-type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m)
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m, Shelly.MonadSh m, Shelly.MonadShControl m) 
 
 
 -- === Utils === --
@@ -152,26 +153,23 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
 
-downloadAndUnpack :: MonadInstall m => URIPath -> FilePath -> Text -> m ()
-downloadAndUnpack pkgPath installPath appName = do
-    testInstallPath <- Shelly.shelly $ Shelly.test_d installPath
-    if testInstallPath then Shelly.shelly $ Shelly.rm_rf installPath else return ()
+downloadAndUnpackApp :: MonadInstall m => URIPath -> FilePath -> Text -> m ()
+downloadAndUnpackApp pkgPath installPath appName = do
+    testInstallPath <- Shelly.test_d installPath
+    if testInstallPath then Shelly.rm_rf installPath else return ()
 
-    Shelly.shelly $ Shelly.mkdir_p $ parent installPath
-    tmp <- case currentHost of
-                Darwin  -> getTmpPath
-                Linux   -> getTmpPath
-                Windows -> return $ fromText "C:\\a"
-    Shelly.shelly $ Shelly.mkdir_p tmp
-    pkg <- downloadWithProgressBar pkgPath tmp
-    unpacked <- unpackArchive pkg
+    Shelly.mkdir_p $ parent installPath
+    pkg <- downloadWithProgressBar pkgPath
+    unpacked <- Archive.unpack pkg
     case currentHost of
          Linux -> do
-             Shelly.shelly $ Shelly.mkdir_p installPath
-             Shelly.shelly $ Shelly.cmd "mv" unpacked  $ installPath </> convert appName
-         Darwin -> Shelly.shelly $ Shelly.cmd "mv" unpacked  installPath
-         Windows -> Shelly.shelly $ Shelly.mv unpacked  installPath
-    Shelly.shelly $ Shelly.rm_rf tmp
+             Shelly.mkdir_p installPath
+             Shelly.mv unpacked  $ installPath </> convert appName
+         Darwin -> Shelly.mv unpacked  installPath
+         Windows -> Shelly.mv unpacked  installPath
+    -- Shelly.rm_rf tmp -- FIXME[WD -> SB]: I commented it out, we use downloadWithProgressBar now which automatically downloads to tmp.
+                        --                  However, manuall tmp removing is error prone! Create a wrapper like `withTmp $ \tmp -> downloadWithProgressBarTo pkgPath tmp; ...`
+                        --                  which automatically removes tmp on the end!
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
@@ -179,6 +177,16 @@ linkingCurrent appType installPath = do
     let currentPath = (parent installPath) </> (installConfig ^. selectedVersionPath)
     createSymLinkDirectory installPath currentPath
 
+makeShortcuts :: MonadInstall m => FilePath -> Text -> m ()
+makeShortcuts packageBinPath appName = case currentHost of
+    Windows -> do
+        bin <- liftIO $ System.getSymbolicLinkTarget $ encodeString packageBinPath
+        binAbsPath <- Shelly.canonicalize $ (parent packageBinPath) </> (decodeString bin)
+        userProfile <- liftIO $ Environment.getEnv "userprofile"
+        let menuPrograms = (decodeString userProfile) </> "AppData" </> "Roaming" </> "Microsoft" </> "Windows" </> "Start Menu" </> "Programs" </> convert (appName <> ".lnk")
+        liftIO $ Process.runProcess_ $ Process.shell ("powershell" <> " \"$s=New-Object -ComObject WScript.Shell; $sc=$s.createShortcut(" <> "\'" <> (encodeString menuPrograms) <> "\'" <> ");$sc.TargetPath=" <> "\'" <> (encodeString binAbsPath) <> "\'" <> ";$sc.Save()\"" )
+        exportPathWindows packageBinPath
+    otherwise -> return ()
 
 postInstallation :: MonadInstall m => AppType -> FilePath -> Text -> Text -> Text -> m ()
 postInstallation appType installPath binPath appName version = do
@@ -187,7 +195,7 @@ postInstallation appType installPath binPath appName version = do
     packageBin <- case currentHost of
         Linux   -> return $ installPath </> convert appName
         Darwin  -> return $ installPath </> (installConfig ^. mainBinPath) </> convert appName
-        Windows -> return $ installPath </> (installConfig ^. mainBinPath) </> convert ((mkSystemPkgName appName) <> ".exe")
+        Windows -> return $ installPath </> (installConfig ^. mainBinPath) </> convert (appName <> ".exe")
     currentBin <- case currentHost of
         Linux -> return $ parent installPath </> (installConfig ^. selectedVersionPath)  </> convert (mkSystemPkgName appName)
         Darwin -> case appType of
@@ -209,6 +217,7 @@ postInstallation appType installPath binPath appName version = do
 
     copyResources appType installPath appName
     runServices installPath appType appName version
+    makeShortcuts packageBin appName
 
 copyResources :: MonadInstall m => AppType -> FilePath -> Text -> m ()
 copyResources appType installPath appName = case currentHost of
@@ -221,16 +230,16 @@ copyResources appType installPath appName = case currentHost of
                 packageInfoPlist = resources </> (installConfig ^. infoFileName)
                 appLogo          = parent installPath </> convert (appName <> ".icns")
                 -- appInfoPlist     = (parent $ parent installPath) </> "Info.plist"
-            -- Shelly.shelly $ Shelly.rm appLogo
-            Shelly.shelly $ Shelly.cp packageLogo appLogo
-            -- Shelly.shelly $ Shelly.rm appInfoPlist
-            Shelly.shelly $ Shelly.cp packageInfoPlist (parent $ parent installPath)
+            -- Shelly.rm appLogo
+            Shelly.cp packageLogo appLogo
+            -- Shelly.rm appInfoPlist
+            Shelly.cp packageInfoPlist (parent $ parent installPath)
         BatchApp -> return ()
     Windows -> return ()
 
 linking :: MonadInstall m => FilePath -> FilePath -> m ()
 linking src dst = do
-    Shelly.shelly $ Shelly.mkdir_p $ parent dst
+    Shelly.mkdir_p $ parent dst
     createSymLink src dst
 
 linkingLocalBin :: (MonadInstall m, MonadIO m) => FilePath -> Text -> m ()
@@ -239,21 +248,23 @@ linkingLocalBin currentBin appName = do
     installConfig <- get @InstallConfig
     case currentHost of
         Linux -> do
-            let localBin = home </> (installConfig ^. localBinPath) </> convert (mkSystemPkgName appName)
+            localBin <- expand $ (installConfig ^. localBinPath) </> convert (mkSystemPkgName appName)
             linking currentBin localBin
             exportPath' localBin
         Darwin -> do
-            let localBin = (installConfig ^. localBinPath) </> convert appName
+            localBin <- expand $ (installConfig ^. localBinPath) </> convert appName
             linking currentBin localBin
         Windows -> exportPath' currentBin
 
-stopServices :: MonadInstall m => FilePath -> AppType -> m ()
+-----Windows specific-----
+
+stopServices ::MonadInstall m => FilePath -> AppType -> m ()
 stopServices installPath appType = case currentHost of
     Windows -> case appType of
         GuiApp -> do
             installConfig<- get @InstallConfig
             let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. configPath) </> fromText "windows"
-            Shelly.shelly $ do
+            do
                 testservices <- Shelly.test_d currentServices
                 if testservices then stopServicesWindows currentServices else return ()
         BatchApp -> return ()
@@ -267,21 +278,23 @@ runServices installPath appType appName version = case currentHost of
             installConfig <- get @InstallConfig
             let services = installPath </> (installConfig ^. configPath) </> fromText "windows"
             logs <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. logsFolder) </> fromText appName </> (fromText $ showPretty version)
-            Shelly.shelly $ runServicesWindows services logs
+            runServicesWindows services logs
         BatchApp -> return ()
     otherwise -> return ()
 
-copyLibs :: MonadInstall m => FilePath -> m ()
-copyLibs installPath = case currentHost of
-    Linux -> return ()
-    Darwin -> return ()
+-- whenHost :: MonadInstall m => forall system a. m a -> m ()
+-- whenHost f = when (currentHost == fromType @a) (void f) --TODO : use for matching on single host + refactor -> mv function to utils
+
+copyDllFilesOnWindows :: MonadInstall m => FilePath -> m ()
+copyDllFilesOnWindows installPath = case currentHost of -- whenHost @'Windows $ do
     Windows -> do
         installConfig <- get @InstallConfig
         let libFolderPath = installPath </> (installConfig ^. libPath)
             binsFolderPath = installPath </> (installConfig ^. privateBinPath)
-        Shelly.shelly $ do
+        do
             listedLibs <- Shelly.ls libFolderPath
             mapM_ (`Shelly.mv` binsFolderPath) listedLibs
+    otherwise -> return ()
 
 touchApp :: MonadInstall m => FilePath -> AppType -> m ()
 touchApp appPath appType = case currentHost of
@@ -299,10 +312,16 @@ copyWinSW installPath = case currentHost of
         installConfig <- get @InstallConfig
         let winSW = installPath </> (installConfig ^. thirdParty) </> fromText "WinSW.Net4.exe"
             winConfigFolderPath = installPath </> (installConfig ^. configPath) </> fromText "windows"
-        Shelly.shelly $ Shelly.mv winSW winConfigFolderPath
+        Shelly.mv winSW winConfigFolderPath
 
+prepareWindowsPkgForRunning :: MonadInstall m => FilePath -> m ()
+prepareWindowsPkgForRunning installPath = do
+    copyDllFilesOnWindows installPath
+    copyWinSW installPath
 
-askLocation :: MonadInstall m => InstallOpts -> AppType -> Text -> m Text
+-----InstallationUtils------
+
+askLocation :: (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m) => InstallOpts -> AppType -> Text -> m Text
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
     let pkgInstallDefPath = case appType of
@@ -319,18 +338,33 @@ installApp opts package = do
         appType    = package ^. resolvedAppType
         pkgVersion = showPretty $ package ^. header . version
     binPath     <- askLocation opts appType pkgName
-    installPath <- prepareInstallPath appType (convert binPath)  pkgName $ pkgVersion
-    pathExists  <- Shelly.shelly $ Shelly.test_d installPath
-    if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
-    downloadAndUnpack (package ^. desc . path) installPath pkgName
+
+    installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
+    stopServices installPath appType
+    pathExists  <- Shelly.test_d installPath
+    if pathExists then Shelly.rm_rf installPath else return ()
+    downloadAndUnpackApp (package ^. desc . path) installPath pkgName
+    prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
 
+data VersionError = VersionError deriving (Show)
+instance Exception VersionError where
+    displayException err = "Incorrect version: " <> show err
+
+versionError :: SomeException
+versionError = toException VersionError
+
+readVersion :: (MonadIO m, MonadException SomeException m) => Text -> m Version
+readVersion v = case readPretty v of
+    Left e -> raise versionError
+    Right v -> return $ v
 
 -- === Running === --
 
-runInstaller :: MonadInstall m => InstallOpts -> m ()
-runInstaller opts = do
+run :: MonadInstall m => InstallOpts -> m ()
+run opts = do
     repo <- getRepo
+
     (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
         $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
         & help   .~ choiceHelp "components" (repo ^. apps)
@@ -346,7 +380,9 @@ runInstaller opts = do
     let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
     when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
+    version <- readVersion appVersion
     let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
+<<<<<<< HEAD
 
         -- resolvedApp = ResolvedPackage (PackageHeader appName $ convert appVersion) appPkgDesc (appPkg ^. appType)
     binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
@@ -362,6 +398,11 @@ runInstaller opts = do
     touchApp (convert binPath </> convert ((mkSystemPkgName appName) <> ".app")) (appPkg ^. appType)
 
 
+=======
+        resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
+        allApps = resolvedApp : appsToInstall
+    mapM_ (installApp opts) $ allApps
+>>>>>>> d54b5f8c5bb06ff95e52990507e5bfcef02155e6
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     -- print $ "TODO: Add new exports to bashRC if not already present"
@@ -371,4 +412,4 @@ runInstaller opts = do
 
 
 
-    return ()
+    -- return ()

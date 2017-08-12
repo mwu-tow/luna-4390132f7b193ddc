@@ -4,13 +4,14 @@ module Luna.Manager.System.Env where
 
 import Prologue hiding (FilePath, fromText, toText)
 
-import Luna.Manager.System.Host
-import Filesystem.Path.CurrentOS
-import Control.Monad.State.Layered
+import           Luna.Manager.System.Host
+import qualified Luna.Manager.Shell.Shelly as Shelly
+import           Luna.Manager.Shell.Shelly (MonadSh)
+import           Filesystem.Path.CurrentOS
+import           Control.Monad.State.Layered
 import qualified System.Directory as System
-import Control.Monad.Raise
-import qualified Shelly.Lifted as Shelly
-import System.IO.Error
+import           Control.Monad.Raise
+import           System.IO.Error
 
 --------------------------
 -- === EnvConfig === --
@@ -35,15 +36,15 @@ getCurrentPath = do
     current <- liftIO $ System.getCurrentDirectory
     return $ fromText $ convert current
 
-getTmpPath, getDownloadPath :: (MonadIO m, MonadGetter EnvConfig m) => m FilePath
+getTmpPath, getDownloadPath :: (MonadIO m, MonadGetter EnvConfig m, MonadSh m) => m FilePath
+getDownloadPath = getTmpPath
 getTmpPath      = do
     tmp <- view localTempPath <$> get @EnvConfig
-    Shelly.shelly $ Shelly.mkdir_p tmp
+    Shelly.mkdir_p tmp
     return tmp
-getDownloadPath = getTmpPath
 
 
-setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m) => m ()
+setTmpCwd :: (MonadGetter EnvConfig m, MonadIO m, MonadSh m) => m ()
 setTmpCwd = liftIO . System.setCurrentDirectory . encodeString =<< getTmpPath
 
 createSymLink ::  MonadIO m => FilePath -> FilePath -> m ()
@@ -73,14 +74,13 @@ copyDir src dst = do
         mapM_ (flip Shelly.cp_r dst) listedDirectory
     else Shelly.cp src dst
 
-move :: MonadIO m => FilePath -> FilePath -> m ()
-move src dst = case currentHost of
-    Linux   -> Shelly.shelly $ Shelly.cmd "mv" src dst
-    Darwin  -> Shelly.shelly $ Shelly.cmd "mv" src dst
-    Windows -> Shelly.shelly $ Shelly.mv src dst
-
 
 -- === Instances === --
+
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig sys arch m where
     defaultHostConfig = EnvConfig <$> tmp where
-        tmp =  (</> "tmp/luna") <$> decodeString <$> liftIO System.getTemporaryDirectory
+        tmp = (</> "luna") <$> decodeString <$> liftIO System.getTemporaryDirectory
+
+instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig EnvConfig 'Windows arch m where
+    -- | Too long paths are often problem on Windows, therefore we use C:\tmp to store temporary data
+    defaultHostConfig = return $ EnvConfig "C:\\tmp\\luna"

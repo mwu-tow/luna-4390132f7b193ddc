@@ -25,9 +25,10 @@ data GlobalOpts = GlobalOpts
     } deriving (Show)
 
 data Command = Install       InstallOpts
-             | MakePackage   MakePackageOpts
-             | SwitchVersion SwitchVersionOpts
              | Update
+             | SwitchVersion SwitchVersionOpts
+             | Develop       DevelopOpts
+             | MakePackage   MakePackageOpts
              | Info
              deriving (Show)
 
@@ -45,10 +46,15 @@ data SwitchVersionOpts = SwitchVersionOpts
     { _targetVersion :: Text
     } deriving (Show)
 
+data DevelopOpts = DevelopOpts
+    { _targets :: [Text]
+    } deriving (Show)
+
 makeLenses ''Options
 makeLenses ''InstallOpts
 makeLenses ''MakePackageOpts
 makeLenses ''SwitchVersionOpts
+makeLenses ''DevelopOpts
 
 
 -- === Instances === --
@@ -68,13 +74,14 @@ evalOptionsParserT m = evalStateT m =<< parseOptions
 
 parseOptions :: MonadIO m => m Options
 parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser where
-    commands           = mconcat [cmdInstall, cmdMkpkg, cmdUpdate, cmdSwitchVersion, cmdInfo]
+    commands           = mconcat [cmdInstall, cmdMkpkg, cmdUpdate, cmdDevelop, cmdSwitchVersion, cmdInfo]
     optsParser         = info (helper <*> optsProgram) (fullDesc <> header ("Luna ecosystem manager (" <> Info.version <> ")") <> progDesc Info.synopsis)
 
     -- Commands
     cmdInstall         = Opts.command "install"        . info optsInstall       $ progDesc "Install components"
     cmdUpdate          = Opts.command "update"         . info (pure Update)     $ progDesc "Update components"
     cmdSwitchVersion   = Opts.command "switch-version" . info optsSwitchVersion $ progDesc "Switch installed component version"
+    cmdDevelop         = Opts.command "develop"        . info optsDevelop       $ progDesc "Setup development environment"
     cmdMkpkg           = Opts.command "make-package"   . info optsMkpkg         $ progDesc "Prepare installation package"
     cmdInfo            = Opts.command "info"           . info (pure Info)       $ progDesc "Shows environment information"
 
@@ -85,6 +92,8 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
+    optsDevelop        = Develop           <$> optsDevelop'
+    optsDevelop'       = DevelopOpts       <$> some (strArgument $ metavar "TARGET" <> help "Config file path")
     optsInstall        = Install           <$> optsInstall'
     optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
                                            <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )

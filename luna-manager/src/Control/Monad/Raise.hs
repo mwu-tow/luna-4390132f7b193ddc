@@ -8,6 +8,8 @@ module Control.Monad.Raise (module Control.Monad.Raise, module X) where
 import Prelude
 import Data.Kind
 
+import qualified Luna.Manager.Shell.Shelly as Shelly
+
 import Control.Lens.Utils
 import Control.Exception   as X (Exception, SomeException, toException)
 import Control.Monad.Catch (MonadThrow, throwM)
@@ -16,7 +18,7 @@ import Control.Monad              (join)
 import Data.Constraint            (Constraint)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans        (MonadTrans, lift)
-
+import qualified Control.Exception.Safe as Exception
 
 -------------------------------
 -- === Exception raising === --
@@ -67,7 +69,8 @@ instance {-# OVERLAPPABLE #-} (Monad m, Monad (t m), MonadTrans t, MonadExceptio
 instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT e             m) where raise = throwE
 instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (ExceptT SomeException m) where raise = throwE . toException
 instance                      (Monad m)              => MonadException SomeException (ExceptT SomeException m) where raise = throwE
-
+instance                      Exception e            => MonadException e IO where raise = Exception.throwM
+instance                      Exception e            => MonadException e Shelly.Sh where raise = Exception.throwM
 
 
 -- === Utils === --

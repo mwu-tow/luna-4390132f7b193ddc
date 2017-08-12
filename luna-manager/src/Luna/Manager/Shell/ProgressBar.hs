@@ -37,14 +37,14 @@ progressBar (ProgressBar width todo done) = liftIO $ do
     clearLine
     where
         fraction :: Rational
-        fraction | done /= 0  = (fromIntegral todo) % (fromIntegral done)
+        fraction | done /= 0  = fromIntegral todo % fromIntegral done
                  | otherwise = 0 % 1
 
         effectiveWidth = max 0 $ width - usedSpace
         usedSpace = 2
 
         numCompletedChars :: Rational
-        numCompletedChars = fraction * ((fromIntegral effectiveWidth) % 1)
+        numCompletedChars = fraction * (fromIntegral effectiveWidth % 1)
 
         completed, remaining :: Int
         completed = min effectiveWidth $ floor numCompletedChars

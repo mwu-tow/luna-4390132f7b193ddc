@@ -15,21 +15,18 @@ instance Convertible Text FilePath where
     convert = fromText
 
 expand :: MonadIO m => FilePath -> m FilePath
-expand path = do
-    if null path
-        then return path
-        else do
-            let dirs = Path.splitDirectories path
-                fstEl = head dirs
-            home <- getHomePath
-            current <- getCurrentPath
-            case encodeString fstEl of
-                "~/"      -> do
-                  return $ Path.concat $ home : (tail dirs)
-                "./"      -> return $ Path.concat $ current : (tail dirs)
-                "../"     -> return $ Path.concat $ (Path.parent current) : (tail dirs)
-                "~\\"      -> do
-                  return $ Path.concat $ home : (tail dirs)
-                ".\\"      -> return $ Path.concat $ current : (tail dirs)
-                "..\\"     -> return $ Path.concat $ (Path.parent current) : (tail dirs)
-                otherwise -> return path
+expand path = if null path
+    then return path
+    else do
+        let dirs = Path.splitDirectories path
+            fstEl = head dirs
+        home <- getHomePath
+        current <- getCurrentPath
+        case encodeString fstEl of
+            "~/"   -> return $ Path.concat $ home : tail dirs
+            "./"   -> return $ Path.concat $ current : tail dirs
+            "../"  -> return $ Path.concat $ Path.parent current : tail dirs
+            "~\\"  -> return $ Path.concat $ home : tail dirs
+            ".\\"  -> return $ Path.concat $ current : tail dirs
+            "..\\" -> return $ Path.concat $ Path.parent current : tail dirs
+            _      -> return path
