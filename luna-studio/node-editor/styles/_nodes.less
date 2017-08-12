@@ -8,7 +8,7 @@
     position: absolute;
     width:    0;
     height:   0;
-    &.luna-hover {
+    &.luna-show-ctrl-icon {
         .luna-ctrl-icon {
             opacity: 0.8;
             &:hover {
@@ -136,14 +136,6 @@
 
 .luna-port--i--constructor {
     display: none;
-    &.luna-hover {
-        display: block;
-    }
-    &:hover {
-        .luna-port__shape {
-            fill: #fff;
-        }
-    }
     .luna-port__shape {
         .fill(3);
         stroke:       @luna-graph-background-color;
@@ -153,7 +145,6 @@
 }
 
 .luna-node--collapsed .luna-port--i--constructor circle { cy: 19px !important }
-.luna-node.luna-hover .luna-port--i--constructor { display: block !important }
 
 // types
 
@@ -164,6 +155,9 @@
     fill:        @luna-text-color;
     text-anchor: end;
     &.luna-hover {
+        display: block;
+    }
+    &.luna-port--highlighted {
         display: block;
     }
 }

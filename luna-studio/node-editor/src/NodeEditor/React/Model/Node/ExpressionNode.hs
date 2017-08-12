@@ -99,7 +99,7 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- isDefinition              -} (n ^. Empire.isDefinition)
         {- inPorts                   -} (convert <$> n ^. Empire.inPorts)
         {- outPorts                  -} (convert <$> n ^. Empire.outPorts)
-        {- argConstructorHighlighted -} def
+        {- argConstructorHighlighted -} Port.Invisible
         {- canEnter                  -} (n ^. Empire.canEnter)
         {- position                  -} (n ^. Empire.position)
         {- defaultVisualizer         -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
@@ -198,3 +198,8 @@ containsNode nl nlToCheck = inSubgraph False $ NodeLoc.toNodeIdList nl where
     inSubgraph parentNidVisited (nid : nids) = do
         let visited = parentNidVisited || parentNid == nid
         if visited && nidToCheck == nid then True else inSubgraph visited nids
+
+isAnyPortHighlighted :: ExpressionNode -> Bool
+isAnyPortHighlighted n = (any Port.isHighlighted $ inPortsList n)
+                      || (any Port.isHighlighted $ outPortsList n)
+                      || Port.Highlighted == n ^. argConstructorMode

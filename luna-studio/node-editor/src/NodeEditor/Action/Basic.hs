@@ -14,6 +14,7 @@ module NodeEditor.Action.Basic
     , focusNode
     , focusNodes
     , getScene
+    , isArgConstructorConnectSrc
     , loadGraph
     , localAddConnection
     , localAddConnections
@@ -92,6 +93,7 @@ module NodeEditor.Action.Basic
     , unselectAll
     , unsetFile
     , updateAllPortsMode
+    , updateArgConstructorMode
     , updateClient
     , updateCollaboration
     , updateConnection
@@ -142,4 +144,5 @@ import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpress
                                                               localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
 import           NodeEditor.Action.Basic.UpdateSearcherHints (localClearSearcherHints, localSetSearcherHints, localUpdateSearcherHints)
-import           NodeEditor.Action.State.Model               (updateAllPortsMode, updatePortMode, updatePortsModeForNode)
+import           NodeEditor.Action.State.Model               (isArgConstructorConnectSrc, updateAllPortsMode, updateArgConstructorMode,
+                                                              updatePortMode, updatePortsModeForNode)

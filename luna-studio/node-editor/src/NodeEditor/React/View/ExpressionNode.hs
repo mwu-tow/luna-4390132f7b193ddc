@@ -20,7 +20,7 @@ import qualified NodeEditor.React.Event.Visualization                 as Visuali
 import           NodeEditor.React.Model.App                           (App)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countArgPorts, countOutPorts,
-                                                                       inPortsList, isCollapsed, outPortsList, returnsError)
+                                                                       isAnyPortHighlighted, isCollapsed, returnsError)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
@@ -112,12 +112,12 @@ nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> 
         , "key"       $= "nodeExpression" ] ++ handlers
         ) nameElement
 
-node_ :: Ref App -> ExpressionNode -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
-node_ ref model s relatedNodesWithVis = React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, s, relatedNodesWithVis) mempty
+node_ :: Ref App -> ExpressionNode -> Bool -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
+node_ ref model performingConnect s relatedNodesWithVis = React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, performingConnect, s, relatedNodesWithVis) mempty
 
-node :: ReactView (Ref App, ExpressionNode, Maybe Searcher, Set NodeLoc)
-node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
-    Node.Expanded (Node.Function fs) -> nodeContainer_ ref maySearcher relatedNodesWithVis $ Map.elems fs
+node :: ReactView (Ref App, ExpressionNode, Bool, Maybe Searcher, Set NodeLoc)
+node = React.defineView name $ \(ref, n, performingConnect, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
+    Node.Expanded (Node.Function fs) -> nodeContainer_ ref performingConnect maySearcher relatedNodesWithVis $ Map.elems fs
     _ -> do
         let nodeId        = n ^. Node.nodeId
             nodeLoc       = n ^. Node.nodeLoc
@@ -128,17 +128,18 @@ node = React.defineView name $ \(ref, n, maySearcher, relatedNodesWithVis) -> ca
             mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
             showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression    = n ^. Node.expression
-            highlight     = if n ^. Node.isMouseOver then ["hover"] else []
+            highlight     = if n ^. Node.isMouseOver && (not performingConnect || not (isAnyPortHighlighted n)) then ["hover"] else []
                         --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
                         --  && (not $ any Port.isHighlighted (inPortsList n))
                         --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
-            ifPortConstructor = if (n ^. Node.argConstructorMode == Port.Highlighted) then ["has-port-constructor"] else []
+            ifPortConstructor = if elem (n ^. Node.argConstructorMode) [Port.Normal, Port.Highlighted] then ["has-port-constructor"] else []
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
                                                                        ++ (if returnsError n then ["node--error"] else [])
                                                                        ++ (if n ^. Node.isSelected then ["node--selected"] else [])
+                                                                       ++ (if n ^. Node.isMouseOver && not performingConnect then ["show-ctrl-icon"] else [] )
                                                                        ++ (if hasSelf then ["node--has-self"] else ["node--no-self"])
                                                                        ++ highlight
                                                                        ++ ifPortConstructor)
@@ -237,11 +238,11 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                 forM_  (filter (not . isSelf . (^. Port.portId)) nodePorts') $ portExpanded_ ref nodeLoc
             argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted)
 
-nodeContainer_ :: Ref App -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
-nodeContainer_ ref maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, maySearcher, nodesWithVis, subgraphs) mempty
+nodeContainer_ :: Ref App -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
+nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, performingConnect, maySearcher, nodesWithVis, subgraphs) mempty
 
-nodeContainer :: ReactView (Ref App, Maybe Searcher, Set NodeLoc, [Subgraph])
-nodeContainer = React.defineView name $ \(ref, maySearcher, nodesWithVis, subgraphs) -> do
+nodeContainer :: ReactView (Ref App, Bool, Maybe Searcher, Set NodeLoc, [Subgraph])
+nodeContainer = React.defineView name $ \(ref, performingConnect, maySearcher, nodesWithVis, subgraphs) -> do
     div_
         [ "className" $= Style.prefix "subgraphs"
         ] $ forM_ subgraphs $ \subgraph -> do
@@ -254,6 +255,7 @@ nodeContainer = React.defineView name $ \(ref, maySearcher, nodesWithVis, subgra
             ] $ do
             forM_ nodes $ \n -> node_ ref
                                       n
+                                      performingConnect
                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                       (Set.filter (Node.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
             svgPlane_ $ planeMonads_ $ monads_ monads

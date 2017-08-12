@@ -5,7 +5,7 @@ import           Common.Prelude
 import           Control.Monad                              (filterM)
 import qualified JS.Node                                    as JS
 import           LunaStudio.Data.Geometry                   (isPointInCircle, isPointInRectangle)
-import           LunaStudio.Data.PortRef                    (AnyPortRef, toAnyPortRef)
+import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef'), InPortRef (InPortRef), toAnyPortRef)
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position)
 import           LunaStudio.Data.TypeRep                    (TypeRep, matchTypes)
@@ -15,8 +15,8 @@ import           NodeEditor.Action.State.NodeEditor         (getConnectionsToNod
 import           NodeEditor.React.Model.Connection          (canConnect, dst)
 import           NodeEditor.React.Model.Constants           (nodeRadius)
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, NodeLoc, argConstructorMode, countArgPorts, hasPort, inPortAt,
-                                                             inPortsList, isCollapsed, nodeId, nodeLoc, outPortAt, outPortsList, position,
-                                                             position, zPos)
+                                                             inPortsList, isCollapsed, isMouseOver, nodeId, nodeLoc, outPortAt,
+                                                             outPortsList, position, position, zPos)
 import           NodeEditor.React.Model.Port                (AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), Mode (..),
                                                              isOutPort, isSelf, mode, portId, valueType)
 import           NodeEditor.State.Action                    (connectSourcePort, penConnectAction)
@@ -44,14 +44,19 @@ updateAllPortsMode :: Command State ()
 updateAllPortsMode = getExpressionNodes >>= mapM_ updatePortsModeForNode'
 
 updatePortsModeForNode :: NodeLoc -> Command State ()
-updatePortsModeForNode nl = withJustM (getExpressionNode nl) $ updatePortsModeForNode'
+updatePortsModeForNode nl = withJustM (getExpressionNode nl) updatePortsModeForNode'
 
 updatePortsModeForNode' :: ExpressionNode -> Command State ()
 updatePortsModeForNode' n = do
     mapM_ (updatePortMode' n . OutPortId') . map (view portId) $ outPortsList n
     mapM_ (updatePortMode' n . InPortId')  . map (view portId) $ inPortsList  n
-    updatePortMode' n $ InPortId' [Arg $ countArgPorts n]
+    updateArgConstructorMode' n
 
+updateArgConstructorMode :: NodeLoc -> Command State ()
+updateArgConstructorMode nl = withJustM (getExpressionNode nl) updateArgConstructorMode'
+
+updateArgConstructorMode' :: ExpressionNode -> Command State ()
+updateArgConstructorMode' n = updatePortMode' n $ InPortId' [Arg $ countArgPorts n]
 
 updatePortMode :: AnyPortRef -> Command State ()
 updatePortMode portRef = do
@@ -77,9 +82,11 @@ calculatePortMode node pid = if isSelf pid then calculatePortSelfMode node else 
     mayConnectSrc <- view connectSourcePort `fmap2` use (actions . currentConnectAction)
     if      penConnecting && isOutPort pid then return Inactive
     else if penConnecting                  then return Normal
+    else if not (hasPort pid node) && isNothing mayConnectSrc then return (if node ^. isMouseOver then Normal else Invisible)
     else flip (maybe (return Normal)) mayConnectSrc $ \connectSrc ->
         if      connectSrc == portRef               then return Highlighted
-        else if not $ canConnect connectSrc portRef then return Inactive
+        else if not (hasPort pid node) && canConnect connectSrc portRef then return Normal
+        else if not $ canConnect connectSrc portRef then (return $ if hasPort pid node then Inactive else Invisible)
         else if not $ hasPort pid node              then return Normal
         else do
             mayConnectSrcType <- view valueType `fmap2` getPort connectSrc
@@ -108,3 +115,9 @@ calculatePortSelfMode node = do
         else if connectToSelfPossible                      then TypeNotMatched
         else if isConnectSrc                               then Highlighted
                                                            else Invisible
+
+isArgConstructorConnectSrc :: NodeLoc -> Command State Bool
+isArgConstructorConnectSrc nl = do
+    mayConnectSrc <- view connectSourcePort `fmap2` use (actions . currentConnectAction)
+    mayPortRef    <- (\n -> InPortRef' $ InPortRef nl [Arg $ countArgPorts n]) `fmap2` getExpressionNode nl
+    return $ isJust mayConnectSrc && mayConnectSrc == mayPortRef
