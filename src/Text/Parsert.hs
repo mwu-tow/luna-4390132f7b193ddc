@@ -7,7 +7,7 @@ module Text.Parsert where
 
 import qualified Prelude as P
 import qualified Data.List as List
-import Prologue hiding (catch, drop)
+import Prologue_old hiding (catch, drop)
 import Type.Inference
 
 import Control.Monad.State.Layered
