@@ -1,6 +1,6 @@
 module Data.Text.Diff where
 
-import Prologue
+import Prologue_old
 
 import Data.Text.Position
 -- import Data.Text.Class

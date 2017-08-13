@@ -3,7 +3,7 @@
 
 module Data.Text.Span where
 
-import Prologue            hiding (length)
+import Prologue_old            hiding (length)
 import Data.Maybe          (isJust)
 import Control.Monad.State.Dependent
 

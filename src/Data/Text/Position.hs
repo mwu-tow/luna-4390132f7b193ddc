@@ -1,6 +1,6 @@
 module Data.Text.Position where
 
-import Prologue hiding (range)
+import Prologue_old hiding (range)
 import Data.Bits
 import Text.Printf
 import Foreign.Storable
