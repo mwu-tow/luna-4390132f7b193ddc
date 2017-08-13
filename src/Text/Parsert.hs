@@ -7,17 +7,13 @@
 module Text.Parsert where
 
 import qualified Prelude as P
-<<<<<<< HEAD
 import qualified Data.List as List
-import Prologue_old hiding (catch, drop)
 import Type.Inference
 
 import Control.Monad.State.Layered
 import Data.Foldable (asum)
 import GHC.Exts (Any)
-=======
-import Prologue hiding (catch, drop, (.), EitherT, mapEitherT, runEitherT, Either, Right, Left, isLeft, mapLeft)
->>>>>>> a00f3614c6af85d6ee87087f5fd6e886677327c1
+import Prologue_old hiding (catch, drop, (.), EitherT, mapEitherT, runEitherT, Either, Right, Left, isLeft, mapLeft)
 import Control.Monad.Branch
 import Control.Monad.Trans.Either.Strict
 import Data.Either.Strict
