@@ -693,7 +693,14 @@ connect loc outPort anyPort = do
 connectPersistent :: GraphOp m => OutPortRef -> AnyPortRef -> m Connection
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst@(InPortRef (NodeLoc _ dstNodeId) dstPort)) = do
     -- FIXME[MK]: passing the `generateNodeName` here is a hack arising from cyclic module deps. Need to remove together with modules refactoring.
-    whenM (not <$> ASTRead.isInputSidebar srcNodeId) $ ASTBuilder.ensureNodeHasName generateNodeName srcNodeId
+    whenM (not <$> ASTRead.isInputSidebar srcNodeId) $ do
+        ref   <- ASTRead.getASTRef srcNodeId
+        s     <- ASTRead.getCurrentBody
+        nodes <- AST.readSeq s
+        ASTBuilder.ensureNodeHasName generateNodeName srcNodeId
+        when (last nodes == ref) $ do
+            var <- ASTRead.getASTVar srcNodeId
+            setOutputTo var
     srcAst <- ASTRead.getASTOutForPort srcNodeId srcPort
     case dstPort of
         [] -> makeWhole srcAst dstNodeId

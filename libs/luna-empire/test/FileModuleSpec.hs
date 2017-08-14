@@ -514,6 +514,7 @@ spec = around withChannels $ parallel $ do
                 def foo:
                     «0»n1 = number1 * 5
                     «1»number1 = 5
+                    number1
                 def bar:
                     «2»"bar"
                 def main:
