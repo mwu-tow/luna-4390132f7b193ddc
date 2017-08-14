@@ -457,8 +457,9 @@ resolveInput = IR.getLayer @Marker
 
 deepResolveInputs :: GraphOp m => NodeId -> NodeRef -> InPortRef -> m [(OutPortRef, InPortRef)]
 deepResolveInputs nid ref portRef@(InPortRef loc id) = do
-    currentPortResolution <- filter ((/= nid) . view srcNodeId) . toList <$> resolveInput ref
-    let currentPortConn = (, portRef) <$> currentPortResolution
+    currentPortResolution <- toList <$> resolveInput ref
+    let currentPortConn    = (, portRef) <$> (filter ((/= nid) . view srcNodeId) currentPortResolution)
+        unfilteredPortConn = (, portRef) <$> currentPortResolution
     args      <- ASTDeconstruct.extractAppPorts ref
     argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id ++ [Arg i]))
     head      <- ASTDeconstruct.extractFun ref
@@ -466,6 +467,7 @@ deepResolveInputs nid ref portRef@(InPortRef loc id) = do
     headConns <- case (self, head == ref) of
         (Just s, _) -> deepResolveInputs nid s    (InPortRef loc (id ++ [Self]))
         (_, False)  -> deepResolveInputs nid head (InPortRef loc (id ++ [Head]))
+        (_, True)   -> return $ if null currentPortConn then unfilteredPortConn else []
         _           -> return []
     return $ concat [currentPortConn, headConns, concat argsConns]
 

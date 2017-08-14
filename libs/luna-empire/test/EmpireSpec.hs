@@ -658,7 +658,7 @@ spec = around withChannels $ parallel $ do
                     , Port.Port [Port.Arg 1] "second1" TStar Port.Connected
                     , Port.Port [Port.Arg 2] "third1"  TStar Port.Connected
                     ]
-        xit "connects id to itself" $ \env -> do
+        it "connects id to itself" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
                 Graph.addNode top u1 "id" def
