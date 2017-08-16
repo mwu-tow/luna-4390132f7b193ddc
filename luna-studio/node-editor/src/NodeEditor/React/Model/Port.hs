@@ -10,6 +10,7 @@ import           Common.Prelude                   hiding (set)
 import           Data.Convert                     (Convertible (convert))
 import           LunaStudio.Data.Angle            (Angle)
 import           LunaStudio.Data.LabeledTree      (LabeledTree (LabeledTree))
+import qualified LunaStudio.Data.LabeledTree      as LabeledTree
 import           LunaStudio.Data.Port             as X hiding (InPort, OutPort, Port (..), name, portId, state, valueType)
 import qualified LunaStudio.Data.Port             as Empire
 import           LunaStudio.Data.PortDefault      as X (PortDefault (..))
@@ -82,18 +83,16 @@ getPositionInSidebar p = case p ^. mode of
     Moved pos -> Just pos
     _         -> Nothing
 
-outPortTreeLeafs :: OutPortTree (Port i) -> [Port i]
-outPortTreeLeafs (LabeledTree (OutPorts []) p) = [p]
-outPortTreeLeafs (LabeledTree (OutPorts ps) _) = concatMap outPortTreeLeafs ps
+visibleOutPorts :: OutPortTree (Port i) -> [Port i]
+visibleOutPorts (LabeledTree (OutPorts []) p) = [p]
+visibleOutPorts (LabeledTree (OutPorts ps) _) = concatMap visibleOutPorts ps
 
-inPortTreeLeafs :: Bool -> InPortTree (Port i) -> [Port i]
-inPortTreeLeafs forceTop (LabeledTree (InPorts _ _ []) p) = if p ^. state == Connected || forceTop then [p] else []
-inPortTreeLeafs _        inPortTree  = inPortTreeLeafs' inPortTree where
-    inPortTreeLeafs' (LabeledTree (InPorts Nothing _ []) p) = [p]
-    inPortTreeLeafs' (LabeledTree (InPorts maySelf _ ps) _) = maybe [] findSelf maySelf <> concatMap inPortTreeLeafs' ps
-
-    findSelf (LabeledTree (InPorts (Just self') _ _) p) = if p ^. state == Connected then [p] else findSelf self'
-    findSelf (LabeledTree (InPorts Nothing      _ _) p) = [p]
+visibleInPorts :: InPortTree (Port i) -> [Port i]
+visibleInPorts root@(LabeledTree (InPorts maySelf _ args') _) = maybeToList findSelfOrHead ++ map (view LabeledTree.value) args' where
+    h              = findHead root
+    findSelfOrHead = if h ^. state == Connected then Just h else findSelf <$> maySelf
+    findHead (LabeledTree (InPorts _ mayHead' _) p') = if p' ^. state == Connected then p' else maybe p' findHead mayHead'
+    findSelf (LabeledTree (InPorts maySelf' _ _) p') = if p' ^. state == Connected then p' else maybe p' findSelf maySelf'
 
 
 instance Convertible InPort  AnyPort where convert = fmap InPortId'
