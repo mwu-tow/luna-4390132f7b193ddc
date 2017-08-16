@@ -39,3 +39,6 @@ setProject = withUUID . BatchCmd.setProject
 
 substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> Command State ()
 substitute = withUUID .::. BatchCmd.substitute
+
+paste :: FilePath -> [(Int, Int)] -> Text -> Command State ()
+paste = withUUID .:. BatchCmd.paste

@@ -48,7 +48,7 @@ class LunaStudioTab extends View
             # clipboard
             'luna-studio:copy':  -> pushShortcutEvent("Copy")
             'luna-studio:cut':   -> pushShortcutEvent("Cut")
-            'luna-studio:paste': -> pushShortcutEvent("Paste", atom.clipboard.readWithMetadata().metadata[0])
+            'luna-studio:paste': -> pushShortcutEvent("Paste", atom.clipboard.read())
             # navigation
             'luna-studio:exit-graph':    -> pushShortcutEvent("ExitGraph")
             'luna-studio:go-cone-down':  -> pushShortcutEvent("GoConeDown")

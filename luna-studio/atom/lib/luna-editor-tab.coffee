@@ -81,9 +81,10 @@ module.exports =
 
     handleEvents: =>
         atom.commands.add @element,
-            'core:copy': (e) => @handleCopy(e)
-            'core:cut':  (e) => @handleCopy(e)
-            'core:save': (e) => @handleSave(e)
+            'core:copy':  (e) => @handleCopy(e)
+            'core:cut':   (e) => @handleCopy(e)
+            'core:paste': (e) => @handlePaste(e)
+            'core:save':  (e) => @handleSave(e)
 
     handleCopy: (e) =>
         # e.preventDefault()
@@ -91,7 +92,16 @@ module.exports =
         buffer     = @getBuffer()
         selections = @getSelections()
         spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: spanList)
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _maySelections: spanList)
+
+
+    handlePaste: (e) =>
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        buffer     = @getBuffer()
+        selections = @getSelections()
+        spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
+        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: spanList, _content: atom.clipboard.read())
 
     handleSave: (e) =>
         e.preventDefault()
