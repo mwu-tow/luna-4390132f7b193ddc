@@ -60,18 +60,22 @@ def mv_runner(runner):
     else: print("unknown system")
 
 
-
 def link_main_bin ():
     os.chdir(ap.prep_path('../dist/bin'))
-    os.makedirs('main')
+    os.makedirs('main', exist_ok=True)
     for src_path in glob('public/luna-studio/*'):
-        print(src_path)
-        if os.path.isfile(src_path):
-            print(os.getcwd())
-            print(os.path.join('main', os.path.basename(src_path)))
+        try:
+            dst_path = os.path.join('main', os.path.basename(src_path))
+        except FileNotFoundError:
+            if os.path.isfile(src_path):
+                os.symlink(os.path.relpath(src_path,'main/'),os.path.join('main', os.path.basename(src_path)))
+            else: return ()
+        else:
+            os.remove(dst_path)
+            if os.path.isfile(src_path):
+                os.symlink(os.path.relpath(src_path,'main/'),os.path.join('main', os.path.basename(src_path)))
+            else: return ()
 
-            os.symlink(os.path.relpath(src_path,'main/'),os.path.join('main', os.path.basename(src_path)))
-        else: return ()
 
     # os.symlink('./public/luna-studio', 'main', target_is_directory=True)
 
