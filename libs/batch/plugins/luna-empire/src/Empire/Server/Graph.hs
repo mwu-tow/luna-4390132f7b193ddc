@@ -257,7 +257,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
     action (GetProgram.Request location mayPrevSettings) = do
         let moduleChanged = isNothing mayPrevSettings || isJust (maybe Nothing (view Project.visMap . snd) mayPrevSettings)
         withJust mayPrevSettings $ uncurry saveSettings
-        code <- Graph.getCode location
+        code <- Graph.getCode location Nothing
         (graph, crumb, typeRepToVisMap, camera) <- handle
             (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], mempty, def))
             $ do
