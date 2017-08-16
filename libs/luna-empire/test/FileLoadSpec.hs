@@ -84,6 +84,13 @@ testLuna = [r|def main:
     «3»bar = foo 8.0 c
 |]
 
+testLuna' = [r|def main:
+    «1»foo = a: b:
+        «7»n = a + 5
+        «8»m = b - 2
+        «11»m + n
+|]
+
 atXPos = ($ def) . (NodeMeta.position . Position.x .~)
 
 specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
@@ -369,6 +376,21 @@ spec = around withChannels $ parallel $ do
                 Graph.substituteCode "TestPath" 63 64 "5" (Just 64)
                 Graph.getNodeMeta loc' foo
             meta `shouldBe` Just (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
+        xit "changing order of ports twice does nothing" $ \env -> do
+            -- [MM]: don't know why some nodes have empty code only in `before` so this test fails
+            (before, after) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc testLuna'
+                [main] <- Graph.getNodes loc
+                let loc' = loc |>= main ^. Node.nodeId
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                before@(Graph.Graph _ _ (Just input) _ _) <- Graph.getGraph $ loc' |> foo
+                Graph.movePort (loc' |> foo) (outPortRef (input ^. Node.nodeId) [Port.Projection 0]) 1
+                Graph.movePort (loc' |> foo) (outPortRef (input ^. Node.nodeId) [Port.Projection 0]) 1
+                after <- Graph.getGraph $ loc' |> foo
+                return (before, after)
+            before `shouldBe` after
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|

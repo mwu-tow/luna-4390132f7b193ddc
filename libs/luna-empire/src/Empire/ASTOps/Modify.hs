@@ -150,7 +150,7 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
     Grouped g -> IR.source g >>= moveLambdaArg p newPosition
     Lam _ _   -> do
         args <- ASTDeconstruct.extractArguments lambda
-        out  <- ASTRead.getLambdaOutputRef      lambda
+        out  <- ASTRead.getFirstNonLambdaRef    lambda
         let newArgs = shiftPosition port newPosition args
         newRef <- lams newArgs out
         when (lambda /= newRef) $ rewireCurrentNode newRef
