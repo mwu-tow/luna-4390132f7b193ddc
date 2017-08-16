@@ -41,13 +41,9 @@ def oniguruma_path(third_party_path):
 
 def copy_studio (studio_atom_source_path, package_path):
     if system.system == system.systems.WINDOWS:
-        print("ahbgkij")
         r = requests.get(url)
-        print("reequests")
         z = zipfile.ZipFile(io.BytesIO(r.content))
-        print("zipfile")
         z.extractall(package_path)
-        print("extractall")
     elif system.system == system.systems.LINUX:
         distutils.dir_util.copy_tree(studio_atom_source_path, package_path)
     elif system.system == system.systems.DARWIN:
@@ -55,7 +51,6 @@ def copy_studio (studio_atom_source_path, package_path):
 
 def apm(third_party_path, atom_home_path, studio_package_name):
     package_path = atom_home_path + '/packages/' + studio_package_name
-    print(package_path)
     oniguruma_package_path = package_path + '/node_modules/oniguruma'
     print(oniguruma_package_path)
     oniguruma = oniguruma_path(third_party_path)
