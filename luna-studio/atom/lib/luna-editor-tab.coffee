@@ -100,7 +100,7 @@ module.exports =
 
     insertCode: (uri_send, start_send, end_send, text) =>
         if @uri == uri_send
-            omitDiff(text)
+            @omitDiff(text)
             @getBuffer().setText(text)
 
     setClipboard: (uri_send, text) =>
