@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+import scripts_build.atom_prepare as ap
+import scripts_build.system as system
+
+import multiprocessing
+import signal
+import subprocess
+import os
+
+third_party_path = ap.prep_path('../dist/third-party/')
+atom_home_path = ap.prep_path('../dist/user-config/atom/')
+
+def atom_path(third_party_path):
+    if system.system == system.systems.WINDOWS:
+        return third_party_path + '/Atom/atom.exe'
+    elif system.system == system.systems.LINUX:
+        return third_party_path + '/atom/usr/bin/atom'
+    elif system.system == system.systems.DARWIN:
+        return third_party_path + '/Atom.app/Contents/MacOS/Atom'
+    else: print('unknown system')
+
+def run_frontend ():
+    os.environ['ATOM_HOME'] = atom_home_path
+    a_p = atom_path(third_party_path)
+    popen = subprocess.Popen((a_p, '-w'), stdout=subprocess.PIPE)
+    try:
+        popen.wait()
+    except KeyboardInterrupt:
+        try:
+           popen.terminate()
+        except OSError:
+            pass
+        popen.wait()
+    output = popen.stdout.read()
+
+
+if __name__ == '__main__':
+    run_frontend ()
