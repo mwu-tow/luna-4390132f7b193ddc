@@ -91,6 +91,7 @@ applyResult' preventPorts res path = do
                 outputSidebar = graphUpdates ^. Graph.outputSidebar
             when (isJust inputSidebar)  $ forM_ inputSidebar  $ localUpdateOrAddInputNode  . convert . (path,)
             when (isJust outputSidebar) $ forM_ outputSidebar $ localUpdateOrAddOutputNode . convert . (path,)
+            setGraphStatus GraphLoaded
 
 checkBreadcrumb :: Result.Result -> Command State ()
 checkBreadcrumb res = do
