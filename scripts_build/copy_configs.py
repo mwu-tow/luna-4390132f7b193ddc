@@ -4,6 +4,7 @@ from . import atom_prepare as ap
 import os
 import distutils
 from glob import glob
+import shutil
 import subprocess
 from . import system as system
 
@@ -48,10 +49,16 @@ def link_resources ():
                 os.symlink(os.path.relpath(src_path2,'main/resources/'),os.path.join('main/resources', os.path.basename(src_path2)))
             else: return ()
 
+def copy_atom_configs ():
+    dst_path = ap.prep_path('../dist/user-config/atom')
+    for config in ('../config/config.cson', '../config/keymap.cson', '../config/snippets.cson', '../config/styles.cson'):
+        shutil.copy(ap.prep_path(config), dst_path)
+
 def run():
     copy_configs(supervisor_dir,env_dir, windows_dir)
     copy_resources(resources_dir)
     link_resources ()
+    copy_atom_configs ()
 
 if __name__ == '__main__':
     run()
