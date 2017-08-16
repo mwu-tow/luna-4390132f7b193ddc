@@ -2,8 +2,9 @@
 {-# LANGUAGE JavaScriptFFI #-}
 
 module JS.Atom
-    ( pushCode
-    , pushBuffer
+    ( insertCode
+    , setBuffer
+    , setClipboard
     , pushStatus
     , subscribeDiff
     , subscribeEventListenerInternal
@@ -23,11 +24,14 @@ import           TextEditor.Event.Text         (TextEvent (TextEvent))
 import qualified TextEditor.Event.Text         as TextEvent
 
 
-foreign import javascript safe "atomCallbackTextEditor.pushCode($1, $2, $3, $4)"
-    pushCode' :: JSString -> JSVal -> JSVal -> JSString -> IO ()
+foreign import javascript safe "atomCallbackTextEditor.insertCode($1, $2, $3, $4)"
+    insertCode' :: JSString -> JSVal -> JSVal -> JSString -> IO ()
 
-foreign import javascript safe "atomCallbackTextEditor.pushBuffer($1, $2)"
-    pushBuffer :: JSString -> JSString -> IO ()
+foreign import javascript safe "atomCallbackTextEditor.setBuffer($1, $2)"
+    setBuffer :: JSString -> JSString -> IO ()
+
+foreign import javascript safe "atomCallbackTextEditor.setClipboard($1, $2)"
+    setClipboard :: JSString -> JSString -> IO ()
 
 foreign import javascript safe "atomCallbackTextEditor.pushStatus($1, $2, $3)"
     pushStatus :: JSString -> JSString -> JSString -> IO ()
@@ -78,13 +82,13 @@ subscribeDiff callback = do
     subscribeDiff' wrappedCallback
     return $ unsubscribeDiff' wrappedCallback >> releaseCallback wrappedCallback
 
-pushCode :: TextEvent -> IO ()
-pushCode = do
+insertCode :: TextEvent -> IO ()
+insertCode = do
     uri   <- view TextEvent.filePath
     start <- pToJSVal . view TextEvent.start
     end   <- pToJSVal . view TextEvent.end
     text  <- view TextEvent.text
-    return $ pushCode' (convert uri) start end $ convert $ Text.unpack text
+    return $ insertCode' (convert uri) start end $ convert $ Text.unpack text
 
 subscribeEventListenerInternal :: (InternalEvent -> IO ()) -> IO (IO ())
 subscribeEventListenerInternal callback = do

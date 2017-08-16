@@ -46,35 +46,15 @@ module.exports =
   class LunaEditorTab extends TextEditor
 
     constructor: (@uri, @codeEditor) ->
-
         super
         @diffToOmit = new Set()
         @getBuffer().setPath(@uri)
         @getBuffer().subscribeToFileOverride(@codeEditor)
-
         @codeEditor.pushInternalEvent(tag: "OpenFile", _path: @uri)
 
-        omitDiff = (text) =>
-            @diffToOmit.add(text)
-
-        setBuffer = (uri_send, text) =>
-            console.log(uri_send, @uri)
-            if @uri == uri_send
-                omitDiff(text)
-                @getBuffer().setText(text)
-                console.log("setBuffer")
-
-        @codeEditor.bufferListener setBuffer
-
-        setCode = (uri_send, start_send, end_send, text) =>
-            if @uri == uri_send
-            #   start = @getBuffer().positionForCharacterIndex(start_send)
-            #   end = @getBuffer().positionForCharacterIndex(end_send)
-            #   @getBuffer().setTextInRange [start, end], text
-            #   @.scrollToBufferPosition(start)
-                omitDiff(text)
-                @getBuffer().setText(text)
-        @codeEditor.codeListener setCode
+        @codeEditor.onSetBuffer @setBuffer
+        @codeEditor.onSetClipboard @setClipboard
+        @codeEditor.onInsertCode @insertCode
 
         @handleEvents()
 
@@ -101,10 +81,13 @@ module.exports =
 
     handleEvents: =>
         atom.commands.add @element,
-            'core:copy':     => @handleCopy()
+            'core:copy': (e) => @handleCopy(e)
+            'core:cut':  (e) => @handleCopy(e)
             'core:save': (e) => @handleSave(e)
 
-    handleCopy: =>
+    handleCopy: (e) =>
+        # e.preventDefault()
+        # e.stopImmediatePropagation()
         buffer     = @getBuffer()
         selections = @getSelections()
         spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
@@ -114,3 +97,22 @@ module.exports =
         e.preventDefault()
         e.stopImmediatePropagation()
         @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+
+    insertCode: (uri_send, start_send, end_send, text) =>
+        if @uri == uri_send
+            omitDiff(text)
+            @getBuffer().setText(text)
+
+    setClipboard: (uri_send, text) =>
+        # if @uri == uri_send
+        #     atom.clipboard.write(text)
+
+    setBuffer: (uri_send, text) =>
+        console.log(uri_send, @uri)
+        if @uri == uri_send
+            @omitDiff(text)
+            @getBuffer().setText(text)
+            console.log "setBuffer"
+
+    omitDiff: (text) =>
+        @diffToOmit.add(text)

@@ -8,8 +8,9 @@ var removeFromArray = function (array, elt) {
 module.exports = function () {
 
     var listeners = {
-        bufferListener: [],
-        codeListener: [],
+        setBufferListener: [],
+        setClipboardListener: [],
+        insertonInsertCode: [],
         eventListenerInternal: [],
         diffListener: [],
         statusListener: [],
@@ -17,20 +18,29 @@ module.exports = function () {
     };
 
     return {
-        codeListener: function (listener) {
-            listeners.codeListener.push(listener);
+        onInsertCode: function (listener) {
+            listeners.insertonInsertCode.push(listener);
         },
-        pushCode: function(uri_send, start_send, end_send, text) {
-            listeners.codeListener.forEach(function(listener) {
+        insertCode: function(uri_send, start_send, end_send, text) {
+            listeners.insertonInsertCode.forEach(function(listener) {
                 listener(uri_send, start_send, end_send, text);
             });
         },
 
-        bufferListener: function (listener) {
-            listeners.bufferListener.push(listener);
+        onSetBuffer: function (listener) {
+            listeners.setBufferListener.push(listener);
         },
-        pushBuffer: function(data1, data2) {
-            listeners.bufferListener.forEach(function(listener) {
+        setBuffer: function(data1, data2) {
+            listeners.setBufferListener.forEach(function(listener) {
+                listener(data1, data2);
+            });
+        },
+
+        onSetClipboard: function (listener) {
+            listeners.setClipboardListener.push(listener);
+        },
+        setClipboard: function(data1, data2) {
+            listeners.setClipboardListener.forEach(function(listener) {
                 listener(data1, data2);
             });
         },
