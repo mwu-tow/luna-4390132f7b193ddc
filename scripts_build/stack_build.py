@@ -50,8 +50,6 @@ def mv_runner(runner):
     if system.system == system.systems.WINDOWS:
         runner_src = runner + '/src/' + '/StudioRunner.exe'
         runner_dst = ap.prep_path('../dist/bin/public/luna-studio/luna-studio.exe')
-        print (runner_src)
-        print (runner_dst)
         os.rename(runner_src, runner_dst)
     elif system.system == system.systems.LINUX:
         return ()
@@ -64,14 +62,13 @@ def link_main_bin ():
     os.chdir(ap.prep_path('../dist/bin'))
     os.makedirs('main', exist_ok=True)
     for src_path in glob('public/luna-studio/*'):
-        try:
-            dst_path = os.path.join('main', os.path.basename(src_path))
-        except FileNotFoundError:
+        dst_path = os.path.join('main', os.path.basename(src_path))
+        if os.path.isfile(dst_path):
             if os.path.isfile(src_path):
+                os.remove(dst_path)
                 os.symlink(os.path.relpath(src_path,'main/'),os.path.join('main', os.path.basename(src_path)))
             else: return ()
         else:
-            os.remove(dst_path)
             if os.path.isfile(src_path):
                 os.symlink(os.path.relpath(src_path,'main/'),os.path.join('main', os.path.basename(src_path)))
             else: return ()

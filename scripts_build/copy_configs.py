@@ -35,14 +35,18 @@ def copy_resources(resources):
 
 def link_resources ():
     os.chdir(ap.prep_path('../dist/bin'))
-    os.makedirs('main/resources')
+    os.makedirs('main/resources', exist_ok=True)
     for src_path2 in glob('public/luna-studio/resources/*'):
-        print(src_path2)
-        if os.path.isfile(src_path2):
-            print(os.path.join('main/resources', os.path.basename(src_path2)))
-
-            os.symlink(os.path.relpath(src_path2,'main/resources/'),os.path.join('main/resources', os.path.basename(src_path2)))
-        else: return ()
+        dst_path = os.path.join('main/resources', os.path.basename(src_path2))
+        if os.path.isfile(dst_path):
+            if os.path.isfile(src_path2):
+                os.remove(dst_path)
+                os.symlink(os.path.relpath(src_path2,'main/resources/'),os.path.join('main/resources', os.path.basename(src_path2)))
+            else: return ()
+        else:
+            if os.path.isfile(src_path2):
+                os.symlink(os.path.relpath(src_path2,'main/resources/'),os.path.join('main/resources', os.path.basename(src_path2)))
+            else: return ()
 
 def run():
     copy_configs(supervisor_dir,env_dir, windows_dir)
