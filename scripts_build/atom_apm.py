@@ -19,7 +19,7 @@ third_party_path = ap.prep_path('../dist/third-party/')
 atom_home_path = ap.prep_path('../dist/user-config/atom')
 studio_package_name = "luna-studio"
 studio_atom_source_path = ap.prep_path("../luna-studio/atom")
-
+package_config_path = ap.prep_path("../config/packages")
 url = "http://10.62.1.34:8000/studio.zip"
 
 def apm_path(third_party_path):
@@ -69,9 +69,44 @@ def apm(third_party_path, atom_home_path, studio_package_name):
     output = popen.stdout.read()
     print(output)
 
+def list_packages(third_party_path, atom_home_path):
+    apm = apm_path(third_party_path)
+    os.environ['ATOM_HOME'] = atom_home_path
+    popen = subprocess.Popen((apm, 'list', '--installed', '--bare'), stdout=subprocess.PIPE)
+    popen.wait()
+    output = popen.stdout.read()
+    return output
+
+def apm_package(third_party_path, atom_home_path, package_name, package_version):
+    apm = apm_path(third_party_path)
+    os.environ['ATOM_HOME'] = atom_home_path
+    popen = subprocess.Popen((apm, 'install', package_name + '@' + package_version), stdout=subprocess.PIPE)
+    popen.wait()
+    output = popen.stdout.read()
+    print(output)
+
+
+def apm_packages(third_party_path, atom_home_path, package_config_path):
+    installed_packages = list_packages(third_party_path, atom_home_path)
+    with open(package_config_path) as f:
+        packages_list = f.read().splitlines()
+        for package in packages_list:
+            if str.encode(package.split()[0]) not in installed_packages:
+                apm_package(third_party_path, atom_home_path, package.split()[0], package.split()[1])
+            else:
+                if str.encode(package.split()[0] + '@' + package.split()[1]) in installed_packages:
+                    continue
+                else:
+                    apm = apm_path(third_party_path)
+                    os.environ['ATOM_HOME'] = atom_home_path
+                    popen = subprocess.Popen((apm, 'uninstall', package.split()[0]), stdout=subprocess.PIPE)
+                    popen.wait()
+                    output = popen.stdout.read()
+                    apm_package(third_party_path, atom_home_path, package.split()[0], package.split()[1])
 
 def run():
     apm(third_party_path, atom_home_path, studio_package_name)
+    apm_packages(third_party_path, atom_home_path,  package_config_path)
 
 if __name__ == '__main__':
     run()
