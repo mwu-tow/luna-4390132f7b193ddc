@@ -112,8 +112,8 @@ module.exports =
             @getBuffer().setText(text)
 
     setClipboard: (uri_send, text) =>
-        # if @uri == uri_send
-        #     atom.clipboard.write(text)
+        if @uri == uri_send
+            atom.clipboard.write(text)
 
     setBuffer: (uri_send, text) =>
         console.log(uri_send, @uri)
