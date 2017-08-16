@@ -15,25 +15,61 @@ LUNA_WELCOME_URI = 'atom://luna/welcome'
 
 module.exports = LunaStudio =
 
-    deserializeLunaEditorTab: ({uri}) ->
-        actStatus = (status) ->
-            if status == 'Init'
-                atom.workspace.open(uri, {split: "left"})
+    config:
+        showWelcomeScreen:
+            title: 'Welcome screen'
+            description: 'Show welcome screen on start up'
+            type: 'boolean'
+            default: true
+        preferredNodeEditorPosition:
+            title: 'Preferred pane for node editor'
+            type: 'string'
+            default: 'right'
+            enum: [
+                { value: 'left' , description: 'Left pane' }
+                { value: 'right', description: 'Right pane' }
+                { value: 'up'   , description: 'Upper pane' }
+                { value: 'down' , description: 'Lower pane' }
+            ]
+        preferredCodeEditorPosition:
+            title: 'Preferred pane for code editor'
+            type: 'string'
+            default: 'left'
+            enum: [
+                { value: 'left' , description: 'Left pane' }
+                { value: 'right', description: 'Right pane' }
+                { value: 'up'   , description: 'Upper pane' }
+                { value: 'down' , description: 'Lower pane' }
+            ]
+        typecolors_l:
+            title: 'Set L for LCH type colouring'
+            type: 'number'
+            default: 30
 
-        codeEditor.statusListener actStatus
+        typecolors_c:
+            title: 'Set C for LCH type colouring'
+            type: 'number'
+            default: 45
+
+        typecolors_h:
+            title: 'Set initial H for LCH type colouring'
+            type: 'number'
+            default: 100.7
+
 
     activate: (state) ->
         atom.grammars.addGrammar(new LunaSemanticGrammar(atom.grammars, codeEditor.lex))
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
         codeEditor.start()
-        atom.workspace.open(LUNA_WELCOME_URI, {split: "left"})
+        if atom.config.get('luna-studio.showWelcomeScreen')
+            atom.workspace.open(LUNA_WELCOME_URI, {split: "left"})
         actStatus = (act, uri, status) ->
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
                 if rootPath? and rootPath != ""
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
-                atom.workspace.open(LUNA_STUDIO_URI, {split: "right"})
+                atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
         codeEditor.statusListener actStatus
@@ -42,6 +78,13 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
+
+    deserializeLunaEditorTab: ({uri}) ->
+        actStatus = (status) ->
+            if status == 'Init'
+                atom.workspace.open(uri, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
+
+        codeEditor.statusListener actStatus
 
     lunaOpener: (uri) ->
         if uri is LUNA_STUDIO_URI

@@ -7,23 +7,30 @@ import           Common.Prelude
 import qualified Data.Text                                  as Text
 import qualified JS.GoogleAnalytics                         as GA
 import qualified JS.Searcher                                as Searcher
-import           Luna.Syntax.Text.Lexer                     (runGUILexer)
+import           Luna.Syntax.Text.Lexer                     (evalDefLexer)
 import           LunaStudio.Data.Geometry                   (snap)
+import           LunaStudio.Data.Matrix                     (invertedTranslationMatrix, translationMatrix)
 import           LunaStudio.Data.NodeLoc                    (NodeLoc, NodePath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import           LunaStudio.Data.PortRef                    (OutPortRef (OutPortRef))
+import           LunaStudio.Data.ScreenPosition             (move, x, y)
+import           LunaStudio.Data.Size                       (height, width)
 import           LunaStudio.Data.TypeRep                    (TypeRep (TCons))
+import           LunaStudio.Data.Vector2                    (Vector2 (Vector2))
 import           NodeEditor.Action.Basic                    (createNode, localClearSearcherHints, localUpdateSearcherHints, renameNode,
                                                              renamePort, setNodeExpression)
+import           NodeEditor.Action.Basic                    (modifyCamera)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.App                (renderIfNeeded)
 import           NodeEditor.Action.State.NodeEditor         (findSuccessorPosition, getExpressionNode, getPort, getSearcher,
                                                              getSelectedNodes, getSelectedNodes, modifyNodeEditor, modifySearcher)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
+import           NodeEditor.Action.State.Scene              (getScreenSize, translateToScreen)
 import           NodeEditor.Action.UUID                     (getUUID)
 import           NodeEditor.Event.Event                     (Event (Shortcut))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
+import           NodeEditor.React.Model.Constants           (searcherHeight, searcherWidth)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import qualified NodeEditor.React.Model.Port                as Port
@@ -83,6 +90,36 @@ open = do
 
 openWith :: Text -> Searcher.Mode -> Command State ()
 openWith input mode = do
+    mayNodePosAndTop <- case mode of
+        Searcher.Command  {} -> return Nothing
+        Searcher.PortName {} -> return Nothing
+        Searcher.NodeName nl _ -> do
+            maySearcherBottom <- mapM translateToScreen . fmap (view ExpressionNode.topPosition) =<< getExpressionNode nl
+            let maySearcherTop = move (Vector2 0 (-2 * searcherHeight)) <$> maySearcherBottom
+            return $ (,) <$> maySearcherBottom <*> maySearcherTop
+        Searcher.Node nl (Searcher.NodeModeInfo _ mayNewNodeData _) _ -> do
+            maySearcherBottom <- mapM translateToScreen =<< case mayNewNodeData of
+                Nothing -> (view ExpressionNode.topPosition) `fmap2` getExpressionNode nl
+                Just (Searcher.NewNode pos _) -> return . Just $ ExpressionNode.toNodeTopPosition pos
+            let maySearcherTop = move (Vector2 0 (-11 * searcherHeight)) <$> maySearcherBottom
+            return $ (,) <$> maySearcherBottom <*> maySearcherTop
+    mayScreenSize <- getScreenSize
+    withJust ((,) <$> mayNodePosAndTop <*> mayScreenSize) $ \((searcherBottom, searcherTop), screenSize) -> do
+        let overRightEdge = searcherTop ^. x + searcherWidth / 2 > screenSize ^. width
+            overLeftEdge  = searcherTop ^. x - searcherWidth / 2 < 0
+            overTopEdge   = searcherTop ^. y < 0
+            xShift = if searcherWidth > screenSize ^. width then Nothing
+                else if overRightEdge then Just $ searcherTop ^. x + searcherWidth / 2 - screenSize ^. width
+                else if overLeftEdge  then Just $ searcherTop ^. x - searcherWidth / 2
+                else Nothing
+            yShift = if searcherBottom ^. y - searcherTop ^. y > screenSize ^. height then Just $ searcherBottom ^. y - screenSize ^. height
+                else if overTopEdge then Just $ searcherTop ^. y
+                else Nothing
+            mayDelta = if isNothing xShift && isNothing yShift then Nothing else Just $ Vector2 (fromMaybe def xShift) (fromMaybe def yShift)
+        withJust mayDelta $ \delta ->
+            modifyCamera (invertedTranslationMatrix delta) (translationMatrix delta)
+    -- print mayNodePos
+    -- getScreenSize >>= print
     let action   = Searcher
         inputLen = Text.length input
     begin action
@@ -94,7 +131,7 @@ openWith input mode = do
 
 updateInput :: Text -> Int -> Int -> Searcher -> Command State ()
 updateInput input selectionStart selectionEnd action = do
-    let inputStream = runGUILexer $ convert input
+    let inputStream = evalDefLexer $ convert input
         newInput    = if selectionStart /= selectionEnd
                           then Searcher.Raw input
                       else if Text.null input
@@ -104,7 +141,7 @@ updateInput input selectionStart selectionEnd action = do
     m <- fmap2 (view Searcher.mode) $ getSearcher
     if      isNothing $ newInput ^? Searcher._Divided then clearHints action
     else if isJust $ maybe def (^? Searcher._Node) m  then do
-        case Searcher.findLambdaArgsAndEndOfLambdaArgs inputStream of
+        case Searcher.findLambdaArgsAndEndOfLambdaArgs (convert input) inputStream of
             Nothing             -> do
                 modifySearcher $ Searcher.mode %= Searcher.updateNodeArgs []
                 updateHints action

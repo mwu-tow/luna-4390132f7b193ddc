@@ -124,7 +124,7 @@ import           Empire.Empire
 import           Empire.Prelude                   hiding (toList)
 import qualified Luna.IR                          as IR
 import qualified Luna.IR.Term.Core                as Term
-import qualified Luna.Syntax.Text.Lexer.Name      as Lexer
+import qualified Luna.Syntax.Text.Lexer.Grammar   as Lexer
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
@@ -692,6 +692,15 @@ connect loc outPort anyPort = do
 
 connectPersistent :: GraphOp m => OutPortRef -> AnyPortRef -> m Connection
 connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst@(InPortRef (NodeLoc _ dstNodeId) dstPort)) = do
+    -- FIXME[MK]: passing the `generateNodeName` here is a hack arising from cyclic module deps. Need to remove together with modules refactoring.
+    whenM (not <$> ASTRead.isInputSidebar srcNodeId) $ do
+        ref   <- ASTRead.getASTRef srcNodeId
+        s     <- ASTRead.getCurrentBody
+        nodes <- AST.readSeq s
+        ASTBuilder.ensureNodeHasName generateNodeName srcNodeId
+        when (last nodes == ref) $ do
+            var <- ASTRead.getASTVar srcNodeId
+            setOutputTo var
     srcAst <- ASTRead.getASTOutForPort srcNodeId srcPort
     case dstPort of
         [] -> makeWhole srcAst dstNodeId
@@ -1108,7 +1117,7 @@ addMetadataToCode file = do
                             metaStart  = lastFunStart + len
                             metadataJSONWithHeaderAndOffset = Text.concat [Text.replicate metaOffset "\n", metadataJSONWithHeader]
                         Code.insertAt metaStart metadataJSONWithHeaderAndOffset
-                        meta <- IR.metadata metadataJSONWithHeader
+                        meta <- IR.metadata (convert metadataJSONWithHeader)
                         IR.putLayer @CodeSpan meta $ CodeSpan.mkRealSpan $ LeftSpacedSpan (SpacedSpan (fromIntegral metaOffset) (fromIntegral $ Text.length metadataJSONWithHeader))
 
                         IR.matchExpr unit $ \case

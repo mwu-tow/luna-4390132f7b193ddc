@@ -158,7 +158,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
                        " L0 "  <> r2   <> " A " <> r2   <> " " <> r2   <> " 1 0 " <> jsShow c <> " 0 -" <> r2   <> " Z "
     g_ [ "className" $= classes ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ])
+            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] ++ modeClass (p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 (-typeOffsetY1)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)

@@ -72,4 +72,4 @@ handleMouseWheel :: MouseEvent -> Vector2 Double -> Command State ()
 handleMouseWheel evt delta
     | Mouse.withoutMods evt Mouse.leftButton = panCamera delta
     | Mouse.withCtrl    evt Mouse.leftButton = flip wheelZoom delta =<< mousePosition evt
-    | otherwise                            = return ()
+    | otherwise                              = return ()

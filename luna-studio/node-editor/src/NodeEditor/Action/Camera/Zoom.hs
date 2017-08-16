@@ -49,7 +49,8 @@ restrictFactor scale factor
 -- restrictFactor scale factor = factor
 
 zoomCamera :: ScreenPosition -> Double -> Command State ()
-zoomCamera zoomCenter factor = do
+zoomCamera zoomCenter' factor = do
+    zoomCenter <- (zoomCenter' -) . fromMaybe def <$> getScreenCenter
     transformMatrix <- view (screenTransform . logicalToScreen) <$> getNodeEditor
     let s = restrictFactor (getElem 1 1 transformMatrix) factor
     modifyCamera (homothetyMatrix zoomCenter s) (invertedHomothetyMatrix zoomCenter s)

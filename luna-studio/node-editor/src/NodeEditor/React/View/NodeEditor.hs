@@ -110,6 +110,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                         planeNodes_ $ do
                             forM_ nodes $ \n -> node_ ref
                                                       n
+                                                      (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
                             forM_ visualizations $ nodeVisualization_ ref

@@ -15,12 +15,28 @@ import qualified Data.Color              as Color
 import           Data.Convert            (Convertible (convert))
 import           Data.Fixed              (mod')
 import           Data.Hashable           (hash)
+import           GHCJS.Marshal.Pure      (pFromJSVal, pToJSVal)
 import           LunaStudio.Data.TypeRep (TypeRep (..))
 
 
 newtype Color = Color { fromColor :: Int }
               deriving (Eq, Generic, Ord, Show, NFData)
 
+foreign import javascript safe "atom.config.get('luna-studio.typecolors_l')" colorL' :: JSVal -> JSVal
+foreign import javascript safe "atom.config.get('luna-studio.typecolors_c')" colorC' :: JSVal -> JSVal
+foreign import javascript safe "atom.config.get('luna-studio.typecolors_h')" colorH' :: JSVal -> JSVal
+
+{-# NOINLINE colorC #-}
+colorC :: Int -> Float
+colorC = fromMaybe 45 . pFromJSVal . colorC' . pToJSVal
+
+{-# NOINLINE colorL #-}
+colorL :: Int -> Float
+colorL = fromMaybe 30 . pFromJSVal . colorL' . pToJSVal
+
+{-# NOINLINE colorH #-}
+colorH :: Int -> Float
+colorH = fromMaybe 100.7 . pFromJSVal . colorH' . pToJSVal
 
 data HSL a = HSL { _h :: a
                  , _s :: a
@@ -40,9 +56,8 @@ buildHsl (Color i) = HSL (hue * 2.0 * pi) 0.6 0.5
 
 buildLCH :: Color -> Color.LCH
 buildLCH (Color 0) = Color.LCH 50  0 0 255
-buildLCH (Color i) = Color.LCH 30 45 h' 255 where
-    h'    = (start + delta * (fromIntegral i - 1)) `mod'` 360
-    start = 100.7
+buildLCH (Color i) = Color.LCH (colorL i) (colorC i) h' 255 where
+    h'    = (colorH i + delta * (fromIntegral i - 1)) `mod'` 360
     delta = 256/pi
 
 instance Convertible Color.LCH JSString where

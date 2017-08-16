@@ -473,7 +473,6 @@ spec = around withChannels $ parallel $ do
                 let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
                 u1 <- mkUUID
                 Graph.addNode (loc |>= foo) u1 "5" (atXPos (-10))
-                funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
                 u2 <- mkUUID
                 Graph.addNode (loc |>= bar) u2 "1" (atXPos (-10))
@@ -487,6 +486,39 @@ spec = around withChannels $ parallel $ do
                     «1»"bar"
                 def main:
                     «2»print bar
+                |]
+        it "connects anonymous node" $ \env -> do
+            let code = Text.pack $ normalizeQQ [r|
+                    def foo:
+                        n1 = _ * 5
+                        5
+
+                    def bar:
+                        "bar"
+
+                    def main:
+                        print bar
+                    |]
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc code
+                nodes <- Graph.getNodes loc
+                let Just foo = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                fooNodes <- Graph.getNodes (loc |>= foo)
+                let Just n1   = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "n1") fooNodes
+                    Just five = view Node.nodeId <$> find (\n -> n ^. Node.name == Nothing) fooNodes
+                Graph.connect (loc |>= foo) (outPortRef five []) (InPortRef' $ inPortRef n1 [Port.Arg 0])
+                Graph.withUnit loc $ use Graph.code
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                def foo:
+                    «0»n1 = number1 * 5
+                    «1»number1 = 5
+                    number1
+                def bar:
+                    «2»"bar"
+                def main:
+                    «3»print bar
                 |]
         it "adds node after connecting to output" $ \env -> do
             code <- evalEmp env $ do

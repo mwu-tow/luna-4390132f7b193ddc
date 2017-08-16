@@ -658,6 +658,13 @@ spec = around withChannels $ parallel $ do
                     , Port.Port [Port.Arg 1] "second1" TStar Port.Connected
                     , Port.Port [Port.Arg 2] "third1"  TStar Port.Connected
                     ]
+        it "connects id to itself" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "id" def
+                connectToInput top (outPortRef u1 []) (inPortRef u1 [Port.Arg 0])
+                Graph.getConnections top
+            res `shouldBe` [(OutPortRef (convert u1) [], InPortRef (convert u1) [Port.Arg 0])]
     describe "port manipulation" $ do
         let buildInputEdge' loc nid = Graph.withGraph loc $ runASTOp $ GraphBuilder.buildInputSidebar nid
         it "adds port" $ \env -> do

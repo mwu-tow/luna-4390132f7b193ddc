@@ -1145,3 +1145,54 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.movePort loc (outPortRef input [Port.Projection 1]) 0
+        it "connect to left section" $ let
+            initialCode = [r|
+                def main:
+                    «0»p1 = *5
+                    «1»n1 = 5
+                    n1
+                |]
+            expectedCode = [r|
+                def main:
+                    p1 = n1*5
+                    n1 = 5
+                    n1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just p1, Just n1] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0,1]
+                Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 0])
+        it "connect to left section and disconnect" $ let
+            initialCode = [r|
+                def main:
+                    «0»p1 = *5
+                    «1»n1 = 5
+                    n1
+                |]
+            expectedCode = [r|
+                def main:
+                    p1 = _*5
+                    n1 = 5
+                    n1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just p1, Just n1] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0,1]
+                Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 0])
+                Graph.disconnect loc (inPortRef p1 [Port.Arg 0])
+        it "connect, disconnect and connect to second argument of left section" $ let
+            initialCode = [r|
+                def main:
+                    «0»p1 = *5
+                    «1»n1 = 5
+                    n1
+                |]
+            expectedCode = [r|
+                def main:
+                    p1 = _*n1
+                    n1 = 5
+                    n1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just p1, Just n1] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0,1]
+                Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 0])
+                Graph.disconnect loc (inPortRef p1 [Port.Arg 0])
+                Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 1])

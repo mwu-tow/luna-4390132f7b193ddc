@@ -192,7 +192,7 @@ getExpressionNodesByIds location nids = filter (\n -> Set.member (n ^. Node.node
     nidsSet = Set.fromList nids
 
 constructResult :: GraphAPI.Graph -> GraphAPI.Graph -> Result.Result
-constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds updatedInGraph where
+constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds (Right updatedInGraph) where
     updatedInGraph = GraphAPI.Graph updatedNodes updatedConns updatedInputSidebar updatedOutputSidebar []
     oldNodesMap    = Map.fromList . map (view Node.nodeId &&& id) $ oldGraph ^. GraphAPI.nodes
     newNodeIdsSet  = Set.fromList . map (view Node.nodeId) $ newGraph ^. GraphAPI.nodes
@@ -208,7 +208,7 @@ constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds 
         then newGraph ^. GraphAPI.outputSidebar else Nothing
 
 handleASTException :: Empire a -> Empire (Either SomeASTException a)
-handleASTException act = handle (return . Left) (Right <$> act)
+handleASTException act = try act
 
 withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
 withDefaultResult' getFinalGraph location action = do
@@ -216,11 +216,11 @@ withDefaultResult' getFinalGraph location action = do
     void action
     newGraph <- handleASTException $ getFinalGraph location
     return $ case (oldGraph, newGraph) of
-        (Left _, Right g)    -> Result.Result def def g
-        (Left _, Left _)     -> def
-        (Right g, Left _)    -> Result.Result (g ^.. GraphAPI.nodes . traverse . Node.nodeId)
+        (Left _, Right g)    -> Result.Result def def (Right g)
+        (Left _, Left exc)   -> def & Result.graphUpdates .~ Left (displayException exc)
+        (Right g, Left exc)  -> Result.Result (g ^.. GraphAPI.nodes . traverse . Node.nodeId)
                                               (g ^.. GraphAPI.connections . traverse . _2)
-                                              def
+                                              (Left (displayException exc))
         (Right og, Right ng) -> constructResult og ng
 
 

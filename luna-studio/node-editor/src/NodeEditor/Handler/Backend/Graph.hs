@@ -79,15 +79,18 @@ applyResultPreventingExpressionNodesPorts gl res = do
 
 applyResult' :: Bool -> Result.Result -> NodePath -> Command State ()
 applyResult' preventPorts res path = do
-    let exprNodeUpdateFunction = if preventPorts then localUpdateOrAddExpressionNodePreventingPorts else localUpdateOrAddExpressionNode
-    void $ localRemoveNodes       . map (convert . (path,)) $ res ^. Result.removedNodes
-    void $ localRemoveConnections . map (prependPath path)  $ res ^. Result.removedConnections
-    mapM_ (exprNodeUpdateFunction . convert . (path,)) $ res ^. Result.graphUpdates . Graph.nodes
-    void $ localAddConnections . map (\(src', dst') -> (prependPath path src', prependPath path dst')) $ res ^. Result.graphUpdates . Graph.connections
-    let inputSidebar  = res ^. Result.graphUpdates . Graph.inputSidebar
-        outputSidebar = res ^. Result.graphUpdates . Graph.outputSidebar
-    when (isJust inputSidebar)  $ forM_ inputSidebar  $ localUpdateOrAddInputNode  . convert . (path,)
-    when (isJust outputSidebar) $ forM_ outputSidebar $ localUpdateOrAddOutputNode . convert . (path,)
+    case res ^. Result.graphUpdates of
+        Left errMsg -> setGraphStatus $ GraphError errMsg
+        Right graphUpdates -> do
+            let exprNodeUpdateFunction = if preventPorts then localUpdateOrAddExpressionNodePreventingPorts else localUpdateOrAddExpressionNode
+            void $ localRemoveNodes       . map (convert . (path,)) $ res ^. Result.removedNodes
+            void $ localRemoveConnections . map (prependPath path)  $ res ^. Result.removedConnections
+            mapM_ (exprNodeUpdateFunction . convert . (path,)) $ graphUpdates ^. Graph.nodes
+            void $ localAddConnections . map (\(src', dst') -> (prependPath path src', prependPath path dst')) $ graphUpdates ^. Graph.connections
+            let inputSidebar  = graphUpdates ^. Graph.inputSidebar
+                outputSidebar = graphUpdates ^. Graph.outputSidebar
+            when (isJust inputSidebar)  $ forM_ inputSidebar  $ localUpdateOrAddInputNode  . convert . (path,)
+            when (isJust outputSidebar) $ forM_ outputSidebar $ localUpdateOrAddOutputNode . convert . (path,)
 
 checkBreadcrumb :: Result.Result -> Command State ()
 checkBreadcrumb res = do
@@ -157,7 +160,10 @@ handle (Event.Batch ev) = Just $ case ev of
         success result = do
             applyResult location result
             inCurrentLocation location $ \path -> whenM (isOwnRequest requestId) $
-                collaborativeModify $ map (convert . (path,) . view nodeId) $ result ^. Result.graphUpdates . Graph.nodes
+                case result ^. Result.graphUpdates of
+                    Right graphUpdates ->
+                        collaborativeModify $ map (convert . (path,) . view nodeId) $ graphUpdates ^. Graph.nodes
+                    Left _ -> return ()
 
     AutolayoutNodesResponse response -> handleResponse response success doNothing where
         location = response ^. Response.request . AutolayoutNodes.location

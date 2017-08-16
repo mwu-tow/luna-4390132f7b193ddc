@@ -9,7 +9,7 @@ import           Prologue
 
 data Result = Result { _removedNodes       :: [NodeId]
                      , _removedConnections :: [ConnectionId]
-                     , _graphUpdates       :: Graph
+                     , _graphUpdates       :: Either String Graph
                      } deriving (Eq, Generic, Show)
 
 makeLenses ''Result
@@ -17,4 +17,4 @@ instance Binary Result
 instance NFData Result
 
 instance Default Result where
-    def = Result def def def
+    def = Result def def (Right def)

@@ -26,8 +26,10 @@ import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta (NodeMeta))
 import qualified LunaStudio.Data.NodeMeta                 as NodeMeta
 import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer)
-import           LunaStudio.Data.Position                 (Position)
+import           LunaStudio.Data.Position                 (Position, move)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
+import           LunaStudio.Data.Vector2                  (Vector2 (Vector2))
+import           NodeEditor.React.Model.Constants         (nodeRadius)
 import           NodeEditor.React.Model.IsNode            as X
 import           NodeEditor.React.Model.Node.SidebarNode  (InputNode, OutputNode)
 import           NodeEditor.React.Model.Port              (InPort, InPortTree, OutPort, OutPortTree)
@@ -97,7 +99,7 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- isDefinition              -} (n ^. Empire.isDefinition)
         {- inPorts                   -} (convert <$> n ^. Empire.inPorts)
         {- outPorts                  -} (convert <$> n ^. Empire.outPorts)
-        {- argConstructorHighlighted -} def
+        {- argConstructorHighlighted -} Port.Invisible
         {- canEnter                  -} (n ^. Empire.canEnter)
         {- position                  -} (n ^. Empire.position)
         {- defaultVisualizer         -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
@@ -134,6 +136,13 @@ instance HasPorts ExpressionNode where
     outPortsList = Port.outPortTreeLeafs . view outPorts
     inPortAt  pid = inPorts . ix pid
     outPortAt pid = outPorts . ix pid
+
+--TODO[LJK, JK]: return precise value here
+toNodeTopPosition :: Position -> Position
+toNodeTopPosition = move (Vector2 0 (-2 * nodeRadius))
+
+topPosition :: Getter ExpressionNode Position
+topPosition = to $ toNodeTopPosition . view position
 
 mkExprNode :: NodeLoc -> Text -> Position -> ExpressionNode
 mkExprNode nl expr pos = convert (nl ^. NodeLoc.path, Empire.mkExprNode (nl ^. NodeLoc.nodeId) expr pos)
@@ -189,3 +198,8 @@ containsNode nl nlToCheck = inSubgraph False $ NodeLoc.toNodeIdList nl where
     inSubgraph parentNidVisited (nid : nids) = do
         let visited = parentNidVisited || parentNid == nid
         if visited && nidToCheck == nid then True else inSubgraph visited nids
+
+isAnyPortHighlighted :: ExpressionNode -> Bool
+isAnyPortHighlighted n = (any Port.isHighlighted $ inPortsList n)
+                      || (any Port.isHighlighted $ outPortsList n)
+                      || Port.Highlighted == n ^. argConstructorMode
