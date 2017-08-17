@@ -17,7 +17,9 @@ import Control.Lens
 import Control.Monad.State.Layered
 import Data.ByteString.Lazy  (unpack)
 import Data.List.Split
+import Data.Semigroup ((<>))
 import Filesystem.Path
+import Options.Applicative
 import System.Directory (doesDirectoryExist, setCurrentDirectory, getHomeDirectory, getCurrentDirectory, createDirectoryIfMissing)
 import System.Exit (ExitCode)
 import System.Process.Typed (shell, runProcess, runProcess_, setWorkingDir, setEnv, readProcess_)
@@ -163,6 +165,14 @@ userStudioAtomHome = do
     v         <- version
     return $ decodeString home </> (runnerCfg ^. mainHomeDir) </> (runnerCfg ^. configHomeFolder) </> fromText (runnerCfg ^. appName) </> fromText v
 
+localLogsDirectory :: (MonadRun m, MonadIO m) => m FilePath
+localLogsDirectory = do
+    main <- mainAppDir
+    return $  main </> decodeString "logs"
+
+
+
+
 userLogsDirectory :: (MonadRun m, MonadIO m) => m FilePath
 userLogsDirectory = do
     runnerCfg <- get @RunnerConfig
@@ -190,28 +200,74 @@ checkLunaHome = do
         True -> return ()
         False -> copyLunaStudio
 
-runLunaEmpireMacOS :: (MonadRun m, MonadIO m) => m ()
-runLunaEmpireMacOS = do
+runLunaEmpireMacOS :: (MonadRun m, MonadIO m) => FilePath -> T.Text -> m ()
+runLunaEmpireMacOS logs configFile = do
     lunaSupervisor <- backendDir
     supervisord    <- supervisordBinPath
-    logs           <- userLogsDirectory
     Shelly.shelly $ Shelly.mkdir_p logs
-    runProcess_ $ setWorkingDir (encodeString lunaSupervisor) $ shell ((encodeString supervisord) ++ " -n -c supervisord-mac.conf") -- done with system.process.typed because with shelly clicking on app in launchpad returned abnormal exit code
+    runProcess_ $ setWorkingDir (encodeString lunaSupervisor) $ shell ((encodeString supervisord) ++ " -n -c " ++ (T.unpack configFile)) -- done with system.process.typed because with shelly clicking on app in launchpad returned abnormal exit code
 
 
-runLunaEmpire :: (MonadRun m, MonadIO m) => m ()
-runLunaEmpire = do
+runLunaEmpire :: (MonadRun m, MonadIO m) => FilePath -> T.Text -> m ()
+runLunaEmpire logs configFile = do
     lunaSupervisor <- backendDir
     supervisord    <- supervisordBinPath
-    logs           <- userLogsDirectory
     Shelly.shelly $ Shelly.mkdir_p logs
     Shelly.shelly $ do
         Shelly.cd lunaSupervisor
-        Shelly.cmd supervisord "-n" "-c" "supervisord-linux.conf"
+        Shelly.cmd supervisord "-n" "-c" configFile
 
+runFrontend :: (MonadRun m, MonadIO m) => m ()
+runFrontend = do
+    atomHome    <- packageStudioAtomHome
+    atom        <- atomAppPath
+    liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
+    case currentHost of
+        Darwin -> do
+            Shelly.shelly $ Shelly.cmd atom "-w"
+        Linux -> do
+            Shelly.shelly $ Shelly.cmd atom "-w"
+        Windows -> liftIO $ print "Unsupported system"
 
-run :: (MonadRun m, MonadIO m) => m ()
-run = case currentHost of
+runBackend :: (MonadRun m, MonadIO m) => m ()
+runBackend = do
+    logs        <- localLogsDirectory
+    backendBins <- backendBinsPath
+    config      <- configPath
+    liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
+    liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
+    liftIO $ Environment.setEnv "CONFIG" (encodeString config)
+    case currentHost of
+        Darwin -> do
+            runLunaEmpireMacOS logs "supervisord.conf"
+        Linux -> do
+            runLunaEmpire logs "supervisord.conf"
+        Windows -> liftIO $ print "Unsupported system"
+
+runLocal :: (MonadRun m, MonadIO m) => m ()
+runLocal = do
+    atomHome    <- packageStudioAtomHome
+    logs        <- localLogsDirectory
+    backendBins <- backendBinsPath
+    atom        <- atomAppPath
+    config      <- configPath
+    kill        <- killSupervisorBinPath
+    liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
+    liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
+    liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
+    liftIO $ Environment.setEnv "ATOM" (encodeString atom)
+    liftIO $ Environment.setEnv "CONFIG" (encodeString config)
+    liftIO $ Environment.setEnv "KILL" (encodeString kill)
+    case currentHost of
+        Darwin -> do
+            runLunaEmpireMacOS logs "supervisord-mac.conf"
+        Linux -> do
+            runLunaEmpire logs "supervisord-linux.conf"
+
+        Windows -> liftIO $ print "Unsupported system"
+
+runPackage :: (MonadRun m, MonadIO m) => m ()
+runPackage = case currentHost of
     Darwin -> do
         atomHome    <- userStudioAtomHome
         logs        <- userLogsDirectory
@@ -226,7 +282,7 @@ run = case currentHost of
         liftIO $ Environment.setEnv "CONFIG" (encodeString config)
         liftIO $ Environment.setEnv "KILL" (encodeString kill)
         checkLunaHome
-        runLunaEmpireMacOS
+        runLunaEmpireMacOS logs "supervisord-mac.conf"
     Linux -> do
         atomHome    <- userStudioAtomHome
         logs        <- userLogsDirectory
@@ -241,7 +297,7 @@ run = case currentHost of
         liftIO $ Environment.setEnv "CONFIG" (encodeString config)
         liftIO $ Environment.setEnv "KILL" (encodeString kill)
         checkLunaHome
-        runLunaEmpire
+        runLunaEmpire logs "supervisord-linux.conf"
 
     Windows -> do
         atomHome <- userStudioAtomHome
@@ -250,6 +306,42 @@ run = case currentHost of
         liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
         Shelly.shelly $ Shelly.cmd atom
 
+runApp :: (MonadRun m, MonadIO m) => m ()
+runApp = do
+    v <- version
+    if v == "develop" then runLocal else runPackage
+
+data Options = Options
+    { frontend :: Bool
+    , backend  :: Bool
+    , atom     :: Maybe String} deriving Show
+
+
+optionParser :: Parser Options
+optionParser = Options
+    <$> switch (long "frontend" <> short 'f')
+    <*> switch (long "backend" <> short 'b')
+    <*> (optional $ strOption $ long "atom" <> short 'a')
+
+
+
+run :: (MonadIO m) => Options -> m ()
+run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
+    case atom of
+        Just arg -> liftIO $ Environment.setEnv "ATOM_ARG" arg
+        Nothing  -> return ()
+    if frontend && backend
+        then runApp --liftIO $ print "use just one or dont use any"
+        else if  frontend
+            then runFrontend
+            else if backend
+                then runBackend
+                else runApp
+
+
 
 main :: IO ()
-main = evalDefHostConfigs @'[RunnerConfig] $ run
+main =  do
+    opt <- execParser (info optionParser fullDesc)
+    print opt
+    run opt

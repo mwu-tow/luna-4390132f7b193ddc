@@ -15,6 +15,7 @@ dependencies:
     - bytestring
     - directory
     - exceptions
+    - optparse-applicative
     - path
     - split
     - shelly
