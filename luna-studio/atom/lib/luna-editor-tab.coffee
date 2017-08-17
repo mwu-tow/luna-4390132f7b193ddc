@@ -86,22 +86,20 @@ module.exports =
             'core:paste': (e) => @handlePaste(e)
             'core:save':  (e) => @handleSave(e)
 
+    spans: =>
+        buffer = @getBuffer()
+        [buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition),
+         buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort() for s in @getSelections()
+
     handleCopy: (e) =>
         # e.preventDefault()
         # e.stopImmediatePropagation()
-        buffer     = @getBuffer()
-        selections = @getSelections()
-        spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _maySelections: spanList)
-
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _maySelections: @spans())
 
     handlePaste: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        buffer     = @getBuffer()
-        selections = @getSelections()
-        spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
-        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: spanList, _content: atom.clipboard.read())
+        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: @spans(), _content: atom.clipboard.read())
 
     handleSave: (e) =>
         e.preventDefault()
