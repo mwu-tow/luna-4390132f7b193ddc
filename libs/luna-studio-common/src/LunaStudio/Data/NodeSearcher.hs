@@ -12,7 +12,7 @@ import           Prologue                hiding (Item)
 import           Text.ScopeSearcher.Item as X
 
 mockNode :: Text -> ExpressionNode
-mockNode expr = mkExprNode (fromJust $ UUID.fromString "094f9784-3f07-40a1-84df-f9cf08679a27") expr def
+mockNode expr = mkExprNode (unsafeFromJust $ UUID.fromString "094f9784-3f07-40a1-84df-f9cf08679a27") expr def
 
 entry :: Text -> (Text, Item ExpressionNode)
 entry name = (name, Element $ mockNode name)
