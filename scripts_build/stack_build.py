@@ -42,8 +42,8 @@ def build_runner(runner):
         subprocess.check_output(['stack', 'build', '--copy-bins'])
     else: print("unknown system")
 
-def build_backend(backend):
-    os.chdir(backend)
+def build_backend():
+    os.chdir(backend_dir)
     subprocess.check_output(['stack', 'build', '--copy-bins'])
 
 def mv_runner(runner):
@@ -83,7 +83,7 @@ def run():
     build_runner(runner_dir)
     mv_runner(runner_dir)
     build_ghcjs(frontend_dir)
-    build_backend(backend_dir)
+    build_backend()
     link_main_bin ()
 
 if __name__ == '__main__':

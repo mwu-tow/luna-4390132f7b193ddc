@@ -4,6 +4,7 @@ import scripts_build.atom_prepare
 import scripts_build.atom_apm
 import scripts_build.copy_configs
 import scripts_build.stack_build
+import argparse
 import os
 import subprocess
 
@@ -11,7 +12,9 @@ app_dir      = scripts_build.atom_prepare.prep_path('..')
 backend_dir  = scripts_build.atom_prepare.prep_path('../build/backend')
 frontend_dir = scripts_build.atom_prepare.prep_path('../luna-studio')
 
-def main ():
+
+
+def build_app ():
     try:
         scripts_build.stack_build.run()
         scripts_build.atom_prepare.run()
@@ -21,5 +24,22 @@ def main ():
     except subprocess.CalledProcessError:
         print("Status : FAIL")
 
+def build_backend ():
+    try:
+        scripts_build.stack_build.create_bin_dirs()
+        scripts_build.stack_build.build_backend()
+        scripts_build.stack_build.link_main_bin ()
+
+    except subprocess.CalledProcessError:
+        print("Status : FAIL")
+
+def main ():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", help="build just backend", action="store_true")
+    args = parser.parse_args()
+
+    if args.backend:
+        build_backend ()
+    else: build_app ()
 
 main()
