@@ -4,9 +4,8 @@
 {-# LANGUAGE TypeFamilies      #-}
 module LunaStudio.Data.Vector2 where
 
-import           Data.Binary (Binary)
+import           Data.Binary         (Binary)
 import           Prologue
-
 
 --TODO[react]: Consider change Vector2 -> V2: https://hackage.haskell.org/package/linear-1.20.5/docs/Linear-V2.html
 
@@ -70,10 +69,10 @@ instance Num a => Num (Vector2 a) where
     fromInteger i                     = let val = fromInteger i in Vector2 val val
 
 type instance Item (Vector2 a) = a
-instance ToList    (Vector2 a) where toList vec = [vec ^. x, vec ^. y]
-instance FromList  (Vector2 a) where
-    fromList [x',y'] = Vector2 x' y'
-    fromList _       = $(placeholder "List must be of length 2 to create Vector2.")
+instance Convertible (Vector2 a) [a] where convert vec = [vec ^. x, vec ^. y]
+instance Convertible [a] (Vector2 a) where
+    convert [x',y'] = Vector2 x' y'
+    convert _       = error "List must be of length 2 to create Vector2."
 
 instance Applicative Vector2 where
     pure v                            = Vector2 v v

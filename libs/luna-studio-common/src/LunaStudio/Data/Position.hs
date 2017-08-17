@@ -31,8 +31,8 @@ instance IsVector  Position
 instance Binary Position
 
 type instance Item Position = Double
-instance ToList    Position where toList = toList . view vector
-instance FromList  Position where fromList = Position . fromList
+instance Convertible Position [Double] where convert = toList . view vector
+instance Convertible [Double] Position where convert = Position . fromList
 
 -- === Functions === ---
 
