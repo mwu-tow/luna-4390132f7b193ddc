@@ -12,7 +12,7 @@ type Prefix = String
 prefixify :: Prefix -> Topic -> Topic
 prefixify prefix topic = if null prefix
     then topic
-    else prefix ++ "." ++ topic
+    else prefix <> "." <> topic
 
 
 prefixifyTopics :: Prefix -> [(Topic, a)] -> [(Topic, a)]

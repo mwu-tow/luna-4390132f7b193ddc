@@ -17,4 +17,4 @@ type Error = String
 run :: MonadIO m => RPC r -> m (Either Error r)
 run action = do
     result <- liftIO $ (try :: IO a -> IO (Either SomeException a)) $ runExceptT action
-    return $ join $ fmapL (\exception -> "Unhandled exception: " ++ show exception) result
+    return $ join $ fmapL (\exception -> "Unhandled exception: " <> show exception) result

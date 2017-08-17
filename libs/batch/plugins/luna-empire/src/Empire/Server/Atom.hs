@@ -67,9 +67,9 @@ handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
                     path <- Path.parseAbsFile inPath
                     let dir  = Path.toFilePath $ Path.parent path
                         file = Path.toFilePath $ Path.filename path
-                    liftIO $ Temp.withTempFile dir (file ++ ".tmp") $ \tmpFile handle -> do
+                    liftIO $ Temp.withTempFile dir (file <> ".tmp") $ \tmpFile handle -> do
                         Text.hPutStr handle source
-                        Dir.renameFile (Path.toFilePath path) (Path.toFilePath path ++ ".backup")
+                        Dir.renameFile (Path.toFilePath path) (Path.toFilePath path <> ".backup")
                         Dir.renameFile tmpFile (Path.toFilePath path)
                     replyOk req ()
 
@@ -78,4 +78,4 @@ handleCloseFile (Request _ _ (CloseFile.Request path)) = do
     Env.empireEnv . Empire.activeFiles . at path .= Nothing
 
 handleIsSaved :: Request IsSaved.Request -> StateT Env BusT ()
-handleIsSaved (Request _ _ _) = $notImplemented
+handleIsSaved (Request _ _ _) = $_NOT_IMPLEMENTED

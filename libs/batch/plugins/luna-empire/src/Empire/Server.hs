@@ -112,7 +112,7 @@ runBus formatted projectRoot = do
 prepareStdlib :: IO (Scope, Empire.SymbolMap, IO ())
 prepareStdlib = do
     lunaroot       <- canonicalizePath =<< getEnv "LUNAROOT"
-    (cleanup, std) <- Typecheck.createStdlib $ lunaroot ++ "/Std/"
+    (cleanup, std) <- Typecheck.createStdlib $ lunaroot <> "/Std/"
     return (std, Typecheck.getSymbolMap std, cleanup)
 
 startTCWorker :: Empire.CommunicationEnv -> MVar (GraphLocation, ClsGraph, Bool) -> MVar Empire.SymbolMap -> Bus ()
@@ -181,7 +181,7 @@ handleMessage :: StateT Env BusT ()
 handleMessage = do
     msgFrame <- lift $ BusT Bus.receive'
     case msgFrame of
-        Left err -> logger Logger.error $ "Unparseable message: " ++ err
+        Left err -> logger Logger.error $ "Unparseable message: " <> err
         Right (MessageFrame msg crlID senderID lastFrame) -> do
             let topic = msg ^. Message.topic
                 logMsg = show (crlID ^. Message.messageID) <> ": " <> show senderID

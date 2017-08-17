@@ -41,7 +41,7 @@ request = "request"
 
 
 base :: Topic -> Topic
-base = List.intercalate separator . init . Utils.split separator
+base = List.intercalate separator . unsafeInit . Utils.split separator
 
 -- FIXME[WD->PM]: MONOIDS!!!
 -- | Replace last part of topic
@@ -51,7 +51,7 @@ topic /+ type_ = respond topic type_
 
 respond :: Topic -> Topic -> Topic
 respond topic type_ =
-    (List.intercalate separator . flip (++) [type_] . init . Utils.split separator) topic
+    (List.intercalate separator . flip (<>) [type_] . unsafeInit . Utils.split separator) topic
 
 
 isRequest :: Topic -> Bool

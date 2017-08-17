@@ -32,7 +32,7 @@ encode = Char8.pack . show
 
 
 decode :: Read a => ByteString -> a
-decode = read . Char8.unpack
+decode = unsafeRead . Char8.unpack
 
 
 toByteString :: MessageFrame -> ByteString
@@ -58,7 +58,7 @@ fromByteString bs = case splitFirsts 6 separator bs of
                                   (M.CorrelationID (decode clientID) (decode messageID))
                                   (decode senderID')
                                   (decode lastFrame')
-    wrong -> Left $ "Cannot parse message" ++ show wrong
+    wrong -> Left $ "Cannot parse message" <> show wrong
 
 
 splitFirsts :: Int -> Char -> ByteString -> [ByteString]

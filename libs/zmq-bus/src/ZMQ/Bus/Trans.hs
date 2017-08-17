@@ -7,7 +7,7 @@ module ZMQ.Bus.Trans where
 import           Control.Monad.IO.Class
 import           Control.Monad.Catch           (MonadThrow)
 
-import           Prologue
+import           Prologue               hiding (liftIO)
 import           ZMQ.Bus.Bus            (Bus)
 
 

@@ -36,7 +36,7 @@ main = do
     when (args `isPresent` command "runOnIdle") $ do
         time       <- args `getArgOrExit` argument "seconds"
         script     <- args `getArgOrExit` argument "script"
-        runOnIdle endPoints projectRoot (read time) script
+        runOnIdle endPoints projectRoot (unsafeRead time) script
 
 runOnIdle :: EP.BusEndPoints -> FilePath -> Integer -> FilePath -> IO ()
 runOnIdle endPoints projectRoot time script = do

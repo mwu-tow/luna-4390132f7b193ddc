@@ -65,36 +65,36 @@ main = do
         expr      <- args `getArgOrExit` argument "expression"
         x         <- args `getArgOrExit` argument "x"
         y         <- args `getArgOrExit` argument "y"
-        addNode endPoints (toGraphLocation file) (read nodeId) expr (read x) (read y)
+        addNode endPoints (toGraphLocation file) (unsafeRead nodeId) expr (unsafeRead x) (unsafeRead y)
     when (args `isPresent` command "removeNode") $ do
         file      <- args `getArgOrExit` argument "file"
         nodeId    <- args `getArgOrExit` argument "nodeId"
-        removeNode endPoints (toGraphLocation file) (read nodeId)
+        removeNode endPoints (toGraphLocation file) (unsafeRead nodeId)
     when (args `isPresent` command "setNodeMeta") $ do
         file      <- args `getArgOrExit` argument "file"
         nodeId    <- args `getArgOrExit` argument "nodeId"
         x         <- args `getArgOrExit` argument "x"
         y         <- args `getArgOrExit` argument "y"
         req       <- args `getArgOrExit` argument "req"
-        setNodeMeta endPoints (toGraphLocation file) (read nodeId) (read x) (read y) (read req)
+        setNodeMeta endPoints (toGraphLocation file) (unsafeRead nodeId) (unsafeRead x) (unsafeRead y) (unsafeRead req)
     when (args `isPresent` command "connect") $ do
         file      <- args `getArgOrExit` argument "file"
         srcNodeId <- args `getArgOrExit` argument "srcNodeId"
         outPort   <- args `getArgOrExit` argument "outPort"
         dstNodeId <- args `getArgOrExit` argument "dstNodeId"
         inPort    <- args `getArgOrExit` argument "inPort"
-        connect endPoints (toGraphLocation file) (read srcNodeId) (read outPort) (read dstNodeId) (read inPort)
+        connect endPoints (toGraphLocation file) (unsafeRead srcNodeId) (unsafeRead outPort) (unsafeRead dstNodeId) (unsafeRead inPort)
     when (args `isPresent` command "disconnect") $ do
         file      <- args `getArgOrExit` argument "file"
         dstNodeId <- args `getArgOrExit` argument "dstNodeId"
         inPort    <- args `getArgOrExit` argument "inPort"
-        disconnect endPoints (toGraphLocation file) (read dstNodeId) (read inPort)
+        disconnect endPoints (toGraphLocation file) (unsafeRead dstNodeId) (unsafeRead inPort)
     when (args `isPresent` command "setValue") $ do
         file      <- args `getArgOrExit` argument "file"
         nodeId    <- args `getArgOrExit` argument "nodeId"
         portId    <- args `getArgOrExit` argument "portId"
         value     <- args `getArgOrExit` argument "value"
-        setPortValue endPoints (toGraphLocation file) (read nodeId) (read portId) (read value)
+        setPortValue endPoints (toGraphLocation file) (unsafeRead nodeId) (unsafeRead portId) (unsafeRead value)
     when (args `isPresent` command "getProgram") $ do
         file      <- args `getArgOrExit` argument "file"
         getProgram endPoints (toGraphLocation file)
@@ -105,12 +105,12 @@ main = do
         pid       <- args `getArgOrExit` argument "pid"
         path      <- args `getArgOrExit` argument "path"
         let name   = args `getArg`       argument "name"
-        createLibrary endPoints (read pid) name path
+        createLibrary endPoints (unsafeRead pid) name path
     when (args `isPresent` command "projects") $
         listProjects endPoints
     when (args `isPresent` command "libraries") $ do
         pid       <- args `getArgOrExit` argument "pid"
-        listLibraries endPoints $ read pid
+        listLibraries endPoints $ unsafeRead pid
     when (args `isPresent` command "graphviz") $ do
         file      <- args `getArgOrExit` argument "file"
         environmentDumpGraphviz endPoints $ toGraphLocation file
