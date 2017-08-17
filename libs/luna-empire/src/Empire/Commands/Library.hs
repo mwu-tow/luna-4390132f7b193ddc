@@ -8,8 +8,8 @@ module Empire.Commands.Library
     ) where
 
 import           Control.Monad.Except    (throwError)
-import           Control.Monad.Reader
-import           Control.Monad.State
+import           Control.Monad.Reader    hiding (liftIO)
+import           Control.Monad.State     hiding (liftIO)
 import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
@@ -34,18 +34,18 @@ createLibrary :: Maybe String -> FilePath -> Empire Library
 createLibrary name path = do
     library <- liftIO $ make name path
     Empire.activeFiles . at path ?= library
-    return library
+    pure library
 
 make :: Maybe String -> FilePath -> IO Library
 make name path = do
     clsGraph <- Graph.defaultClsGraph
-    return $ Library.Library name path clsGraph
+    pure $ Library.Library name path clsGraph
 
 
 listLibraries :: Empire [Library]
 listLibraries = do
     files <- use Empire.activeFiles
-    return $ Map.elems files
+    pure $ Map.elems files
 
 data LibraryNotFoundException = LibraryNotFoundException FilePath
     deriving (Show)
@@ -66,10 +66,10 @@ withLibrary file cmd = do
                 Empire.empire $ const $ const result
                 -- (result, state) <- liftIO $ Empire.runEmpire notifEnv lib cmd
                 -- put $ Just state
-                -- -- return result
+                -- -- pure result
                 -- Empire.empire $ const $ const result
 --
 -- getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
 -- getBuffer path Nothing = withLibrary path $ do
 --     source <- use $ Library.body . Graph.code
---     return source
+--     pure source

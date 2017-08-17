@@ -112,7 +112,7 @@ getLamItems hierarchy = goParent hierarchy
         goBChild nodeId (ExprChild exprItem)  = goExprItem nodeId exprItem
         goBChild nodeId (LambdaChild lamItem) = goLamItem (Just (nodeId, Nothing)) lamItem
 
-        goLamItem idArg lamItem = first ++ concatMap (\(a, b) -> goBChild a b) (Map.assocs $ lamItem ^. children)
+        goLamItem idArg lamItem = first <> concatMap (\(a, b) -> goBChild a b) (Map.assocs $ lamItem ^. children)
             where
                 first = case idArg of
                     Just a -> [(a, lamItem)]

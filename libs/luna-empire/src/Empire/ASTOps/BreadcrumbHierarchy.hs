@@ -119,7 +119,7 @@ prepareFunctionChild marked ref = do
             return (args, b)
     body         <- IR.source bodyLink
     Just codeBeg <- Code.getOffsetRelativeToFile ref
-    forM_ (zip args [0..]) $ \(a, i) -> ASTBuilder.attachNodeMarkers (fst portMapping) [Port.Projection i] a
+    for_ (zip args [0..]) $ \(a, i) -> ASTBuilder.attachNodeMarkers (fst portMapping) [Port.Projection i] a
     children <- lambdaChildren codeBeg bodyLink
     newBody  <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children

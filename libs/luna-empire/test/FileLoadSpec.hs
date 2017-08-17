@@ -649,7 +649,7 @@ spec = around withChannels $ parallel $ do
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 ids <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..3]
-                Graph.removeNodes loc (fromJust <$> ids)
+                Graph.removeNodes loc (unsafeFromJust <$> ids)
                 u1 <- mkUUID
                 u2 <- mkUUID
                 Graph.addNode loc u1 "foo = 3 + 5"   (atXPos 20.0)

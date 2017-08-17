@@ -59,11 +59,11 @@ sortByPosition nodeIds = do
     metas <- mapM readMeta refs
     let refsAndMetas = zip refs metas
         sorted       = sortBy (compare `on` snd) refsAndMetas
-    return $ map (^. _1) sorted
+    pure $ map (^. _1) sorted
 
 makeSeq :: GraphOp m => [NodeRef] -> m (Maybe NodeRef)
-makeSeq []     = return Nothing
-makeSeq [node] = return $ Just node
+makeSeq []     = pure Nothing
+makeSeq [node] = pure $ Just node
 makeSeq (n:ns) = Just <$> foldM f n ns
     where
         f :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
@@ -74,22 +74,22 @@ readSeq node = match node $ \case
     Seq l r -> do
         previous  <- IR.source l >>= readSeq
         rightmost <- IR.source r
-        return (previous ++ [rightmost])
-    _       -> return [node]
+        pure (previous <> [rightmost])
+    _       -> pure [node]
 
 getSeqs' :: GraphOp m => NodeRef -> m [NodeRef]
 getSeqs' node = match node $ \case
     Seq l r -> do
         previous <- IR.source l >>= getSeqs'
-        return $ previous ++ [node]
-    _ -> return []
+        pure $ previous <> [node]
+    _ -> pure []
 
 getSeqs :: GraphOp m => NodeRef -> m [NodeRef]
 getSeqs node = match node $ \case
     Seq l r -> do
         previous <- IR.source l >>= getSeqs'
-        return $ previous ++ [node]
-    _ -> return [node]
+        pure $ previous <> [node]
+    _ -> pure [node]
 
 previousNodeForSeq :: GraphOp m => NodeRef -> m (Maybe NodeRef)
 previousNodeForSeq node = match node $ \case
@@ -97,8 +97,8 @@ previousNodeForSeq node = match node $ \case
         previousNode <- IR.source l
         match previousNode $ \case
             Seq l r -> Just <$> IR.source r
-            _       -> return $ Just previousNode
-    _ -> return Nothing
+            _       -> pure $ Just previousNode
+    _ -> pure Nothing
 
 getLambdaInputRef :: GraphOp m => NodeRef -> Int -> m NodeRef
 getLambdaInputRef node pos = do
@@ -114,14 +114,14 @@ isTrivialLambda node = match node $ \case
         args <- ASTDeconstruct.extractArguments node
         vars <- concat <$> mapM ASTRead.getVarsInside args
         out' <- ASTRead.getLambdaOutputRef node
-        return $ out' `elem` vars
+        pure $ out' `elem` vars
     _ -> throwM $ NotLambdaException node
 
 dumpGraphViz :: ASTOp g m => String -> m ()
 dumpGraphViz name = Vis.snapshotWith nodeVis edgeVis name where
     edgeVis e = do
         off <- IR.getLayer @SpanOffset e
-        return $ Just $ convert $ "[" ++ show (unwrap off) ++ "]"
+        pure $ Just $ convert $ "[" <> show (unwrap off) <> "]"
     nodeVis n = do
         len <- IR.getLayer @SpanLength n
-        return $ Just $ convert $ "[" ++ show (unwrap len) ++ "]"
+        pure $ Just $ convert $ "[" <> show (unwrap len) <> "]"

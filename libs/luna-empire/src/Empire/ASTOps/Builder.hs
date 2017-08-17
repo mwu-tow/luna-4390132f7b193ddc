@@ -7,7 +7,7 @@
 
 module Empire.ASTOps.Builder where
 
-import           Control.Monad                      (foldM, replicateM, forM_, zipWithM_)
+import           Control.Monad                      (foldM, replicateM, zipWithM_)
 import           Data.Maybe                         (isNothing)
 import qualified Data.Text                          as Text
 import           Empire.Prelude                     (stringToName)
@@ -49,7 +49,7 @@ appAny = fmap IR.generalize .: IR.app
 newApplication :: GraphOp m => NodeRef -> NodeRef -> Int -> m NodeRef
 newApplication fun arg' pos = do
     blanks <- sequence $ replicate pos IR.blank
-    let args = IR.generalize blanks ++ [arg']
+    let args = IR.generalize blanks <> [arg']
     apps fun args
 
 rewireApplication :: GraphOp m => NodeRef -> NodeRef -> Int -> m NodeRef
@@ -58,7 +58,7 @@ rewireApplication fun arg' pos = do
 
     let argsLength = max (pos + 1) (length oldArgs)
     blanks <- replicateM (argsLength - length oldArgs) IR.blank
-    let argsCmd = oldArgs ++ map IR.generalize blanks
+    let argsCmd = oldArgs <> map IR.generalize blanks
         withNewArg = argsCmd & ix pos .~ arg'
 
     apps target withNewArg
@@ -310,7 +310,7 @@ detachNodeMarkers ref' = do
 
 attachNodeMarkers :: GraphOp m => NodeId -> Port.OutPortId -> NodeRef -> m ()
 attachNodeMarkers marker port ref' = go port ref' where
-    goOn args = zipWithM_ go ((port ++) . pure . Port.Projection <$> [0..]) args
+    goOn args = zipWithM_ go ((port <>) . pure . Port.Projection <$> [0..]) args
     go port ref' = do
         ref <- ASTRead.cutThroughGroups ref'
         match ref $ \case

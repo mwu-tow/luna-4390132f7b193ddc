@@ -51,7 +51,7 @@ logger = Logger.getLogger $(Logger.moduleName)
 
 
 toPersistentProject :: ProjectId -> Empire P.Project
-toPersistentProject pid = $notImplemented -- do
+toPersistentProject pid = undefined
   -- libs <- listLibraries pid
   -- almostProject <- withProject pid $ do
   --   proj <- get
@@ -87,10 +87,10 @@ readProject bytes = (view E.project) <$> envelope where
 
 
 createProjectFromPersistent :: Maybe ProjectId -> P.Project -> Empire (ProjectId, Project)
-createProjectFromPersistent maybePid p = $notImplemented -- do
+createProjectFromPersistent maybePid p = undefined
   -- (pid, _) <- createProject maybePid (p ^. P.name)
   --
-  -- forM_ (p ^. P.libs) $ \lib -> do
+  -- for_ (p ^. P.libs) $ \lib -> do
   --   (lid, _) <- createLibrary pid (lib ^. L.name) (fromString $ lib ^. L.path)
   --   withLibrary pid lid $ zoom Library.body $ do
   --     let graph = lib ^. L.graph
@@ -119,10 +119,10 @@ createProjectFromPersistent maybePid p = $notImplemented -- do
 
 
 importProject :: Text -> Empire (ProjectId, Project)
-importProject bytes = $notImplemented
+importProject bytes = undefined
 
 exportProject :: ProjectId -> Empire Text
-exportProject pid = $notImplemented
+exportProject pid = undefined
 
 defaultProjectName, defaultLibraryName, defaultLibraryPath :: String
 defaultProjectName = "default"
@@ -137,6 +137,6 @@ createDefaultProject = do
   logger Logger.info "Creating default project"
   lunaroot <- liftIO $ getEnv "LUNAROOT"
   let path = lunaroot </> "projects" </> defaultLibraryPath
-  logger Logger.info $ "Creating file " ++ path
+  logger Logger.info $ "Creating file " <> path
   liftIO $ touch path
   void $ createLibrary (Just defaultLibraryName) (fromString path)

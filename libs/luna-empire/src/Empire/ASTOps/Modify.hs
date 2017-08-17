@@ -54,7 +54,7 @@ addLambdaArg position lambda = do
             insertPosition <- do
                 let lastEdgeBeforeArg = case argsBefore of
                         [] -> n
-                        a  -> last a
+                        a  -> unsafeLast a
                 Just funBeg <- Code.getOffsetRelativeToFile lambda
                 lastOff <- Code.getOffsetRelativeToTarget lastEdgeBeforeArg
                 lastLen <- IR.getLayer @SpanLength =<< IR.source lastEdgeBeforeArg
@@ -74,7 +74,7 @@ getArgNames ref = match ref $ \case
     Grouped g   -> IR.source g >>= getArgNames
     Lam a body -> do
         argNames <- ASTRead.getPatternNames =<< IR.source a
-        (argNames ++) <$> (getArgNames =<< IR.source body)
+        (argNames <>) <$> (getArgNames =<< IR.source body)
     ASGFunction _ as _ -> concat <$> mapM (ASTRead.getPatternNames <=< IR.source) as
     _ -> return []
 
@@ -122,7 +122,7 @@ removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
         let argsBefore        = take port       as
             argsAfter         = drop (port + 1) as
             argToRemove       = as ^? ix port
-        forM_ argToRemove $ \alink -> do
+        for_ argToRemove $ \alink -> do
             Just funBeg <- Code.getOffsetRelativeToFile lambda
             offToLam    <- Code.getOffsetRelativeToTarget alink
             ownOff      <- IR.getLayer @SpanOffset alink
@@ -155,7 +155,7 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
         newRef <- lams newArgs out
         when (lambda /= newRef) $ rewireCurrentNode newRef
     ASGFunction _ as _ -> do
-        forM_ (as ^? ix port) $ \alink -> do
+        for_ (as ^? ix port) $ \alink -> do
             Just funBeg   <- Code.getOffsetRelativeToFile   lambda
             initialOffset <- Code.getOffsetRelativeToTarget alink
             let newArgs = shiftPosition port newPosition as
@@ -180,7 +180,7 @@ renameLambdaArg p@(Port.Projection port : []) newName lam = match lam $ \case
         renameVar arg newName
         Code.replaceAllUses arg $ convert newName
     ASGFunction _ as _ -> do
-        forM_ (as ^? ix port) $ \alink -> do
+        for_ (as ^? ix port) $ \alink -> do
             arg <- IR.source alink
             renameVar arg newName
             Code.replaceAllUses arg $ convert newName

@@ -137,7 +137,7 @@ defaultPMState = mdo
 
 emptyClsAST :: IO (AST ClsGraph)
 emptyClsAST = mdo
-    let g = ClsGraph ast $notImplemented def def def def (NodeCache def def def)
+    let g = ClsGraph ast undefined def def def def (NodeCache def def def)
     ast <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -151,7 +151,7 @@ emptyClsAST = mdo
 
 defaultClsAST :: IO (AST ClsGraph, IR.SomeExpr)
 defaultClsAST = mdo
-    let g = ClsGraph ast $notImplemented def def def def (NodeCache def def def)
+    let g = ClsGraph ast undefined def def def def (NodeCache def def def)
     (ast, cls) <- flip evalStateT g $ withVis $ dropLogs $ DepState.evalDefStateT @Cache $ evalIRBuilder' $ evalPassManager' $ do
         runRegs
         CodeSpan.init
@@ -159,7 +159,7 @@ defaultClsAST = mdo
         attachEmpireLayers
         initExprMapping
         cls <- Pass.eval' @InitPass $ do
-            klass <- IR.clsASG' (stringToName "A") [] [] []
+            klass <- IR.clsASG' False (stringToName "A") [] [] []
             return klass
         st   <- snapshot
         pass <- DepState.get @PassManager.State

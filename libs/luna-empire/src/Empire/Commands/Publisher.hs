@@ -2,7 +2,7 @@ module Empire.Commands.Publisher where
 
 import           Control.Concurrent.MVar
 import           Control.Concurrent.STM.TChan               (writeTChan)
-import           Control.Monad.Reader
+import           Control.Monad.Reader                       hiding (liftIO)
 import           Control.Monad.STM                          (atomically)
 import           Data.Text                                  (Text)
 import           Empire.Data.Graph                          (Graph, ClsGraph)
