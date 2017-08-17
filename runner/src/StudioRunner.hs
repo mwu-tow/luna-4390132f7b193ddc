@@ -217,16 +217,18 @@ runLunaEmpire logs configFile = do
         Shelly.cd lunaSupervisor
         Shelly.cmd supervisord "-n" "-c" configFile
 
-runFrontend :: (MonadRun m, MonadIO m) => m ()
-runFrontend = do
+runFrontend :: (MonadRun m, MonadIO m) => Maybe T.Text -> m ()
+runFrontend args = do
     atomHome    <- packageStudioAtomHome
     atom        <- atomAppPath
     liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
     case currentHost of
-        Darwin -> do
-            Shelly.shelly $ Shelly.cmd atom "-w"
-        Linux -> do
-            Shelly.shelly $ Shelly.cmd atom "-w"
+        Darwin -> case args of
+            Just arg -> Shelly.shelly $ Shelly.cmd atom "-w" arg
+            Nothing  -> Shelly.shelly $ Shelly.cmd atom "-w"
+        Linux -> case args of
+            Just arg -> Shelly.shelly $ Shelly.cmd atom "-w" arg
+            Nothing  -> Shelly.shelly $ Shelly.cmd atom "-w"
         Windows -> liftIO $ print "Unsupported system"
 
 runBackend :: (MonadRun m, MonadIO m) => m ()
@@ -327,13 +329,11 @@ optionParser = Options
 
 run :: (MonadIO m) => Options -> m ()
 run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
-    case atom of
-        Just arg -> liftIO $ Environment.setEnv "ATOM_ARG" arg
-        Nothing  -> return ()
+
     if frontend && backend
         then runApp --liftIO $ print "use just one or dont use any"
         else if  frontend
-            then runFrontend
+            then runFrontend $ T.pack <$> atom
             else if backend
                 then runBackend
                 else runApp
