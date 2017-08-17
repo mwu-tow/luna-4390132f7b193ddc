@@ -143,6 +143,7 @@ import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
 import           LunaStudio.Data.Point            (Point)
+import qualified LunaStudio.Data.Point            as Point
 import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
@@ -858,7 +859,14 @@ substituteCodeFromPoints path start end code cursor = do
     (s, e) <- withUnit loc $ do
         oldCode   <- use Graph.code
         let noMarkers  = Code.removeMarkers oldCode
-            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers)
+            --FIXME[MM]: Atom does something really bizarre - when selection spans multiple rows,
+            --           end column is larger by 4 characters than it should be. Conditions with
+            --           /= 0 are there to prevent this workaround from interfering with removing
+            --           whole lines - these are represented as col = 0 and consecutive row numbers.
+            end'       = if start ^. Point.row /= end ^. Point.row && start ^. Point.column /= 0 && end ^. Point.column /=0
+                             then end & Point.column -~ 4
+                             else end
+            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end' noMarkers)
             realDeltas = Code.viewDeltasToReal oldCode deltas
         return realDeltas
     substituteCode path s e code Nothing

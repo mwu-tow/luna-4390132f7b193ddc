@@ -98,6 +98,25 @@ def main:
 ### META {"metas":[{"marker":0,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":33,"_vector2_x":66}}}},{"marker":1,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":-33,"_vector2_x":-66}}}}]}
 |]
 
+testLuna = [r|def main:
+    «0»pi = 3.14
+    «1»foo = a: b:
+        «5»lala = 17.0
+        «12»buzz = x: y:
+            «9»x * y
+        «6»pi = 3.14
+        «7»n = buzz a lala
+        «8»m = buzz b pi
+        «11»m + n
+    «2»c = 4.0
+
+    «14»bar = foo 8.0 c
+    «17»node1 = BogusConstructorForParser
+    «16»node2 = primWaitForProcess node1
+
+### META {"metas":[]}
+|]
+
 
 crypto = [r|def getCurrentPrices crypto fiat:
     «0»baseUri = "https://min-api.cryptocompare.com/data/price?"
@@ -448,4 +467,27 @@ def main:
         «7»m = buzz b pi
         «8»m + n
     None
+|]
+        it "substitutes function body" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc testLuna
+                Graph.substituteCodeFromPoints "TestPath" (Point 4 12) (Point 36 14) "5" Nothing
+                Graph.withUnit loc $ use Graph.code
+            code `shouldBe` [r|def main:
+    «0»pi = 3.14
+    «1»foo = a: b:
+        «5»lala = 17.0
+        «12»buzz = x: y:
+            «9»x * y
+        «6»pi = 3.14
+        «7»n = buzz a lala
+        «8»m = buzz b pi
+        «11»m + n
+    «2»c = 4.0
+
+    «14»5
+
+### META {"metas":[]}
 |]
