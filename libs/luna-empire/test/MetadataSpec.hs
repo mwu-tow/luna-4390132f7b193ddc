@@ -216,7 +216,7 @@ spec = around withChannels $ parallel $ do
                 Just pi <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
                     Graph.getNodeIdForMarker 0
                 Graph.removeNodes (loc |>= main ^. Node.nodeId) [pi]
-                Graph.getCode loc
+                Graph.getCode loc Nothing
             Text.unpack code `shouldBe` normalizeQQ [r|
                 def main:
                     None

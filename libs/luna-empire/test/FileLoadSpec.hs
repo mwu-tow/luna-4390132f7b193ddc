@@ -111,7 +111,7 @@ specifyCodeChange initialCode expectedCode act env = do
             when (elem nodeId toplevel) $
                 Graph.setNodeMeta loc' nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
         act loc'
-        Graph.getCode loc'
+        Graph.getCode loc' Nothing
     Text.strip actualCode `shouldBe` normalize expectedCode
 
 
@@ -502,7 +502,7 @@ spec = around withChannels $ parallel $ do
                 [main] <- Graph.getNodes (GraphLocation "TestFile" (Breadcrumb []))
                 let loc' = GraphLocation "TestFile" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Graph.addNode top u1 "4" (atXPos (-20.0))
-                Graph.getCode top
+                Graph.getCode top Nothing
             code `shouldBe` "def main:\n    number1 = 4\n    None"
         it "adds one node and updates it" $ \env -> do
             u1 <- mkUUID
@@ -510,7 +510,7 @@ spec = around withChannels $ parallel $ do
                 Graph.addNode top u1 "4" (atXPos (-10))
                 Graph.markerCodeSpan top 0
                 Graph.setNodeExpression top u1 "5"
-                Graph.getCode top
+                Graph.getCode top Nothing
             code `shouldBe` "def main:\n    number1 = 5\n    None"
         it "disconnect updates code at proper range" $ let
             expectedCode = [r|
