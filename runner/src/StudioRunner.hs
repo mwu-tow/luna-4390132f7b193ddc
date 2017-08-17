@@ -308,9 +308,12 @@ runPackage = case currentHost of
         liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
         Shelly.shelly $ Shelly.cmd atom
 
-runApp :: (MonadRun m, MonadIO m) => m ()
-runApp = do
+runApp :: (MonadRun m, MonadIO m) => Maybe String -> m ()
+runApp atom = do
     v <- version
+    case atom of
+        Just arg -> liftIO $ Environment.setEnv "ATOM_ARG" arg
+        Nothing  -> liftIO $ Environment.setEnv "ATOM_ARG" " "
     if v == "develop" then runLocal else runPackage
 
 data Options = Options
@@ -331,12 +334,12 @@ run :: (MonadIO m) => Options -> m ()
 run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
 
     if frontend && backend
-        then runApp --liftIO $ print "use just one or dont use any"
+        then runApp atom --liftIO $ print "use just one or dont use any"
         else if  frontend
             then runFrontend $ T.pack <$> atom
             else if backend
                 then runBackend
-                else runApp
+                else runApp atom
 
 
 
