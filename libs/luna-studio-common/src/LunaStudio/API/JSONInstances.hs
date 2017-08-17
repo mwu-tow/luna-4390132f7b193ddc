@@ -4,6 +4,7 @@ module LunaStudio.API.JSONInstances where
 
 import           Data.Aeson.Types                           (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           LunaStudio.API.Atom.CloseFile              as CloseFile
+import           LunaStudio.API.Atom.Copy                   as AtomCopy
 import           LunaStudio.API.Atom.FileChanged            as FileChanged
 import           LunaStudio.API.Atom.GetBuffer              as GetBuffer
 import           LunaStudio.API.Atom.IsSaved                as IsSaved
@@ -122,7 +123,9 @@ instance ToJSON CollapseToFunction.Inverse
 instance ToJSON CollapseToFunction.Request
 instance ToJSON Connection.Connection
 instance ToJSON Copy.Request
+instance ToJSON AtomCopy.Request
 instance ToJSON Copy.Result
+instance ToJSON AtomCopy.Result
 instance ToJSON CreateLibrary.Request
 instance ToJSON CreateLibrary.Result
 instance ToJSON CreateLibrary.Update

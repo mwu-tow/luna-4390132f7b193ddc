@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
-module LunaStudio.API.Atom.GetBuffer where
+module LunaStudio.API.Atom.Copy where
 
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
@@ -10,6 +10,7 @@ import           Prologue
 
 
 data Request = Request { _filePath :: FilePath
+                       , _span     :: [(Int, Int)]
                        } deriving (Eq, Generic, Show)
 
 data Result  = Result { _code             :: Text
@@ -27,6 +28,6 @@ type Response = Response.Response Request () Result
 instance Response.ResponseResult Request () Result
 
 topicPrefix :: T.Topic
-topicPrefix = "empire.atom.file.get"
+topicPrefix = "empire.atom.file.copy"
 instance T.MessageTopic (R.Request Request) where topic _ = topicPrefix <> T.request
 instance T.MessageTopic Response            where topic _ = topicPrefix <> T.response

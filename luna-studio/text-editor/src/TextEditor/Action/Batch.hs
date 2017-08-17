@@ -19,8 +19,8 @@ withUUID act = do
 closeFile :: FilePath -> Command State ()
 closeFile = withUUID . BatchCmd.closeFile
 
-getBuffer :: FilePath -> Maybe [(Int, Int)] -> Command State ()
-getBuffer = withUUID .: BatchCmd.getBuffer
+getBuffer :: FilePath -> Command State ()
+getBuffer = withUUID . BatchCmd.getBuffer
 
 fileChanged :: FilePath -> Command State ()
 fileChanged = withUUID . BatchCmd.fileChanged
@@ -39,6 +39,9 @@ setProject = withUUID . BatchCmd.setProject
 
 substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> Command State ()
 substitute = withUUID .::. BatchCmd.substitute
+
+copy :: FilePath -> [(Int, Int)] -> Command State ()
+copy = withUUID .: BatchCmd.copy
 
 paste :: FilePath -> [(Int, Int)] -> Text -> Command State ()
 paste = withUUID .:. BatchCmd.paste

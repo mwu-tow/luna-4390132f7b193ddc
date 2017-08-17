@@ -94,7 +94,7 @@ module.exports =
     handleCopy: (e) =>
         # e.preventDefault()
         # e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _maySelections: @spans())
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
     handlePaste: (e) =>
         e.preventDefault()

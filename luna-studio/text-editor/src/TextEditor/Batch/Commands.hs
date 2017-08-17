@@ -4,6 +4,7 @@ import           Common.Batch.Connector.Connection (Message (Message), sendReque
 import           Common.Prelude
 import           Data.UUID.Types                   (UUID)
 import qualified LunaStudio.API.Atom.CloseFile     as CloseFile
+import qualified LunaStudio.API.Atom.Copy          as Copy
 import qualified LunaStudio.API.Atom.FileChanged   as FileChanged
 import qualified LunaStudio.API.Atom.GetBuffer     as GetBuffer
 import qualified LunaStudio.API.Atom.IsSaved       as IsSaved
@@ -23,8 +24,8 @@ closeFile path uuid guiID = sendRequest $ Message uuid guiID $ CloseFile.Request
 fileChanged :: FilePath -> UUID -> Maybe UUID -> IO ()
 fileChanged path uuid guiID = sendRequest $ Message uuid guiID $ FileChanged.Request path
 
-getBuffer :: FilePath -> Maybe [(Int, Int)] -> UUID -> Maybe UUID -> IO ()
-getBuffer path maybeSpan uuid guiID = sendRequest $ Message uuid guiID $ GetBuffer.Request path maybeSpan
+getBuffer :: FilePath -> UUID -> Maybe UUID -> IO ()
+getBuffer path uuid guiID = sendRequest $ Message uuid guiID $ GetBuffer.Request path
 
 isSaved :: FilePath -> UUID -> Maybe UUID -> IO ()
 isSaved path uuid guiID = sendRequest $ Message uuid guiID $ IsSaved.Request path
@@ -41,6 +42,9 @@ setProject rootPath uuid guiID = sendRequest $ Message uuid guiID $ SetProject.R
 substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> UUID -> Maybe UUID -> IO ()
 substitute location start end text cursor uuid guiID =
     sendRequest $ Message uuid guiID $ Substitute.Request location start end text cursor
+
+copy :: FilePath -> [(Int, Int)] -> UUID -> Maybe UUID -> IO ()
+copy path span uuid guiID = sendRequest $ Message uuid guiID $ Copy.Request path span
 
 paste :: FilePath -> [(Int, Int)] -> Text -> UUID -> Maybe UUID -> IO ()
 paste path span content uuid guiID = sendRequest $ Message uuid guiID $ Paste.Request path span content
