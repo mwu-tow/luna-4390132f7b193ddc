@@ -14,9 +14,9 @@ frontend_dir = scripts_build.atom_prepare.prep_path('../luna-studio')
 
 
 
-def build_app ():
+def build_app (backend_args, frontend_args, runner_args):
     try:
-        scripts_build.stack_build.run()
+        scripts_build.stack_build.run(backend_args, frontend_args, runner_args)
         scripts_build.atom_prepare.run()
         scripts_build.atom_apm.run() # RENAME: LunaStudioInstallInAtom ?
         scripts_build.copy_configs.run()
@@ -24,10 +24,10 @@ def build_app ():
     except subprocess.CalledProcessError:
         print("Status : FAIL")
 
-def build_backend ():
+def build_backend (backend_args):
     try:
         scripts_build.stack_build.create_bin_dirs()
-        scripts_build.stack_build.build_backend()
+        scripts_build.stack_build.build_backend(backend_args)
         scripts_build.stack_build.link_main_bin ()
 
     except subprocess.CalledProcessError:
@@ -36,10 +36,13 @@ def build_backend ():
 def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", help="build just backend", action="store_true")
+    parser.add_argument("--backend_stack", help="options for stack build backend", action="append", dest="stack_backend_args", default=['--copy-bins'])
+    parser.add_argument("--frontend_stack", help="options for stack build frontend", action="append", dest="stack_frontend_args", default=[])
+    parser.add_argument("--runner_stack", help="options for stack build runner", action="append", dest="stack_runner_args", default=['--copy-bins'])
     args = parser.parse_args()
-
+    
     if args.backend:
-        build_backend ()
-    else: build_app ()
+        build_backend (args.stack_backend_args)
+    else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args)
 
 main()

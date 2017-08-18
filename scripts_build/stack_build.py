@@ -17,17 +17,17 @@ def create_bin_dirs():
     for path in ('../dist/bin/private', '../dist/bin/public/luna-studio'):
         os.makedirs(ap.prep_path(path), exist_ok=True)
 
-def build_ghcjs(frontend):
+def build_ghcjs(frontend, frontend_args):
     os.chdir(frontend)
     if system.system == system.systems.WINDOWS:
         return ()
     elif system.system == system.systems.LINUX:
-        subprocess.check_output(['stack', 'build'])
+        subprocess.check_output(['stack', 'build'] + frontend_args)
     elif system.system == system.systems.DARWIN:
-        subprocess.check_output(['stack', 'build'])
+        subprocess.check_output(['stack', 'build'] + frontend_args)
     else: print("unknown system")
 
-def build_runner(runner):
+def build_runner(runner, runner_args):
     os.chdir(runner)
     print ("build runner")
     runnerPath = runner + '/src/StudioRunner.hs'
@@ -37,14 +37,14 @@ def build_runner(runner):
         print ("build runner")
         os.system('stack exec ghc -- ' + runnerPath + ' ' + hostPath + ' ' + resPath)
     elif system.system == system.systems.LINUX:
-        subprocess.check_output(['stack', 'build', '--copy-bins'])
+        subprocess.check_output(['stack', 'build'] + runner_args)
     elif system.system == system.systems.DARWIN:
-        subprocess.check_output(['stack', 'build', '--copy-bins'])
+        subprocess.check_output(['stack', 'build'] + runner_args)
     else: print("unknown system")
 
-def build_backend():
+def build_backend(backend_args):
     os.chdir(backend_dir)
-    subprocess.check_output(['stack', 'build', '--copy-bins'])
+    subprocess.check_output(['stack', 'build'] + backend_args)
 
 def mv_runner(runner):
     if system.system == system.systems.WINDOWS:
@@ -78,13 +78,13 @@ def link_main_bin ():
 
 
 
-def run():
+def run(backend_args, frontend_args, runner_args):
     create_bin_dirs()
-    build_runner(runner_dir)
+    build_runner(runner_dir, runner_args)
     mv_runner(runner_dir)
-    build_ghcjs(frontend_dir)
-    build_backend()
+    build_ghcjs(frontend_dir, frontend_args)
+    build_backend(backend_args)
     link_main_bin ()
 
-if __name__ == '__main__':
-    run()
+# if __name__ == '__main__':
+#     run()
