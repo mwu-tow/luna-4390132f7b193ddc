@@ -334,7 +334,7 @@ run :: (MonadIO m) => Options -> m ()
 run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
 
     if frontend && backend
-        then runApp atom --liftIO $ print "use just one or dont use any"
+        then runApp atom
         else if  frontend
             then runFrontend $ T.pack <$> atom
             else if backend
