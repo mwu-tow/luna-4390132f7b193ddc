@@ -227,9 +227,12 @@ replaceAllUses ref new = do
 computeLength :: GraphOp m => NodeRef -> m Delta
 computeLength ref = do
     ins  <- IR.inputs ref
-    offs <- mapM (IR.getLayer @SpanOffset) ins
-    lens <- mapM (IR.getLayer @SpanLength <=< IR.source) ins
-    return $ mconcat offs <> mconcat lens
+    case ins of
+        [] -> IR.getLayer @SpanLength ref
+        _  -> do
+            offs <- mapM (IR.getLayer @SpanOffset) ins
+            lens <- mapM (IR.getLayer @SpanLength <=< IR.source) ins
+            return $ mconcat offs <> mconcat lens
 
 recomputeLength :: GraphOp m => NodeRef -> m ()
 recomputeLength ref = IR.putLayer @SpanLength ref =<< computeLength ref

@@ -204,7 +204,7 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 return nodes
             nodes `shouldSatisfy` (not.null)
-        xit "removes last node in a file with metadata" $ \env -> do
+        it "removes last node in a file with metadata" $ \env -> do
             code <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
