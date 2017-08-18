@@ -36,11 +36,11 @@ def build_backend (backend_args):
 def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", help="build just backend", action="store_true")
-    parser.add_argument("--backend_stack", help="options for stack build backend", action="append", dest="stack_backend_args", default=['--copy-bins'])
-    parser.add_argument("--frontend_stack", help="options for stack build frontend", action="append", dest="stack_frontend_args", default=[])
-    parser.add_argument("--runner_stack", help="options for stack build runner", action="append", dest="stack_runner_args", default=['--copy-bins'])
+    parser.add_argument("--backend-stack", help="options for stack build backend", action="append", dest="stack_backend_args", default=['--copy-bins'])
+    parser.add_argument("--frontend-stack", help="options for stack build frontend", action="append", dest="stack_frontend_args", default=[])
+    parser.add_argument("--runner-stack", help="options for stack build runner", action="append", dest="stack_runner_args", default=['--copy-bins'])
     args = parser.parse_args()
-    
+
     if args.backend:
         build_backend (args.stack_backend_args)
     else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args)
