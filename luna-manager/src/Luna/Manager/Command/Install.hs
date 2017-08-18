@@ -123,7 +123,7 @@ makeLenses ''UnresolvedDepsError
 instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
-type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m, Shelly.MonadSh m, Shelly.MonadShControl m) 
+type MonadInstall m = (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetwork m, Shelly.MonadSh m, Shelly.MonadShControl m)
 
 
 -- === Utils === --
@@ -382,27 +382,10 @@ run opts = do
 
     version <- readVersion appVersion
     let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
-<<<<<<< HEAD
 
-        -- resolvedApp = ResolvedPackage (PackageHeader appName $ convert appVersion) appPkgDesc (appPkg ^. appType)
-    binPath <- askLocation opts (appPkg ^. appType) appName -- add main app to list of applications to install
-    mapM_ (installApp opts) $ appsToInstall
-    installPath <- prepareInstallPath (appPkg ^. appType) (convert binPath) appName appVersion
-    pathExists <- Shelly.shelly $ Shelly.test_d installPath
-    stopServices installPath (appPkg ^. appType)
-    if pathExists then Shelly.shelly $ Shelly.rm_rf installPath else return ()
-    downloadAndUnpack (appPkgDesc ^. path) installPath appName
-    copyLibs installPath
-    copyWinSW installPath
-    postInstallation (appPkg ^. appType) installPath binPath  appName appVersion
-    touchApp (convert binPath </> convert ((mkSystemPkgName appName) <> ".app")) (appPkg ^. appType)
-
-
-=======
         resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
         allApps = resolvedApp : appsToInstall
     mapM_ (installApp opts) $ allApps
->>>>>>> d54b5f8c5bb06ff95e52990507e5bfcef02155e6
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     -- print $ "TODO: Add new exports to bashRC if not already present"
