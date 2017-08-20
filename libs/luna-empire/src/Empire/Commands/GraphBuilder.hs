@@ -179,7 +179,7 @@ buildNode nid = do
     canEnter  <- ASTRead.isEnterable ref
     inports   <- buildInPorts nid ref [] aliasPortName
     outports  <- buildOutPorts root
-    code      <- getNodeCode nid
+    code      <- Code.removeMarkers <$> getNodeCode nid
     return $ API.ExpressionNode nid expr False name code inports outports meta canEnter
 
 buildNodeTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate

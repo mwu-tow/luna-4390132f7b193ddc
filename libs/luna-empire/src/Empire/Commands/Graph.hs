@@ -607,30 +607,15 @@ renamePort loc portRef newName = do
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
 setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
     let expression = Text.strip expr'
-    node <- withTC loc False $ do
-        oldExpr   <- runASTOp $ ASTRead.getASTTarget nodeId
-        parsedRef <- view _1 <$> ASTParse.runReparser expression oldExpr
-        (oldBeg, oldEnd) <- runASTOp $ do
-            oldBegin  <- Code.getASTTargetBeginning nodeId
-            oldTarget <- ASTRead.getASTTarget nodeId
-            oldLen    <- IR.getLayer @SpanLength oldTarget
-            Code.propagateLengths parsedRef
-            ASTModify.rewireNode nodeId parsedRef
-            return (oldBegin, oldBegin + oldLen)
-        runAliasAnalysis
-        node <- runASTOp $ do
-            expr      <- ASTRead.getASTTarget nodeId
-            marked    <- ASTRead.getASTRef nodeId
-            item      <- prepareChild marked parsedRef
-            Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
-            let len = fromIntegral $ Text.length expression
-            Code.applyDiff oldBeg oldEnd expression
-            Code.gossipUsesChangedBy (len - (oldEnd - oldBeg)) expr
-            node <- GraphBuilder.buildNode nodeId
-            return node
-        return node
+    newCode <- withTC loc False $ runASTOp $ do
+        oldExpr   <- ASTRead.getASTTarget nodeId
+        oldBegin  <- Code.getASTTargetBeginning nodeId
+        oldLen    <- IR.getLayer @SpanLength oldExpr
+        let oldEnd = oldBegin + oldLen
+        Code.applyDiff oldBegin oldEnd expression
+    reloadCode loc newCode
     resendCode loc
-    return node
+    withGraph loc $ runASTOp $ GraphBuilder.buildNode nodeId
 
 updateExprMap :: GraphOp m => NodeRef -> NodeRef -> m ()
 updateExprMap new old = do

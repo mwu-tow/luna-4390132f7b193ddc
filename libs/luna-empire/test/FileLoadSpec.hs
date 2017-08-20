@@ -174,7 +174,7 @@ spec = around withChannels $ parallel $ do
                 pi ^. Node.code `shouldBe` "3.14"
                 pi ^. Node.canEnter `shouldBe` False
                 let Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
-                foo ^. Node.code `shouldBe` "a: b: «5»a + b"
+                foo ^. Node.code `shouldBe` "a: b: a + b"
                 foo ^. Node.canEnter `shouldBe` True
                 let Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
                 bar ^. Node.code `shouldBe` "foo c 6"
@@ -1218,3 +1218,22 @@ spec = around withChannels $ parallel $ do
                 Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 0])
                 Graph.disconnect loc (inPortRef p1 [Port.Arg 0])
                 Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 1])
+        it "sets expression for lambdas with markers inside" $ let
+            initialCode = testLuna
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b:
+                        lala = 15.0
+                        buzz = x: y:
+                            x * y
+                        pi = 3.14
+                        n = buzz a lala
+                        m = buzz b pi
+                        m + n
+                    c = 4.0
+                    bar = foo 8.0 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.setNodeExpression loc foo "a: b:\n        lala = 15.0\n        buzz = x: y:\n            x * y\n        pi = 3.14\n        n = buzz a lala\n        m = buzz b pi\n        m + n"
