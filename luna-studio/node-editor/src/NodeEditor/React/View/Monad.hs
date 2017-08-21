@@ -30,7 +30,7 @@ monad = React.defineView objName $ \case
     (tr, a ) -> do
         let start   = fromDoubles (-7000) $ (head a) ^. y
             end     = fromDoubles   7000  $ (last a) ^. y
-            a'      = start : a ++ [end]
+            a'      = start : a <> [end]
             points  = fromString $ unwords $ map (\n -> show (n ^. x) <> "," <> show (n ^. y)) a'
         polyline_
             [ "className" $= Style.prefix "monad"

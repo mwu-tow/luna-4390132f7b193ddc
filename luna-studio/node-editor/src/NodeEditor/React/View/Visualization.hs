@@ -56,8 +56,8 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
-        , "className" $= Style.prefixFromList (classes ++ activeClass )
-        , "style"     @= Aeson.object [ "transform" Aeson..= ("translate(-150px," ++ visShift ++ "rem)"::String) ]
+        , "className" $= Style.prefixFromList (classes <> activeClass )
+        , "style"     @= Aeson.object [ "transform" Aeson..= ("translate(-150px," <> visShift <> "rem)"::String) ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
         div_
@@ -96,7 +96,7 @@ visualization = React.defineView viewName $ \(ref, nl, vis) -> do
     div_
         [ "className" $= Style.prefixFromList [ "noselect", "visualization-container" ]
         ] $ do
-        div_ ([ "className" $= Style.prefix "visualization-cover" ] ++ coverHandler) mempty
+        div_ ([ "className" $= Style.prefix "visualization-cover" ] <> coverHandler) mempty
         visualizationIframe_ visId visualizer
 
 visualizationIframe_ :: VisualizationId -> Visualizer -> ReactElementM ViewEventHandler ()

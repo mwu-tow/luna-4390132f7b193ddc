@@ -45,7 +45,7 @@ connection = React.defineView name $ \(ref, model) -> do
         mid      = averagePosition src dst
         eventSrc = onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.ConnectionEvent $ Connection.MouseDown m connId Source)
         eventDst = onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.ConnectionEvent $ Connection.MouseDown m connId Destination)
-        lineClassWithMode = ["connection__line"] ++ case model ^. Connection.pMode of
+        lineClassWithMode = ["connection__line"] <> case model ^. Connection.pMode of
             Internal    -> ["connection__internal"]
             Sidebar     -> ["connection__sidebar"]
             Highlighted -> ["connection__highligthed"]
@@ -94,7 +94,7 @@ halfConnection = React.defineView name $ \model -> do
     let src   = model ^. Connection.srcPos
         dst   = model ^. Connection.dstPos
         color = "stroke" $= convert (model ^. Connection.color)
-        lineClassWithMode = ["connection__line"] ++ case model ^. Connection.phMode of
+        lineClassWithMode = ["connection__line"] <> case model ^. Connection.phMode of
             Sidebar     -> ["connection__sidebar"]
             Highlighted -> ["connection__highligthed"]
             Dimmed      -> ["connection__dimmed"]

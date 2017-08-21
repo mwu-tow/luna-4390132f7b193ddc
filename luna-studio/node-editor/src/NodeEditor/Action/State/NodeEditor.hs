@@ -351,7 +351,7 @@ updateVisualizationsForNode nl mayTpe = do
     case mayVisInfo of
         Nothing -> modifyNodeEditor $ withJustM (preuse $ NE.nodeVisualizations . ix nl) $ \nodeVis -> do
             let idleVis = map (& Visualization.visualizationStatus .~ Visualization.Outdated) (nodeVis ^. Visualization.idleVisualizations)
-                       ++ map (Visualization.toIdleVisualization Visualization.Outdated) (Map.elems $ nodeVis ^. Visualization.visualizations)
+                       <> map (Visualization.toIdleVisualization Visualization.Outdated) (Map.elems $ nodeVis ^. Visualization.visualizations)
             NE.nodeVisualizations . at nl ?= Visualization.NodeVisualizations def idleVis def
         Just (defVisualizer, visualizers') -> do
             whenM (maybe True (\vis -> Map.null (vis ^. Visualization.visualizations) && null (vis ^. Visualization.idleVisualizations) ). (^? NE.nodeVisualizations . ix nl) <$> getNodeEditor) $
@@ -364,7 +364,7 @@ updateVisualizationsForNode nl mayTpe = do
                     makeVisReady vis = if Map.lookup (vis ^. Visualization.idleVisualizer . _1) visualizers' == Just (vis ^. Visualization.idleVisualizer . _2)
                         then vis & Visualization.visualizationStatus .~ Visualization.Ready
                         else Visualization.IdleVisualization Visualization.Ready defVisualizer
-                    ready            = ready'' ++ map makeVisReady (nodeVis ^. Visualization.idleVisualizations)
+                    ready            = ready'' <> map makeVisReady (nodeVis ^. Visualization.idleVisualizations)
                 NE.nodeVisualizations . at nl ?= Visualization.NodeVisualizations running ready visualizers'
 
 updatePreferedVisualizer :: TypeRep -> Visualizer -> Command State ()

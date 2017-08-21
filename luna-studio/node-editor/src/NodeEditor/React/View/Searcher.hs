@@ -59,7 +59,7 @@ searcher =  React.defineView name $ \(ref, s) -> do
                                         ss  = target e "selectionStart"
                                         se  = target e "selectionEnd"
                                     in dispatch ref $ UI.SearcherEvent $ InputChanged val ss se
-            ] ++ mayCustomInput )
+            ] <> mayCustomInput )
         div_
             [ "key"       $= "searcherResults"
             , "className" $= Style.prefix "searcher__results"

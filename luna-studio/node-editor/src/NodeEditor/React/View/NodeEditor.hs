@@ -7,8 +7,7 @@ import           Data.Matrix                                (Matrix)
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
 import qualified LunaStudio.Data.CameraTransformation       as CameraTransformation
-import           LunaStudio.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraScale,
-                                                             showCameraTranslate)
+import           LunaStudio.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraTranslate)
 import qualified LunaStudio.Data.Matrix                     as Matrix
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
 import           LunaStudio.Data.NodeLoc                    (NodePath)
@@ -90,10 +89,10 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         nodesWithVis    = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-            div_ [ "className" $= Style.prefixFromList (["studio-window"] ++ if isAnyFullscreen then ["studio-window--has-visualization-fullscreen"] else []), "key" $= "studio-window"] $ do
+            div_ [ "className" $= Style.prefixFromList (["studio-window"] <> if isAnyFullscreen then ["studio-window--has-visualization-fullscreen"] else []), "key" $= "studio-window"] $ do
                 div_ [ "className" $= Style.prefix "studio-window__center", "key" $= "studio-window__center" ] $
                     div_
-                        [ "className"   $= Style.prefixFromList (["graph"] ++ if isAnyVisActive  then ["graph--has-visualization-active"] else [])
+                        [ "className"   $= Style.prefixFromList (["graph"] <> if isAnyVisActive  then ["graph--has-visualization-active"] else [])
                         , "key"         $= "graph"
                         ] $ do
 
