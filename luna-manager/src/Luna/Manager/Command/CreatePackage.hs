@@ -120,6 +120,22 @@ changeAppImageName appName outFolderPath = do
     listedDir <- Shelly.ls outFolderPath
     mapM_ (checkAppImageName appName) listedDir
 
+getApprun :: MonadCreatePackage m => FilePath -> FilePath -> m ()
+getApprun tmpAppDirPath functions = do
+    let apprun = "get_apprun"
+    (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> apprun
+    case exitCode of
+        ExitSuccess   -> return ()
+        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err
+
+generateAppimage :: MonadCreatePackage m => FilePath -> FilePath -> Text -> m ()
+generateAppimage tmpAppPath functions appName = do
+    let generateAppimage   = "generate_type2_appimage"
+    (exitCode2, out2, err2) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
+    case exitCode2 of
+        ExitSuccess   -> return ()
+        ExitFailure a ->print $ "Fatal: AppImage not created. " <> err2
+
 -- TODO: refactor
 createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
 createAppimage appName repoPath = do
@@ -134,13 +150,9 @@ createAppimage appName repoPath = do
     putStrLn "Downloading AppImage functions.sh"
     functions <- downloadWithProgressBarTo "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
     let mainAppImageFolder     = "usr"
-        apprun                 = "get_apprun"
         mainAppImageFolderPath = tmpAppDirPath </> mainAppImageFolder
     Shelly.mkdir_p mainAppImageFolderPath
-    (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> apprun
-    case exitCode of
-        ExitSuccess   -> return ()
-        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err
+    getApprun tmpAppDirPath functions
     copyResourcesAppImage repoPath appName tmpAppDirPath mainAppImageFolderPath
 
     putStrLn "Downloading AppImage desktopIntegration"
@@ -150,11 +162,8 @@ createAppimage appName repoPath = do
     makeExecutable dstWrapperPath
     modifyDesktopFileToUseWrapperAppImageToRunApp appName tmpAppDirPath
 
-    let generateAppimage   = "generate_type2_appimage"
-    (exitCode2, out2, err2) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
-    case exitCode2 of
-        ExitSuccess   -> return ()
-        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err2
+    generateAppimage tmpAppPath functions appName
+
     let outFolder = (parent $ tmpAppPath) </> "out"
     changeAppImageName appName outFolder
 
