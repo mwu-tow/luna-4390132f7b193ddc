@@ -16,19 +16,27 @@ import qualified Empire.Env                     as Env
 import qualified LunaStudio.API.Atom.CloseFile  as CloseFile
 import qualified LunaStudio.API.Atom.IsSaved    as IsSaved
 import qualified LunaStudio.API.Atom.OpenFile   as OpenFile
+import qualified LunaStudio.API.Atom.Paste      as Paste
 import qualified LunaStudio.API.Atom.SaveFile   as SaveFile
 import qualified LunaStudio.API.Atom.SetProject as SetProject
+import qualified LunaStudio.API.Graph.Request   as G
 import           LunaStudio.API.Request         (Request (..))
 import qualified LunaStudio.API.Response        as Response
+import           LunaStudio.Data.Breadcrumb     (Breadcrumb (..))
+import           LunaStudio.Data.GraphLocation  (GraphLocation(..))
+import qualified LunaStudio.Data.GraphLocation  as GraphLocation
 
 import           Debug
 import qualified Empire.Commands.Graph          as Graph
 import           Empire.Data.AST                (SomeASTException)
 import qualified Empire.Data.Graph              as Graph
 import qualified Empire.Data.Library            as Library
+import           Empire.Empire                  (Empire)
 import qualified Empire.Empire                  as Empire
-import           Empire.Server.Server           (errorMessage, replyFail, replyOk)
+import           Empire.Server.Server           (errorMessage, defInverse, modifyGraph, replyFail, replyOk, replyResult)
 import qualified System.Log.MLogger             as Logger
+import qualified ZMQ.Bus.Config                 as Config
+import qualified ZMQ.Bus.EndPoint               as EP
 import           ZMQ.Bus.Trans                  (BusT (..))
 
 
@@ -79,3 +87,13 @@ handleCloseFile (Request _ _ (CloseFile.Request path)) = do
 
 handleIsSaved :: Request IsSaved.Request -> StateT Env BusT ()
 handleIsSaved (Request _ _ _) = $notImplemented
+
+instance G.GraphRequest Paste.Request where
+    location = lens getter setter where
+        getter (Paste.Request file _ _) = GraphLocation.GraphLocation file (Breadcrumb [])
+        setter (Paste.Request _ spans text) (GraphLocation.GraphLocation file _) = Paste.Request file spans text
+
+handlePasteText :: Request Paste.Request -> StateT Env BusT ()
+handlePasteText = modifyGraph defInverse action replyResult where
+    action (Paste.Request path spans text) = do
+        Paste.Result <$> Graph.pasteText (GraphLocation path (Breadcrumb [])) (head spans) text

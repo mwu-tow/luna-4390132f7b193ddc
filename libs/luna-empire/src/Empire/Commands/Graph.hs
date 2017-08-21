@@ -64,6 +64,7 @@ module Empire.Commands.Graph
     , readMetadata
     , prepareCopy
     , paste
+    , pasteText
     , collapseToFunction
     , moveToOrigin
     ) where
@@ -1321,6 +1322,17 @@ paste loc position (Text.pack -> code) = do
             addNodeNoTC loc uuid nodeCode Nothing movedMeta
     autolayout loc
     resendCode loc
+
+pasteText :: GraphLocation -> (Int,Int) -> Text -> Empire Text
+pasteText loc (both %~ fromIntegral -> (from,to)) text = do
+    code <- withUnit loc $ do
+        oldCode <- use Graph.code
+        let code         = Code.removeMarkers text
+            (start, end) = Code.viewDeltasToReal oldCode (from, to)
+        Code.applyDiff start end code
+    reloadCode loc code
+    resendCode loc
+    return code
 
 -- internal
 

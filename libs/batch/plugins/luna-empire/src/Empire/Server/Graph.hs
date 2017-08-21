@@ -37,12 +37,12 @@ import           Empire.Commands.GraphBuilder            (buildClassGraph, build
 import qualified Empire.Commands.GraphUtils              as GraphUtils
 import qualified Empire.Commands.Persistence             as Persistence
 import           Empire.Data.AST                         (SomeASTException, astExceptionFromException, astExceptionToException)
-import           Empire.Data.AST                         (SomeASTException)
 import           Empire.Empire                           (Empire)
 import qualified Empire.Empire                           as Empire
 import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
-import           Empire.Server.Server                    (errorMessage, replyFail, replyOk, replyResult, sendToBus')
+import           Empire.Server.Server                    (errorMessage, defInverse, modifyGraph, modifyGraphOk, prettyException,
+                                                          replyFail, replyOk, replyResult, sendToBus')
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
@@ -112,8 +112,6 @@ import qualified ZMQ.Bus.EndPoint                        as EP
 import           ZMQ.Bus.Trans                           (BusT (..))
 import qualified ZMQ.Bus.Trans                           as BusT
 
-import           GHC.Stack                               (renderStack, whoCreated)
-
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
@@ -125,53 +123,8 @@ saveCurrentProject loc = do
   projectRoot      <- use Env.projectRoot
   void $ liftIO $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Persistence.saveLocation projectRoot loc
 
-defaultLibraryPath = "Main.luna"
-
-webGUIHack :: G.GraphRequest req => req -> IO req
-webGUIHack req = do
-    lunaroot <- liftIO $ getEnv "LUNAROOT"
-    let path = lunaroot </> "projects" </> defaultLibraryPath
-        realLocation = req ^. G.location
-        realFile     = realLocation ^. GraphLocation.filePath
-        hackedReq    = if null realFile then req & G.location . GraphLocation.filePath .~ path
-                                        else req
-    return hackedReq
-
-prettyException :: Exception e => e -> IO String
-prettyException e = do
-    stack <- whoCreated e
-    return $ displayException e ++ "\n" ++ renderStack stack
-
-modifyGraph :: forall req inv res res'. (G.GraphRequest req, Response.ResponseResult req inv res') => (req -> Empire inv) -> (req -> Empire res) -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req -> StateT Env BusT ()
-modifyGraph inverse action success origReq@(Request uuid guiID request') = do
-    request          <- liftIO $ webGUIHack request'
-    currentEmpireEnv <- use Env.empireEnv
-    empireNotifEnv   <- use Env.empireNotif
-    endPoints        <- EP.clientFromConfig <$> (liftIO Config.load)
-    inv'             <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ inverse request
-    case inv' of
-        Left (exc :: SomeASTException) -> do
-            err <- liftIO $ prettyException exc
-            replyFail logger err origReq (Response.Error err)
-        Right (inv, _) -> do
-            let invStatus = Response.Ok inv
-            result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ action request
-            case result of
-                Left  (exc :: SomeASTException) -> do
-                    err <- liftIO $ prettyException exc
-                    replyFail logger err origReq invStatus
-                Right (result, newEmpireEnv) -> do
-                    Env.empireEnv .= newEmpireEnv
-                    success origReq inv result
-                    saveCurrentProject $ request ^. G.location
-
-modifyGraphOk :: forall req inv res . (Bin.Binary req, G.GraphRequest req, Response.ResponseResult req inv ()) => (req -> Empire inv) -> (req -> Empire res) -> Request req -> StateT Env BusT ()
-modifyGraphOk inverse action = modifyGraph inverse action (\req@(Request uuid guiID request) inv _ -> replyOk req inv)
-
 -- helpers
 
-defInverse :: a -> Empire ()
-defInverse = const $ return ()
 
 generateNodeId :: IO NodeId
 generateNodeId = UUID.nextRandom
