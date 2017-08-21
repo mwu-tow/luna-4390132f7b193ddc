@@ -13,6 +13,7 @@ import Prologue hiding (FilePath)
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import           Luna.Manager.Shell.Shelly (MonadSh)
+import System.Exit
 import qualified System.Process.Typed as Process
 import qualified Data.Text as Text
 default (Text.Text)
@@ -134,7 +135,11 @@ zipFileWindows folder appName = do
         return name
 
 unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
-unpackRPM file filepath = liftIO $ Process.runProcess_ $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " <> encodeString file <> " | cpio -idmv"
+unpackRPM file filepath = liftIO $ do
+    (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " <> encodeString file <> " | cpio -idmv"
+    case exitCode of
+        ExitSuccess   -> return ()
+        ExitFailure a -> print $ "Fatal: rpm not unpacked. " <> err
 
 createTarGzUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do

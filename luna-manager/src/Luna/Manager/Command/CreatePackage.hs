@@ -23,6 +23,7 @@ import qualified Data.Yaml as Yaml
 import qualified Luna.Manager.Command.Options as Opts
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified System.Process.Typed as Process
+import System.Exit
 import System.Directory (renameDirectory)
 import Luna.Manager.Shell.Shelly (MonadSh)
 
@@ -122,8 +123,10 @@ createAppimage appName repoPath = do
         apprun                 = "get_apprun"
         mainAppImageFolderPath = tmpAppDirPath </> mainAppImageFolder
     Shelly.mkdir_p mainAppImageFolderPath
-    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> apprun
-
+    (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> apprun
+    case exitCode of
+        ExitSuccess   -> return ()
+        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err
     copyResourcesAppImage repoPath appName tmpAppDirPath mainAppImageFolderPath
 
     putStrLn "Downloading AppImage desktopIntegration"
@@ -134,8 +137,10 @@ createAppimage appName repoPath = do
     modifyDesktopFileToUseWrapperAppImageToRunApp appName tmpAppDirPath
 
     let generateAppimage   = "generate_type2_appimage"
-    Process.runProcess_ $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
-
+    (exitCode2, out2, err2) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
+    case exitCode2 of
+        ExitSuccess   -> return ()
+        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err2
 
 
 ------------------------------
