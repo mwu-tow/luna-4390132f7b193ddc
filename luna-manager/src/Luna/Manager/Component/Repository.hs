@@ -64,7 +64,7 @@ type VersionMap    = Map Version (Map SysDesc PackageDesc)
 data ResolvedPackage = ResolvedPackage { _header :: PackageHeader, _desc :: PackageDesc, _resolvedAppType :: AppType } deriving (Show, Generic, Eq)
 
 data ResolvedApplication  = ResolvedApplication { _resolvedApp :: ResolvedPackage
-                                                , _pkgsToPack  :: [ResolvedPackage] -- jak zunifikowac to z typami z Repository?
+                                                , _pkgsToPack  :: [ResolvedPackage] 
                                                 } deriving (Show)
 
 makeLenses ''Repo
