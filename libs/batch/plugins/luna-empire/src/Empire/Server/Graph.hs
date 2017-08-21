@@ -257,7 +257,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
     action (GetProgram.Request location mayPrevSettings) = do
         let moduleChanged = isNothing mayPrevSettings || isJust (maybe Nothing (view Project.visMap . snd) mayPrevSettings)
         withJust mayPrevSettings $ uncurry saveSettings
-        code <- Graph.getCode location Nothing
+        code <- Graph.getCode location
         (graph, crumb, typeRepToVisMap, camera) <- handle
             (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], mempty, def))
             $ do
@@ -506,8 +506,8 @@ handleTypecheck req@(Request _ _ request) = do
 
 instance G.GraphRequest GetBuffer.Request where
     location = lens getter setter where
-        getter (GetBuffer.Request file _) = GraphLocation.GraphLocation file (Breadcrumb [])
-        setter (GetBuffer.Request _    s) (GraphLocation.GraphLocation file _) = GetBuffer.Request file s
+        getter (GetBuffer.Request file) = GraphLocation.GraphLocation file (Breadcrumb [])
+        setter (GetBuffer.Request _   ) (GraphLocation.GraphLocation file _) = GetBuffer.Request file
 
 handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
@@ -515,22 +515,11 @@ handleSubstitute = modifyGraph defInverse action replyResult where
         let file = location ^. GraphLocation.filePath
         withDefaultResultTC location $ do
             Graph.substituteCodeFromPoints file start end newText cursor
-            -- code  <- Graph.getCode location
-            -- (graph, crumb) <- handle (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [])) $ do
-            --     graph <- Graph.getGraph location
-            --     crumb <- Graph.decodeLocation location
-            --     return (Right graph, crumb)
-            -- return $ GetProgram.Result graph (Text.pack code) crumb --TODO Handle no graph
-    -- success (Request uuid guiID request) inv res = do
-    --     -- DISCLAIMER, FIXME[MM]: ugly hack - send response to bogus GetProgram request
-    --     -- after each substitute
-    --     let loc = request ^. G.location
-    --     replyResult (Request uuid guiID (GetProgram.Request loc)) () res
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()
 handleGetBuffer = modifyGraph defInverse action replyResult where
-    action (GetBuffer.Request file span) = do
-        code <- Graph.getBuffer file (head <$> span)
+    action (GetBuffer.Request file) = do
+        code <- Graph.getBuffer file
         return $ GetBuffer.Result code
 
 

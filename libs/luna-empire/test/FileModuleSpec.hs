@@ -80,7 +80,7 @@ specifyCodeChange initialCode expectedCode act env = do
         [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
         let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
         act loc'
-        Graph.getCode loc' Nothing
+        Graph.getCode loc'
     Text.strip actualCode `shouldBe` normalize expectedCode
 
 
@@ -105,7 +105,7 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
                 Graph.addNode loc u1 "def quux a b c" (atXPos (-1000))
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -128,7 +128,7 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
                 Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (200,0)) def
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -151,7 +151,7 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
                 Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (500,0)) def
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -174,7 +174,7 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
                 Graph.addNode loc u1 "def quux" (atXPos (-100))
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -209,7 +209,7 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
                 Graph.removeNodes loc [bar ^. Node.nodeId]
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "foo") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
@@ -228,7 +228,7 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
                 Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "qwerty") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -251,7 +251,7 @@ spec = around withChannels $ parallel $ do
                 let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
                 Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
                 Graph.addNode (loc |>= bar ^. Node.nodeId) u1 "1" (atXPos (-10))
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "qwerty") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isNothing
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -276,7 +276,7 @@ spec = around withChannels $ parallel $ do
                 let Just main = find (\n -> n ^. Node.name == Just "main") nodes
                 Graph.renameNode loc (bar ^. Node.nodeId) "qwerty"
                 Graph.addNode (loc |>= main ^. Node.nodeId) u1 "1" (atXPos (-10))
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
                     5
@@ -296,7 +296,7 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just bar = find (\n -> n ^. Node.name == Just "bar") nodes
                 Graph.renameNode loc (bar ^. Node.nodeId) ")" `catch` (\(_e :: SomeParserException) -> return ())
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def foo:
@@ -316,7 +316,7 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc multiFunCode
                 n <- Graph.addNode loc u1 "def quux" (atXPos (-1000))
                 Graph.removeNodes loc [n ^. Node.nodeId]
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "foo") nodes `shouldSatisfy` isJust
             find (\n -> n ^. Node.name == Just "bar") nodes `shouldSatisfy` isJust
@@ -585,7 +585,7 @@ spec = around withChannels $ parallel $ do
                 Graph.addNode (loc |>= foo) u1 "5" (atXPos (-10))
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 starts <- Graph.withUnit loc $ runASTOp $ forM funIds $ Code.functionBlockStart
-                code <- Graph.getCode loc Nothing
+                code <- Graph.getCode loc
                 return (starts, Text.unpack code)
             normalizeQQ code `shouldBe` normalizeQQ [r|
                 def foo:
@@ -665,7 +665,7 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc ""
                 Graph.addNode loc u1 "def main" def
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 1
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
@@ -679,7 +679,7 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc "import Std\nimport Foo\n"
                 Graph.addNode loc u1 "def main" def
-                (,) <$> Graph.getNodes loc <*> Graph.getCode loc Nothing
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 1
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|

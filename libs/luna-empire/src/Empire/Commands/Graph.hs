@@ -625,7 +625,7 @@ updateExprMap new old = do
 
 resendCode :: GraphLocation -> Empire ()
 resendCode loc@(GraphLocation file _) = do
-    code <- getCode loc Nothing
+    code <- getCode loc
     Publisher.notifyCodeUpdate file
                                (Code.deltaToPoint 0 code)
                                (Code.deltaToPoint (fromIntegral $ Text.length code) code)
@@ -734,26 +734,22 @@ disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
 getNodeMeta :: GraphLocation -> NodeId -> Empire (Maybe NodeMeta)
 getNodeMeta loc = withGraph loc . runASTOp . AST.getNodeMeta
 
-getCode :: GraphLocation -> Maybe (Delta, Delta) -> Empire Text
-getCode loc@(GraphLocation file _) span = do
+getCode :: GraphLocation -> Empire Text
+getCode loc@(GraphLocation file _) = do
     code <- withUnit (GraphLocation file (Breadcrumb [])) $ runASTOp $ do
         unit     <- use Graph.clsClass
         metaRef  <- ASTRead.getMetadataRef unit
-        code <- case metaRef of
+        case metaRef of
             Just meta -> do
                 metaStart <- Code.functionBlockStartRef meta
                 LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan meta
                 Code.getAt 0 (metaStart - off)
             _         ->
                 use Graph.code
-        let realDeltas = Code.viewDeltasToReal code <$> span
-        return $ case realDeltas of
-            Nothing                                         -> code
-            Just (fromIntegral -> from, fromIntegral -> to) -> Text.take (to - from) $ Text.drop from code
     return $ Code.removeMarkers code
 
-getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
-getBuffer file span = getCode (GraphLocation file (Breadcrumb [])) (fmap (both %~ fromIntegral) span)
+getBuffer :: FilePath -> Empire Text
+getBuffer file = getCode (GraphLocation file (Breadcrumb []))
 
 getGraphCondTC :: Bool -> GraphLocation -> Empire APIGraph.Graph
 getGraphCondTC tc loc = (if tc then withTC' loc True else withGraph' loc) (runASTOp $ do
