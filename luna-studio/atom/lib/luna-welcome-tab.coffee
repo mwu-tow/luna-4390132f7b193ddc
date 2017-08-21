@@ -7,6 +7,7 @@ class LunaWelcomeTab extends View
     constructor: (@codeEditor) ->
         super
 
+
     @content: ->
         @div =>
             @div class: 'block', =>
@@ -28,7 +29,16 @@ class LunaWelcomeTab extends View
                     placeholder: 'Search'
             @div class: 'block', =>
                 @h1 'Tutorials'
+                @div class: 'inline-block', =>
+                    @newProjButton = @div class: 'btn', outlet: 'newProjectBtn' ,
+                        'new project'
                 @h1 'Private'
                 @h1 'Community'
+
+    initialize: ->
+        @newProjectBtn.on 'click', => @openNewProject()
+
+    openNewProject: =>
+        atom.workspace.open(null, {split: "left"})
 
     getTitle:     -> 'Welcome'
