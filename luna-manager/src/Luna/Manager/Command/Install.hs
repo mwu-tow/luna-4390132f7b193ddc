@@ -357,8 +357,6 @@ installApp opts package = do
 
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
     stopServices installPath appType
-    -- pathExists  <- Shelly.test_d installPath
-    -- if pathExists then Shelly.rm_rf installPath else return ()
     downloadAndUnpackApp (package ^. desc . path) installPath pkgName
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
