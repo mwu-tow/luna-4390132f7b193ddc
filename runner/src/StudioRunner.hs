@@ -17,13 +17,14 @@ import Control.Lens
 import Control.Monad.State.Layered
 import Data.ByteString.Lazy  (unpack)
 import Data.List.Split
+import qualified Data.List as List
 import Data.Semigroup ((<>))
 import Filesystem.Path
 import Options.Applicative
 import System.Directory (doesDirectoryExist, setCurrentDirectory, getHomeDirectory, getCurrentDirectory, createDirectoryIfMissing)
 import System.Exit (ExitCode)
 import System.Process.Typed (shell, runProcess, runProcess_, setWorkingDir, setEnv, readProcess_)
-import System.Environment (getExecutablePath)
+import System.Environment (getExecutablePath, getArgs)
 import qualified System.Environment  as Environment
 import qualified System.IO as IO
 import Data.Maybe (fromMaybe)
@@ -341,10 +342,24 @@ run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
                 then runBackend
                 else runApp atom
 
+filterArg :: String -> Bool
+filterArg arg = not $ List.isInfixOf "-psn" arg
 
+filterArgs :: [String] -> [String]
+filterArgs args = filter filterArg args
+
+filteredParser :: ParserPrefs -> ParserInfo a -> IO a
+filteredParser pprefs pinfo
+  = execParserPure pprefs pinfo <$> filterArgs <$> getArgs
+  >>= handleParseResult
+
+parser :: MonadIO m => m Options
+parser = liftIO $ filteredParser p opts
+    where
+        opts = info (optionParser <**> helper) idm
+        p = prefs showHelpOnEmpty
 
 main :: IO ()
 main =  do
-    opt <- execParser (info optionParser fullDesc)
-    print opt
+    opt <- parser
     run opt
