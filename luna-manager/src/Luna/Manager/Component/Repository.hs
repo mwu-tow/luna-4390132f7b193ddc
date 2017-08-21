@@ -99,7 +99,7 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
 resolvePackageApp :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ResolvedApplication
 resolvePackageApp repo appName = do
     appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
-    let version = fst $ head $ toList $ appPkg ^. versions
+    let version = fst $ last $ toList $ appPkg ^. versions
         applicationType = appPkg ^. appType
     appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ last $ toList $ appPkg ^. versions
     return $ ResolvedApplication (ResolvedPackage (PackageHeader appName version) appDesc applicationType) (snd $ resolve repo appDesc)
