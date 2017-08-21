@@ -13,7 +13,7 @@ import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified Luna.Manager.Archive      as Archive
 
 import Luna.Manager.Component.Repository
-import Luna.Manager.Command.CreatePackage (downloadAndUnpackDependency, PackageConfig)
+import Luna.Manager.Command.CreatePackage --(downloadAndUnpackDependency, PackageConfig)
 import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
 hardcodedRepo :: Repo
@@ -68,6 +68,10 @@ run opts = do
     mapM_ (downloadAndUnpackDependency $ appsPath </> convert appName) $ resolvedApplication ^. pkgsToPack
     --generate packageConfig.yaml
     generateYaml repo resolvedApplication (appsPath </> convert appName) (appsPath </> convert appName </> "luna-package.yaml")
+    pkgConfig <- get @PackageConfig
+    let versionFile = appPath </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
+    Shelly.mkdir_p $ parent versionFile
+    liftIO $ writeFile (encodeString versionFile) "develop"
 
 
     -- building backend
