@@ -11,7 +11,7 @@ import           Prologue
 
 data Request = Request { _filePath :: FilePath
                        , _span     :: [(Int, Int)]
-                       , _content  :: Text
+                       , _content  :: [Text]
                        } deriving (Eq, Generic, Show)
 
 data Result  = Result { _code      :: Text

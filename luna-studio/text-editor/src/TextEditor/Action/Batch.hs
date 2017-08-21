@@ -43,5 +43,5 @@ substitute = withUUID .::. BatchCmd.substitute
 copy :: FilePath -> [(Int, Int)] -> Command State ()
 copy = withUUID .: BatchCmd.copy
 
-paste :: FilePath -> [(Int, Int)] -> Text -> Command State ()
+paste :: FilePath -> [(Int, Int)] -> [Text] -> Command State ()
 paste = withUUID .:. BatchCmd.paste

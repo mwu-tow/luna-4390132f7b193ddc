@@ -97,9 +97,16 @@ module.exports =
         @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
     handlePaste: (e) =>
+        cbd = atom.clipboard.readWithMetadata()
+        cbdData = []
+        if cbd.metadata.selections?
+            for x in cbd.metadata.selections
+                cbdData.push(x.text)
+        else
+            cbdData[0] = cbd.text
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: @spans(), _content: atom.clipboard.read())
+        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: @spans(), _content: cbdData)
 
     handleSave: (e) =>
         e.preventDefault()

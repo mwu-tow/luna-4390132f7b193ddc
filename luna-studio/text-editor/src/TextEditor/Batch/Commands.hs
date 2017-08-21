@@ -1,7 +1,7 @@
 module TextEditor.Batch.Commands where
 
 import           Common.Batch.Connector.Connection (Message (Message), sendRequest)
-import           Common.Prelude
+import           Common.Prelude                    hiding (span)
 import           Data.UUID.Types                   (UUID)
 import qualified LunaStudio.API.Atom.CloseFile     as CloseFile
 import qualified LunaStudio.API.Atom.Copy          as Copy
@@ -46,5 +46,5 @@ substitute location start end text cursor uuid guiID =
 copy :: FilePath -> [(Int, Int)] -> UUID -> Maybe UUID -> IO ()
 copy path span uuid guiID = sendRequest $ Message uuid guiID $ Copy.Request path span
 
-paste :: FilePath -> [(Int, Int)] -> Text -> UUID -> Maybe UUID -> IO ()
+paste :: FilePath -> [(Int, Int)] -> [Text] -> UUID -> Maybe UUID -> IO ()
 paste path span content uuid guiID = sendRequest $ Message uuid guiID $ Paste.Request path span content
