@@ -106,6 +106,20 @@ copyResourcesAppImage repoPath appName tmpAppDirPath mainAppImageFolderPath = do
     Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
     copyDir srcPkgPath mainAppImageFolderPath
 
+checkAppImageName :: MonadCreatePackage m => Text -> FilePath -> m ()
+checkAppImageName appName filePath = do
+    let fileName = filename filePath
+        outFolderPath = parent $ filePath
+    if Text.isInfixOf appName (Shelly.toTextIgnore fileName)
+        then do
+            Shelly.mv filePath $ outFolderPath </> convert (appName <> ".AppImage")
+            else return ()
+
+changeAppImageName :: MonadCreatePackage m => Text -> FilePath -> m ()
+changeAppImageName appName outFolderPath = do
+    listedDir <- Shelly.ls outFolderPath
+    mapM_ (checkAppImageName appName) listedDir
+
 -- TODO: refactor
 createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
 createAppimage appName repoPath = do
@@ -141,7 +155,8 @@ createAppimage appName repoPath = do
     case exitCode2 of
         ExitSuccess   -> return ()
         ExitFailure a -> print $ "Fatal: AppImage not created. " <> err2
-
+    let outFolder = (parent $ tmpAppPath) </> "out"
+    changeAppImageName appName outFolder
 
 ------------------------------
 -- === Package building === --
