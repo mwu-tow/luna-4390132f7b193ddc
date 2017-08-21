@@ -130,10 +130,7 @@ noGraph_ :: Bool -> String -> ReactElementM ViewEventHandler ()
 noGraph_ hideLogo msg =
     div_ [ "className" $= Style.prefix "graph"] $
         div_ [ "className" $= Style.prefix "background-text"] $ do
-            unless hideLogo $ img_
-                [ "className" $= Style.prefix "message-logo"
-                , "src"       $= "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGZpbGw9IiM1RjE1MjIgIiBkPSJNMzUuMiA4MC40YzMwLjUgMCA0MC43IDI0IDU3LjMgMjIuNEMxMDkgMTAxIDU2IDEyMy4zIDU2IDEyMy4zUzE4IDEyNyAxOCA5MGMwLTcuNCAxMi43LTkuNiAxNy4yLTkuNnoiLz48cGF0aCBmaWxsPSIjRjIyMTQ2ICIgZD0iTTkwIDE4MGM0OS43IDAgOTAtNDAuMyA5MC05MFMxMzkuNyAwIDkwIDAgMCA0MC4zIDAgOTBzNDAuMyA5MCA5MCA5MHptMC05YzQ0LjcgMCA4MS0zNi4zIDgxLTgxUzEzNC43IDkgOTAgOSA5IDQ1LjMgOSA5MHMzNi4zIDgxIDgxIDgxem03Mi03OS4yYzAgMzktMzIuOCA3MC4yLTcyIDcwLjItMzkuOCAwLTcyLTMyLjItNzItNzIgOSAxNC43IDI0IDI0LjYgNDAuMyAyNS4yIDE5LjQuOCAzOS43LTExIDQ4LjMtMzEuNiA2LTE0LjIgMTYuNy0xOS41IDI3LTE5LjUgMTMuOCAwIDI4LjQgMTEgMjguNCAyOHoiLz48L2c+PC9zdmc+Cg=="
-                ] mempty
+            unless hideLogo $ div_ [ "className" $= Style.prefix "message-logo" ] mempty
             elemString msg
 
 dynamicStyles_ :: Matrix Double -> [ExpressionNode] -> ReactElementM ViewEventHandler ()
@@ -155,9 +152,11 @@ dynamicScale = React.defineView objDynStyle $ \cameraScale -> do
     style_
         [ "key" $= "scale"
         ] $ do
-          elemString $ ":root { font-size: " <> show scale <> "px !important }"
-          elemString $ ".luna-camera-scale { transform: "     <> showCameraScale cameraScale <> " }"
+          --camera
+          elemString $ ":root { font-size: " <> show scale <> "px }"
+          --elemString $ ".luna-camera-scale { transform: " <> showCameraScale cameraScale <> " }"
 
+          --connections
           elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
           elemString $ ".luna-connection__select { stroke-width: " <> show (10/scale)          <> " }"
 
