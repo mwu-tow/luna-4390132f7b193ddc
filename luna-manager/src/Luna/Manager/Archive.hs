@@ -57,7 +57,7 @@ unzipUnix file = do
         Shelly.mkdir_p name
         Shelly.cp file name
         Shelly.chdir (dir </> name) $ do
-            out <- Shelly.cmd  "unzip" $ dir </> name </> filename file
+            out <- Shelly.silently $ Shelly.cmd  "unzip" $ dir </> name </> filename file
             Shelly.rm $ dir </> name </> filename file
             listed <- Shelly.ls $ dir </> name
             if length listed == 1 then return $ head listed else return $ dir </> name

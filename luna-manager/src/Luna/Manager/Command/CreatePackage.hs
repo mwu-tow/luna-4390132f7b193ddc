@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Luna.Manager.Command.CreatePackage where
 
-
-
 import           Control.Lens.Aeson
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
@@ -151,7 +149,7 @@ runPkgBuildScript repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
     Shelly.chdir (parent buildPath) $ do
-        Shelly.cmd buildPath
+        Shelly.silently $ Shelly.cmd buildPath
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -259,7 +257,7 @@ createPkg resolvedApplication = do
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
     case currentHost of
         Linux   -> return ()
-        Darwin  -> linkLibs binsFolder libsFolder
+        Darwin  -> Shelly.silently $ linkLibs binsFolder libsFolder
         Windows -> return ()
 
     case currentHost of
