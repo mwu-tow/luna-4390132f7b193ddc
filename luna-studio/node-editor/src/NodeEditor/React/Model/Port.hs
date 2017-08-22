@@ -88,9 +88,9 @@ visibleOutPorts (LabeledTree (OutPorts []) p) = [p]
 visibleOutPorts (LabeledTree (OutPorts ps) _) = concatMap visibleOutPorts ps
 
 visibleInPorts :: InPortTree (Port i) -> [Port i]
-visibleInPorts root@(LabeledTree (InPorts maySelf _ args') _) = maybeToList findSelfOrHead <> map (view LabeledTree.value) args' where
-    h              = findHead root
-    findSelfOrHead = if h ^. state == Connected then Just h else findSelf <$> maySelf
+visibleInPorts root@(LabeledTree (InPorts maySelf _ args') _) = findSelfAndOrHead <> map (view LabeledTree.value) args' where
+    h                 = findHead root
+    findSelfAndOrHead = (if h ^. state == Connected then [h] else []) <> maybeToList (findSelf <$> maySelf)
     findHead (LabeledTree (InPorts _ mayHead' _) p') = if p' ^. state == Connected then p' else maybe p' findHead mayHead'
     findSelf (LabeledTree (InPorts maySelf' _ _) p') = if p' ^. state == Connected then p' else maybe p' findSelf maySelf'
 
