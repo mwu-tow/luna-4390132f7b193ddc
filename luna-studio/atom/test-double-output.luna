@@ -1,0 +1,4 @@
+def main:
+    «0»foobar = (1, 2)
+    «1»(x, y) = foobar
+    «2»sum1 = 1 + xETA {"metas"### META {"metas":[{"marker":0,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/Users/k/nbo/luna-studio/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":0}}}},{"marker":1,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/Users/k/nbo/luna-studio/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":176}}}},{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":352}}}}]}  

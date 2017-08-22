@@ -46,35 +46,15 @@ module.exports =
   class LunaEditorTab extends TextEditor
 
     constructor: (@uri, @codeEditor) ->
-
         super
         @diffToOmit = new Set()
         @getBuffer().setPath(@uri)
         @getBuffer().subscribeToFileOverride(@codeEditor)
-
         @codeEditor.pushInternalEvent(tag: "OpenFile", _path: @uri)
 
-        omitDiff = (text) =>
-            @diffToOmit.add(text)
-
-        setBuffer = (uri_send, text) =>
-            console.log(uri_send, @uri)
-            if @uri == uri_send
-                omitDiff(text)
-                @getBuffer().setText(text)
-                console.log("setBuffer")
-
-        @codeEditor.bufferListener setBuffer
-
-        setCode = (uri_send, start_send, end_send, text) =>
-            if @uri == uri_send
-            #   start = @getBuffer().positionForCharacterIndex(start_send)
-            #   end = @getBuffer().positionForCharacterIndex(end_send)
-            #   @getBuffer().setTextInRange [start, end], text
-            #   @.scrollToBufferPosition(start)
-                omitDiff(text)
-                @getBuffer().setText(text)
-        @codeEditor.codeListener setCode
+        @codeEditor.onSetBuffer @setBuffer
+        @codeEditor.onSetClipboard @setClipboard
+        @codeEditor.onInsertCode @insertCode
 
         @handleEvents()
 
@@ -101,16 +81,46 @@ module.exports =
 
     handleEvents: =>
         atom.commands.add @element,
-            'core:copy':     => @handleCopy()
-            'core:save': (e) => @handleSave(e)
+            'core:copy':  (e) => @handleCopy(e)
+            'core:cut':   (e) => @handleCopy(e)
+            'core:paste': (e) => @handlePaste(e)
+            'core:save':  (e) => @handleSave(e)
 
-    handleCopy: =>
-        buffer     = @getBuffer()
-        selections = @getSelections()
-        spanList   = ([buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition), buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)] for s in selections)
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: spanList)
+    spans: =>
+        buffer = @getBuffer()
+        [buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition),
+         buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort() for s in @getSelections()
+
+    handleCopy: (e) =>
+        # e.preventDefault()
+        # e.stopImmediatePropagation()
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _maySelections: @spans())
+
+    handlePaste: (e) =>
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: @spans(), _content: atom.clipboard.read())
 
     handleSave: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
         @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+
+    insertCode: (uri_send, start_send, end_send, text) =>
+        if @uri == uri_send
+            @omitDiff(text)
+            @getBuffer().setText(text)
+
+    setClipboard: (uri_send, text) =>
+        # if @uri == uri_send
+        #     atom.clipboard.write(text)
+
+    setBuffer: (uri_send, text) =>
+        console.log(uri_send, @uri)
+        if @uri == uri_send
+            @omitDiff(text)
+            @getBuffer().setText(text)
+            console.log "setBuffer"
+
+    omitDiff: (text) =>
+        @diffToOmit.add(text)

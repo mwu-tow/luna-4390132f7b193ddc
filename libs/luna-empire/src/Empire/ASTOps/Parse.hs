@@ -61,7 +61,7 @@ deriving instance Show SomeParserException
 instance Exception SomeParserException where
     toException = astExceptionToException
     fromException = astExceptionFromException
-    displayException exc = case exc of SomeParserException e -> "SomeParserException (" ++ displayException e ++ ")"
+    displayException exc = case exc of SomeParserException e -> "SomeParserException (" <> displayException e <> ")"
 
 parseExpr :: GraphOp m => String -> m NodeRef
 parseExpr s = do

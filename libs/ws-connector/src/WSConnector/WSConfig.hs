@@ -14,6 +14,6 @@ makeLenses ''Config
 
 readWebsocketConfig config = Config host port pingTime where
     host       = FD.host websocket
-    port       = read (FD.port websocket) :: Int
-    pingTime   = read (FD.pingTime websocket) :: Int
+    port       = unsafeRead (FD.port websocket) :: Int
+    pingTime   = unsafeRead (FD.pingTime websocket) :: Int
     websocket  = FD.websocket config

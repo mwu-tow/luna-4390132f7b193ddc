@@ -13,6 +13,7 @@ module NodeEditor.React.Model.Node.SidebarNode
 import           Common.Prelude
 import           Data.Convert                  (Convertible (convert))
 import           Data.HashMap.Strict           (HashMap)
+import qualified LunaStudio.Data.LabeledTree   as LabeledTree
 import           LunaStudio.Data.Node          (NodeId)
 import qualified LunaStudio.Data.Node          as Empire
 import           LunaStudio.Data.NodeLoc       (NodeLoc (NodeLoc), NodePath)
@@ -72,14 +73,14 @@ instance HasNodeLoc OutputNode where
     nodeLoc = outputNodeLoc
 
 instance HasPorts OutputNode where
-    inPortsList  = Port.inPortTreeLeafs True . view outputSidebarPorts
+    inPortsList  = return . view LabeledTree.value . view outputSidebarPorts
     outPortsList = const def
     inPortAt pid = outputSidebarPorts . ix pid
     outPortAt    = const ignored
 
 instance HasPorts InputNode where
     inPortsList   = const def
-    outPortsList  = concatMap Port.outPortTreeLeafs . view inputSidebarPorts
+    outPortsList  = concatMap Port.visibleOutPorts . view inputSidebarPorts
     inPortAt      = const ignored
     outPortAt ((Projection i):t) = inputSidebarPorts . ix i . ix t
     outPortAt _                  = ignored

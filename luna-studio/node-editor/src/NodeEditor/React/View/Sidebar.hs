@@ -37,7 +37,7 @@ name node = "sidebarPorts" <> if isInputSidebar node then "Inputs" else "Outputs
 
 portHandlers :: Ref App -> SidebarMode -> Bool -> Bool -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
 portHandlers ref AddRemove _ isOnly portRef =
-    [ onMouseDown $ \e _ -> [stopPropagation e] ] ++
+    [ onMouseDown $ \e _ -> [stopPropagation e] ] <>
     if isOnly then [] else
     [ onClick      $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.RemovePort portRef)
     , onMouseLeave $ \_ _ -> dispatch ref (UI.SidebarEvent . Sidebar.UnfreezeSidebar $ portRef ^. PortRef.nodeLoc)
@@ -61,8 +61,8 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         mode          = node ^. SidebarNode.mode
         isPortDragged = any isInMovedMode ports
         classes       = [ "sidebar", if isInputSidebar node then "sidebar--i" else "sidebar--o" ]
-                      ++ if mode == AddRemove then ["sidebar--editmode"] else []
-                      ++ if isPortDragged then ["sidebar--dragmode"] else []
+                      <> if mode == AddRemove then ["sidebar--editmode"] else []
+                      <> if isPortDragged then ["sidebar--dragmode"] else []
         addButtonHandlers = case mode of
                                 AddRemove   -> [ onMouseDown $ \e _ -> [stopPropagation e]
                                                , onClick     $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.AddPort portRef)
@@ -91,7 +91,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                     svg_ (
                         [ "className" $= Style.prefixFromList [ "sidebar__port__svg", "sidebar__port__svg--addbutton" ]
                         , "key"       $= (name node <> "AddButton")
-                        ] ++ addButtonHandlers ) $ do
+                        ] <> addButtonHandlers ) $ do
                         circle_
                             [ "className" $= Style.prefix "port__shape"
                             , "key"       $= jsShow "addButtonShape"
@@ -126,7 +126,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                             ] mempty
 
 sidebarPortName_ :: Ref App -> AnyPortRef -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
-sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] ++ handlers) nameElement where
+sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] <> handlers) nameElement where
     regularName             = elemString $ convert portName
     (handlers, nameElement) = case portRef of
         OutPortRef' outPortRef -> do
@@ -144,8 +144,8 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
         color     = convert $ p ^. Port.color
         num       = getPortNumber portId
         highlight = if isHighlighted p || isInNameEditMode p then [ "hover" ] else []
-        classes   = if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] ++ highlight
-                                       else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] ++ highlight
+        classes   = if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
+                                       else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
     div_
         [ "key"       $= ( jsShow portId <> "-port-" <> jsShow num )
         , "className" $= Style.prefixFromList classes
@@ -167,7 +167,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
                 [ "className" $= Style.prefix "port__select"
                 , "key"       $= (jsShow portId <> jsShow num <> "b")
                 , "r"         $= jsShow2 (lineHeight/1.5)
-                ] ++ portHandlers ref mode isPortDragged isOnly portRef ) mempty
+                ] <> portHandlers ref mode isPortDragged isOnly portRef ) mempty
         sidebarPortName_ ref portRef (p ^. Port.name) maySearcher
 
 addButton_ :: Ref App -> AnyPortRef -> ReactElementM ViewEventHandler ()

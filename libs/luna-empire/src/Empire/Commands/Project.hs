@@ -10,13 +10,13 @@ import           Empire.Prelude
 
 
 setProject :: FilePath -> Empire ()
-setProject = $notImplemented
+setProject = $_NOT_IMPLEMENTED
 
 openFile :: FilePath -> Empire ()
-openFile = $notImplemented
+openFile = $_NOT_IMPLEMENTED
 
 closeFile :: FilePath -> Empire ()
-closeFile = $notImplemented
+closeFile = $_NOT_IMPLEMENTED
 
 saveFile :: FilePath -> Empire ()
-saveFile = $notImplemented
+saveFile = $_NOT_IMPLEMENTED

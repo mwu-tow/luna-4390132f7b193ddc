@@ -30,7 +30,9 @@ body { height: 100%; overflow: auto; }
 body,
 atom-workspace .luna-studio {
     .graphBackground;
-    font:                   12px/15px @fontDefault;
+    font-family:            @fontDefault;
+    font-size:              @luna-font-size;
+    line-heigth:            @luna-line-height;
     font-weight:            300;
     font-variant-ligatures: contextual;
 }
@@ -48,6 +50,7 @@ atom-workspace .luna-studio {
         display: none;
     }
 }
+
 
 /////////////////////////////
 //       basic styles      //
@@ -89,20 +92,20 @@ atom-workspace .luna-studio {
 /////////////////////////////
 
 .luna-breadcrumbs {
-    font-size:     10px;
-    position:      absolute;
-    top:           8px;
-    left:          6px;
-    flex:          none;
-    line-height:   16px;
-    padding:       0 8px;
+    font-size:   calc(@ui ~'*' 10px);
+    position:    absolute;
+    top:         calc(@ui ~'*' 8px);
+    left:        calc(@ui ~'*' 6px);
+    flex:        none;
+    line-height: calc(@ui ~'*' 16px);
+    padding:     0 calc(@ui ~'*' 8px);
     .background(1);
     .roundCorners;
 }
 
 .luna-breadcrumbs__item {
     float:   left;
-    padding: 4px;
+    padding: calc(@ui ~'*' 4px);
     cursor:  pointer;
     .color(8);
     &:not(:last-child) {
@@ -111,9 +114,9 @@ atom-workspace .luna-studio {
             cursor:      default;
             content:     ">";
             .color(4);
-            margin-left: 8px;
+            margin-left: calc(@ui ~'*' 8px);
             position:    relative;
-            top:         1px;
+            top:         calc(@ui ~'*' 1px);
         }
     }
 }
@@ -126,9 +129,6 @@ atom-workspace .luna-studio {
     overflow: inherit;
     .fillSpace;
     z-index:  0;    // puts graph under breadcrumbs
-    svg {
-        //-webkit-filter: brightness(1.4) grayscale(0.3);
-    }
 }
 
 .luna-svg-plane {

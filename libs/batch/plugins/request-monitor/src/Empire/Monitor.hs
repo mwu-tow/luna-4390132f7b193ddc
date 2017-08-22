@@ -5,7 +5,7 @@
 
 module Empire.Monitor where
 
-import           Control.Monad                    (forever)
+import           Control.Monad                    (forever, when)
 import           Control.Monad.State              (StateT, evalStateT)
 import qualified Data.Binary                      as Bin
 import           Data.ByteString                  (ByteString)
@@ -13,7 +13,7 @@ import           Data.ByteString.Char8            (unpack)
 import           Data.ByteString.Lazy             (fromStrict, toStrict)
 import           Data.Map.Strict                  (Map)
 import qualified Data.Map.Strict                  as Map
-import           Prologue
+import           Prologue                         hiding (when)
 import           System.Cmd                       (system)
 import           System.Directory                 (getCurrentDirectory)
 import           System.Exit                      (exitFailure)

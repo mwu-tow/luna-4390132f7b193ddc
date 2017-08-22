@@ -7,7 +7,7 @@ module Empire.Commands.Typecheck where
 
 import           Control.Arrow                    ((***))
 import           Control.Concurrent               (forkIO, killThread)
-import           Control.Monad                    (forM_, void)
+import           Control.Monad                    (void)
 import           Control.Monad.Except             hiding (when)
 import           Control.Monad.Reader             (ask, runReaderT)
 import           Control.Monad.State              (execStateT)
@@ -77,9 +77,9 @@ updateNodes loc@(GraphLocation _ br) = do
              case errs of
                  []     -> return Nothing
                  e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError e)
-         return (sidebarUpdates ++ nodeUpdates, errors)
-     mapM_ (Publisher.notifyNodeTypecheck loc) updates
-     forM_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
+         return (sidebarUpdates <> nodeUpdates, errors)
+     traverse_ (Publisher.notifyNodeTypecheck loc) updates
+     for_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
 
 updateMonads :: GraphLocation -> Command InterpreterEnv ()
 updateMonads loc@(GraphLocation _ br) = return ()--zoom graph $ zoomBreadcrumb br $ do
@@ -96,14 +96,14 @@ updateValues loc scope = do
         IR.matchExpr pointer $ \case
             IR.Unify{} -> Just . (nid,) <$> ASTRead.getVarNode pointer
             _          -> return Nothing
-    forM_ allVars $ \(nid, ref) -> do
+    for_ allVars $ \(nid, ref) -> do
         let resVal = Interpreter.localLookup (IR.unsafeGeneralize ref) scope
             send m = flip runReaderT env $ Publisher.notifyResultUpdate loc nid m 0
             sendRep (ErrorRep e)     = send $ NodeError $ APIError.Error APIError.RuntimeError $ convert e
             sendRep (SuccessRep s l) = send $ NodeValue (convert s) $ Value . convert <$> l
             sendStreamRep a@(ErrorRep _)   = sendRep a
             sendStreamRep (SuccessRep s l) = send $ NodeValue (convert s) $ StreamDataPoint . convert <$> l
-        liftIO $ forM_ resVal $ \v -> do
+        liftIO $ for_ resVal $ \v -> do
             value <- getReps v
             case value of
                 OneTime r   -> sendRep r
@@ -124,7 +124,7 @@ createStdlib = fmap (id *** Scope) . Compilation.createStdlib
 
 getSymbolMap :: Scope -> SymbolMap
 getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
-    functions = conses ++ (convert <$> Map.keys funcs)
+    functions = conses <> (convert <$> Map.keys funcs)
     conses    = getConses =<< Map.elems clss
     getConses (Class conses _) = convert <$> Map.keys conses
     classes   = processClass <$> Map.mapKeys convert clss
@@ -161,4 +161,4 @@ run loc@(GraphLocation _ br) = do
             liftIO cln
             liftIO $ mapM killThread threads
             scope <- runInterpreter imps
-            mapM_ (updateValues loc) scope
+            traverse_ (updateValues loc) scope

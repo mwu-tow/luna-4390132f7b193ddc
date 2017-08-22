@@ -27,17 +27,23 @@
     * { box-sizing: content-box; }
 }
 
+/////////////////////////////
+//        node text        //
+/////////////////////////////
+
 .luna-node__text {
+    font-size:      calc(@ui ~'*' @luna-font-size);
+    line-height:    calc(@ui ~'*' @luna-line-height);
     align-items:    center;
     bottom:         36rem !important;
     color:          @luna-text-color;
     cursor:         default;
     display:        flex;
     flex-direction: column;
-    left:          -20px;
-    margin-bottom: -36px;
-    min-width:      40px;
-    padding-bottom: 36px;
+    left:           calc(@ui ~'*' -20px);
+    margin-bottom:  calc(@ui ~'*' -36px);
+    min-width:      calc(@ui ~'*'  40px);
+    padding-bottom: calc(@ui ~'*'  36px);
     position:       absolute;
     white-space:    nowrap;
     width:          0;
@@ -46,13 +52,13 @@
 .luna-node__name {
     color:          @luna-text-color;
     font-weight:    300;
-    width:          40px;
+    width:          calc(@ui ~'*' 40px); //40px;
     position:       relative;
     display:        flex;
     align-items:    center;
     flex-direction: column;
-    height:         24px;
-    line-height:    24px;
+    height:         calc(@ui ~'*' 24px);
+    line-height:    calc(@ui ~'*' 24px);
     &::selection {
         background: none;
     }
@@ -67,9 +73,9 @@
         border-radius: 0 1000px 1000px 0;
         opacity:       0;
         position:      absolute;
-        width:         24px;
-        height:        16px;
-        transform:     translate(0, 3px);
+        width:         calc(@ui ~'*' 24px);
+        height:        calc(@ui ~'*' 16px);
+        transform:     translate(0, calc(@ui ~'*' 3px));
         left:          auto;
     }
 }
@@ -77,18 +83,36 @@
 .luna-node__name--positioner {
     .graphBackground;
     .roundCorners;
-    line-height:   14px;
-    padding:       0 7px 2px 6px;
-    margin-top:    3px;
+    line-height: calc(@ui ~'*' 14px);
+    padding: 0 calc(@ui ~'*' 7px)
+               calc(@ui ~'*' 2px)
+               calc(@ui ~'*' 6px);
+    margin-top: calc(@ui ~'*' 3px);
 }
 
 .luna-node__expression {
     .roundCorners;
     overflow:      hidden;
     text-overflow: ellipsis;
-    padding:       4px 8px;
+    padding:       calc(@ui ~'*' 4px)
+                   calc(@ui ~'*' 8px);
     background:    @luna-syntax-background-color;
     .outlineStroke;
+}
+
+/////////////////////////////
+//          icons          //
+/////////////////////////////
+
+.luna-node__icons {
+    display: none;
+}
+
+.luna-icon--show {
+    x:     -5px;
+    y:     -100px;
+    width:  10px;
+    height: 10px;
 }
 
 // .luna-node__expression--long {
@@ -110,6 +134,10 @@
 //         white-space: normal;
 //     }
 // }
+
+/////////////////////////////
+//        node port        //
+/////////////////////////////
 
 .luna-port {
     stroke-width: 0;
@@ -360,19 +388,4 @@
         .background(4);
         left: -2rem;
     }
-}
-
-/////////////////////////////
-//          icons          //
-/////////////////////////////
-
-.luna-node__icons {
-    display: none;
-}
-
-.luna-icon--show {
-    x:     -5px;
-    y:     -100px;
-    width:  10px;
-    height: 10px;
 }

@@ -59,18 +59,18 @@ appendItem :: BreadcrumbItem -> NodePath -> NodePath
 appendItem item = localBc %~ (<> Breadcrumb [item])
 
 dropItem :: NodePath -> NodePath
-dropItem = localBc . Breadcrumb.items %~ init
+dropItem = localBc . Breadcrumb.items %~ unsafeInit
 
 replaceLast :: BreadcrumbItem -> NodePath -> NodePath
 replaceLast item = appendItem item . dropItem
 
 fromPath :: NodePath -> NodeLoc
 fromPath path' = NodeLoc newPath $ lastItem ^. Breadcrumb.nodeId where
-    newPath = path' & localBc . Breadcrumb.items %~ init
-    lastItem = path' ^. localBc . Breadcrumb.items . to last
+    newPath = path' & localBc . Breadcrumb.items %~ unsafeInit
+    lastItem = path' ^. localBc . Breadcrumb.items . to unsafeLast
 
 toNodeIdList :: NodeLoc -> [NodeId]
-toNodeIdList nl = (view Breadcrumb.nodeId <$> nl ^. pathItems) ++ [nl ^. nodeId]
+toNodeIdList nl = (view Breadcrumb.nodeId <$> nl ^. pathItems) <> [nl ^. nodeId]
 
 toBreadcrumb :: NodeLoc -> Breadcrumb BreadcrumbItem
 toBreadcrumb nl = (nl ^. breadcrumb) <> Breadcrumb [Breadcrumb.Lambda $ nl ^. nodeId]

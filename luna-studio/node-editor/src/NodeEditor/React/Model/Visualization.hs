@@ -61,4 +61,4 @@ toIdleVisualization vs = IdleVisualization vs . view runningVisualizer
 
 stopVisualizations :: NodeVisualizations -> NodeVisualizations
 stopVisualizations nodeVis = nodeVis & visualizations     .~ def
-                                     & idleVisualizations .~ (nodeVis ^. idleVisualizations) ++ (map (toIdleVisualization Ready) . Map.elems $ nodeVis ^. visualizations)
+                                     & idleVisualizations .~ (nodeVis ^. idleVisualizations) <> (map (toIdleVisualization Ready) . Map.elems $ nodeVis ^. visualizations)

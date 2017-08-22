@@ -1,10 +1,10 @@
 module Debug.Unsafe where
 
-import           Control.Concurrent
 import           Data.Time.Clock    (diffUTCTime, getCurrentTime)
 import           Prologue
 import           System.CPUTime
 import           System.IO.Unsafe
+
 
 debugPrint :: (Show a, Monad m) => a -> m ()
 debugPrint = unsafeLiftIO . print

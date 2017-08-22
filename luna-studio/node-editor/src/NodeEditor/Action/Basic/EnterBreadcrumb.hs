@@ -13,7 +13,7 @@ import           NodeEditor.State.Global                    (State, workspace)
 enterBreadcrumb :: BreadcrumbItem -> Command State ()
 enterBreadcrumb item =
     withJustM (preuse $ workspace . traverse . currentLocation) $ \location ->
-        navigateToGraph $ location & breadcrumb . items %~ (++ [item])
+        navigateToGraph $ location & breadcrumb . items %~ (<> [item])
 
 enterBreadcrumbs :: Breadcrumb BreadcrumbItem -> Command State ()
 enterBreadcrumbs newBc =

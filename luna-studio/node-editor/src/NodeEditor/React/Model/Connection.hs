@@ -219,7 +219,7 @@ connectionSrc src' dst' isSrcExpanded _isDstExpanded num numOfSameTypePorts isSi
     else move (Vector2 (portRadius * cos t) (portRadius * sin t)) src' where
         t = if isSingle
             then nodeToNodeAngle src' dst'
-            else connectionAngle src' dst' num numOfSameTypePorts
+            else connectionAngle src' dst' (numOfSameTypePorts - num - 1) numOfSameTypePorts
 
 connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Position
 connectionDst src' dst' isSrcExpanded isDstExpanded num numOfSameTypePorts isSelf' isAlias = do

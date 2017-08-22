@@ -1,4 +1,18 @@
 /////////////////////////////
+//           zoom          //
+/////////////////////////////
+
+@ref-font-size: 12;
+
+:root {
+  --ui-zoom:       1;
+  --ui-font-size:  @ref-font-size;
+  --ul-total-zoom: calc(var(--ui-font-size) ~'/' @ref-font-size ~'*' var(--ui-zoom));
+}
+
+@ui: var(--ul-total-zoom);
+
+/////////////////////////////
 //          fonts          //
 /////////////////////////////
 
@@ -6,35 +20,38 @@
 @syntax-background-color: #282c34;  // default
 @syntax-text-color:       #abb2bf; //  default
 
+@luna-font-size:          12px;
+@luna-line-height:        16px;
+
 /////////////////////////////
 //         colors          //
 /////////////////////////////
 
-@luna-syntax-background-color: @syntax-background-color;
-@luna-graph-background-color:  darken(@luna-syntax-background-color,10%); //#181b1f;
+@luna-syntax-background-color:   @syntax-background-color;
+@luna-graph-background-color:    darken(@luna-syntax-background-color,10%); //#181b1f;
 
-@luna-syntax-text-color:       @syntax-text-color;
-@luna-text-color:              @syntax-text-color;
+@luna-syntax-text-color:         @syntax-text-color;
+@luna-text-color:                @syntax-text-color;
 
-@colorTextMinor:       #68858a;
+@colorTextMinor:                 #68858a;
 
-@colorSelect:          orange;
-@colorText:            #ccc;
-@colorTextHighlighted: #fff;
-@colorTextUneditable:  darken(@colorText, 50%);
-@colorTextDisabled:    darken(@colorText, 80%);
+@colorSelect:                    orange;
+@colorText:                      #ccc;
+@colorTextHighlighted:           #fff;
+@colorTextUneditable:            darken(@colorText, 50%);
+@colorTextDisabled:              darken(@colorText, 80%);
 
-@colorTextEdited:      darken(@colorText, 50%);
-@colorTextNotEdited:   darken(@colorText, 50%);
-@colorTextNotSet:      darken(@colorText, 80%);
+@colorTextEdited:                darken(@colorText, 50%);
+@colorTextNotEdited:             darken(@colorText, 50%);
+@colorTextNotSet:                darken(@colorText, 80%);
 
-@colorName:            @colorText;
+@colorName:                      @colorText;
 
-@colorNodeBackground:          #21252a;
+@colorNodeBackground:            #21252a;
 
-@colorBreadcrumbs:             @colorNodeBackground;
-@colorBreadcrumbsText:         @colorText;
-@colorBreadcrumbsTextInactive: #888;
+@colorBreadcrumbs:               @colorNodeBackground;
+@colorBreadcrumbsText:           @colorText;
+@colorBreadcrumbsTextInactive:   #888;
 
 @colorSearcherResultsBackground: @luna-syntax-background-color;
 @colorSearcherResultsSelected:   #3a414a;
@@ -43,10 +60,10 @@
 //           grid          //
 /////////////////////////////
 
-@gridSize:            16rem;
-@lineHeight:          @gridSize;
-@borderRadius:        3rem;
-@borderRadiusPx:      3px;
+@gridSize:       16rem;
+@lineHeight:     @gridSize;
+@borderRadius:   3rem;
+@borderRadiusPx: 3px;
 
 /////////////////////////////
 //           grid          //
@@ -60,12 +77,12 @@
 //        animation        //
 /////////////////////////////
 
-@transitionSpeed:     60ms;
-@selectionSpeed:     100ms;
-@colorSpeed:         120ms;
+@transitionSpeed: 60ms;
+@selectionSpeed:  100ms;
+@colorSpeed:      120ms;
 
 /////////////////////////////
 //          other          //
 /////////////////////////////
 
-@strokeWidth:        2.6rem;
+@strokeWidth: 2.6rem;

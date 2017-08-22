@@ -13,7 +13,7 @@ colorizedExpression_ expr = React.viewWithSKey colorizedExpression "color-expr" 
 
 colorizedExpression :: ReactView Text
 colorizedExpression = defineView "color-expr" $ \expr -> do
-    let classes t = map ("syntax--" ++) $ "source" : "luna" : concatMap (wordsBy (=='.')) (mapMaybe (lunaClass . convert) t)
+    let classes t = map ("syntax--" <>) $ "source" : "luna" : concatMap (wordsBy (=='.')) (mapMaybe (lunaClass . convert) t)
         tags token = [ (fromIntegral $ token ^. Lexer.span, classes $ Lexer.getTags $ token ^. Lexer.element)
                      , (fromIntegral $ token ^. Lexer.offset, [])
                      ]

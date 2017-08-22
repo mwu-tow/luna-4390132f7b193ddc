@@ -9,6 +9,7 @@ module Empire.Server.Graph where
 import           Control.Arrow                           ((&&&))
 import           Control.Concurrent                      (forkIO)
 import           Control.Concurrent.MVar                 (readMVar)
+import           Control.Monad                           (when)
 import           Control.Monad.Catch                     (handle, try)
 import           Control.Monad.Reader                    (asks)
 import           Control.Monad.State                     (StateT, evalStateT, get)
@@ -21,7 +22,7 @@ import qualified Data.IntMap                             as IntMap
 import           Data.List                               (break, find, partition)
 import           Data.List.Split                         (splitOneOf)
 import qualified Data.Map                                as Map
-import           Data.Maybe                              (fromMaybe, isJust, isNothing, listToMaybe, maybeToList)
+import           Data.Maybe                              (isJust, isNothing, listToMaybe, maybeToList)
 import qualified Data.Set                                as Set
 import           Data.Text                               (stripPrefix)
 import qualified Data.Text                               as Text
@@ -102,7 +103,7 @@ import qualified LunaStudio.Data.Position                as Position
 import           LunaStudio.Data.Project                 (LocationSettings)
 import qualified LunaStudio.Data.Project                 as Project
 import           LunaStudio.Data.TypeRep                 (TypeRep (TStar))
-import           Prologue                                hiding (Item)
+import           Prologue                                hiding (Item, when)
 import           System.Environment                      (getEnv)
 import           System.FilePath                         (replaceFileName, (</>))
 import qualified System.Log.MLogger                      as Logger
@@ -140,7 +141,7 @@ webGUIHack req = do
 prettyException :: Exception e => e -> IO String
 prettyException e = do
     stack <- whoCreated e
-    return $ displayException e ++ "\n" ++ renderStack stack
+    return $ displayException e <> "\n" <> renderStack stack
 
 modifyGraph :: forall req inv res res'. (G.GraphRequest req, Response.ResponseResult req inv res') => (req -> Empire inv) -> (req -> Empire res) -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req -> StateT Env BusT ()
 modifyGraph inverse action success origReq@(Request uuid guiID request') = do
@@ -180,8 +181,8 @@ getAllNodes :: GraphLocation -> Empire [Node.Node]
 getAllNodes location = do
     graph <- Graph.getGraph location
     return $ map Node.ExpressionNode' (graph ^. GraphAPI.nodes)
-          ++ map Node.InputSidebar'   (maybeToList $ graph ^. GraphAPI.inputSidebar)
-          ++ map Node.OutputSidebar'  (maybeToList $ graph ^. GraphAPI.outputSidebar)
+          <> map Node.InputSidebar'   (maybeToList $ graph ^. GraphAPI.inputSidebar)
+          <> map Node.OutputSidebar'  (maybeToList $ graph ^. GraphAPI.outputSidebar)
 
 getNodesByIds :: GraphLocation -> [NodeId] -> Empire [Node.Node]
 getNodesByIds location nids = filter (\n -> Set.member (n ^. Node.nodeId) nidsSet) <$> getAllNodes location where
@@ -291,9 +292,9 @@ handleAddNode :: Request AddNode.Request -> StateT Env BusT ()
 handleAddNode = modifyGraph defInverse action replyResult where
     action (AddNode.Request location nl@(NodeLoc _ nodeId) expression nodeMeta connectTo) = withDefaultResult location $ do
         Graph.addNodeCondTC False location nodeId expression nodeMeta
-        forM_ connectTo $ \nid -> do
+        for_ connectTo $ \nid -> do
             handle (\(e :: SomeASTException) -> return ()) $ do
-                let firstWord = head $ Text.words expression
+                let firstWord = unsafeHead $ Text.words expression
                 symbolMap <- liftIO . readMVar =<< view Empire.scopeVar
                 let shouldConnectToArg w = elem w (symbolMap ^. Empire.functions) || isUpper (Text.head w)
                 let port = if shouldConnectToArg firstWord then [Arg 0] else [Self]
@@ -342,7 +343,7 @@ handleGetSubgraphs :: Request GetSubgraphs.Request -> StateT Env BusT ()
 handleGetSubgraphs = modifyGraph defInverse action replyResult where
     action (GetSubgraphs.Request location) = do
         graph <- Graph.getGraph location
-        return $ GetSubgraphs.Result $ Map.singleton (location ^. GraphLocation.breadcrumb . Breadcrumb.items . to last) graph --FIXME: should return multiple graphs
+        return $ GetSubgraphs.Result $ Map.singleton (location ^. GraphLocation.breadcrumb . Breadcrumb.items . to unsafeLast) graph --FIXME: should return multiple graphs
 
 handleMovePort :: Request MovePort.Request -> StateT Env BusT ()
 handleMovePort = modifyGraph defInverse action replyResult where
@@ -468,7 +469,7 @@ inverseSetNodesMeta location updates = do
 
 actionSetNodesMeta :: GraphLocation -> [(NodeId, NodeMeta)] -> Empire Result.Result
 actionSetNodesMeta location updates = withDefaultResult location $
-    forM_ updates $ uncurry $ Graph.setNodeMeta location
+    for_ updates $ uncurry $ Graph.setNodeMeta location
 
 handleSetNodesMeta :: Request SetNodesMeta.Request -> StateT Env BusT ()
 handleSetNodesMeta = modifyGraph inverse action replyResult where
@@ -530,7 +531,7 @@ handleSubstitute = modifyGraph defInverse action replyResult where
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()
 handleGetBuffer = modifyGraph defInverse action replyResult where
     action (GetBuffer.Request file span) = do
-        code <- Graph.getBuffer file (head <$> span)
+        code <- Graph.getBuffer file (unsafeHead <$> span)
         return $ GetBuffer.Result code
 
 

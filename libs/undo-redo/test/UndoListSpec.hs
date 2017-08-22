@@ -89,7 +89,7 @@ spec = describe "Undo-Redo for single user" $ do
             topic    = "empire.graph.node.add.response"
         (_, state1) <- run' state $ handleMessage $ Message.Message topic $ Compress.pack $ encode response
         case state1 of UndoState undo redo history -> do
-                                                        let msg = head undo
+                                                        let msg = unsafeHead undo
                                                         List.find (checkGuiId guiID) undo `shouldBe` (Just msg)
 
     it "undo request -> proper message is returned, undo list shorter by 1 and redo list longer" $ do

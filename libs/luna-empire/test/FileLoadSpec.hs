@@ -84,6 +84,13 @@ testLuna = [r|def main:
     «3»bar = foo 8.0 c
 |]
 
+testLuna' = [r|def main:
+    «1»foo = a: b:
+        «7»n = a + 5
+        «8»m = b - 2
+        «11»m + n
+|]
+
 atXPos = ($ def) . (NodeMeta.position . Position.x .~)
 
 specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
@@ -167,7 +174,7 @@ spec = around withChannels $ parallel $ do
                 pi ^. Node.code `shouldBe` "3.14"
                 pi ^. Node.canEnter `shouldBe` False
                 let Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
-                foo ^. Node.code `shouldBe` "a: b: «5»a + b"
+                foo ^. Node.code `shouldBe` "a: b: a + b"
                 foo ^. Node.canEnter `shouldBe` True
                 let Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
                 bar ^. Node.code `shouldBe` "foo c 6"
@@ -369,6 +376,21 @@ spec = around withChannels $ parallel $ do
                 Graph.substituteCode "TestPath" 63 64 "5" (Just 64)
                 Graph.getNodeMeta loc' foo
             meta `shouldBe` Just (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
+        xit "changing order of ports twice does nothing" $ \env -> do
+            -- [MM]: don't know why some nodes have empty code only in `before` so this test fails
+            (before, after) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc testLuna'
+                [main] <- Graph.getNodes loc
+                let loc' = loc |>= main ^. Node.nodeId
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                before@(Graph.Graph _ _ (Just input) _ _) <- Graph.getGraph $ loc' |> foo
+                Graph.movePort (loc' |> foo) (outPortRef (input ^. Node.nodeId) [Port.Projection 0]) 1
+                Graph.movePort (loc' |> foo) (outPortRef (input ^. Node.nodeId) [Port.Projection 0]) 1
+                after <- Graph.getGraph $ loc' |> foo
+                return (before, after)
+            before `shouldBe` after
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
@@ -627,7 +649,7 @@ spec = around withChannels $ parallel $ do
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 ids <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0..3]
-                Graph.removeNodes loc (fromJust <$> ids)
+                Graph.removeNodes loc (unsafeFromJust <$> ids)
                 u1 <- mkUUID
                 u2 <- mkUUID
                 Graph.addNode loc u1 "foo = 3 + 5"   (atXPos 20.0)
@@ -1196,3 +1218,22 @@ spec = around withChannels $ parallel $ do
                 Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 0])
                 Graph.disconnect loc (inPortRef p1 [Port.Arg 0])
                 Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 1])
+        it "sets expression for lambdas with markers inside" $ let
+            initialCode = testLuna
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b:
+                        lala = 15.0
+                        buzz = x: y:
+                            x * y
+                        pi = 3.14
+                        n = buzz a lala
+                        m = buzz b pi
+                        m + n
+                    c = 4.0
+                    bar = foo 8.0 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Graph.setNodeExpression loc foo "a: b:\n        lala = 15.0\n        buzz = x: y:\n            x * y\n        pi = 3.14\n        n = buzz a lala\n        m = buzz b pi\n        m + n"

@@ -54,11 +54,11 @@ goPrev = do
             nl     = nodeSrc ^. nodeLoc
             inPortRefSelf      = R.InPortRef nl [P.Self]
             inPortRefFirstPort = R.InPortRef nl [P.Arg 0]
-        prevSelfNodeLocMay <- view (C.src . R.srcNodeLoc) <∘> getConnection inPortRefSelf
+        prevSelfNodeLocMay <- view (C.src . R.srcNodeLoc) `fmap2` getConnection inPortRefSelf
         case prevSelfNodeLocMay of
             Just prevSelfNodeLoc -> selectNodes [prevSelfNodeLoc]
             Nothing -> do
-                prevFirstPortNodeLocMay <- view (C.src . R.srcNodeLoc) <∘> getConnection inPortRefFirstPort
+                prevFirstPortNodeLocMay <- view (C.src . R.srcNodeLoc) `fmap2` getConnection inPortRefFirstPort
                 withJust prevFirstPortNodeLocMay $ selectNodes . return
 
 goNext :: Command State ()

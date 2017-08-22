@@ -28,20 +28,20 @@ logger = Logger.getLogger $(Logger.moduleName)
 
 
 handleOpenProject :: Request OpenProject.Request -> StateT Env BusT ()
-handleOpenProject req@(Request _ _ request) = $notImplemented
+handleOpenProject req@(Request _ _ request) = $_NOT_IMPLEMENTED
 
 
 handleCreateProject :: Request CreateProject.Request -> StateT Env BusT ()
-handleCreateProject req@(Request _ _ request) = $notImplemented
+handleCreateProject req@(Request _ _ request) = $_NOT_IMPLEMENTED
 
 handleListProjects :: Request ListProjects.Request -> StateT Env BusT ()
-handleListProjects req = $notImplemented
+handleListProjects req = $_NOT_IMPLEMENTED
 
 sendListProjectsUpdate :: StateT Env BusT ()
-sendListProjectsUpdate = $notImplemented
+sendListProjectsUpdate = $_NOT_IMPLEMENTED
 
 handleExportProject :: Request ExportProject.Request -> StateT Env BusT ()
-handleExportProject req@(Request _ _ (ExportProject.Request projectId)) = $notImplemented
+handleExportProject req@(Request _ _ (ExportProject.Request projectId)) = $_NOT_IMPLEMENTED
 
 handleImportProject :: Request ImportProject.Request -> StateT Env BusT ()
-handleImportProject req@(Request _ _ (ImportProject.Request projectData)) = $notImplemented
+handleImportProject req@(Request _ _ (ImportProject.Request projectData)) = $_NOT_IMPLEMENTED

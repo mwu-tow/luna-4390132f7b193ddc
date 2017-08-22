@@ -4,7 +4,7 @@ module TextEditor.Handler.Text
 
 import           Common.Action.Command             (Command)
 import           Common.Prelude
-import           JS.Atom
+import qualified JS.Atom                           as JS
 import qualified LunaStudio.API.Atom.GetBuffer     as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute    as Substitute
 import qualified LunaStudio.API.Response           as Response
@@ -22,18 +22,21 @@ handle :: Event.Event -> Maybe (Command State ())
 handle (Event.Text (TextEvent location start end text cursor)) = Just $ ActBatch.substitute location start end text cursor
 handle (Event.Atom (GetBuffer filepath)) = Just $ ActBatch.getBuffer filepath Nothing
 handle (Event.Atom (FileChanged filepath)) = Just $ ActBatch.fileChanged filepath
-handle (Event.Atom (Copy filepath selections)) = Just $ ActBatch.getBuffer filepath selections
+handle (Event.Atom (Copy filepath maySelections)) = Just $ ActBatch.getBuffer filepath maySelections
+handle (Event.Atom (Paste filepath selections content)) = Just $ ActBatch.paste filepath selections content
 
 handle (Event.Batch (SubstituteResponse response)) = Just $ handleResponse response doNothing doNothing
 handle (Event.Batch (BufferGetResponse  response)) = Just $ timeIt "BufferGetResponse" $ handleResponse response success doNothing where
-   success result = do
-       let uri  = response ^. Response.request . GetBuffer.filePath
-           code = result ^. GetBuffer.code
-       liftIO (pushBuffer (convert uri) (convert code)) <!!> "pushBuffer"
+    success result = do
+        let uri  = response ^. Response.request . GetBuffer.filePath
+            code = result ^. GetBuffer.code
+        liftIO $ if null (response ^. Response.request . GetBuffer.span)
+            then JS.setBuffer (convert uri) (convert code)
+            else JS.setClipboard (convert uri) (convert code)
 
 
 handle (Event.Batch (SubstituteUpdate (Substitute.Update path start end text cursor))) =
-    Just $ liftIO $ pushCode $ TextEvent (GraphLocation path def) start end text cursor
+    Just $ liftIO $ JS.insertCode $ TextEvent (GraphLocation path def) start end text cursor
 
 
 handle _ = Nothing

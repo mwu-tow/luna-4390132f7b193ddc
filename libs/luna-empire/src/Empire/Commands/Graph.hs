@@ -69,7 +69,7 @@ module Empire.Commands.Graph
     ) where
 
 import           Control.Arrow                    ((&&&))
-import           Control.Monad                    (forM, forM_)
+import           Control.Monad                    (forM)
 import           Control.Monad.Catch              (finally, handle, try)
 import           Control.Monad.State              hiding (when)
 import           Data.Aeson                       (FromJSON, ToJSON)
@@ -143,6 +143,7 @@ import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
 import           LunaStudio.Data.Point            (Point)
+import qualified LunaStudio.Data.Point            as Point
 import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
@@ -244,7 +245,7 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
                 Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
                 l <- IR.unsafeGeneralize <$> IR.link parse cls''
                 links <- IR.matchExpr cls' $ \case
-                    IR.ClsASG _ _ _ decls -> return decls
+                    IR.ClsASG _ _ _ _ decls -> return decls
                 newFuns <- putNewFunctionRef l previousFunction links
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
         codePosition       <- Code.functionBlockStartRef parse
@@ -393,8 +394,8 @@ setOutputTo out = do
     oldSeq   <- ASTRead.getCurrentBody
     blockEnd <- Code.getCurrentBlockEnd
     newSeq   <- reconnectOut oldSeq out blockEnd
-    mapM_ (updateGraphSeq . Just) newSeq
-    mapM_ Code.gossipUsesChanged  newSeq
+    traverse_ (updateGraphSeq . Just) newSeq
+    traverse_ Code.gossipUsesChanged  newSeq
 
 updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
@@ -406,7 +407,7 @@ updateGraphSeq newOut = do
         Nothing -> return ()
     IR.deepDeleteWithWhitelist oldSeq $ Set.fromList $ maybeToList newOut
     oldRef <- use $ Graph.breadcrumbHierarchy . BH.self
-    when (oldRef == oldSeq) $ forM_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
+    when (oldRef == oldSeq) $ for_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
 
 updateCodeSpan' :: GraphOp m => NodeRef -> m _
 updateCodeSpan' ref = IR.matchExpr ref $ \case
@@ -446,7 +447,7 @@ addPortWithConnections :: GraphLocation -> OutPortRef -> [AnyPortRef] -> Empire 
 addPortWithConnections loc portRef connectTo = do
     withTC loc False $ do
         newPorts <- addPortNoTC loc portRef
-        forM_ connectTo $ connectNoTC loc portRef
+        for_ connectTo $ connectNoTC loc portRef
         return newPorts
     resendCode loc
 
@@ -458,7 +459,7 @@ addSubgraph loc@(GraphLocation _ (Breadcrumb [])) nodes _ = do
 addSubgraph loc nodes conns = do
     newNodes <- withTC loc False $ do
         newNodes <- forM nodes $ \n -> addNodeNoTC loc (n ^. Node.nodeId) (n ^. Node.expression) (n ^. Node.name) (n ^. Node.nodeMeta)
-        forM_ conns $ \(Connection src dst) -> connectNoTC loc src (InPortRef' dst)
+        for_ conns $ \(Connection src dst) -> connectNoTC loc src (InPortRef' dst)
         return newNodes
     resendCode loc
     return newNodes
@@ -479,7 +480,7 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                 cls' <- IR.source cls
                 Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
                 funs <- IR.matchExpr cls' $ \case
-                    IR.ClsASG _ _ _ f -> do
+                    IR.ClsASG _ _ _ _ f -> do
                         links <- mapM (\link -> (link,) <$> IR.source link) f
                         forM links $ \(link, fun) -> do
                             IR.matchExpr fun $ \case
@@ -514,7 +515,7 @@ removeNodeNoTC :: GraphOp m => NodeId -> m [NodeId]
 removeNodeNoTC nodeId = do
     astRef        <- ASTRead.getASTRef nodeId
     obsoleteEdges <- getOutEdges nodeId
-    mapM_ disconnectPort obsoleteEdges
+    traverse_ disconnectPort obsoleteEdges
     mapM deepRemoveExprMarkers =<< use (Graph.breadcrumbHierarchy . BH.children . at nodeId)
     Graph.breadcrumbHierarchy . BH.children . at nodeId .= Nothing
     removeFromSequence astRef
@@ -563,7 +564,7 @@ removeFromSequence ref = do
     oldSeq <- ASTRead.getCurrentBody
     (newS, shouldUpdate) <- removeSequenceElement oldSeq ref
     when shouldUpdate (updateGraphSeq newS)
-    mapM_ Code.gossipLengthsChanged newS
+    traverse_ Code.gossipLengthsChanged newS
 
 removePort :: GraphLocation -> OutPortRef -> Empire ()
 removePort loc portRef = do
@@ -585,8 +586,9 @@ movePort loc portRef newPosition = do
         let nodeId = portRef ^. PortRef.srcNodeId
         ref        <- ASTRead.getCurrentASTTarget
         (input, _) <- GraphBuilder.getEdgePortMapping
-        newRef     <- if nodeId == input then ASTModify.moveLambdaArg (portRef ^. PortRef.srcPortId) newPosition ref
-                                         else throwM NotInputEdgeException
+        if nodeId == input then ASTModify.moveLambdaArg (portRef ^. PortRef.srcPortId) newPosition ref
+                           else throwM NotInputEdgeException
+        ref        <- ASTRead.getCurrentASTTarget
         ASTBuilder.attachNodeMarkersForArgs nodeId [] ref
         GraphBuilder.buildInputSidebar nodeId
     resendCode loc
@@ -605,30 +607,15 @@ renamePort loc portRef newName = do
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
 setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
     let expression = Text.strip expr'
-    node <- withTC loc False $ do
-        oldExpr   <- runASTOp $ ASTRead.getASTTarget nodeId
-        parsedRef <- view _1 <$> ASTParse.runReparser expression oldExpr
-        (oldBeg, oldEnd) <- runASTOp $ do
-            oldBegin  <- Code.getASTTargetBeginning nodeId
-            oldTarget <- ASTRead.getASTTarget nodeId
-            oldLen    <- IR.getLayer @SpanLength oldTarget
-            Code.propagateLengths parsedRef
-            ASTModify.rewireNode nodeId parsedRef
-            return (oldBegin, oldBegin + oldLen)
-        runAliasAnalysis
-        node <- runASTOp $ do
-            expr      <- ASTRead.getASTTarget nodeId
-            marked    <- ASTRead.getASTRef nodeId
-            item      <- prepareChild marked parsedRef
-            Graph.breadcrumbHierarchy . BH.children . ix nodeId .= item
-            let len = fromIntegral $ Text.length expression
-            Code.applyDiff oldBeg oldEnd expression
-            Code.gossipUsesChangedBy (len - (oldEnd - oldBeg)) expr
-            node <- GraphBuilder.buildNode nodeId
-            return node
-        return node
+    newCode <- withTC loc False $ runASTOp $ do
+        oldExpr   <- ASTRead.getASTTarget nodeId
+        oldBegin  <- Code.getASTTargetBeginning nodeId
+        oldLen    <- IR.getLayer @SpanLength oldExpr
+        let oldEnd = oldBegin + oldLen
+        Code.applyDiff oldBegin oldEnd expression
+    reloadCode loc newCode
     resendCode loc
-    return node
+    withGraph loc $ runASTOp $ GraphBuilder.buildNode nodeId
 
 updateExprMap :: GraphOp m => NodeRef -> NodeRef -> m ()
 updateExprMap new old = do
@@ -698,7 +685,7 @@ connectPersistent src@(OutPortRef (NodeLoc _ srcNodeId) srcPort) (InPortRef' dst
         s     <- ASTRead.getCurrentBody
         nodes <- AST.readSeq s
         ASTBuilder.ensureNodeHasName generateNodeName srcNodeId
-        when (last nodes == ref) $ do
+        when (unsafeLast nodes == ref) $ do
             var <- ASTRead.getASTVar srcNodeId
             setOutputTo var
     srcAst <- ASTRead.getASTOutForPort srcNodeId srcPort
@@ -833,7 +820,7 @@ autolayoutNodes nids = timeIt "autolayoutNodes" $ do
     nodes <- GraphBuilder.buildNodesForAutolayout <!!> "buildNodesForAutolayout"
     conns <- GraphBuilder.buildConnections        <!!> "buildConnections"
     let autolayout = Autolayout.autolayoutNodes nids nodes conns
-    mapM_ (uncurry setNodePositionAST) autolayout <!!> "setNodePositionsAST"
+    traverse_ (uncurry setNodePositionAST) autolayout <!!> "setNodePositionsAST"
 
 openFile :: FilePath -> Empire ()
 openFile path = do
@@ -857,7 +844,14 @@ substituteCodeFromPoints path start end code cursor = do
     (s, e) <- withUnit loc $ do
         oldCode   <- use Graph.code
         let noMarkers  = Code.removeMarkers oldCode
-            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers)
+            --FIXME[MM]: Atom does something really bizarre - when selection spans multiple rows,
+            --           end column is larger by 4 characters than it should be. Conditions with
+            --           /= 0 are there to prevent this workaround from interfering with removing
+            --           whole lines - these are represented as col = 0 and consecutive row numbers.
+            end'       = if start ^. Point.row /= end ^. Point.row && start ^. Point.column /= 0 && end ^. Point.column /=0
+                             then end & Point.column -~ 4
+                             else end
+            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end' noMarkers)
             realDeltas = Code.viewDeltasToReal oldCode deltas
         return realDeltas
     substituteCode path s e code Nothing
@@ -918,7 +912,7 @@ putChildrenIntoHierarchy uuid expr = do
 copyMeta :: GraphOp m => NodeRef -> NodeRef -> m ()
 copyMeta donor recipient = do
     meta <- AST.readMeta donor
-    forM_ meta $ AST.writeMeta recipient
+    for_ meta $ AST.writeMeta recipient
 
 markNode :: GraphOp m => NodeId -> m ()
 markNode nodeId = do
@@ -948,7 +942,7 @@ loadCode (GraphLocation file _) code = do
                 IR.ASGRootedFunction n _ -> do
                     name <- ASTRead.getVarName' =<< IR.source n
                     return (convert name, f)
-    forM_ functions $ \(name, fun) -> do
+    for_ functions $ \(name, fun) -> do
         let lastUUID = Map.lookup name funsUUIDs
         uuid <- Library.withLibrary file (fst <$> makeGraph fun lastUUID)
         let loc' = GraphLocation file $ Breadcrumb [Breadcrumb.Definition uuid]
@@ -958,7 +952,7 @@ loadCode (GraphLocation file _) code = do
 
 infixl 5 |>
 (|>) :: GraphLocation -> BreadcrumbItem -> GraphLocation
-(|>) (GraphLocation file bc) item = GraphLocation file $ coerce $ (++ [item]) $ coerce bc
+(|>) (GraphLocation file bc) item = GraphLocation file $ coerce $ (<> [item]) $ coerce bc
 
 autolayout :: GraphLocation -> Empire ()
 autolayout loc = do
@@ -972,7 +966,7 @@ autolayout loc = do
     let next = concatMap (\(k, v) -> case v of
             BH.LambdaChild{}                -> [Breadcrumb.Lambda k]
             BH.ExprChild (BH.ExprItem pc _) -> map (Breadcrumb.Arg k) (Map.keys pc)) $ Map.assocs kids
-    mapM_ (\a -> autolayout (loc |> a)) next
+    traverse_ (\a -> autolayout (loc |> a)) next
 
 autolayoutTopLevel :: GraphLocation -> Empire ()
 autolayoutTopLevel loc = do
@@ -987,7 +981,7 @@ autolayoutTopLevel loc = do
         let sortedNeedLayout = sortOn snd needLayout
             positions  = map (Position.fromTuple . (,0)) [0,gapBetweenNodes..]
             autolayout = zipWith (\(id, _) pos -> (id,pos)) sortedNeedLayout positions
-        mapM_ (uncurry setNodePositionCls) autolayout
+        traverse_ (uncurry setNodePositionCls) autolayout
 
 printMarkedExpression :: GraphOp m => NodeRef -> m Text
 printMarkedExpression ref = do
@@ -998,7 +992,7 @@ printMarkedExpression ref = do
     expr    <- Text.pack <$> ASTPrint.printExpression realRef
     let markers = Map.keys $ Map.filter (== ref) exprMap
         marker  = case markers of
-            (index:_) -> Text.pack $ "«" ++ show index ++ "»"
+            (index:_) -> Text.pack $ "«" <> show index <> "»"
             _         -> ""
     return $ Text.concat [marker, expr]
 
@@ -1126,7 +1120,7 @@ addMetadataToCode file = do
                                 Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
                                 l <- IR.unsafeGeneralize <$> IR.link meta cls''
                                 links <- IR.matchExpr cls' $ \case
-                                    IR.ClsASG _ _ _ decls -> return decls
+                                    IR.ClsASG _ _ _ _ decls -> return decls
                                 newFuns <- putNewFunctionRef l (Just lastFun) links
                                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
                     Nothing      -> return ()
@@ -1137,7 +1131,7 @@ parseMetadata meta =
         metadata = Aeson.eitherDecodeStrict' $ Text.encodeUtf8 json
     in case metadata of
         Right fm  -> return fm
-        Left  err -> print err >> return (FileMetadata [])
+        Left  err -> return (FileMetadata [])
 
 readMetadata' :: ClassOp m => m FileMetadata
 readMetadata' = do
@@ -1216,7 +1210,7 @@ generateCollapsedDefCode inputs outputs bodyIds = do
                              <> ":"
     returnBody <- case outputNames of
         []  -> do
-            let lastNode = snd $ last codeBegs
+            let lastNode = snd $ unsafeLast codeBegs
             ASTRead.getNameOf lastNode
         [a] -> return $ Just $ convert a
         _   -> return $ Just $ "(" <> Text.intercalate ", " (convert <$> outputNames) <> ")"
@@ -1226,7 +1220,7 @@ generateCollapsedDefCode inputs outputs bodyIds = do
     let defCode = header <> newCodeBlockBody <> returnLine
     let useLine = case outputNames of
             [] -> ""
-            _  -> topIndented $ fromJust returnBody
+            _  -> topIndented $ unsafeFromJust returnBody
                               <> " = "
                               <> Text.unwords (defName : fmap convert inputNames)
     return $ defCode <> useLine

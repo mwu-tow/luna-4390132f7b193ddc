@@ -84,7 +84,7 @@ showCameraMatrix camera = foldl (<>) "matrix3d(" (intersperse ", " $ map show mx
     where mx1 = Matrix.toList camera
           nx  = mx1!!12
           ny  = mx1!!13
-          mx2 = take 12 mx1 ++ nx:ny:drop 14 mx1
+          mx2 = take 12 mx1 <> (nx : ny : drop 14 mx1)
 
 showNodeMatrix :: Matrix Double -> Position -> String
 showNodeMatrix camera nodePos = foldl (<>) "matrix3d(" (intersperse ", " $ map show mx2) <> ")"
@@ -92,7 +92,7 @@ showNodeMatrix camera nodePos = foldl (<>) "matrix3d(" (intersperse ", " $ map s
           scale' = mx1!!0
           nx     = fromInteger (round $ mx1!!12 + (scale' * nodePos ^. x):: Integer)
           ny     = fromInteger (round $ mx1!!13 + (scale' * nodePos ^. y):: Integer)
-          mx2    = take 12 mx1 ++ nx:ny:drop 14 mx1
+          mx2    = take 12 mx1 <> (nx : ny : drop 14 mx1)
 
 showNodeTranslate :: Matrix Double -> Position -> String
 showNodeTranslate camera nodePos = "translate(" <> show1 nx <> "px, " <> show1 ny <> "px)"

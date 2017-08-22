@@ -43,7 +43,7 @@ run :: (Catch.MonadCatch m)
 run rpc = do
     s <- get
     let handler :: Monad m => SomeException -> m (Either String a)
-        handler ex = return $ Left $ "Unhandled exception: " ++ show ex
+        handler ex = return $ Left $ "Unhandled exception: " <> show ex
     result <- lift $ Catch.catch (Right <$> runStateT (runExceptT rpc) s) handler
     case result of
         Left   err      -> {-put s  >> -} return (Left err)

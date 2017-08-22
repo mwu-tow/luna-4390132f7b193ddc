@@ -12,4 +12,4 @@ full = logger
 
 
 logger :: Bool -> String
-logger numeric = (if numeric then "" else "ZMQ bus logger version ") ++ Version.showVersion Config.version
+logger numeric = (if numeric then "" else "ZMQ bus logger version ") <> Version.showVersion Config.version

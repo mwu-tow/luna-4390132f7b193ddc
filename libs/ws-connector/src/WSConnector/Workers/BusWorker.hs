@@ -45,13 +45,13 @@ fromBus chan idChan = do
         frame <- Bus.receive
         when (shouldPassToClient frame senderAppId) $ do
             let msg = frame ^. MessageFrame.message
-            logger info $ "Received from Bus: " ++ (show msg)
+            logger info $ "Received from Bus: " <> (show msg)
             liftIO $ atomically $ writeTChan chan $ WebMessage (msg ^. Message.topic)
                                                                (msg ^. Message.message)
 
 dispatchMessage :: WSMessage -> Bus ()
 dispatchMessage (WebMessage topic msg) = do
-    logger info $ "Pushing to Bus: " ++ (show msg)
+    logger info $ "Pushing to Bus: " <> (show msg)
     void $ Bus.send Flag.Enable $ Message.Message topic msg
 dispatchMessage _ = return ()
 

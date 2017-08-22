@@ -109,7 +109,7 @@ makeHandler h =
     let process content = let response   = decode content
                               maybeGuiID = response ^. Response.guiID
                               reqUUID    = response ^. Response.requestId
-                          in forM_ maybeGuiID $ \guiId -> do
+                          in for_ maybeGuiID $ \guiId -> do
                               case h response of
                                       Nothing     -> throwM ResponseErrorException
                                       Just (r, q) -> do
