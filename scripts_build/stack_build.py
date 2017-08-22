@@ -34,7 +34,8 @@ def build_runner(runner, runner_args):
     hostPath = runner + '/src/System/Host.hs'
     resPath = runner + '/../resources/my.res'
     if system.system == system.systems.WINDOWS:
-        print ("build runner")
+
+        subprocess.check_output(['stack', 'build'])
         os.system('stack exec ghc -- ' + runnerPath + ' ' + hostPath + ' ' + resPath)
     elif system.system == system.systems.LINUX:
         subprocess.check_output(['stack', 'build'] + runner_args)
