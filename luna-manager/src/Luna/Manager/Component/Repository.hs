@@ -64,7 +64,7 @@ type VersionMap    = Map Version (Map SysDesc PackageDesc)
 data ResolvedPackage = ResolvedPackage { _header :: PackageHeader, _desc :: PackageDesc, _resolvedAppType :: AppType } deriving (Show, Generic, Eq)
 
 data ResolvedApplication  = ResolvedApplication { _resolvedApp :: ResolvedPackage
-                                                , _pkgsToPack  :: [ResolvedPackage] 
+                                                , _pkgsToPack  :: [ResolvedPackage]
                                                 } deriving (Show)
 
 makeLenses ''Repo
@@ -198,6 +198,6 @@ getRepo = do
 -- === Instances === --
 
 instance {-# OVERLAPPABLE #-} MonadIO m => MonadHostConfig RepoConfig sys arch m where
-    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://s3-us-west-2.amazonaws.com/packages-luna/config.yaml"
+    defaultHostConfig = return $ RepoConfig { _repoPath   = "https://packages.luna-lang.org/config.yaml"
                                             , _cachedRepo = Nothing
                                             }
