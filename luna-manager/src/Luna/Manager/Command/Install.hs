@@ -154,26 +154,28 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert appName </> convert appVersion
 
-checkIfAppAlreadyInstalledInCurrentVersion :: MonadInstall m => FilePath -> m ()
-checkIfAppAlreadyInstalledInCurrentVersion installPath = do
+checkIfAppAlreadyInstalledInCurrentVersion :: MonadInstall m => FilePath -> AppType -> m ()
+checkIfAppAlreadyInstalledInCurrentVersion installPath appType = do
     testInstallPath <- Shelly.test_d installPath
     if testInstallPath
         then do
-            print "You have this version already installed. Do you want to reinstall? yes/no [no]"
+            putStrLn "You have this version already installed. Do you want to reinstall? yes/no [no]"
             ans <- liftIO $ getLine
-            if ans == "yes" then Shelly.rm_rf installPath
+            if ans == "yes" then do
+                stopServices installPath appType
+                Shelly.rm_rf installPath
                 else if ans == "no"
                     then void . liftIO $ exitSuccess
                     else if ans == ""
                         then void . liftIO $ exitSuccess
                         else do
-                            checkIfAppAlreadyInstalledInCurrentVersion installPath
+                            checkIfAppAlreadyInstalledInCurrentVersion installPath appType
             else return ()
 
-downloadAndUnpackApp :: MonadInstall m => URIPath -> FilePath -> Text -> m ()
-downloadAndUnpackApp pkgPath installPath appName = do
-    checkIfAppAlreadyInstalledInCurrentVersion installPath
-
+downloadAndUnpackApp :: MonadInstall m => URIPath -> FilePath -> Text -> AppType -> m ()
+downloadAndUnpackApp pkgPath installPath appName appType = do
+    checkIfAppAlreadyInstalledInCurrentVersion installPath appType
+    stopServices installPath appType
     Shelly.mkdir_p $ parent installPath
     pkg      <- downloadWithProgressBar pkgPath
     unpacked <- Archive.unpack pkg
@@ -199,7 +201,7 @@ makeShortcuts packageBinPath appName = case currentHost of
         bin         <- liftIO $ System.getSymbolicLinkTarget $ encodeString packageBinPath
         binAbsPath  <- Shelly.canonicalize $ (parent packageBinPath) </> (decodeString bin)
         userProfile <- liftIO $ Environment.getEnv "userprofile"
-        let menuPrograms = (decodeString userProfile) </> "AppData" </> "Roaming" </> "Microsoft" </> "Windows" </> "Start Menu" </> "Programs" </> convert (appName <> ".lnk")
+        let menuPrograms = (decodeString userProfile) </> "AppData" </> "Roaming" </> "Microsoft" </> "Windows" </> "Start Menu" </> "Programs" </> convert ((mkSystemPkgName appName) <> ".lnk")
         liftIO $ Process.runProcess_ $ Process.shell ("powershell" <> " \"$s=New-Object -ComObject WScript.Shell; $sc=$s.createShortcut(" <> "\'" <> (encodeString menuPrograms) <> "\'" <> ");$sc.TargetPath=" <> "\'" <> (encodeString binAbsPath) <> "\'" <> ";$sc.Save()\"" )
         exportPathWindows packageBinPath
     otherwise -> return ()
@@ -278,6 +280,7 @@ stopServices ::MonadInstall m => FilePath -> AppType -> m ()
 stopServices installPath appType = case currentHost of
     Windows   -> case appType of
         GuiApp   -> do
+            print "stop services"
             installConfig <- get @InstallConfig
             let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. configPath) </> fromText "windows"
             do
@@ -356,8 +359,8 @@ installApp opts package = do
     binPath     <- askLocation opts appType pkgName
 
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
-    stopServices installPath appType
-    downloadAndUnpackApp (package ^. desc . path) installPath pkgName
+    -- stopServices installPath appType
+    downloadAndUnpackApp (package ^. desc . path) installPath pkgName appType
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
 
