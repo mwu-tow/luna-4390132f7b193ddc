@@ -16,6 +16,7 @@
     "first-mate": "7.0.x",
     "jquery": "3.2.x",
     "pako": "1.0.x",
+    "etch": "0.12.x",
     "react-dom": "15.6.x",
     "react": "15.6.x",
     "resize-observer-polyfill": "1.3.x",
