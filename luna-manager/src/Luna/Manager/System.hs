@@ -130,13 +130,13 @@ runServicesWindows path logsPath = Shelly.chdir path $ do
     Shelly.mkdir_p logsPath
     let installPath = path </> Shelly.fromText "installAll.bat"
     Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
-    Shelly.cmd installPath
+    Shelly.silently $ Shelly.cmd installPath
 
 stopServicesWindows :: MonadIO m => FilePath -> m ()
 stopServicesWindows path = Shelly.shelly $ do
     Shelly.chdir path $ do
         let uninstallPath = path </> Shelly.fromText "uninstallAll.bat"
-        Shelly.cmd uninstallPath `catch` handler where
+        Shelly.silently $ Shelly.cmd uninstallPath `catch` handler where
 
             handler :: MonadSh m => SomeException -> m ()
             handler ex = return () -- Shelly.liftSh $ print ex
