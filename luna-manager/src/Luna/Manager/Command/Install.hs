@@ -280,7 +280,6 @@ stopServices ::MonadInstall m => FilePath -> AppType -> m ()
 stopServices installPath appType = case currentHost of
     Windows   -> case appType of
         GuiApp   -> do
-            print "stop services"
             installConfig <- get @InstallConfig
             let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. configPath) </> fromText "windows"
             do
