@@ -41,6 +41,7 @@ import qualified Luna.Compilation                 as Compilation
 import qualified Luna.IR                          as IR
 import           Luna.Pass.Data.ExprMapping
 import qualified Luna.Pass.Evaluation.Interpreter as Interpreter
+import qualified Luna.IR.Layer.Errors             as Errors
 
 
 runTC :: Imports -> Command Graph ()
@@ -76,7 +77,7 @@ updateNodes loc@(GraphLocation _ br) = do
              errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
              case errs of
                  []     -> return Nothing
-                 e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError e)
+                 e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError $ e ^. Errors.description)
          return (sidebarUpdates <> nodeUpdates, errors)
      traverse_ (Publisher.notifyNodeTypecheck loc) updates
      for_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0

@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs               #-}
@@ -263,7 +264,7 @@ runModuleTypecheck imps = do
             cls <- IR.matchExpr unit $ \case
                 IR.Unit _ _ c -> IR.source c
             UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
-        snd <$> ModuleTC.processModule' imps def (IR.unsafeGeneralize unit)
+        snd <$> ModuleTC.processModule' imps def "<<interactive>>" (IR.unsafeGeneralize unit)
     return res
 
 putNewIR :: IR -> Command Graph ()
