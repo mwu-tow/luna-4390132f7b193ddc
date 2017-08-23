@@ -48,6 +48,7 @@ unpack file = putStrLn "Unpacking archive" >> case currentHost of
                 Shelly.mkdir_p $ dir </> name
                 Shelly.cp_r file $ dir </> name
                 unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                Shelly.rm $ dir </> name </> (filename file)
                 return $ dir </> name
 
 unzipUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath -> m FilePath
