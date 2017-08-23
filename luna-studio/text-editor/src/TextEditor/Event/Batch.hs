@@ -16,17 +16,16 @@ import qualified LunaStudio.API.Control.EmpireStarted as EmpireStarted
 
 
 data Event = UnknownEvent String
+           | BufferGetResponse                       GetBuffer.Response
            | ConnectionDropped
            | ConnectionOpened
+           | CopyResponse                                 Copy.Response
            | EmpireStarted                       EmpireStarted.Status
-
-           | IsSaved                                   IsSaved.Response
-           | ProjectSet                             SetProject.Response
            | FileClosed                              CloseFile.Response
            | FileOpened                               OpenFile.Response
            | FileSaved                                SaveFile.Response
-           | BufferGetResponse                       GetBuffer.Response
-           | CopyResponse                                 Copy.Response
+           | IsSaved                                   IsSaved.Response
+           | ProjectSet                             SetProject.Response
            | SubstituteResponse                     Substitute.Response
            | SubstituteUpdate                       Substitute.Update
            deriving (Eq, Show, Generic, NFData)

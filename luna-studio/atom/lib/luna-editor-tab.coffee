@@ -92,8 +92,8 @@ module.exports =
          buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort() for s in @getSelections()
 
     handleCopy: (e) =>
-        # e.preventDefault()
-        # e.stopImmediatePropagation()
+        e.preventDefault()
+        e.stopImmediatePropagation()
         @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
     handlePaste: (e) =>
