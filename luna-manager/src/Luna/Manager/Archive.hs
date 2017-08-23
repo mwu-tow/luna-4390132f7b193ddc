@@ -75,7 +75,7 @@ unpackTarGzUnix file = do
 -- TODO: download unzipper if missing
 unzipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath
 unzipFileWindows zipFile = do
-    let scriptPath = "https://packages.luna-lang.org/windows/j_unzip.vbs"
+    let scriptPath = "http://packages.luna-lang.org/windows/j_unzip.vbs"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
     script <- downloadFromURL scriptPath "Downloading archiving tool"
     let dir = directory zipFile
@@ -101,7 +101,7 @@ unzipFileWindows zipFile = do
 
 untarWin :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)=> FilePath -> m FilePath
 untarWin zipFile = do
-  let scriptPath = "https://packages.luna-lang.org/windows/tar.exe"
+  let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
   --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
   script <- downloadFromURL scriptPath "Downloading archiving tool"
@@ -123,7 +123,7 @@ untarWin zipFile = do
 zipFileWindows :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)=> FilePath -> Text -> m FilePath
 zipFileWindows folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
-    let scriptPath = "https://packages.luna-lang.org/windows/tar.exe"
+    let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
     script <- downloadFromURL scriptPath "Downloading archiving tool"
     Shelly.chdir (parent folder) $ do
         Shelly.cp script $ parent folder
