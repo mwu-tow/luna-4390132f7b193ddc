@@ -22,5 +22,5 @@ chooseCommand = do
     case opts ^. command of
         Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.run       opt
         MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig]             $ CreatePackage.run opt
-        Develop     opt -> evalDefHostConfigs @'[EnvConfig, PackageConfig, RepoConfig]                            $ Develop.run       opt
+        Develop     opt -> evalDefHostConfigs @'[EnvConfig, PackageConfig, RepoConfig] $ Develop.run       opt
         -- TODO: other commands
