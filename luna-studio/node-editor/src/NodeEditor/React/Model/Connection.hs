@@ -29,7 +29,7 @@ import           NodeEditor.React.Model.Port                (EitherPort, InPort,
 import qualified NodeEditor.React.Model.Port                as Port
 
 
-data Mode = Normal | Highlighted | Dimmed | Internal deriving (Eq, Show, Typeable, Generic)
+data Mode = Normal | Sidebar | Highlighted | Dimmed | Internal deriving (Eq, Show, Typeable, Generic)
 
 
 data Connection = Connection
@@ -178,10 +178,14 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
     _ -> return def
 
 toConnection :: OutPortRef -> InPortRef -> Node -> Node -> Connection
-toConnection srcRef dstRef srcNode dstNode = Connection srcRef dstRef $
+toConnection srcRef dstRef (Node.Input {}) _  = Connection srcRef dstRef Sidebar
+toConnection srcRef dstRef _ (Node.Output {}) = Connection srcRef dstRef Sidebar
+toConnection srcRef dstRef _ dstNode = Connection srcRef dstRef $
     if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
 
 toHalfConnection :: AnyPortRef -> Node -> Position -> HalfConnection
+toHalfConnection portRef (Node.Input {})  pos = HalfConnection portRef pos Sidebar
+toHalfConnection portRef (Node.Output {}) pos = HalfConnection portRef pos Sidebar
 toHalfConnection portRef n pos = HalfConnection portRef pos $ case portRef of
     OutPortRef' {}    -> Normal
     InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal

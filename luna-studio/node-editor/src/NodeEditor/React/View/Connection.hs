@@ -7,7 +7,7 @@ import qualified NodeEditor.Event.UI               as UI
 import           NodeEditor.React.Event.Connection (ModifiedEnd (Destination, Source))
 import qualified NodeEditor.React.Event.Connection as Connection
 import           NodeEditor.React.Model.App        (App)
-import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal), PosConnection, PosHalfConnection)
+import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Sidebar), PosConnection, PosHalfConnection)
 import qualified NodeEditor.React.Model.Connection as Connection
 import           NodeEditor.React.Store            (Ref, dispatch)
 import qualified NodeEditor.React.View.Style       as Style
@@ -46,6 +46,7 @@ connection = React.defineView name $ \(ref, model) -> do
         eventSrc = onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.ConnectionEvent $ Connection.MouseDown m connId Source)
         eventDst = onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.ConnectionEvent $ Connection.MouseDown m connId Destination)
         lineClassWithMode = ["connection__line"] <> case model ^. Connection.pMode of
+            Sidebar     -> ["connection__sidebar"]
             Internal    -> ["connection__internal"]
             Highlighted -> ["connection__highligthed"]
             Dimmed      -> ["connection__dimmed"]
@@ -94,6 +95,7 @@ halfConnection = React.defineView name $ \model -> do
         dst   = model ^. Connection.dstPos
         color = "stroke" $= convert (model ^. Connection.color)
         lineClassWithMode = ["connection__line"] <> case model ^. Connection.phMode of
+            Sidebar     -> ["connection__sidebar"]
             Internal    -> ["connection__internal"]
             Highlighted -> ["connection__highligthed"]
             Dimmed      -> ["connection__dimmed"]
