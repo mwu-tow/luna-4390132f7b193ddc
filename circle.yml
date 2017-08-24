@@ -6,9 +6,10 @@ machine:
 
 dependencies:
     pre:
-        - sudo apt-get update && sudo apt-get install openssh-client libzmq3-dev supervisor
+        - sudo apt-get update && sudo apt-get install openssh-client libzmq3-dev
         - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.4.0/stack-1.4.0-linux-x86_64.tar.gz | tar zx -C /tmp
         - sudo mv /tmp/stack-1.4.0-linux-x86_64/stack /usr/bin
+        - curl -L http://packages.luna-lang.org/linux/luna-manager
     override:
         - stack build --stack-yaml=build/backend/stack.yaml --only-dependencies --install-ghc --test --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
         - stack build --stack-yaml=luna-studio/stack.yaml --only-dependencies --install-ghc --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
