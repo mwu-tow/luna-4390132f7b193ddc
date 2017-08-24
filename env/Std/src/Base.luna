@@ -394,11 +394,11 @@ class JSON:
 
     def lookupReal key: case self . lookup key of
         Just val: val . toReal
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def lookupText key: case self . lookup key of
         Just (JSONString val): val
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def at n: case self of
         JSONArray a: a.at n
@@ -512,7 +512,7 @@ class MsgPack:
 
     def lookupText key: case self.safeLookupText key of
         Just val: val
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def at n: case self of
         MPArray a: a.at n

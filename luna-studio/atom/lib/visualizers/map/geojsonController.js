@@ -1,11 +1,6 @@
 (function () {
-    var map               = null;
-    var hoverPopupOptions = null;
-    var popupOptions      = null;
-    var hoverPopupOptionsSmall = {closeButton: false, autoPan: false, maxWidth: 200, maxHeight: 150};
-    var popupOptionsSmall      = {autoPan: false, maxWidth: 200, maxHeight: 150};
-    var hoverPopupOptionsBig   = {closeButton: false, autoPan: false, maxWidth: 400, maxHeight: 400};
-    var popupOptionsBig        = {autoPan: false, maxWidth: 400, maxHeight: 400};
+    var map   = null;
+    var layer = null;
     var mapOptions = { center: [0,0], zoom: 0.2, minZoom: 0.2, closePopupOnClick: false }; //  maxBounds: [[-90, -Infinity], [180, Infinity]],  maxBoundsViscosity: 1.0};
 
     window.addEventListener("resize", function (e) {
@@ -26,16 +21,42 @@
         }).addTo(map);
     });
 
+    var currentData = null;
+    var getCurrentData = function (success) { success(currentData); }
+
+    var initRealtime = function () {
+        if (layer) layer.clearLayers();
+        layer = L.realtime(getCurrentData, {
+            start: false,
+            interval: 1000,
+            style: function (f) { return f.properties.style; },
+            onEachFeature: function (f, l) {
+                if (f.properties && f.properties.popupContent)
+                    l.bindPopup(f.properties.popupContent);
+            }
+        });
+        layer.addTo(map);
+    }
+
     window.addEventListener("message", function (evt) {
         var data = JSON.parse(evt.data.data);
         if (evt.data.event == "data") {
-            L.geoJSON(data, {
+            if (layer) layer.clearLayers();
+            layer = L.geoJSON(data, {
                 style: function (f) { return f.properties.style; },
                 onEachFeature: function (f, l) {
                     if (f.properties && f.properties.popupContent)
                         l.bindPopup(f.properties.popupContent);
                 }
-            }).addTo(map);
+            })
+            layer.addTo(map);
+        } else if (evt.data.event == "restart") {
+            initRealtime();
+        } else if (evt.data.event == "datapoint") {
+            var oldData = currentData;
+            currentData = data;
+            if (!layer) initRealtime();
+            if (!oldData) layer.start();
         }
     });
 }());

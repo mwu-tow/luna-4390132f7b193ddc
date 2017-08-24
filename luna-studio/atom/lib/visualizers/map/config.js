@@ -27,6 +27,6 @@ module.exports = function (type) {
                                                      ]
                                       };
     var simpleMarkers = (cfgHelper.matchesType(type, geolocationPattern) || cfgHelper.matchesType(type, geolocationWithLabelsPattern)) ? [{name: "markers", path: "map.html"}] : [];
-    var generalMap = type.constructor == "GeoJSONFeatureCollection" ? [{name: "GeoJSON", path: "geojson.html"}] : [];
+    var generalMap = (type.constructor == "GeoJSONFeatureCollection" || (type.constructor == "Stream" && type.fields[0].constructor == "GeoJSONFeatureCollection")) ? [{name: "GeoJSON", path: "geojson.html"}] : [];
     return [].concat(simpleMarkers, generalMap);
 };
