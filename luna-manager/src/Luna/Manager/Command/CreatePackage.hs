@@ -173,12 +173,12 @@ createAppimage appName repoPath = do
 
 -- === Utils === --
 
-runPkgBuildScript :: MonadCreatePackage m => FilePath -> m ()
-runPkgBuildScript repoPath = do
+runPkgBuildScript :: MonadCreatePackage m => Bool -> FilePath -> m ()
+runPkgBuildScript verbose repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
     Shelly.chdir (parent buildPath) $ do
-        Shelly.silently $ Shelly.cmd buildPath
+        if verbose then Shelly.cmd buildPath else Shelly.silently $ Shelly.cmd buildPath
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -261,8 +261,8 @@ linkLibs binPath libPath = do
 -- === Creating package === ---
 -------------------------------
 
-createPkg :: MonadCreatePackage m => ResolvedApplication -> m ()
-createPkg resolvedApplication = do
+createPkg :: MonadCreatePackage m => Bool -> ResolvedApplication -> m ()
+createPkg verbose resolvedApplication = do
     pkgConfig <- get @PackageConfig
     let app        = resolvedApplication ^. resolvedApp
         appDesc    = app ^. desc
@@ -272,7 +272,7 @@ createPkg resolvedApplication = do
         appVersion = appHeader ^. version
         appType    = app ^. resolvedAppType
     mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
-    runPkgBuildScript $ convert appPath
+    runPkgBuildScript verbose $ convert appPath
     copyFromDistToDistPkg appName $ convert appPath
     mainAppDir <- case currentHost of
         Linux   -> expand $ (convert appPath) </> (pkgConfig ^. defaultPackagePath) </> convert appName
@@ -300,4 +300,5 @@ run opts = do
     let appsToPack = repo ^. apps
 
     resolved <- mapM (resolvePackageApp repo) appsToPack
-    mapM_ createPkg resolved
+
+    mapM_ (createPkg $ opts ^. Opts.verbose) resolved

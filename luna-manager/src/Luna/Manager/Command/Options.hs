@@ -40,6 +40,7 @@ data InstallOpts = InstallOpts
 
 data MakePackageOpts = MakePackageOpts
     { _cfgPath :: Text
+    , _verbose :: Bool
     } deriving (Show)
 
 data SwitchVersionOpts = SwitchVersionOpts
@@ -59,7 +60,7 @@ makeLenses ''DevelopOpts
 
 -- === Instances === --
 
-instance Default InstallOpts where def = InstallOpts def def def
+instance Default InstallOpts where def = InstallOpts def def def 
 
 
 
@@ -90,6 +91,7 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch" <> help "Do not run interactive mode")
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
+                                           <*> Opts.switch (long "verbose" <> short 'v')
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
     optsDevelop        = Develop           <$> optsDevelop'
