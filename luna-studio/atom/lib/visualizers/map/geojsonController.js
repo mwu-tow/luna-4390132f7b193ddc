@@ -29,7 +29,13 @@
     window.addEventListener("message", function (evt) {
         var data = JSON.parse(evt.data.data);
         if (evt.data.event == "data") {
-            L.geoJSON(data, {style: function (f) { console.log(f); return f.properties.style; }}).addTo(map);
+            L.geoJSON(data, {
+                style: function (f) { return f.properties.style; },
+                onEachFeature: function (f, l) {
+                    if (f.properties && f.properties.popupContent)
+                        l.bindPopup(f.properties.popupContent);
+                }
+            }).addTo(map);
         }
     });
 }());
