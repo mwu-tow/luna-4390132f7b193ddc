@@ -29,7 +29,7 @@ import           NodeEditor.React.Model.Port                (EitherPort, InPort,
 import qualified NodeEditor.React.Model.Port                as Port
 
 
-data Mode = Normal | Sidebar | Highlighted | Dimmed | Internal deriving (Eq, Show, Typeable, Generic)
+data Mode = Normal | Highlighted | Dimmed | Internal deriving (Eq, Show, Typeable, Generic)
 
 
 data Connection = Connection
@@ -177,14 +177,14 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
         return (srcConnPos, dstConnPos)
     _ -> return def
 
-connectionMode :: Node -> Node -> Mode
-connectionMode (Node.Input {}) _  = Sidebar
-connectionMode _ (Node.Output {}) = Sidebar
-connectionMode _ _                = Normal
+toConnection :: OutPortRef -> InPortRef -> Node -> Node -> Connection
+toConnection srcRef dstRef srcNode dstNode = Connection srcRef dstRef $
+    if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
 
-halfConnectionMode :: Node -> Mode
-halfConnectionMode (Node.Expression {}) = Normal
-halfConnectionMode _                    = Sidebar
+toHalfConnection :: AnyPortRef -> Node -> Position -> HalfConnection
+toHalfConnection portRef n pos = HalfConnection portRef pos $ case portRef of
+    OutPortRef' {}    -> Normal
+    InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal
 
 halfConnectionSrcPosition :: Node -> EitherPort -> Position -> Layout -> Maybe Position
 halfConnectionSrcPosition (Node.Input  _  ) (Right port) _ layout = inputSidebarPortPosition  port layout
