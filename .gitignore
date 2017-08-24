@@ -88,6 +88,7 @@ build_*/**/.stack-work
 
 temp
 stack
+!**/.gitkeep
 supervisor/tmp/*
 **/.stack-work
 supervisord.log
