@@ -47,6 +47,7 @@ data NodeEditor = NodeEditor { _expressionNodes      :: ExpressionNodesMap
                              , _outputNode           :: Maybe OutputNode
                              , _monads               :: [MonadPath]
                              , _connections          :: ConnectionsMap
+                             , _visualizersLibPath   :: FilePath
                              , _nodeVisualizations   :: Map NodeLoc NodeVisualizations
                              , _visualizationsBackup :: VisualizationsBackupMap
 
@@ -72,6 +73,7 @@ instance Default NodeEditor where
         {- outputNode           -} def
         {- monads               -} def
         {- connections          -} def
+        {- visualizersLibPath   -} def
         {- visualizations       -} def
         {- visualizationsBackup -} def
         {- halfConnections      -} def

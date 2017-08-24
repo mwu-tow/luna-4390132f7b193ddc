@@ -39,11 +39,11 @@ objNameVis      = "node-vis"
 objNameShortVal = "node-short-value"
 
 
-nodeVisualization_ :: Ref App -> VisualizationProperties -> ReactElementM ViewEventHandler ()
-nodeVisualization_ ref visProp = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visProp) mempty
+nodeVisualization_ :: Ref App -> FilePath -> VisualizationProperties -> ReactElementM ViewEventHandler ()
+nodeVisualization_ ref visLibPath visProp = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visLibPath, visProp) mempty
 
-nodeVisualization :: ReactView (Ref App, VisualizationProperties)
-nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
+nodeVisualization :: ReactView (Ref App, FilePath, VisualizationProperties)
+nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, visProp) -> do
     let nl           = visProp ^. visPropNodeLoc
         nid          = nl ^. NodeLoc.nodeId
         visualizers' = visProp ^. visPropVisualizers
@@ -63,7 +63,7 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visProp) -> do
         div_
             [ "className" $= Style.prefix "node-translate"
             ] $ do
-            visualization_   ref nl vis
+            visualization_   ref visLibPath nl vis
             visualizersMenu_ ref nl (vis ^. visualizationId) (vis ^. runningVisualizer . _1) visualizers' menuVisible
 
 
@@ -82,11 +82,11 @@ visualizersMenu = React.defineView visMenuName $ \(ref, nl, visId, actVisName, v
                 span_ $ elemString $ "▾"--convert actVisName
                 ul_ [ "className" $= Style.prefix "dropdown__menu" ] $ mapM_ menuEntry $ Map.keys visualizersMap
 
-visualization_ :: Ref App -> NodeLoc -> RunningVisualization -> ReactElementM ViewEventHandler ()
-visualization_ ref nl vis = React.view visualization (ref, nl, vis) mempty
+visualization_ :: Ref App -> FilePath -> NodeLoc -> RunningVisualization -> ReactElementM ViewEventHandler ()
+visualization_ ref visLibPath nl vis = React.view visualization (ref, visLibPath, nl, vis) mempty
 
-visualization :: ReactView (Ref App, NodeLoc, RunningVisualization)
-visualization = React.defineView viewName $ \(ref, nl, vis) -> do
+visualization :: ReactView (Ref App, FilePath, NodeLoc, RunningVisualization)
+visualization = React.defineView viewName $ \(ref, visLibPath, nl, vis) -> do
     let visId          = vis ^. visualizationId
         vmode          = vis ^. visualizationMode
         visualizer     = vis ^. runningVisualizer
@@ -97,15 +97,15 @@ visualization = React.defineView viewName $ \(ref, nl, vis) -> do
         [ "className" $= Style.prefixFromList [ "noselect", "visualization-container" ]
         ] $ do
         div_ ([ "className" $= Style.prefix "visualization-cover" ] <> coverHandler) mempty
-        visualizationIframe_ visId visualizer
+        visualizationIframe_ visLibPath visId visualizer
 
-visualizationIframe_ :: VisualizationId -> Visualizer -> ReactElementM ViewEventHandler ()
-visualizationIframe_ visId v = React.view visualizationIframe (visId, v) mempty
+visualizationIframe_ :: FilePath -> VisualizationId -> Visualizer -> ReactElementM ViewEventHandler ()
+visualizationIframe_ visLibPath visId v = React.view visualizationIframe (visLibPath, visId, v) mempty
 
-visualizationIframe :: ReactView (VisualizationId, Visualizer)
-visualizationIframe = React.defineView iframeName $ \(visId, visualizer) -> do
+visualizationIframe :: ReactView (FilePath, VisualizationId, Visualizer)
+visualizationIframe = React.defineView iframeName $ \(visLibPath, visId, visualizer) -> do
     iframe_
-        [ "src"       $= (convert $ snd visualizer)
+        [ "src"       $= (convert $ visLibPath </> (convert $ snd visualizer))
         , "name"      $= (convert $ show visId)
         , "className" $= Style.prefix "visualization-iframe"
         , "height"    $= "300"
