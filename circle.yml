@@ -11,6 +11,7 @@ dependencies:
         - sudo mv /tmp/stack-1.4.0-linux-x86_64/stack /usr/bin
         - curl -o /tmp/luna-manager http://packages.luna-lang.org/linux/luna-manager
         - sudo mv /tmp/luna-manager /usr/bin
+        - chmod +x /usr/bin/luna-manager
         - curl -o /tmp/luna-package.yaml http://packages.luna-lang.org/linux/studio/packageConfig.yaml
         - sudo mv /tmp/luna-package.yaml /home/ubuntu/luna-package.yaml
     override:
