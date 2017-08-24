@@ -65,9 +65,8 @@ module.exports =
                     @diffToOmit.delete(change.newText)
                 else
                     diff =
-                        # uri: @uri
-                        start: change.start
-                        end:   change.start.translate(change.oldExtent)
+                        start: change.oldRange.start
+                        end:   change.oldRange.end
                         text:  change.newText
                         cursor: @.getCursorBufferPosition()
                       #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors

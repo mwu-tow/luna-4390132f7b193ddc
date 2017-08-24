@@ -23,8 +23,8 @@ handle :: Event.Event -> Maybe (Command State ())
 handle (Event.Text (TextEvent location start end text cursor)) = Just $ ActBatch.substitute location start end text cursor
 handle (Event.Atom (GetBuffer filepath)) = Just $ ActBatch.getBuffer filepath
 handle (Event.Atom (FileChanged filepath)) = Just $ ActBatch.fileChanged filepath
-handle (Event.Atom (Copy filepath selections)) = Just $ ActBatch.copy filepath selections
-handle (Event.Atom (Paste filepath selections content)) = Just $ ActBatch.paste filepath selections content
+handle (Event.Atom (Copy filepath selections)) = Just $ ActBatch.copy filepath $ convert selections
+handle (Event.Atom (Paste filepath selections content)) = Just $ ActBatch.paste filepath (convert selections) content
 
 handle (Event.Batch (SubstituteResponse response)) = Just $ handleResponse response doNothing doNothing
 handle (Event.Batch (BufferGetResponse  response)) = Just $ handleResponse response success doNothing where
