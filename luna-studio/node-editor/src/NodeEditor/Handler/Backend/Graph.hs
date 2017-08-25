@@ -7,6 +7,7 @@ import           Common.Prelude
 import           Common.Report
 import qualified Data.DateTime                               as DT
 import qualified JS.Clipboard                                as JS
+import qualified LunaStudio.API.Atom.Paste                   as AtomPaste
 import qualified LunaStudio.API.Atom.Substitute              as Substitute
 import qualified LunaStudio.API.Graph.AddConnection          as AddConnection
 import qualified LunaStudio.API.Graph.AddNode                as AddNode
@@ -165,6 +166,11 @@ handle (Event.Batch ev) = Just $ case ev of
                     Right graphUpdates ->
                         collaborativeModify $ map (convert . (path,) . view nodeId) $ graphUpdates ^. Graph.nodes
                     Left _ -> return ()
+
+    AtomPasteResponse response -> handleResponse response success doNothing where
+        request   = response ^. Response.request
+        location  = request  ^. AtomPaste.location
+        success   = applyResult location
 
     AutolayoutNodesResponse response -> handleResponse response success doNothing where
         location = response ^. Response.request . AutolayoutNodes.location
