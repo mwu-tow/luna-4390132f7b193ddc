@@ -39,6 +39,7 @@ import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.Position        as Position
+import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 import           LunaStudio.Data.Vector2         (Vector2 (..))
 
@@ -1238,7 +1239,14 @@ spec = around withChannels $ parallel $ do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 Graph.setNodeExpression loc foo "a: b:\n        lala = 15.0\n        buzz = x: y:\n            x * y\n        pi = 3.14\n        n = buzz a lala\n        m = buzz b pi\n        m + n"
         it "pastes string" $ let
-            initialCode = mainCondensed
+            initialCode = [r|
+                def main:
+                    «4»1
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
             expectedCode = [r|
                 def main:
                     "test"
@@ -1249,7 +1257,7 @@ spec = around withChannels $ parallel $ do
                     bar = foo 8 c
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Graph.pasteText loc [(14,14)] ["\"test\"\n    "]
+                Graph.pasteText loc [Range 14 15] ["\"test\""]
         it "pastes string 2" $ let
             initialCode = [r|
                 def main:
@@ -1268,7 +1276,7 @@ spec = around withChannels $ parallel $ do
                     bar = foo 8 c
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Graph.pasteText loc [(18,20)] ["\"test\""]
+                Graph.pasteText loc [Range 18 20] ["\"test\""]
         it "pastes code with meta" $ let
             initialCode = [r|
                 def main:
@@ -1292,4 +1300,4 @@ spec = around withChannels $ parallel $ do
     «14»bar = foo 8.0 c
 ### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-128,"_vector2_x":0}}}},{"marker":14,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-96,"_vector2_x":176}}}}]}
 |]
-                Graph.pasteText loc [(56,56)] [paste]
+                Graph.pasteText loc [Range 56 56] [paste]

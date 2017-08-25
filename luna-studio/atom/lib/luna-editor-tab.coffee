@@ -98,7 +98,7 @@ module.exports =
     handlePaste: (e) =>
         cbd = atom.clipboard.readWithMetadata()
         cbdData = []
-        if cbd.metadata.selections?
+        if cbd.metadata? && cbd.metadata.selections?
             for x in cbd.metadata.selections
                 cbdData.push(x.text)
         else

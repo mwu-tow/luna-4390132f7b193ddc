@@ -152,6 +152,7 @@ import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (.
 import qualified LunaStudio.Data.PortRef          as PortRef
 import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
+import           LunaStudio.Data.Range            (Range(..))
 import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, narrowTerm, replace)
 import qualified Safe
 
@@ -1319,13 +1320,13 @@ paste loc position (Text.pack -> code) = do
     autolayout loc
     resendCode loc
 
-copyText :: GraphLocation -> [(Int, Int)] -> Empire Text
-copyText loc@(GraphLocation file _) (map (both %~ fromIntegral) -> spans) = do
+copyText :: GraphLocation -> [Range] -> Empire Text
+copyText loc@(GraphLocation file _) ranges = do
     allMetadata <- dumpMetadata file
     withUnit loc $ do
         oldCode <- use Graph.code
-        let ranges = map (Code.viewDeltasToRealBeforeMarker oldCode) spans
-        codes <- forM ranges $ uncurry Code.getAt
+        let markedRanges = map (rangeToMarked oldCode) ranges
+        codes <- forM markedRanges $ uncurry Code.getAt
         let code                   = Text.concat codes
             markers                = Code.extractMarkers code
             relevantMetadata       = filter (\(MarkerNodeMeta marker _) -> marker `Set.member` markers) allMetadata
@@ -1335,25 +1336,38 @@ copyText loc@(GraphLocation file _) (map (both %~ fromIntegral) -> spans) = do
             clipboard              = Text.unlines [code, metadataJSONWithHeader]
         return clipboard
 
-pasteSimple :: ClassOp m => (Int,Int) -> [MarkerNodeMeta] -> Text -> m [MarkerNodeMeta]
-pasteSimple ((both %~ fromIntegral) -> span) pastedMeta code = do
+remarkerSnippet :: ClassOp m => [MarkerNodeMeta] -> Text -> m (Text, [MarkerNodeMeta])
+remarkerSnippet pastedMeta code = do
     oldCode <- use Graph.code
     let reservedMarkers             = Code.extractMarkers oldCode
         (pastedCode, substitutions) = Code.remarkerCode code reservedMarkers
-        (start, end)                = Code.viewDeltasToRealBeforeMarker oldCode span
         updatedMeta = mapMaybe (\(MarkerNodeMeta marker meta) -> case Map.lookup marker substitutions of
             Just new -> Just (MarkerNodeMeta new meta)
             Nothing -> Nothing) pastedMeta
-    Code.applyDiff start end pastedCode
-    return updatedMeta
+    return (pastedCode, updatedMeta)
 
-pasteText :: GraphLocation -> [(Int,Int)] -> [Text] -> Empire Text
-pasteText loc@(GraphLocation file _) (map (both %~ fromIntegral) -> spans) (Text.concat -> text) = do
+rangeToSpan :: Range -> (Delta, Delta)
+rangeToSpan (Range s e) = (fromIntegral s, fromIntegral e)
+
+rangeToMarked :: Text -> Range -> (Delta, Delta)
+rangeToMarked code range = (start, end)
+    where
+        span         = rangeToSpan range
+        (start, end) = Code.viewDeltasToRealBeforeMarker code span
+
+pasteText :: GraphLocation -> [Range] -> [Text] -> Empire Text
+pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
     let (meta, exprs) = partition (Text.isPrefixOf "### META") $ Text.lines text
         withoutMeta   = if not (null meta) then Text.unlines exprs else Text.intercalate "\n" exprs
     (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        code <- use Graph.code
+        let markedRanges   = map (rangeToMarked code) ranges
+            rangesReversed = reverse $ sortOn (view _1) markedRanges
         FileMetadata m <- parseMetadata $ fromMaybe "" $ Safe.headMay meta
-        updatedMetas   <- runASTOp $ forM spans $ \s -> pasteSimple s m withoutMeta
+        updatedMetas   <- runASTOp $ forM rangesReversed $ \(start, end) -> do
+            (snippet, metas) <- remarkerSnippet m withoutMeta
+            Code.applyDiff start end snippet
+            return metas
         code           <- use Graph.code
         return (code, concat updatedMetas)
     reloadCode (GraphLocation file (Breadcrumb [])) code `catch` \(e::ASTParse.SomeParserException) ->
