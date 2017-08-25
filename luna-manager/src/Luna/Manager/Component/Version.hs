@@ -9,7 +9,7 @@ import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
 import qualified Data.Text           as Text
-
+import Control.Error.Util (hush)
 
 ------------------------
 -- === Versioning === --
@@ -62,7 +62,7 @@ instance Pretty Version where
                                               <> maybe "" (("." <>) . showPretty) tag <> maybe "" (("." <>) . showPretty) nightly
     readPretty t = case Text.splitOn "." t of
         [ma, mi, b, t, n] -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> bimap convert Just (readPretty t) <*> bimap convert Just (readPretty n)
-        [ma, mi, b, x]    -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> bimap convert Just (readPretty x) <*> bimap convert Just (readPretty x)
+        [ma, mi, b, x]    -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> Right (hush (readPretty x)) <*> Right (hush (readPretty x))
         [ma, mi, b]       -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> pure Nothing <*> pure Nothing
         _                 -> Left "Incorrect version format"
         where cerr = mapLeft convert

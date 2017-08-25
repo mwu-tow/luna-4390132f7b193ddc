@@ -41,6 +41,7 @@ dependencies:
   - conduit-extra
   - system-filepath
   - safe-exceptions
+  - errors
 
 
 default-extensions:
