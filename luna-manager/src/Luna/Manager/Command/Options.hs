@@ -36,7 +36,7 @@ data InstallOpts = InstallOpts
     { _selectedComponent        :: Maybe Text
     , _selectedVersion          :: Maybe Text
     , _selectedInstallationPath :: Maybe Text
-    , _nightly                  :: Bool
+    , _nightlyInstallation      :: Bool
     } deriving (Show)
 
 data MakePackageOpts = MakePackageOpts
