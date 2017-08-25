@@ -49,6 +49,8 @@ instance Pretty VersionTag where
             "rc" -> RC <$> mapLeft (const "Conversion error") (tryReads @String $ Text.drop 2 s)
             _    -> Left "Incorrect version tag format"
 
+
+
 instance Pretty Nightly where
     showPretty (Nightly i) = "nightly" <> convert (show i)
     readPretty s = case Text.take 7 s of
@@ -59,12 +61,11 @@ instance Pretty Version where
     showPretty (Version major minor build tag nightly) = intercalate "." (map (convert . show) [major, minor, build])
                                               <> maybe "" (("." <>) . showPretty) tag <> maybe "" (("." <>) . showPretty) nightly
     readPretty t = case Text.splitOn "." t of
-        [ma, mi, b, t, n] -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> (Just <$> mapLeft convert (readPretty t)) <*> (Just <$> mapLeft convert (readPretty n))
-        [ma, mi, b, n]    -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> pure Nothing <*> (Just <$> mapLeft convert (readPretty n))
-        [ma, mi, b, t]    -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> (Just <$> mapLeft convert (readPretty t)) <*> pure Nothing
+        [ma, mi, b, t, n] -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> bimap convert Just (readPretty t) <*> bimap convert Just (readPretty n)
+        [ma, mi, b, x]    -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> bimap convert Just (readPretty x) <*> bimap convert Just (readPretty x)
         [ma, mi, b]       -> cerr $ Version <$> tryReads ma <*> tryReads mi <*> tryReads b <*> pure Nothing <*> pure Nothing
         _                 -> Left "Incorrect version format"
-        where cerr = mapLeft (const "Conversion error")
+        where cerr = mapLeft convert
 
 -- JSON
 instance ToJSON      Version    where toEncoding  = JSON.toEncoding . showPretty; toJSON = JSON.toJSON . showPretty
