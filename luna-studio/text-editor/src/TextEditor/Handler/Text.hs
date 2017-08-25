@@ -24,7 +24,9 @@ handle (Event.Text (TextEvent location start end text cursor)) = Just $ ActBatch
 handle (Event.Atom (GetBuffer filepath)) = Just $ ActBatch.getBuffer filepath
 handle (Event.Atom (FileChanged filepath)) = Just $ ActBatch.fileChanged filepath
 handle (Event.Atom (Copy filepath selections)) = Just $ ActBatch.copy filepath $ convert selections
-handle (Event.Atom (Paste filepath selections content)) = Just $ ActBatch.paste filepath (convert selections) content
+handle (Event.Atom (Paste selections content)) = Just $
+    withJustM_ JS.activeLocation $ \location ->
+        ActBatch.paste location (convert selections) content
 
 handle (Event.Batch (SubstituteResponse response)) = Just $ handleResponse response doNothing doNothing
 handle (Event.Batch (BufferGetResponse  response)) = Just $ handleResponse response success doNothing where

@@ -105,7 +105,7 @@ module.exports =
             cbdData[0] = cbd.text
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: @spans(), _content: cbdData)
+        @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
 
     handleSave: (e) =>
         e.preventDefault()

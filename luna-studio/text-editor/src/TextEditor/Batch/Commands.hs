@@ -46,5 +46,5 @@ substitute location start end text cursor uuid guiID =
 copy :: FilePath -> [Point] -> UUID -> Maybe UUID -> IO ()
 copy path spans uuid guiID = sendRequest $ Message uuid guiID $ Copy.Request path spans
 
-paste :: FilePath -> [Point] -> [Text] -> UUID -> Maybe UUID -> IO ()
-paste path spans content uuid guiID = sendRequest $ Message uuid guiID $ Paste.Request path spans content
+paste :: GraphLocation -> [Point] -> [Text] -> UUID -> Maybe UUID -> IO ()
+paste location spans content uuid guiID = sendRequest $ Message uuid guiID $ Paste.Request location spans content

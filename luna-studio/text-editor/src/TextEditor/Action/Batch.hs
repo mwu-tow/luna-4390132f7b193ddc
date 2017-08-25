@@ -43,5 +43,5 @@ substitute = withUUID .::. BatchCmd.substitute
 copy :: FilePath -> [Point] -> Command State ()
 copy = withUUID .: BatchCmd.copy
 
-paste :: FilePath -> [Point] -> [Text] -> Command State ()
+paste :: GraphLocation -> [Point] -> [Text] -> Command State ()
 paste = withUUID .:. BatchCmd.paste
