@@ -42,6 +42,7 @@ data InstallOpts = InstallOpts
 data MakePackageOpts = MakePackageOpts
     { _cfgPath :: Text
     , _verbose :: Bool
+    , _nightlyPackage :: Bool
     } deriving (Show)
 
 data SwitchVersionOpts = SwitchVersionOpts
@@ -93,6 +94,7 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
                                            <*> Opts.switch (long "verbose" <> short 'v')
+                                           <*> Opts.switch (long "nightly" <> short 'n')
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
     optsDevelop        = Develop           <$> optsDevelop'
