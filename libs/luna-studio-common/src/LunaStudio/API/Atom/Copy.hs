@@ -6,11 +6,11 @@ import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
 import qualified LunaStudio.API.Topic    as T
-import           LunaStudio.Data.Point   (Point)
+import           LunaStudio.Data.Range   (Range)
 import           Prologue
 
 data Request = Request { _filePath :: FilePath
-                       , _span     :: [Point]
+                       , _span     :: [Range]
                        } deriving (Eq, Generic, Show)
 
 data Result  = Result { _code :: Text

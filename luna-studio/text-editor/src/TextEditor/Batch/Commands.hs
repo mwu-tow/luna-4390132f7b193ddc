@@ -15,6 +15,7 @@ import qualified LunaStudio.API.Atom.SetProject    as SetProject
 import qualified LunaStudio.API.Atom.Substitute    as Substitute
 import           LunaStudio.Data.GraphLocation     (GraphLocation)
 import           LunaStudio.Data.Point             (Point)
+import           LunaStudio.Data.Range             (Range)
 
 -- Atom requests --
 
@@ -43,8 +44,8 @@ substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> UUID -> 
 substitute location start end text cursor uuid guiID =
     sendRequest $ Message uuid guiID $ Substitute.Request location start end text cursor
 
-copy :: FilePath -> [Point] -> UUID -> Maybe UUID -> IO ()
+copy :: FilePath -> [Range] -> UUID -> Maybe UUID -> IO ()
 copy path spans uuid guiID = sendRequest $ Message uuid guiID $ Copy.Request path spans
 
-paste :: GraphLocation -> [Point] -> [Text] -> UUID -> Maybe UUID -> IO ()
+paste :: GraphLocation -> [Range] -> [Text] -> UUID -> Maybe UUID -> IO ()
 paste location spans content uuid guiID = sendRequest $ Message uuid guiID $ Paste.Request location spans content

@@ -69,6 +69,7 @@ import           LunaStudio.Data.PortDefault                as PortDefault
 import           LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   as Position
 import           LunaStudio.Data.Project                    as Project
+import           LunaStudio.Data.Range                      as Range
 import           LunaStudio.Data.Size                       as Size
 import           LunaStudio.Data.ValueType                  as ValueType
 import           LunaStudio.Data.Vector2                    as Vector2
@@ -100,6 +101,7 @@ instance FromJSON PortRef.InPortRef
 instance FromJSON PortRef.OutPortRef
 instance FromJSON Position.Position
 instance FromJSON PProject.Project
+instance FromJSON Range
 instance FromJSON Result.Result
 
 instance FromJSONKey AnyPortRef
@@ -192,6 +194,7 @@ instance ToJSON PortRef.OutPortRef
 instance ToJSON Position.Position
 instance ToJSON PProject.Project
 instance ToJSON Project.Project
+instance ToJSON Range
 instance ToJSON Redo.RedoRequest
 instance ToJSON Redo.Request
 instance ToJSON RemoveConnection.Inverse
