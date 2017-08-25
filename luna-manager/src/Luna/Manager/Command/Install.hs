@@ -375,8 +375,8 @@ readVersion v = case readPretty v of
     Left e  -> raise versionError
     Right v -> return $ v
 
-isNightly :: Version -> Bool
-isNightly v = isJust $ v ^. nightly
+isNotNightly :: Version -> Bool
+isNotNightly v = isNothing $ v ^. nightly
 
 
 -- === Running === --
@@ -391,7 +391,8 @@ run opts = do
         & defArg .~ maybeHead (repo ^. apps)
 
     let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
-        vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter isNightly . sort . Map.keys $ vmap
+        vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter isNotNightly . sort . Map.keys $ vmap
+
     (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedVersion)
         $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)
         & help   .~ choiceHelp (appName <> " versions") vss
