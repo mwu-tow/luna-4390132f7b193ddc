@@ -23,8 +23,8 @@ dependencies:
     cache_directories:
         - "~/.stack"
         - "~/.ghcjs"
-        - "build/backend/.stack-work"
         - "luna-studio/.stack-work"
+        - "runner/.stack-work"
 
 compile:
     override:
