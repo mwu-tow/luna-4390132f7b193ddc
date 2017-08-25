@@ -64,6 +64,7 @@ module Empire.Commands.Graph
     , readMetadata
     , prepareCopy
     , paste
+    , copyText
     , pasteText
     , collapseToFunction
     , moveToOrigin
@@ -633,8 +634,8 @@ resendCode loc@(GraphLocation file _) = do
                                code
                                Nothing
 
-setNodeMetaGraph :: NodeId -> NodeMeta -> Command Graph ()
-setNodeMetaGraph nodeId newMeta = runASTOp $ do
+setNodeMetaGraph :: GraphOp m => NodeId -> NodeMeta -> m ()
+setNodeMetaGraph nodeId newMeta = do
     ref <- ASTRead.getASTRef nodeId
     AST.writeMeta ref newMeta
 
@@ -645,7 +646,7 @@ setNodeMetaFun nodeId newMeta = runASTOp $ do
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
-setNodeMeta loc nodeId newMeta = withGraph' loc (setNodeMetaGraph nodeId newMeta) (setNodeMetaFun nodeId newMeta)
+setNodeMeta loc nodeId newMeta = withGraph' loc (runASTOp $ setNodeMetaGraph nodeId newMeta) (setNodeMetaFun nodeId newMeta)
 
 setNodePosition :: GraphLocation -> NodeId -> Position -> Empire ()
 setNodePosition loc nodeId newPos = do
@@ -844,14 +845,7 @@ substituteCodeFromPoints path start end code cursor = do
     (s, e) <- withUnit loc $ do
         oldCode   <- use Graph.code
         let noMarkers  = Code.removeMarkers oldCode
-            --FIXME[MM]: Atom does something really bizarre - when selection spans multiple rows,
-            --           end column is larger by 4 characters than it should be. Conditions with
-            --           /= 0 are there to prevent this workaround from interfering with removing
-            --           whole lines - these are represented as col = 0 and consecutive row numbers.
-            end'       = if start ^. Point.row /= end ^. Point.row && start ^. Point.column /= 0 && end ^. Point.column /=0
-                             then end & Point.column -~ 4
-                             else end
-            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end' noMarkers)
+            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers)
             realDeltas = Code.viewDeltasToReal oldCode deltas
         return realDeltas
     substituteCode path s e code Nothing
@@ -1056,12 +1050,14 @@ getNodeIdForMarker index = do
     exprMap      <- getExprMap
     let exprMap' :: Map.Map Luna.MarkerId NodeRef
         exprMap' = coerce exprMap
-        Just ref = Map.lookup (fromIntegral index) exprMap'
-    IR.matchExpr ref $ \case
-        IR.Marked _m expr -> do
-            expr'     <- IR.source expr
-            nodeId    <- ASTRead.getNodeId expr'
-            return nodeId
+        ref = Map.lookup (fromIntegral index) exprMap'
+    case ref of
+        Nothing -> return Nothing
+        Just r  -> IR.matchExpr r $ \case
+            IR.Marked _m expr -> do
+                expr'     <- IR.source expr
+                nodeId    <- ASTRead.getNodeId expr'
+                return nodeId
 
 markerCodeSpan :: GraphLocation -> Int -> Empire (Int, Int)
 markerCodeSpan loc index = withGraph loc $ runASTOp $ do
@@ -1323,15 +1319,53 @@ paste loc position (Text.pack -> code) = do
     autolayout loc
     resendCode loc
 
-pasteText :: GraphLocation -> (Int,Int) -> Text -> Empire Text
-pasteText loc (both %~ fromIntegral -> (from,to)) text = do
-    code <- withUnit loc $ do
+copyText :: GraphLocation -> [(Int, Int)] -> Empire Text
+copyText loc@(GraphLocation file _) (map (both %~ fromIntegral) -> spans) = do
+    allMetadata <- dumpMetadata file
+    withUnit loc $ do
         oldCode <- use Graph.code
-        let code         = Code.removeMarkers text
-            (start, end) = Code.viewDeltasToReal oldCode (from, to)
-        Code.applyDiff start end code
-    reloadCode loc code
-    resendCode loc
+        let ranges = map (Code.viewDeltasToRealBeforeMarker oldCode) spans
+        codes <- forM ranges $ uncurry Code.getAt
+        let code                   = Text.concat codes
+            markers                = Code.extractMarkers code
+            relevantMetadata       = filter (\(MarkerNodeMeta marker _) -> marker `Set.member` markers) allMetadata
+            metadata               = FileMetadata relevantMetadata
+            metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) metadata
+            metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
+            clipboard              = Text.unlines [code, metadataJSONWithHeader]
+        return clipboard
+
+pasteSimple :: ClassOp m => (Int,Int) -> [MarkerNodeMeta] -> Text -> m [MarkerNodeMeta]
+pasteSimple ((both %~ fromIntegral) -> span) pastedMeta code = do
+    oldCode <- use Graph.code
+    let reservedMarkers             = Code.extractMarkers oldCode
+        (pastedCode, substitutions) = Code.remarkerCode code reservedMarkers
+        (start, end)                = Code.viewDeltasToRealBeforeMarker oldCode span
+        updatedMeta = mapMaybe (\(MarkerNodeMeta marker meta) -> case Map.lookup marker substitutions of
+            Just new -> Just (MarkerNodeMeta new meta)
+            Nothing -> Nothing) pastedMeta
+    Code.applyDiff start end pastedCode
+    return updatedMeta
+
+pasteText :: GraphLocation -> [(Int,Int)] -> [Text] -> Empire Text
+pasteText loc@(GraphLocation file _) (map (both %~ fromIntegral) -> spans) (Text.concat -> text) = do
+    let (meta, exprs) = partition (Text.isPrefixOf "### META") $ Text.lines text
+        withoutMeta   = if not (null meta) then Text.unlines exprs else Text.intercalate "\n" exprs
+    (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        FileMetadata m <- parseMetadata $ fromMaybe "" $ Safe.headMay meta
+        updatedMetas   <- runASTOp $ forM spans $ \s -> pasteSimple s m withoutMeta
+        code           <- use Graph.code
+        return (code, concat updatedMetas)
+    reloadCode (GraphLocation file (Breadcrumb [])) code `catch` \(e::ASTParse.SomeParserException) ->
+        withUnit (GraphLocation file (Breadcrumb [])) (Graph.code .= code)
+    funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        funs <- use Graph.clsFuns
+        return $ Map.keys funs
+    forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
+        forM updatedMeta $ \(MarkerNodeMeta marker meta) -> do
+            nodeid <- getNodeIdForMarker $ fromIntegral marker
+            forM nodeid $ \nid -> setNodeMetaGraph nid meta
+    resendCode (GraphLocation file (Breadcrumb []))
     return code
 
 -- internal

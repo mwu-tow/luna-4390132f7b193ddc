@@ -9,6 +9,7 @@ import           LunaStudio.API.Atom.FileChanged            as FileChanged
 import           LunaStudio.API.Atom.GetBuffer              as GetBuffer
 import           LunaStudio.API.Atom.IsSaved                as IsSaved
 import           LunaStudio.API.Atom.OpenFile               as OpenFile
+import           LunaStudio.API.Atom.Paste                  as AtomPaste
 import           LunaStudio.API.Atom.SaveFile               as SaveFile
 import           LunaStudio.API.Atom.SetProject             as SetProject
 import           LunaStudio.API.Atom.Substitute             as Substitute
@@ -126,6 +127,7 @@ instance ToJSON CollapseToFunction.Request
 instance ToJSON Connection.Connection
 instance ToJSON Copy.Request
 instance ToJSON AtomCopy.Request
+instance ToJSON AtomPaste.Request
 instance ToJSON Copy.Result
 instance ToJSON AtomCopy.Result
 instance ToJSON CreateLibrary.Request

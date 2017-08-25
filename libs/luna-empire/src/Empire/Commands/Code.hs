@@ -14,6 +14,7 @@ import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
 import qualified Data.Text.IO            as Text
+import qualified Data.Text.Read          as Text
 import           Data.List               (sort, sortOn)
 import           Data.Maybe              (listToMaybe)
 import           Empire.Data.Graph       as Graph
@@ -42,6 +43,7 @@ import           LunaStudio.Data.Node               (NodeId)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 
 import           LunaStudio.Data.Point (Point(Point))
+import Debug.Trace as Trace
 
 pointToDelta :: Point -> Text -> Delta
 pointToDelta (Point col row) code = fromIntegral $ col + row + sumOfRowsBefore where
@@ -60,10 +62,59 @@ removeMarkers (convert -> code) = convertVia @String $ SpanTree.foldlSpans conca
     lexerStream = Lexer.evalDefLexer code
     concatNonMarker t (Spanned span t1) = if span ^. spanType == MarkerSpan then t else t <> t1
 
+extractMarkers :: Text -> Set.Set Luna.MarkerId
+extractMarkers (convert -> code) = Set.fromList markers where
+    markers     = mapMaybe (\(Lexer.Token _ _ symbol) -> Lexer.matchMarker symbol) lexerStream
+    lexerStream = Lexer.evalDefLexer code
+
+readMarker :: Text -> Either String Word64
+readMarker text = Trace.traceShow text (fst <$> Text.decimal (Text.tail text))
+
+remarkerCode :: Text -> Set.Set Luna.MarkerId -> (Text, Map.Map Luna.MarkerId Luna.MarkerId)
+remarkerCode orig@(convert -> code) reservedMarkers = (remarkedCode, substitutions) where
+    concatAll   subst t1 (Spanned span t2) = t1 <>
+        if span ^. spanType /= MarkerSpan then t2 else (case readMarker (convert t2) of
+            Right m | m `Map.member` subst ->
+                let newMarker = subst Map.! m
+                in convert $ makeMarker newMarker
+            _ -> t2)
+    lexerStream  = Lexer.evalDefLexer code
+    remarkedCode = convertVia @String $ SpanTree.foldlSpans (concatAll substitutions) "" spanTree
+    spanTree     = SpanTree.buildSpanTree code lexerStream
+    (remarkedStream, substitutions, _) = foldl' f ([], Map.empty, reservedMarkers) lexerStream
+    f :: ([Lexer.Token Lexer.Symbol], Map.Map Luna.MarkerId Luna.MarkerId, Set.Set Luna.MarkerId)
+      -> Lexer.Token Lexer.Symbol
+      -> ([Lexer.Token Lexer.Symbol], Map.Map Luna.MarkerId Luna.MarkerId, Set.Set Luna.MarkerId)
+    f (remarkedStream, substitutions, reservedMarkers) token@(Lexer.Token s o el) =
+        case el of
+            Lexer.Marker m ->
+                if m `Set.member` reservedMarkers then
+                    let maxReservedMarker  = if Set.null reservedMarkers then 0 else Set.findMax reservedMarkers
+                        newMarker          = succ maxReservedMarker
+                        newSubstitutions   = Map.insert m newMarker substitutions
+                        newReservedMarkers = Set.insert newMarker reservedMarkers
+                        newToken           = Lexer.Token s o $ Lexer.Marker newMarker
+                    in (newToken:remarkedStream, newSubstitutions, newReservedMarkers)
+                else
+                    (token:remarkedStream, substitutions, reservedMarkers)
+            _              -> (token:remarkedStream, substitutions, reservedMarkers)
+
 viewDeltasToReal :: Text -> (Delta, Delta) -> (Delta, Delta)
 viewDeltasToReal (convert -> code) (b, e) = if b == e then (bAf, bAf) else block where
     bAf         = SpanTree.viewToRealCursorAfterMarker spantree b
     block       = SpanTree.viewToRealBlock spantree (b, e)
+    spantree    = SpanTree.buildSpanTree code lexerStream
+    lexerStream = Lexer.evalDefLexer code
+
+viewToRealBlockBeforeMarker :: Spantree a -> (Delta, Delta) -> (Delta, Delta)
+viewToRealBlockBeforeMarker st (left, right) = (len, r' + len - shift) where
+    (len, (shift, pre, post)) = SpanTree.viewToRealCursorSplitBeforeMarker st left
+    r' = SpanTree.viewToRealCursorBeforeMarker post (shift + right - left)
+
+viewDeltasToRealBeforeMarker :: Text -> (Delta, Delta) -> (Delta, Delta)
+viewDeltasToRealBeforeMarker (convert -> code) (b, e) = if b == e then (bAf, bAf) else block where
+    bAf         = SpanTree.viewToRealCursorBeforeMarker spantree b
+    block       = viewToRealBlockBeforeMarker spantree (b, e)
     spantree    = SpanTree.buildSpanTree code lexerStream
     lexerStream = Lexer.evalDefLexer code
 
@@ -81,8 +132,10 @@ applyDiff (fromIntegral -> start) (fromIntegral -> end) code = do
     Graph.code .= newCode
     return newCode
 
-applyMany :: (MonadState state m, Integral a, Graph.HasCode state) => [(a, a, Text)] -> m ()
-applyMany = mapM_ (uncurry applyDiff) . reverse . sortOn (view _1)
+applyMany :: (MonadState state m, Integral a, Graph.HasCode state) => [(a, a, Text)] -> m Text
+applyMany diffs = do
+    mapM_ (uncurry applyDiff) $ reverse $ sortOn (view _1) diffs
+    use Graph.code
 
 insertAt :: (MonadState state m, Graph.HasCode state) => Delta -> Text -> m Text
 insertAt at code = applyDiff at at code

@@ -56,6 +56,7 @@ handlersMap = Map.fromList
     , makeHandler Atom.handleOpenFile
     , makeHandler Atom.handleSaveFile
     , makeHandler Atom.handleCloseFile
+    , makeHandler Atom.handleCopyText
     , makeHandler Atom.handlePasteText
     , makeHandler Graph.handleGetBuffer
     , makeHandler Graph.handleSubstitute

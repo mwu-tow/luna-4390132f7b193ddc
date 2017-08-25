@@ -42,7 +42,7 @@ import qualified Empire.Empire                           as Empire
 import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
 import           Empire.Server.Server                    (errorMessage, defInverse, modifyGraph, modifyGraphOk, prettyException,
-                                                          replyFail, replyOk, replyResult, sendToBus')
+                                                          replyFail, replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
@@ -143,45 +143,6 @@ getNodesByIds location nids = filter (\n -> Set.member (n ^. Node.nodeId) nidsSe
 getExpressionNodesByIds :: GraphLocation -> [NodeId] -> Empire [Node.ExpressionNode]
 getExpressionNodesByIds location nids = filter (\n -> Set.member (n ^. Node.nodeId) nidsSet) <$> Graph.getNodes location where
     nidsSet = Set.fromList nids
-
-constructResult :: GraphAPI.Graph -> GraphAPI.Graph -> Result.Result
-constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds (Right updatedInGraph) where
-    updatedInGraph = GraphAPI.Graph updatedNodes updatedConns updatedInputSidebar updatedOutputSidebar []
-    oldNodesMap    = Map.fromList . map (view Node.nodeId &&& id) $ oldGraph ^. GraphAPI.nodes
-    newNodeIdsSet  = Set.fromList . map (view Node.nodeId) $ newGraph ^. GraphAPI.nodes
-    removedNodeIds = filter (flip Set.notMember newNodeIdsSet) $ Map.keys oldNodesMap
-    updatedNodes   = filter (\n -> Just n /= Map.lookup (n ^. Node.nodeId) oldNodesMap) $ newGraph ^. GraphAPI.nodes
-    oldConnsMap    = Map.fromList . map (snd &&& id) $ oldGraph ^. GraphAPI.connections
-    newConnIdsSet  = Set.fromList . map snd $ newGraph ^. GraphAPI.connections
-    removedConnIds = filter (flip Set.notMember newConnIdsSet) $ Map.keys oldConnsMap
-    updatedConns   = filter (\c@(_, dst) -> Just c /= Map.lookup dst oldConnsMap) $ newGraph ^. GraphAPI.connections
-    updatedInputSidebar = if oldGraph ^. GraphAPI.inputSidebar /= newGraph ^. GraphAPI.inputSidebar
-        then newGraph ^. GraphAPI.inputSidebar else Nothing
-    updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
-        then newGraph ^. GraphAPI.outputSidebar else Nothing
-
-handleASTException :: Empire a -> Empire (Either SomeASTException a)
-handleASTException act = try act
-
-withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResult' getFinalGraph location action = do
-    oldGraph <- handleASTException $ Graph.getGraphNoTC location
-    void action
-    newGraph <- handleASTException $ getFinalGraph location
-    return $ case (oldGraph, newGraph) of
-        (Left _, Right g)    -> Result.Result def def (Right g)
-        (Left _, Left exc)   -> def & Result.graphUpdates .~ Left (displayException exc)
-        (Right g, Left exc)  -> Result.Result (g ^.. GraphAPI.nodes . traverse . Node.nodeId)
-                                              (g ^.. GraphAPI.connections . traverse . _2)
-                                              (Left (displayException exc))
-        (Right og, Right ng) -> constructResult og ng
-
-
-withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResult = withDefaultResult' Graph.getGraphNoTC
-
-withDefaultResultTC :: GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResultTC = withDefaultResult' Graph.getGraph
 
 getNodeById :: GraphLocation -> NodeId -> Empire (Maybe Node.Node)
 getNodeById location nid = fmap listToMaybe $ getNodesByIds location [nid]
