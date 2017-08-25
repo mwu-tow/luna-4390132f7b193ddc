@@ -36,6 +36,7 @@ data InstallOpts = InstallOpts
     { _selectedComponent        :: Maybe Text
     , _selectedVersion          :: Maybe Text
     , _selectedInstallationPath :: Maybe Text
+    , _nightly                  :: Bool
     } deriving (Show)
 
 data MakePackageOpts = MakePackageOpts
@@ -60,7 +61,7 @@ makeLenses ''DevelopOpts
 
 -- === Instances === --
 
-instance Default InstallOpts where def = InstallOpts def def def 
+instance Default InstallOpts where def = InstallOpts def def def False
 
 
 
@@ -100,3 +101,4 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
                                            <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )
                                            <*> (optional . strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Installation path"   )
+                                           <*> Opts.switch (long "nightly" <> short 'n')
