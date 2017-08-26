@@ -18,6 +18,13 @@ foreign import javascript safe "Object.keys(typeof window.visualizers == 'object
 getVisualizers :: IO [String]
 getVisualizers = fmap pFromJSVal . toList <$> getVisualizers'
 
+foreign import javascript safe "window.visualizersPath"
+    getVisualizersLibraryPath' :: IO JSString
+
+getVisualizersLibraryPath :: IO FilePath
+getVisualizersLibraryPath = convert <$> getVisualizersLibraryPath'
+
+
 foreign import javascript safe "visualizerFramesManager.sendData($1, $2, $3);"
     sendVisualizationData' :: JSString -> JSString -> JSString -> IO ()
 

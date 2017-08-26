@@ -41,6 +41,7 @@ dependencies:
   - container
   - convert
   - data-default
+  - filepath
   - ghcjs-base
   - ghcjs-dom-jsffi
   - hashable

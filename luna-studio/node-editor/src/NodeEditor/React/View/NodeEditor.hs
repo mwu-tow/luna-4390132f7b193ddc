@@ -83,6 +83,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                           , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
         monads          = map lookupNode $ ne ^. NodeEditor.monads
         maySearcher     = ne ^. NodeEditor.searcher
+        visLibPath      = ne ^. NodeEditor.visualizersLibPath
         visualizations  = NodeEditor.getVisualizations ne
         isAnyVisActive  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
         isAnyFullscreen = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
@@ -112,7 +113,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                            forM_ visualizations $ nodeVisualization_ ref
+                            forM_ visualizations $ nodeVisualization_ ref visLibPath
 
                         planeNewConnection_ $ do
                             forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_

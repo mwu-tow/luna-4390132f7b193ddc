@@ -368,6 +368,12 @@ class JSON:
         JSONNull: "null"
         JSONObject m: "{" + (m . toList . map ((Tuple2 k v): k.escapeJSON + ": " + v.toText) . intersperse "," . fold "" (+)) + "}"
 
+    def fromObject: case self of
+        JSONObject m: m
+
+    def fromText: case self of
+        JSONString t: t
+
     def render: self.toText
 
     def shortRep: self.render
@@ -388,11 +394,11 @@ class JSON:
 
     def lookupReal key: case self . lookup key of
         Just val: val . toReal
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def lookupText key: case self . lookup key of
-        Just val: val . toText
-        Nothing:  errorStr "Key not found"
+        Just (JSONString val): val
+        Nothing:  errorStr ("Key not found: " + key)
 
     def at n: case self of
         JSONArray a: a.at n
@@ -506,7 +512,7 @@ class MsgPack:
 
     def lookupText key: case self.safeLookupText key of
         Just val: val
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def at n: case self of
         MPArray a: a.at n

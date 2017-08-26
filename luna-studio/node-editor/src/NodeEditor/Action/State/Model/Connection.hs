@@ -9,8 +9,8 @@ import           LunaStudio.Data.PortRef                    (AnyPortRef, InPortR
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position, distanceSquared)
 import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, getNodeEditor, getPosConnection, getPosConnections)
-import           NodeEditor.React.Model.Connection          (Connection (Connection), ConnectionId, HalfConnection (HalfConnection),
-                                                             connectionId, connectionMode, containsNode, halfConnectionMode)
+import           NodeEditor.React.Model.Connection          (Connection, ConnectionId, HalfConnection, connectionId, containsNode,
+                                                             toConnection, toHalfConnection)
 import qualified NodeEditor.React.Model.Connection          as Model
 import           NodeEditor.React.Model.Constants           (nodeRadius)
 import           NodeEditor.React.Model.Node                (NodeLoc)
@@ -23,9 +23,7 @@ createConnectionModel :: OutPortRef -> InPortRef -> Command State (Maybe Connect
 createConnectionModel srcPortRef dstPortRef = runMaybeT $ do
     srcNode <- MaybeT $ getNode $ srcPortRef ^. PortRef.srcNodeLoc
     dstNode <- MaybeT $ getNode $ dstPortRef ^. PortRef.dstNodeLoc
-    let mode = connectionMode srcNode dstNode
-    return $ Connection srcPortRef dstPortRef mode
-
+    return $ toConnection srcPortRef dstPortRef srcNode dstNode
 
 createHalfConnectionModel' :: OutPortRef -> InPortRef -> Command State (Maybe HalfConnection)
 createHalfConnectionModel' outPortRef inPortRef = runMaybeT $ do
@@ -36,8 +34,7 @@ createHalfConnectionModel' outPortRef inPortRef = runMaybeT $ do
 createHalfConnectionModel :: AnyPortRef -> Position -> Command State (Maybe HalfConnection)
 createHalfConnectionModel anyPortRef dstPos = runMaybeT $ do
     srcNode <- MaybeT $ getNode $ anyPortRef ^. nodeLoc
-    let mode = halfConnectionMode srcNode
-    return $ HalfConnection anyPortRef dstPos mode
+    return $ toHalfConnection anyPortRef srcNode dstPos
 
 distSqFromMouseIfIntersect :: NodeLoc -> Position -> ConnectionId -> Command State (Maybe (ConnectionId, Double))
 distSqFromMouseIfIntersect nl nodePos connId = runMaybeT $ do
