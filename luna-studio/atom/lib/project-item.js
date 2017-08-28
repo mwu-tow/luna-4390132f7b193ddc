@@ -8,7 +8,7 @@ etch = require('etch');
 module.exports = ProjectItem = class ProjectItem {
     constructor(name,
             uri = name,
-            onOpen = (() => { return atom.workspace.open(uri); })) {
+            onOpen = (() => { return atom.project.setPaths([uri]); })) {
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
         this.name = name;

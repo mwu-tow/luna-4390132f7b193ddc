@@ -5,6 +5,7 @@ LunaEditorTab  = require './luna-editor-tab'
 LunaStudioTab  = require './luna-studio-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
 LunaSemanticGrammar = require './luna-grammar'
+recentProjects = require './recent-projects'
 
 (require './luna-visualizers')()
 codeEditor = (require './gen/text-editor-ghcjs.js')()
@@ -68,6 +69,7 @@ module.exports = LunaStudio =
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
                 if rootPath? and rootPath != ""
+                    recentProjects.add rootPath
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
                 atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
             if act == 'FileOpened'

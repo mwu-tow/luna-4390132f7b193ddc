@@ -1,6 +1,7 @@
 {View} = require 'atom-space-pen-views'
 etch = require 'etch'
 ProjectItem = require './project-item'
+recentProjects = require './recent-projects'
 
 
 module.exports =
@@ -59,7 +60,8 @@ class LunaWelcomeTab extends View
         @hideSearchResults()
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
-        @displayItems()
+        recentProjects.load (recentProjectPath) =>
+            @privateContainer.append((new ProjectItem(recentProjectPath)).element)
 
     search: =>
         if @searchInput[0].value == ""
@@ -79,20 +81,5 @@ class LunaWelcomeTab extends View
         @privateSection.show()
         @tutorialsSection.show()
 
-    displayItems: =>
-        privates = [ new ProjectItem('new project', null)]
-        publics = []
-        tutorials =
-            [ new ProjectItem('test', 'luna-studio/atom/test.luna')
-            , new ProjectItem('test2', 'luna-studio/atom/test2.luna')
-            , new ProjectItem('cryptocurrencies', 'luna-studio/atom/test-cryptocurrencies.luna')
-            , new ProjectItem('list', 'luna-studio/atom/test-list.luna')
-            ]
-        for item in privates
-            @privateContainer.append(item.element)
-        for item in tutorials
-            @tutorialsContainer.append(item.element)
-        for item in publics
-            @communityContainer.append(item.element)
 
     getTitle: -> 'Welcome'
