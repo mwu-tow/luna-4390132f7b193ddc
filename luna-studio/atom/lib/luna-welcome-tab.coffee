@@ -2,7 +2,7 @@
 etch = require 'etch'
 fuzzyFilter = null # defer until used
 ProjectItem = require './project-item'
-recentProjects = require './recent-projects'
+projects = require './projects'
 
 module.exports =
 class LunaWelcomeTab extends View
@@ -61,7 +61,7 @@ class LunaWelcomeTab extends View
         @privateItems = []
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
-        recentProjects.load (recentProjectPath) =>
+        projects.recent.load (recentProjectPath) =>
             item = new ProjectItem(recentProjectPath)
             @privateItems.push(item)
             @privateContainer.append(item.element)
