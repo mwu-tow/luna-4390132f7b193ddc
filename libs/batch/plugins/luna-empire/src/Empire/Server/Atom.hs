@@ -64,7 +64,9 @@ handleSaveFile :: Request SaveFile.Request -> StateT Env BusT ()
 handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
-    res <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Graph.addMetadataToCode inPath
+    res <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ do
+        parseError <- Graph.withUnit (GraphLocation inPath (Breadcrumb [])) $ use Graph.clsParseError
+        when (isNothing parseError) $ Graph.addMetadataToCode inPath
     case res of
         Left (exc :: SomeASTException) ->
             let err = displayException exc in replyFail logger err req (Response.Error err)
