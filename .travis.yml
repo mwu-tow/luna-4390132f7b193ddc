@@ -1,0 +1,36 @@
+language: python
+
+python:
+    -"3.5"
+
+cache:
+  timeout: 1000
+  directories:
+    - $HOME/.stack/
+    - $HOME/.local/bin/
+    - .stack-work/
+
+before_install:
+# Download and unpack the stack executable
+    - sudo apt-get update && sudo apt-get install openssh-client libzmq3-dev rpm2cpio
+    - mkdir -p ~/.local/bin
+    - export PATH=$HOME/.local/bin:$PATH
+    - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    - stack config set system-ghc --global true
+    - curl -o /tmp/luna-manager http://packages.luna-lang.org/linux/luna-manager
+    - sudo mv /tmp/luna-manager /usr/bin
+    - chmod +x /usr/bin/luna-manager
+
+install:
+    - "npm install -g npm"
+    - "pip install requests"
+
+script:
+    - stack build --stack-yaml=build/backend/stack.yaml --only-dependencies --install-ghc --test --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+    - stack build --stack-yaml=luna-studio/stack.yaml --only-dependencies --install-ghc --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+    - stack build --stack-yaml=runner/stack.yaml --only-dependencies --install-ghc --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+    - stack build --stack-yaml build/backend/stack.yaml --copy-bins --no-run-tests --no-run-benchmarks -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+    - stack build --stack-yaml luna-studio/stack.yaml --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+    - stack build --stack-yaml runner/stack.yaml --copy-bins --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+    - luna-manager make-package /home/ubuntu/luna-package.yaml -v
+    - cd luna-studio/script && npm install -g less && python atom_prepare.py
