@@ -59,12 +59,18 @@ class LunaWelcomeTab extends View
 
     initialize: =>
         @privateItems = []
+        @tutorialItems = []
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
         projects.recent.load (recentProjectPath) =>
             item = new ProjectItem(recentProjectPath)
             @privateItems.push(item)
             @privateContainer.append(item.element)
+        projects.tutorial.list (tutorials) =>
+            for tutorial in tutorials
+                item = new ProjectItem(tutorial, tutorial, => projects.tutorial.open(tutorial))
+                @tutorialItems.push(item)
+                @tutorialsContainer.append(item.element)
         @hideSearchResults()
 
     getFilterKey: ->
@@ -94,6 +100,10 @@ class LunaWelcomeTab extends View
         @privateContainer.empty()
         for privateItem in @privateItems
             @privateContainer.append(privateItem.element)
+
+        @tutorialsContainer.empty()
+        for tutorialItem in @tutorialItems
+            @tutorialsContainer.append(tutorialItem.element)
 
         @searchResultsSection.hide()
         @communitySection.show()

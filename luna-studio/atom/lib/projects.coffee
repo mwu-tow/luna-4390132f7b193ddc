@@ -1,6 +1,8 @@
 fs   = require 'fs'
 yaml = require 'js-yaml'
+
 recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
+tutorialsPath   = process.env.LUNA_STUDIO_CONFIG + '/tutorials.yml'
 encoding = 'utf8'
 
 loadRecentNoCheck = (fun) =>
@@ -33,3 +35,17 @@ module.exports =
                 fs.writeFile recentProjectsPath, data, encoding, (err) =>
                     if err?
                         console.log err
+    tutorial:
+        list: (fun) =>
+            fs.readFile tutorialsPath, (err, data) =>
+                tutorials = []
+                if err
+                    console.log err
+                else
+                    parsed = yaml.safeLoad(data)
+                    if parsed?
+                        tutorials = parsed
+                fun tutorials
+
+        open: (tutorial) ->
+            console.log ("Opening " + tutorial)
