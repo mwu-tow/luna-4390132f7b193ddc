@@ -126,6 +126,9 @@ import           Empire.Empire
 import           Empire.Prelude                   hiding (toList)
 import qualified Luna.IR                          as IR
 import qualified Luna.IR.Term.Core                as Term
+import           Luna.Syntax.Text.Analysis.SpanTree (Spanned(..))
+import qualified Luna.Syntax.Text.Analysis.SpanTree as SpanTree
+import qualified Luna.Syntax.Text.Lexer           as Lexer
 import qualified Luna.Syntax.Text.Lexer.Grammar   as Lexer
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
@@ -155,6 +158,8 @@ import qualified LunaStudio.Data.Position         as Position
 import           LunaStudio.Data.Range            (Range(..))
 import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, narrowTerm, replace)
 import qualified Safe
+
+import qualified System.IO as IO
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True
@@ -853,6 +858,8 @@ substituteCodeFromPoints path start end code cursor = do
 
 substituteCode :: FilePath -> Delta -> Delta -> Text -> Maybe Delta -> Empire ()
 substituteCode path start end code cursor = do
+    print path >> print start >> print end >> print code >> print cursor
+    liftIO $ IO.hFlush IO.stdout
     let loc = GraphLocation path (Breadcrumb [])
     newCode <- withUnit loc $ Code.applyDiff start end code
     handle (\(e :: SomeASTException) -> withUnit loc $ Graph.clsParseError ?= e) $ do
@@ -1323,7 +1330,7 @@ paste loc position (Text.pack -> code) = do
 copyText :: GraphLocation -> [Range] -> Empire Text
 copyText loc@(GraphLocation file _) ranges = do
     allMetadata <- dumpMetadata file
-    withUnit loc $ do
+    withUnit (GraphLocation file (Breadcrumb [])) $ do
         oldCode <- use Graph.code
         let markedRanges = map (rangeToMarked oldCode) ranges
         codes <- forM markedRanges $ uncurry Code.getAt
@@ -1333,7 +1340,7 @@ copyText loc@(GraphLocation file _) ranges = do
             metadata               = FileMetadata relevantMetadata
             metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) metadata
             metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
-            clipboard              = Text.unlines [code, metadataJSONWithHeader]
+            clipboard              = Text.concat [code, metadataJSONWithHeader]
         return clipboard
 
 remarkerSnippet :: ClassOp m => [MarkerNodeMeta] -> Text -> m (Text, [MarkerNodeMeta])
@@ -1357,15 +1364,25 @@ rangeToMarked code range = (start, end)
 
 pasteText :: GraphLocation -> [Range] -> [Text] -> Empire Text
 pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
-    let (meta, exprs) = partition (Text.isPrefixOf "### META") $ Text.lines text
-        withoutMeta   = if not (null meta) then Text.unlines exprs else Text.intercalate "\n" exprs
+    let lexerStream  = Lexer.evalDefLexer (convert text)
+        (meta, code) = partition (\(Lexer.Token _ _ s) -> isJust $ Lexer.matchMetadata s) lexerStream
+        textTree     = SpanTree.buildSpanTree (convert text) code
+        withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
+        metaLine     = Text.drop (Text.length $ convert withoutMeta) text
+    print "withoutMeta"
+    liftIO $ Text.putStrLn (convert withoutMeta)
+    print "metaLine"
+    liftIO $ Text.putStrLn metaLine
+    liftIO $ IO.hFlush IO.stdout
     (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         code <- use Graph.code
         let markedRanges   = map (rangeToMarked code) ranges
             rangesReversed = reverse $ sortOn (view _1) markedRanges
-        FileMetadata m <- parseMetadata $ fromMaybe "" $ Safe.headMay meta
+        FileMetadata m <- parseMetadata metaLine
         updatedMetas   <- runASTOp $ forM rangesReversed $ \(start, end) -> do
-            (snippet, metas) <- remarkerSnippet m withoutMeta
+            (snippet, metas) <- remarkerSnippet m $ convert withoutMeta
+            print start >> print end >> print snippet
+            liftIO $ IO.hFlush IO.stdout
             Code.applyDiff start end snippet
             return metas
         code           <- use Graph.code

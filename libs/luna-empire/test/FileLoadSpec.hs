@@ -117,7 +117,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ parallel $ do
+spec = around withChannels $ id $ do
     describe "text coordinates translation" $ do
         it "translates points to deltas and back" $ \env -> do
             let code = Text.unlines [ "  "
@@ -1277,6 +1277,24 @@ spec = around withChannels $ parallel $ do
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Graph.pasteText loc [Range 18 20] ["\"test\""]
+        it "copy pastes" $ let
+            initialCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                code <- Graph.copyText loc [Range 50 60]
+                Graph.pasteText loc [Range 50 60] [code]
         it "pastes code with meta" $ let
             initialCode = [r|
                 def main:
@@ -1298,6 +1316,5 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 let paste = [r|    «2»c = 4.0
     «14»bar = foo 8.0 c
-### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-128,"_vector2_x":0}}}},{"marker":14,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-96,"_vector2_x":176}}}}]}
-|]
+### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-128,"_vector2_x":0}}}},{"marker":14,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-96,"_vector2_x":176}}}}]}|]
                 Graph.pasteText loc [Range 56 56] [paste]
