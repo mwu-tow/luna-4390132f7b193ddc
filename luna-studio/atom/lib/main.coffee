@@ -80,6 +80,7 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
+        @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
 
     deserializeLunaEditorTab: ({uri}) ->
         actStatus = (status) ->
@@ -121,3 +122,9 @@ module.exports = LunaStudio =
             if path.extname(e.path) is ".luna"
                 atom.workspace.destroyActivePaneItem()
                 atom.workspace.open(e.path)
+
+    handleProjectPathsChange: (projectPaths) ->
+        projectPath = projectPaths[0]
+        if projectPath?
+            recentProjects.add projectPath
+            codeEditor.pushInternalEvent(tag: "SetProject", _path: projectPath)

@@ -15,27 +15,18 @@ loadNoCheck = (fun) =>
         fun recentProjectsPaths
 
 module.exports =
-
-
     load: (fun) =>
         loadNoCheck (recentProjectsPaths) ->
             recentProjectsPaths.forEach (recentProjectPath) =>
-                console.log recentProjectPath
                 fs.access recentProjectPath, (err) =>
                     if not err
-                        console.log recentProjectPath
                         fun recentProjectPath
-
-
-            console.log recentProjectsPaths
-
 
     add: (recentProjectPath) =>
         loadNoCheck (recentProjectsPaths) ->
             pos = recentProjectsPaths.indexOf(recentProjectPath);
-            recentProjectsPaths.splice(pos, 1)
+            if pos != -1
+                recentProjectsPaths.splice(pos, 1)
             recentProjectsPaths.unshift(recentProjectPath)
-            console.log recentProjectsPaths
             data = yaml.safeDump(recentProjectsPaths)
-            console.log data
             fs.writeFile(recentProjectsPath, data, encoding, console.log);
