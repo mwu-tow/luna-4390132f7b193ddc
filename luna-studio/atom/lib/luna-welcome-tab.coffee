@@ -1,8 +1,8 @@
 {View} = require 'atom-space-pen-views'
 etch = require 'etch'
+fuzzyFilter = null # defer until used
 ProjectItem = require './project-item'
 recentProjects = require './recent-projects'
-
 
 module.exports =
 class LunaWelcomeTab extends View
@@ -36,6 +36,7 @@ class LunaWelcomeTab extends View
                         outlet: 'searchResultsSection'
                         =>
                             @span class: 'icon icon-search', 'Search results'
+                            @div class: 'block', outlet: 'searchResultsContainer', =>
                     @li
                         class: 'list-item'
                         outlet: 'tutorialsSection'
@@ -56,30 +57,47 @@ class LunaWelcomeTab extends View
                             @span class: 'icon icon-organization',  'Community'
                             @div class: 'block', outlet: 'communityContainer', =>
 
-    initialize: ->
-        @hideSearchResults()
+    initialize: =>
+        @privateItems = []
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
         recentProjects.load (recentProjectPath) =>
-            @privateContainer.append((new ProjectItem(recentProjectPath)).element)
+            item = new ProjectItem(recentProjectPath)
+            @privateItems.push(item)
+            @privateContainer.append(item.element)
+        @hideSearchResults()
+
+    getFilterKey: ->
+        return 'name'
 
     search: =>
-        if @searchInput[0].value == ""
+        filterQuery = @searchInput[0].value
+        if filterQuery == ""
             @hideSearchResults()
         else
-            @showSearchResults()
+            fuzzyFilter ?= require('fuzzaldrin').filter
+            filteredItems = fuzzyFilter(@privateItems, filterQuery, key: @getFilterKey())
+            @showSearchResults filteredItems
 
-    showSearchResults: =>
+
+    showSearchResults: (searchResults) =>
+        @searchResultsContainer.empty()
+        for item in searchResults
+            @searchResultsContainer.append item.element
+
         @communitySection.hide()
         @privateSection.hide()
         @tutorialsSection.hide()
         @searchResultsSection.show()
 
     hideSearchResults: =>
+        @privateContainer.empty()
+        for privateItem in @privateItems
+            @privateContainer.append(privateItem.element)
+
         @searchResultsSection.hide()
         @communitySection.show()
         @privateSection.show()
         @tutorialsSection.show()
-
 
     getTitle: -> 'Welcome'

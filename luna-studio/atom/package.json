@@ -15,6 +15,7 @@
     "atom-space-pen-views": "^2.0.x",
     "etch": "0.12.x",
     "first-mate": "7.0.x",
+    "fuzzaldrin": "^2.1.0",
     "jquery": "3.2.x",
     "js-yaml": "3.9.x",
     "pako": "1.0.x",
