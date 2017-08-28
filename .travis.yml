@@ -19,7 +19,7 @@ before_install:
     - curl -o /tmp/luna-manager http://packages.luna-lang.org/linux/luna-manager
     - sudo mv /tmp/luna-manager /usr/bin
     - curl -o /tmp/luna-package.yaml http://packages.luna-lang.org/linux/studio/packageConfig.yaml
-    - sudo mv /tmp/luna-package.yaml /home/ubuntu/luna-package.yaml
+    - sudo mv /tmp/luna-package.yaml /home/travis/luna-package.yaml
     - chmod +x /usr/bin/luna-manager
 
 install:
@@ -33,5 +33,5 @@ script:
     - stack build --stack-yaml build/backend/stack.yaml --copy-bins --no-run-tests --no-run-benchmarks -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
     - stack build --stack-yaml luna-studio/stack.yaml --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
     - stack build --stack-yaml runner/stack.yaml --copy-bins --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
-    - luna-manager make-package /home/ubuntu/luna-package.yaml -v
+    - luna-manager make-package /home/travis/luna-package.yaml -v
     - cd luna-studio/script && npm install -g less && python atom_prepare.py
