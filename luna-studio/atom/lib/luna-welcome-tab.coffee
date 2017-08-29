@@ -1,7 +1,12 @@
 {View} = require 'atom-space-pen-views'
 etch = require 'etch'
+fuzzyFilter = null # defer until used
 ProjectItem = require './project-item'
+projects = require './projects'
 
+projectClasses = "inline-block btn luna-project "
+tutorialClasses = projectClasses + "luna-project-tutorial"
+recentClasses = projectClasses + "luna-project-recent"
 
 module.exports =
 class LunaWelcomeTab extends View
@@ -9,90 +14,105 @@ class LunaWelcomeTab extends View
         super
 
     @content: ->
-        @div =>
-            @div class: 'block', =>
-                @div class: 'inline-block', 'Luna Studio'
-                @div class: 'inline-block-tight', =>
+        @div class: 'luna-welcome', =>
+            @div class: 'luna-header block', =>
+                @div class: 'luna-title inline-block', 'Luna Studio'
+                @div class: 'luna-link luna-link-forum inline-block-tight', =>
                     @a
                         class: 'btn'
                         href: "http://luna-lang.org"
                         'forum'
-                @div class: 'inline-block-tight', =>
+                @div class: 'luna-link luna-link-chat inline-block-tight', =>
                     @a
                         class: 'btn'
                         href: "http://luna-lang.org"
                         'chat'
-            @div class: 'block', =>
-                @input
-                    class: 'input-search native-key-bindings'
-                    type: 'search'
-                    placeholder: 'Search'
-                    outlet: 'searchInput'
-            @div class: 'block', =>
-                @ul class: 'list-group', =>
-                    @li
-                        class: 'list-item'
-                        outlet: 'searchResultsSection'
-                        =>
-                            @span class: 'icon icon-search', 'Search results'
-                    @li
-                        class: 'list-item'
-                        outlet: 'tutorialsSection'
-                        =>
-                            @span class: 'icon icon-book', 'Tutorials'
-                            @div class: 'block', outlet: 'tutorialsContainer', =>
+            @div class: 'luna-body', =>
+                @div class: 'luna-search-input block', =>
+                    @input
+                        class: 'input-search native-key-bindings'
+                        type: 'search'
+                        placeholder: 'Search'
+                        outlet: 'searchInput'
+                @div class: 'luna-projects block', =>
+                    @ul class: 'list-group', =>
+                        @li
+                            class: 'luna-search-results list-item'
+                            outlet: 'searchResultsSection'
+                            =>
+                                @span class: 'luna-search-results-title icon icon-search', 'Search results'
+                                @div class: 'luna-search-results-container block', outlet: 'searchResultsContainer', =>
+                        @li
+                            class: 'luna-tutorials-section list-item'
+                            outlet: 'tutorialsSection'
+                            =>
+                                @span class: 'luna-tutorials-section-title icon icon-book', 'Tutorials'
+                                @div class: 'luna-tutorials-section-container block', outlet: 'tutorialsContainer', =>
 
-                    @li
-                        class: 'list-item',
-                        outlet: 'privateSection'
-                        =>
-                            @span class: 'icon icon-person', 'Private'
-                            @div class: 'block', outlet: 'privateContainer', =>
-                    @li
-                        class: 'list-item'
-                        outlet: 'communitySection'
-                        =>
-                            @span class: 'icon icon-organization',  'Community'
-                            @div class: 'block', outlet: 'communityContainer', =>
+                        @li
+                            class: 'luna-private-section list-item',
+                            outlet: 'privateSection'
+                            =>
+                                @span class: 'luna-private-section-title icon icon-person', 'Private'
+                                @div class: 'luna-private-section-container block', outlet: 'privateContainer', =>
+                        @li
+                            class: 'luna-community-section list-item'
+                            outlet: 'communitySection'
+                            =>
+                                @span class: 'luna-community-section-title icon icon-organization',  'Community'
+                                @div class: 'luna-community-section-container block', outlet: 'communityContainer', =>
 
-    initialize: ->
-        @hideSearchResults()
+    initialize: =>
+        @privateItems = []
+        @tutorialItems = []
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
-        @displayItems()
+        projects.recent.load (recentProjectPath) =>
+            item = new ProjectItem(recentProjectPath, recentProjectPath, recentClasses)
+            @privateItems.push(item)
+            @privateContainer.append(item.element)
+        projects.tutorial.list (tutorials) =>
+            for tutorial in tutorials
+                item = new ProjectItem(tutorial, tutorial, tutorialClasses, => projects.tutorial.open(tutorial))
+                @tutorialItems.push(item)
+                @tutorialsContainer.append(item.element)
+        @hideSearchResults()
+
+    getFilterKey: ->
+        return 'name'
 
     search: =>
-        if @searchInput[0].value == ""
+        filterQuery = @searchInput[0].value
+        if filterQuery == ""
             @hideSearchResults()
         else
-            @showSearchResults()
+            fuzzyFilter ?= require('fuzzaldrin').filter
+            filteredItems = fuzzyFilter(@privateItems.concat @tutorialItems, filterQuery, key: @getFilterKey())
+            @showSearchResults filteredItems
 
-    showSearchResults: =>
+
+    showSearchResults: (searchResults) =>
+        @searchResultsContainer.empty()
+        for item in searchResults
+            @searchResultsContainer.append item.element
+
         @communitySection.hide()
         @privateSection.hide()
         @tutorialsSection.hide()
         @searchResultsSection.show()
 
     hideSearchResults: =>
+        @privateContainer.empty()
+        for privateItem in @privateItems
+            @privateContainer.append(privateItem.element)
+
+        @tutorialsContainer.empty()
+        for tutorialItem in @tutorialItems
+            @tutorialsContainer.append(tutorialItem.element)
+
         @searchResultsSection.hide()
         @communitySection.show()
         @privateSection.show()
         @tutorialsSection.show()
-
-    displayItems: =>
-        privates = [ new ProjectItem('new project', null)]
-        publics = []
-        tutorials =
-            [ new ProjectItem('test', 'luna-studio/atom/test.luna')
-            , new ProjectItem('test2', 'luna-studio/atom/test2.luna')
-            , new ProjectItem('cryptocurrencies', 'luna-studio/atom/test-cryptocurrencies.luna')
-            , new ProjectItem('list', 'luna-studio/atom/test-list.luna')
-            ]
-        for item in privates
-            @privateContainer.append(item.element)
-        for item in tutorials
-            @tutorialsContainer.append(item.element)
-        for item in publics
-            @communityContainer.append(item.element)
 
     getTitle: -> 'Welcome'

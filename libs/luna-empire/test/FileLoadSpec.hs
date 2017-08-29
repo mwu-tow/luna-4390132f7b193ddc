@@ -39,6 +39,7 @@ import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.Position        as Position
+import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 import           LunaStudio.Data.Vector2         (Vector2 (..))
 
@@ -116,7 +117,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ parallel $ do
+spec = around withChannels $ id $ do
     describe "text coordinates translation" $ do
         it "translates points to deltas and back" $ \env -> do
             let code = Text.unlines [ "  "
@@ -1237,3 +1238,83 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 Graph.setNodeExpression loc foo "a: b:\n        lala = 15.0\n        buzz = x: y:\n            x * y\n        pi = 3.14\n        n = buzz a lala\n        m = buzz b pi\n        m + n"
+        it "pastes string" $ let
+            initialCode = [r|
+                def main:
+                    «4»1
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    "test"
+
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.pasteText loc [Range 14 15] ["\"test\""]
+        it "pastes string 2" $ let
+            initialCode = [r|
+                def main:
+                    f = ""
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    f = "test"
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.pasteText loc [Range 18 20] ["\"test\""]
+        it "copy pastes" $ let
+            initialCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                code <- Graph.copyText loc [Range 50 60]
+                Graph.pasteText loc [Range 50 60] [code]
+        it "pastes code with meta" $ let
+            initialCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 4
+                    c = 4.0
+                    bar = foo 8.0 c
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                let paste = [r|    «2»c = 4.0
+    «14»bar = foo 8.0 c
+### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-128,"_vector2_x":0}}}},{"marker":14,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-96,"_vector2_x":176}}}}]}|]
+                Graph.pasteText loc [Range 56 56] [paste]

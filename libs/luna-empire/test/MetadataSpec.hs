@@ -475,7 +475,7 @@ def main:
                 Graph.loadCode loc testLuna
                 --FIXME[MM]: we need this test to behave like Atom, so end column is
                 --           4 characters further than it is in the file
-                Graph.substituteCodeFromPoints "TestPath" (Point 4 12) (Point 40 14) "5" Nothing
+                Graph.substituteCodeFromPoints "TestPath" (Point 4 12) (Point 36 14) "5" Nothing
                 Graph.withUnit loc $ use Graph.code
             code `shouldBe` [r|def main:
     «0»pi = 3.14

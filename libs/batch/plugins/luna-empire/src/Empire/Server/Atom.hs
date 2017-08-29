@@ -14,21 +14,31 @@ import           Empire.Env                     (Env)
 import qualified Empire.Env                     as Env
 
 import qualified LunaStudio.API.Atom.CloseFile  as CloseFile
+import qualified LunaStudio.API.Atom.Copy       as Copy
 import qualified LunaStudio.API.Atom.IsSaved    as IsSaved
 import qualified LunaStudio.API.Atom.OpenFile   as OpenFile
+import qualified LunaStudio.API.Atom.Paste      as Paste
 import qualified LunaStudio.API.Atom.SaveFile   as SaveFile
 import qualified LunaStudio.API.Atom.SetProject as SetProject
+import qualified LunaStudio.API.Graph.Request   as G
 import           LunaStudio.API.Request         (Request (..))
 import qualified LunaStudio.API.Response        as Response
+import           LunaStudio.Data.Breadcrumb     (Breadcrumb (..))
+import           LunaStudio.Data.GraphLocation  (GraphLocation(..))
+import qualified LunaStudio.Data.GraphLocation  as GraphLocation
 
 import           Debug
 import qualified Empire.Commands.Graph          as Graph
 import           Empire.Data.AST                (SomeASTException)
 import qualified Empire.Data.Graph              as Graph
 import qualified Empire.Data.Library            as Library
+import           Empire.Empire                  (Empire)
 import qualified Empire.Empire                  as Empire
-import           Empire.Server.Server           (errorMessage, replyFail, replyOk)
+import           Empire.Server.Server           (errorMessage, defInverse, modifyGraph, replyFail,
+                                                replyOk, replyResult, withDefaultResult)
 import qualified System.Log.MLogger             as Logger
+import qualified ZMQ.Bus.Config                 as Config
+import qualified ZMQ.Bus.EndPoint               as EP
 import           ZMQ.Bus.Trans                  (BusT (..))
 
 
@@ -54,7 +64,9 @@ handleSaveFile :: Request SaveFile.Request -> StateT Env BusT ()
 handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
-    res <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Graph.addMetadataToCode inPath
+    res <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ do
+        parseError <- Graph.withUnit (GraphLocation inPath (Breadcrumb [])) $ use Graph.clsParseError
+        when (isNothing parseError) $ Graph.addMetadataToCode inPath
     case res of
         Left (exc :: SomeASTException) ->
             let err = displayException exc in replyFail logger err req (Response.Error err)
@@ -79,3 +91,18 @@ handleCloseFile (Request _ _ (CloseFile.Request path)) = do
 
 handleIsSaved :: Request IsSaved.Request -> StateT Env BusT ()
 handleIsSaved (Request _ _ _) = $_NOT_IMPLEMENTED
+
+handlePasteText :: Request Paste.Request -> StateT Env BusT ()
+handlePasteText = modifyGraph defInverse action replyResult where
+    action (Paste.Request loc spans text) = withDefaultResult loc $ do
+        Graph.pasteText loc spans text
+
+instance G.GraphRequest Copy.Request where
+    location = lens getter setter where
+        getter (Copy.Request file _) = GraphLocation.GraphLocation file (Breadcrumb [])
+        setter (Copy.Request _ spans) (GraphLocation.GraphLocation file _) = Copy.Request file spans
+
+handleCopyText :: Request Copy.Request -> StateT Env BusT ()
+handleCopyText = modifyGraph defInverse action replyResult where
+    action (Copy.Request path spans) = do
+        Copy.Result <$> Graph.copyText (GraphLocation path (Breadcrumb [])) spans

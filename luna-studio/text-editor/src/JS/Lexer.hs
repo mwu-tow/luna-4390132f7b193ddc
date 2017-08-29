@@ -77,7 +77,7 @@ installLexer :: IO (IO ())
 installLexer = setLexer $ \mayStack line -> timeIt "runLexer" $ do
     let LineStack entryStack columnStack = fromMaybe def mayStack
         tokensWEntry   = Lexer.runLexer entryStack line
-        tokensWEC      =tagDisabled' columnStack tokensWEntry
+        tokensWEC      = tagDisabled' columnStack tokensWEntry
         newColumnStack = last tokensWEC ^. _1
         newEntryStack  = last tokensWEC ^. _2 . Lexer.element . _2
         newStack = LineStack newEntryStack newColumnStack

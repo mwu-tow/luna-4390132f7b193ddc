@@ -5,6 +5,7 @@ LunaEditorTab  = require './luna-editor-tab'
 LunaStudioTab  = require './luna-studio-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
 LunaSemanticGrammar = require './luna-grammar'
+projects = require './projects'
 
 (require './luna-visualizers')()
 codeEditor = (require './gen/text-editor-ghcjs.js')()
@@ -68,6 +69,7 @@ module.exports = LunaStudio =
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
                 if rootPath? and rootPath != ""
+                    projects.recent.add rootPath
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
                 atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
             if act == 'FileOpened'
@@ -78,6 +80,7 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
+        @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
 
     deserializeLunaEditorTab: ({uri}) ->
         actStatus = (status) ->
@@ -119,3 +122,9 @@ module.exports = LunaStudio =
             if path.extname(e.path) is ".luna"
                 atom.workspace.destroyActivePaneItem()
                 atom.workspace.open(e.path)
+
+    handleProjectPathsChange: (projectPaths) ->
+        projectPath = projectPaths[0]
+        if projectPath?
+            projects.recent.add projectPath
+            codeEditor.pushInternalEvent(tag: "SetProject", _path: projectPath)
