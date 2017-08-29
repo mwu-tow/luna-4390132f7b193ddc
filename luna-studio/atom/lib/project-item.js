@@ -24,6 +24,9 @@ module.exports = ProjectItem = class ProjectItem {
     }
 
     render () {
-        return <div class={this.classes} on={{click: this.onOpen}}>{this.name}</div>
+        return  <div class={this.classes}>
+                    <img class="luna-project-logo" src="rsc/logo.png"></img>
+                    <div class="luna-project-caption" on={{click: this.onOpen}}>{this.name}</div>
+                </div>
     }
 };
