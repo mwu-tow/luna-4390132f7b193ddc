@@ -42,7 +42,6 @@ data InstallOpts = InstallOpts
 data MakePackageOpts = MakePackageOpts
     { _cfgPath :: Text
     , _verbose :: Bool
-    , _nightlyPackage :: Bool
     } deriving (Show)
 
 data SwitchVersionOpts = SwitchVersionOpts
@@ -50,7 +49,8 @@ data SwitchVersionOpts = SwitchVersionOpts
     } deriving (Show)
 
 data DevelopOpts = DevelopOpts
-    { _targets :: [Text]
+    { _target :: Text
+    , _repositoryPath :: Text
     } deriving (Show)
 
 makeLenses ''Options
@@ -94,11 +94,11 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
                                            <*> Opts.switch (long "verbose" <> short 'v')
-                                           <*> Opts.switch (long "nightly" <> short 'n')
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
     optsDevelop        = Develop           <$> optsDevelop'
-    optsDevelop'       = DevelopOpts       <$> some (strArgument $ metavar "TARGET" <> help "Config file path")
+    optsDevelop'       = DevelopOpts       <$> (strArgument $ metavar "TARGET" <> help "Config file path")
+                                           <*> ( strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Repository path" )
     optsInstall        = Install           <$> optsInstall'
     optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
                                            <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )

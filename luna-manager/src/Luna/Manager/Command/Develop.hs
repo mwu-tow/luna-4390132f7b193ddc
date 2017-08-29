@@ -37,47 +37,50 @@ instance Convertible FilePath Text where
 
 run :: (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m) => DevelopOpts -> m ()
 run opts = do
-    root <- Shelly.pwd
-    let devPath   = root      </> "luna-workspace"
-        toolsPath = devPath   </> "tools"
-        appsPath  = devPath   </> "apps"
-        stackPath = toolsPath </> "stack"
-        stackBin  = stackPath </> "stack"
-    Shelly.mkdir_p toolsPath
-    Shelly.mkdir_p appsPath
+    -- root <- Shelly.pwd
+    -- let devPath   = root      </> "luna-workspace"
+    --     toolsPath = devPath   </> "tools"
+    --     appsPath  = devPath   </> "apps"
+    --     stackPath = toolsPath </> "stack"
+    --     stackBin  = stackPath </> "stack"
+    -- Shelly.mkdir_p toolsPath
+    -- Shelly.mkdir_p appsPath
 
     -- Stack installation
-    let stackName    = "stack"
-        stackVersion = "1.5.1"
-    putStrLn . convert $ "Downloading " <> stackName <> " (" <> stackVersion <> ")"
-    stackArch  <- downloadWithProgressBar $ "https://github.com/commercialhaskell/stack/releases/download/v" <> stackVersion <> "/stack-" <> stackVersion <> "-linux-x86_64-static.tar.gz"
-    stackArch' <- Archive.unpack stackArch
-    Shelly.mv stackArch' stackPath
+    -- let stackName    = "stack"
+    --     stackVersion = "1.5.1"
+    -- putStrLn . convert $ "Downloading " <> stackName <> " (" <> stackVersion <> ")"
+    -- stackArch  <- downloadWithProgressBar $ "https://github.com/commercialhaskell/stack/releases/download/v" <> stackVersion <> "/stack-" <> stackVersion <> "-linux-x86_64-static.tar.gz"
+    -- stackArch' <- Archive.unpack stackArch
+    -- Shelly.mv stackArch' stackPath
 
     -- cloning repo
-    let appName  = "luna-studio"
-        repoPath = "git@github.com:luna/" <> convert appName <> ".git"
-        appPath  = appsPath </> appName
-    putStrLn . convert $ "Clonning repository " <> repoPath
-    Shelly.run "git" ["clone", repoPath, convert appPath]
+    -- let appName  = "luna-studio"
+    --     repoPath = "git@github.com:luna/" <> convert appName <> ".git"
+    --     appPath  = appsPath </> appName
+    -- putStrLn . convert $ "Clonning repository " <> repoPath
+    -- Shelly.run "git" ["clone", repoPath, convert appPath]
 
     --downloading and installing dependencies
-    let appName  = "luna-studio"
+    let appName  = opts ^. target -- "luna-studio"
+        appPath  = opts ^. repositoryPath
+    print appName
+    print appPath
     repo <- getRepo
     resolvedApplication <- resolvePackageApp repo appName
-    mapM_ (downloadAndUnpackDependency $ appsPath </> convert appName) $ resolvedApplication ^. pkgsToPack
+    mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
     --generate packageConfig.yaml
-    generateYaml repo resolvedApplication (appsPath </> convert appName) (appsPath </> convert appName </> "luna-package.yaml")
+    generateYaml repo resolvedApplication (convert appPath) (convert appPath </> "luna-package.yaml")
     pkgConfig <- get @PackageConfig
-    let versionFile = appPath </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
+    let versionFile = convert appPath </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
     Shelly.mkdir_p $ parent versionFile
     liftIO $ writeFile (encodeString versionFile) "develop"
 
 
     -- building backend
-    putStrLn "Building Luna Studio Backend"
-    Shelly.chdir (appPath </> "build" </> "backend") $ do
-        Shelly.run stackBin ["build", "--copy-bins", "--fast", "--install-ghc", convert appPath]
+    -- putStrLn "Building Luna Studio Backend"
+    -- Shelly.chdir (appPath </> "build" </> "backend") $ do
+    --     Shelly.run stackBin ["build", "--copy-bins", "--fast", "--install-ghc", appPath]
 
     return ()
 
