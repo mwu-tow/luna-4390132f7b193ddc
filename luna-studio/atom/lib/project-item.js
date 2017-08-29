@@ -8,11 +8,13 @@ etch = require('etch');
 module.exports = ProjectItem = class ProjectItem {
     constructor(name,
             uri = name,
+            classes = "",
             onOpen = (() => { return atom.project.setPaths([uri]); })) {
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
         this.name = name;
         this.uri = uri;
+        this.classes = classes;
         this.onOpen = onOpen;
         etch.initialize(this);
     }
@@ -22,6 +24,6 @@ module.exports = ProjectItem = class ProjectItem {
     }
 
     render () {
-        return <div class="inline-block btn" on={{click: this.onOpen}}>{this.name}</div>
+        return <div class={this.classes} on={{click: this.onOpen}}>{this.name}</div>
     }
 };
