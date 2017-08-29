@@ -103,14 +103,14 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
     endPoints        <- EP.clientFromConfig <$> (liftIO Config.load)
     inv'             <- liftIO $ try $ runEmpire empireNotifEnv currentEmpireEnv $ inverse request
     case inv' of
-        Left (exc :: SomeASTException) -> do
+        Left (exc :: SomeException) -> do
             err <- liftIO $ prettyException exc
             replyFail logger err origReq (Response.Error err)
         Right (inv, _) -> do
             let invStatus = Response.Ok inv
             result <- liftIO $ try $ runEmpire empireNotifEnv currentEmpireEnv $ action request
             case result of
-                Left  (exc :: SomeASTException) -> do
+                Left  (exc :: SomeException) -> do
                     err <- liftIO $ prettyException exc
                     replyFail logger err origReq invStatus
                 Right (result, newEmpireEnv) -> do
@@ -140,14 +140,14 @@ constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds 
     updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
         then newGraph ^. GraphAPI.outputSidebar else Nothing
 
-handleASTException :: Empire a -> Empire (Either SomeASTException a)
-handleASTException act = try act
+catchAllExceptions :: Empire a -> Empire (Either SomeException a)
+catchAllExceptions act = try act
 
 withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
 withDefaultResult' getFinalGraph location action = do
-    oldGraph <- handleASTException $ Graph.getGraphNoTC location
+    oldGraph <- catchAllExceptions $ Graph.getGraphNoTC location
     void action
-    newGraph <- handleASTException $ getFinalGraph location
+    newGraph <- catchAllExceptions $ getFinalGraph location
     return $ case (oldGraph, newGraph) of
         (Left _, Right g)    -> Result.Result def def (Right g)
         (Left _, Left exc)   -> def & Result.graphUpdates .~ Left (displayException exc)

@@ -860,8 +860,10 @@ substituteCode :: FilePath -> Delta -> Delta -> Text -> Maybe Delta -> Empire ()
 substituteCode path start end code cursor = do
     let loc = GraphLocation path (Breadcrumb [])
     newCode <- withUnit loc $ Code.applyDiff start end code
-    handle (\(e :: SomeASTException) -> withUnit loc $ Graph.clsParseError ?= e) $ do
-        withUnit loc $ Graph.clsParseError .= Nothing
+    handle (\(e :: SomeException) -> withUnit loc $ Graph.clsParseError ?= e) $ do
+        withUnit loc $ do
+            Graph.code .= newCode
+            Graph.clsParseError .= Nothing
         reloadCode loc newCode
 
 lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
