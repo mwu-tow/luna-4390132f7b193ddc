@@ -1,1 +1,82 @@
-
+"*":
+  core:
+      automaticallyUpdate: false
+      telemetryConsent: "no"
+  "advanced-open-file":
+    fuzzyMatch: true
+  "color-picker":
+    randomColor: false
+  core:
+    autoHideMenuBar: true
+    automaticallyUpdate: false
+    disabledPackages: [
+      "wrap-guide"
+      "web-view"
+      "luna-studio"
+      "hidpi"
+      "linter-ui-default"
+      "linter"
+      "platformio-ide-terminal"
+      "tool-bar-almighty"
+    ]
+    packagesWithKeymapsDisabled: []
+    themes: [
+      "luna-dark-ui"
+      "luna-syntax"
+    ]
+  editor:
+    fontFamily: "Dejavu Sans Mono"
+    fontSize: 12
+    scrollPastEnd: true
+  "exception-reporting":
+    userId: "f639c0b1-9215-40ac-b370-30477aef0fc7"
+  hidpi:
+    scaleFactor: 1.4
+  "highlight-line": {}
+  "linter-ui-default":
+    panelHeight: 52
+    showPanel: true
+  "luna-dark-ui":
+    baseColor: "#000000"
+    fontSize: 20
+    someSetting2: "#ff00000"
+  "luna-dpi":
+    zoom: 1.375
+  minimap:
+    displayMinimapOnLeft: true
+    minimapScrollIndicator: false
+    plugins:
+      codeglance: false
+      codeglanceDecorationsZIndex: 0
+      cursorline: true
+      cursorlineDecorationsZIndex: 0
+      "find-and-replace": true
+      "find-and-replaceDecorationsZIndex": 0
+      "git-diff": true
+      "git-diffDecorationsZIndex": 0
+      "highlight-selected": true
+      "highlight-selectedDecorationsZIndex": 0
+    scrollAnimation: true
+  "minimap-codeglance":
+    numberOfLines: 20
+  "one-dark-ui":
+    fontSize: 20
+  "package-generator":
+    packageSyntax: "coffeescript"
+  "platformio-ide-terminal":
+    ansiColors:
+      normal:
+        green: "#5fea5f"
+    style:
+      animationSpeed: 0
+  "split-diff":
+    ignoreWhitespace: true
+    leftEditorColor: "red"
+    rightEditorColor: "green"
+  "status-bar": {}
+  "tool-bar":
+    position: "Left"
+  "tree-view":
+    hideIgnoredNames: true
+    hideVcsIgnoredFiles: true
+squashDirectoryNames: true

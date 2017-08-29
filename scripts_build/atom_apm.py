@@ -49,10 +49,29 @@ def copy_studio (studio_atom_source_path, package_path):
     elif system.system == system.systems.DARWIN:
         distutils.dir_util.copy_tree(studio_atom_source_path, package_path)
 
+def apm_luna_atom_package (third_party_path, atom_home_path, package_name, package_address):
+    packages_path = atom_home_path + '/packages/'
+    apm = apm_path(third_party_path)
+    os.chdir(packages_path)
+    popen = subprocess.Popen(('git', 'clone', package_address, package_name), stdout=subprocess.PIPE)
+    popen.wait()
+    output = popen.stdout.read()
+    print (output)
+    os.chdir(package_name)
+    os.environ['ATOM_HOME'] = atom_home_path
+    print(os.getcwd())
+    install = subprocess.Popen ((apm, 'install', '.'), stdout=subprocess.PIPE)
+    install.wait()
+    output2 = install.stdout.read()
+    print (output2)
+
+
+
+
+
 def apm(third_party_path, atom_home_path, studio_package_name):
     package_path = atom_home_path + '/packages/' + studio_package_name
     oniguruma_package_path = package_path + '/node_modules/oniguruma'
-    print(oniguruma_package_path)
     oniguruma = oniguruma_path(third_party_path)
     apm = apm_path(third_party_path)
     os.makedirs(package_path, exist_ok=True)
@@ -101,6 +120,12 @@ def apm_packages(third_party_path, atom_home_path, package_config_path):
 
 def run():
     apm(third_party_path, atom_home_path, studio_package_name)
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-syntax', 'https://github.com/luna/luna-studio-syntax-theme.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dark-ui', 'https://github.com/luna/luna-studio-ui-theme.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dpi', 'https://github.com/luna/luna-studio-dpi.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-toolbar', 'https://github.com/luna/luna-studio-toolbar.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'settings-view', 'https://github.com/luna/atom-settings-view.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'tool-bar', 'https://github.com/luna/tool-bar.git')
     apm_packages(third_party_path, atom_home_path,  package_config_path)
 
 if __name__ == '__main__':
