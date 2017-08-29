@@ -44,6 +44,10 @@ def id a: a
 
 def const a b: a
 
+def when p f: if p then f else None
+
+def unless p f: if p then None else f
+
 def seq a b:
     a
     b
@@ -144,6 +148,16 @@ class Maybe a:
     def map f: case self of
         Nothing: Nothing
         Just a: Just (f a)
+
+    def each f: case self of
+        Nothing: Nothing
+        Just a:
+            x = f a
+            Just x
+
+    def join: case self of
+        Nothing: Nothing
+        Just a: a
 
     def toText: case self of
         Just a: "Just " + a.toText
@@ -282,9 +296,14 @@ class List a:
         Prepend (Just x) xs: Prepend x xs.collect
         Prepend Nothing xs:  xs.collect
 
+    def makeString sep: self.fold "" (x: y: x.toString + sep + y.toString)
+
 class Map k v:
+    Map
     Tip
     Bin Int k v (Map k v) (Map k v)
+
+    def empty: Tip
 
     def isEmpty: case self of
         Tip: True
@@ -339,15 +358,23 @@ class JSON:
 
     def toJSON: self
 
-    def render: case self of
+    def toText: case self of
         JSONNumber d: d.shortRep
         JSONString s: s.escapeJSON
-        JSONArray  l: "[" + (l . map (x : x.render) . intersperse "," . fold "" (+)) + "]"
+        JSONArray  l: "[" + (l . map (x : x.toText) . intersperse "," . fold "" (+)) + "]"
         JSONBool   b: case b of
             True:  "true"
             False: "false"
         JSONNull: "null"
-        JSONObject m: "{" + (m . toList . map ((Tuple2 k v): k.escapeJSON + ": " + v.render) . intersperse "," . fold "" (+)) + "}"
+        JSONObject m: "{" + (m . toList . map ((Tuple2 k v): k.escapeJSON + ": " + v.toText) . intersperse "," . fold "" (+)) + "}"
+
+    def fromObject: case self of
+        JSONObject m: m
+
+    def fromText: case self of
+        JSONString t: t
+
+    def render: self.toText
 
     def shortRep: self.render
 
@@ -359,21 +386,19 @@ class JSON:
         JSONNumber a: a
         other:        errorStr "Unable to convert to a number"
 
-    def toText: case self of
-        JSONString s: s
-        other:        errorStr "Unable to convert to text"
-
     def toList: case self of
         JSONArray a: a
         other:       errorStr "Unable to convert to a list"
 
+    def toBinary: self.render.toBinary
+
     def lookupReal key: case self . lookup key of
         Just val: val . toReal
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def lookupText key: case self . lookup key of
-        Just val: val . toText
-        Nothing:  errorStr "Key not found"
+        Just (JSONString val): val
+        Nothing:  errorStr ("Key not found: " + key)
 
     def at n: case self of
         JSONArray a: a.at n
@@ -431,6 +456,8 @@ class MsgPack:
         MPArray a:  a.toJSON
         MPMap   m:  m.toJSON
 
+    def toBinary: encodeMsgPack self
+
     def equals that: case self of
         MPNil: case that of
             MPNil:       True
@@ -485,7 +512,7 @@ class MsgPack:
 
     def lookupText key: case self.safeLookupText key of
         Just val: val
-        Nothing:  errorStr "Key not found"
+        Nothing:  errorStr ("Key not found: " + key)
 
     def at n: case self of
         MPArray a: a.at n
@@ -545,9 +572,18 @@ class Stream a:
     def map f: case self of
         Stream elt s: Stream (f elt) (s.map f)
 
+    def takeWhile f: case self of
+        Stream elt s: if f elt then Prepend elt (s.takeWhile f) else Empty
+
     def average:
         folder = el: (Tuple2 count sum): Tuple2 count.succ (sum + el)
         self . foldFrom (Tuple2 0 0.0) folder . map ((Tuple2 count sum): sum./ count.toReal)
+
+def streamFrom act:
+    var = newMVar
+    head = act
+    fork (var.put (streamFrom act))
+    Stream head var.read
 
 def delayAsync time act:
     var = newMVar
@@ -555,9 +591,9 @@ def delayAsync time act:
     var
 
 def every timeInterval act:
-    time = timeInterval.toMicroseconds
+    time    = timeInterval.toMicroseconds
     current = act
-    future  = delayAsync time (every time act)
+    future  = delayAsync time (every timeInterval act)
     Stream current future.read
 
 def print x: putStr x.toText

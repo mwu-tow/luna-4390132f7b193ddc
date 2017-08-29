@@ -4,15 +4,18 @@ module Debug.Safe
 , timeIt
 ) where
 
+import           Prologue
+
+#ifdef DEBUG_PERF
 import           Control.Concurrent
 import           Data.IORef         (IORef)
 import qualified Data.IORef         as IORef
 import           Data.Time.Clock    (diffUTCTime, getCurrentTime)
-import           Prologue
-import           System.CPUTime
-import           System.IO.Unsafe
+import           System.CPUTime     (getCPUTime)
+import           System.IO.Unsafe   (unsafePerformIO)
 
-{-# LANGUAGE NOINLINE levelRef #-}
+
+{-# NOINLINE levelRef #-}
 levelRef :: IORef Int
 levelRef = unsafePerformIO $ IORef.newIORef 0
 
@@ -23,6 +26,7 @@ withLevel action = do
     r <- action level
     liftIO $ IORef.writeIORef levelRef level
     return r
+#endif
 
 {-# INLINE timeIt #-}
 timeIt :: MonadIO m => String -> m a -> m a

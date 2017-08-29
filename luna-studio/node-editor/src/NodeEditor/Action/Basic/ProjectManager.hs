@@ -3,12 +3,13 @@ module NodeEditor.Action.Basic.ProjectManager where
 import           Common.Action.Command              (Command)
 import           Common.Prelude
 import qualified JS.Atom                            as Atom
+import           JS.Visualizers                     (getVisualizersLibraryPath)
 import           LunaStudio.Data.GraphLocation      (GraphLocation, filePath)
 import           LunaStudio.Data.Project            (LocationSettings (LocationSettings))
 import qualified NodeEditor.Action.Batch            as Batch
-import           NodeEditor.Action.State.NodeEditor (getScreenTransform, resetGraph, setGraphStatus)
+import           NodeEditor.Action.State.NodeEditor (getScreenTransform, modifyNodeEditor, resetGraph, setGraphStatus)
 import           NodeEditor.Batch.Workspace         (currentLocation)
-import           NodeEditor.React.Model.NodeEditor  (GraphStatus (GraphLoading))
+import           NodeEditor.React.Model.NodeEditor  (GraphStatus (GraphLoading), visualizersLibPath)
 import           NodeEditor.State.Global            (State, workspace)
 import qualified NodeEditor.State.Global            as Global
 
@@ -16,6 +17,8 @@ import qualified NodeEditor.State.Global            as Global
 loadGraph :: GraphLocation -> Maybe (GraphLocation, LocationSettings) -> Command State ()
 loadGraph location prevSettings = do
     resetGraph
+    visLibPath <- liftIO $ getVisualizersLibraryPath
+    modifyNodeEditor $ visualizersLibPath .= visLibPath
     setGraphStatus GraphLoading
     workspace . _Just . currentLocation .= location
     Atom.setActiveLocation location

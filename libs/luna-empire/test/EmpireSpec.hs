@@ -149,7 +149,7 @@ spec = around withChannels $ parallel $ do
                 return (referenceConnection, connections)
             withResult res $ \(conn, connections) -> do
                 connections `shouldSatisfy` ((== 1) . length)
-                head connections `shouldBe` conn
+                unsafeHead connections `shouldBe` conn
         it "connects input with output edge" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -340,7 +340,7 @@ spec = around withChannels $ parallel $ do
                 Graph.getNodes loc'
             withResult res $ \nodes -> do
                 nodes `shouldSatisfy` ((== 1) . length)
-                head nodes `shouldSatisfy` (\a -> a ^. Node.expression == "• + •")
+                unsafeHead nodes `shouldSatisfy` (\a -> a ^. Node.expression == "• + •")
         it "places connections between + node and output" $ \env -> do
           u1 <- mkUUID
           res <- evalEmp env $ do
@@ -451,7 +451,7 @@ spec = around withChannels $ parallel $ do
                 node ^. Node.expression `shouldBe` "• + •"
                 connections `shouldSatisfy` ((== 3) . length)
         it "changes expression to anonymous node" $ \env -> do
-            let code = [r|def main:
+            let code = [qqRawStr|def main:
     «0»print 3.14
     «1»print 3.1414
 |]

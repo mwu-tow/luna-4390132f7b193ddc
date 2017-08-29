@@ -22,7 +22,7 @@ module ZMQ.Bus.RPC.HandlerMap (
     topics
 ) where
 
-import           Control.Error              (ExceptT, fromMaybe)
+import           Control.Error              (ExceptT)
 import           Control.Monad.State        (MonadState)
 import           Control.Monad.Trans.State  (StateT)
 import           Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
@@ -63,7 +63,7 @@ type HandlerMap s m = Callback s m -> Map FunctionName (StateT s m (Result, [Val
 
 lookupAndCall :: MonadIO m => HandlerMap s m -> Callback s m -> FunctionName -> StateT s m (Result, [Value])
 lookupAndCall handlerMap callback functionName = fromMaybe errorHandler $ Map.lookup functionName $ handlerMap callback
-    where errorHandler = do let errMsg = "Unknown function: " ++ show functionName
+    where errorHandler = do let errMsg = "Unknown function: " <> show functionName
                             logger error errMsg
                             return (ErrorResult errMsg, [])
 

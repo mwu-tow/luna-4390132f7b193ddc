@@ -89,6 +89,7 @@ instance NFData PortState
 class PortId a where
     isInPort     :: a -> Bool
     isOutPort    :: a -> Bool
+    isAlias      :: a -> Bool
     isSelf       :: a -> Bool
     isArg        :: a -> Bool
     isProjection :: a -> Bool
@@ -97,6 +98,7 @@ class PortId a where
 instance PortId InPortId where
     isInPort        = const True
     isOutPort       = const False
+    isAlias         = null
     isSelf (Self:_) = True
     isSelf _        = False
     isArg (Arg _:_) = True
@@ -107,6 +109,7 @@ instance PortId InPortId where
 instance PortId OutPortId where
     isInPort  = const False
     isOutPort = const True
+    isAlias   = const False
     isSelf    = const False
     isArg     = const False
     isProjection (Projection _:_) = True
@@ -118,6 +121,8 @@ instance PortId AnyPortId where
     isInPort     (OutPortId' pid) = isInPort     pid
     isOutPort    (InPortId'  pid) = isOutPort    pid
     isOutPort    (OutPortId' pid) = isOutPort    pid
+    isAlias      (InPortId'  pid) = isAlias      pid
+    isAlias      (OutPortId' pid) = isAlias      pid
     isSelf       (InPortId'  pid) = isSelf       pid
     isSelf       (OutPortId' pid) = isSelf       pid
     isArg        (InPortId'  pid) = isArg        pid

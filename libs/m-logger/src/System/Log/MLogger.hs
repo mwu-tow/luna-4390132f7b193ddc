@@ -37,14 +37,14 @@ log pri msg name = liftIO $ do
           let joinComp [] _ = []
               joinComp (x:xs) [] = x : joinComp xs x
               joinComp (x:xs) accum =
-                  let newlevel = accum ++ "." ++ x in
+                  let newlevel = accum <> "." <> x in
                       newlevel : joinComp xs newlevel
               in
               HSLogger.rootLoggerName : joinComp (StringUtils.split "." n) []
 
         parentLoggers [] = return []
         parentLoggers n = do
-            let pname = (head . drop 1 . reverse . componentsOfName) n
+            let pname = (unsafeHead . drop 1 . reverse . componentsOfName) n
             parent <- HSLogger.getLogger pname
             next <- parentLoggers pname
             return (parent : next)

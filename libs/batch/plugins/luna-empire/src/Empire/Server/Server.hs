@@ -15,6 +15,7 @@ import qualified Data.Map                     as Map
 import qualified Data.Set                     as Set
 import           Data.ByteString.Lazy         (toStrict)
 import           GHC.Stack                    (renderStack, whoCreated)
+import           Prelude                      ((++))
 import           Prologue
 import           System.Environment           (getEnv)
 import           System.FilePath              (replaceFileName, (</>))

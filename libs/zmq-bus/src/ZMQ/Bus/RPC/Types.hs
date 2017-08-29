@@ -26,7 +26,7 @@ import           Data.ByteString.Lazy as BS (ByteString)
 import           Data.List            as L
 import           Data.Typeable
 
-import           Prologue      hiding (Context)
+import           Prologue      hiding (Context, typeRep)
 
 
 type FunctionName = String

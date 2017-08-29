@@ -31,14 +31,14 @@ logger = getLogger $moduleName
 produce :: Pipes.Producer (Message, Message.CorrelationID) BusT ()
 produce = forever $ do
     frame <- lift $ BusT Bus.receive
-    liftIO $ logger debug $ "Received request: " ++ (frame ^. MessageFrame.message . Message.topic)
+    liftIO $ logger debug $ "Received request: " <> (frame ^. MessageFrame.message . Message.topic)
     Pipes.yield (frame ^. MessageFrame.message, frame ^. MessageFrame.correlation)
 
 
 consume :: Pipes.Consumer (Message, Message.CorrelationID, Flag) BusT ()
 consume = forever $ do
     (msg, crl, flag) <- Pipes.await
-    liftIO $ logger debug $ "Sending reply: " ++ (msg ^. Message.topic)
+    liftIO $ logger debug $ "Sending reply: " <> (msg ^. Message.topic)
     void $ lift $ BusT $ Bus.reply crl flag msg
 
 

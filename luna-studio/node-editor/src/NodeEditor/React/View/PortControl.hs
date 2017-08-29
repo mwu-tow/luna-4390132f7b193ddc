@@ -46,7 +46,7 @@ fractionalExp :: String -> String
 fractionalExp a =
     case a of
         []     -> ""
-        '.':xs -> (take 3 xs) ++ "…" ++ ePart xs
+        '.':xs -> (take 3 xs) <> "…" <> ePart xs
         _:xs   -> fractionalExp xs
     where
         ePart b =

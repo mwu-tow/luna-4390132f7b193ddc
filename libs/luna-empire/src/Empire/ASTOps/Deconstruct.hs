@@ -98,5 +98,5 @@ dumpAccessors' firstApp node = do
             target <- IR.source t
             let name = nameToString n
             (tgt, names) <- dumpAccessors' False target
-            return (tgt, names ++ [name])
+            return (tgt, names <> [name])
         _ -> return (Just node, [])

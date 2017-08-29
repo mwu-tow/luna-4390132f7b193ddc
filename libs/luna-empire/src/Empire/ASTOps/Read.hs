@@ -339,7 +339,7 @@ classFunctions unit = IR.matchExpr unit $ \case
     IR.Unit _ _ klass -> do
         klass' <- IR.source klass
         IR.matchExpr klass' $ \case
-            IR.ClsASG _ _ _ funs -> do
+            IR.ClsASG _ _ _ _ funs -> do
                 funs' <- mapM IR.source funs
                 catMaybes <$> forM funs' (\f -> IR.matchExpr f $ \case
                     IR.ASGRootedFunction{} -> return (Just f)
@@ -351,7 +351,7 @@ getMetadataRef unit = IR.matchExpr unit $ \case
     IR.Unit _ _ klass -> do
         klass' <- IR.source klass
         IR.matchExpr klass' $ \case
-            IR.ClsASG _ _ _ funs -> do
+            IR.ClsASG _ _ _ _ funs -> do
                 funs' <- mapM IR.source funs
                 (Safe.headMay . catMaybes) <$> forM funs' (\f -> IR.matchExpr f $ \case
                     IR.Metadata{} -> return (Just f)

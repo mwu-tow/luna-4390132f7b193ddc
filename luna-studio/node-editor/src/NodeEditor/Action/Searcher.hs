@@ -243,7 +243,7 @@ acceptWithHint scheduleEvent hintNum' action = let hintNum = (hintNum' - 1) `mod
 updateInputWithHint :: Int -> Searcher -> Command State ()
 updateInputWithHint hintNum' action = let hintNum = (hintNum' - 1) `mod` 10 in
     withJustM (view Searcher.selected `fmap2` getSearcher) $ \selected ->
-        whenM (selectHint (max selected 1 + hintNum) action) $
+        whenM_ (selectHint (max selected 1 + hintNum) action) $
             updateInputWithSelectedHint action
 
 -- tryRollback :: Searcher -> Command State ()

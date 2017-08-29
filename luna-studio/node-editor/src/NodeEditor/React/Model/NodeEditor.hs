@@ -47,6 +47,7 @@ data NodeEditor = NodeEditor { _expressionNodes      :: ExpressionNodesMap
                              , _outputNode           :: Maybe OutputNode
                              , _monads               :: [MonadPath]
                              , _connections          :: ConnectionsMap
+                             , _visualizersLibPath   :: FilePath
                              , _nodeVisualizations   :: Map NodeLoc NodeVisualizations
                              , _visualizationsBackup :: VisualizationsBackupMap
 
@@ -72,6 +73,7 @@ instance Default NodeEditor where
         {- outputNode           -} def
         {- monads               -} def
         {- connections          -} def
+        {- visualizersLibPath   -} def
         {- visualizations       -} def
         {- visualizationsBackup -} def
         {- halfConnections      -} def
@@ -184,14 +186,12 @@ toPosConnection :: NodeEditor -> Connection -> Maybe PosConnection
 toPosConnection ne connection = do
     let src        = connection ^. Connection.src
         dst        = connection ^. Connection.dst
-        internal   = length (src ^. PortRef.srcPortId) > 1
-                  || length (dst ^. PortRef.dstPortId) > 1
         srcPortRef = src & PortRef.srcPortId %~ atMostFirstLevel
         dstPortRef = dst & PortRef.dstPortId %~ atMostFirstLevel
         srcNodeLoc = srcPortRef ^. PortRef.srcNodeLoc
         dstNodeLoc = dstPortRef ^. PortRef.dstNodeLoc
         dstPortId  = dstPortRef ^. PortRef.dstPortId
-        mode       = if internal then Connection.Internal else connection ^. Connection.mode
+        mode       = connection ^. Connection.mode
     srcNode <- getNode srcNodeLoc ne
     dstNode <- getNode dstNodeLoc ne
     srcPort <- getPort srcPortRef ne
@@ -211,17 +211,18 @@ toPosHalfConnection ne halfConnection = do
     let src    = halfConnection ^. Connection.from
         dstPos = halfConnection ^. Connection.dstPos
         pid    = src ^. PortRef.portId
+        mode   = halfConnection ^. Connection.mode
     node <- getNode (src ^. PortRef.nodeLoc) ne
-    (srcPos, t, c) <-
+    (srcPos, c) <-
         if hasPort pid node then do
             port   <- getPort src ne
             srcPos <- Connection.halfConnectionSrcPosition node (convert port) dstPos (ne ^. layout)
-            return (srcPos, Connection.halfConnectionMode node, port ^. Port.color)
+            return (srcPos, port ^. Port.color)
         else if countArgPorts node == getPortNumber pid then case node of
-            Expression n -> return (Connection.argumentConstructorPosition n, Connection.Normal, Color 0)
+            Expression n -> return (Connection.argumentConstructorPosition n, Color 0)
             _            -> Nothing
         else Nothing
-    return $ PosHalfConnection srcPos dstPos t c
+    return $ PosHalfConnection srcPos dstPos mode c
 
 getVisualizations :: NodeEditor -> [VisualizationProperties]
 getVisualizations ne = concatMap getVisualizationsForNode . Map.toList $ ne ^. nodeVisualizations where

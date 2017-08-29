@@ -274,7 +274,7 @@ replaceAllUses ref new = do
     len         <- IR.getLayer @SpanLength ref
     occurrences <- getAllBeginningsOf ref
     let fromFileEnd = reverse $ sort occurrences
-    forM_ fromFileEnd $ \beg -> applyDiff beg (beg + len) new
+    for_ fromFileEnd $ \beg -> applyDiff beg (beg + len) new
     gossipLengthsChangedBy (fromIntegral (Text.length new) - len) ref
 
 computeLength :: GraphOp m => NodeRef -> m Delta
@@ -295,7 +295,7 @@ functionBlockStart funUUID = do
     unit <- use Graph.clsClass
     funs <- use Graph.clsFuns
     let fun = Map.lookup funUUID funs
-    (name, _) <- fromMaybeM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
+    (name, _) <- fromJustM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
     ref       <- ASTRead.getFunByName name
     functionBlockStartRef ref
 

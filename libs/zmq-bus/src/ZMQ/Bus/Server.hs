@@ -8,7 +8,7 @@ import           Control.Monad.Morph
 import           Control.Monad.Trans
 import           Control.Monad.Trans.State
 
-import           Prologue                  hiding (error)
+import           Prologue                  hiding (error, liftIO)
 import           System.Log.MLogger
 import           ZMQ.Bus.Bus               (Bus)
 import qualified ZMQ.Bus.Bus               as Bus
@@ -40,11 +40,11 @@ handleLoop topics process = do
 handle :: (Message -> IO [Message]) -> Bus ()
 handle process = do
     MessageFrame msg crlID _ _ <- Bus.receive
-    liftIO $ logger debug $ "Received request: " ++ (msg ^. Message.topic)
+    liftIO $ logger debug $ "Received request: " <> (msg ^. Message.topic)
     response <- liftIO $ process msg
     unless (null response) $ do
-        mapM_ (Bus.reply crlID Flag.Disable) (init response)
-        Bus.reply crlID Flag.Enable $ last response
+        mapM_ (Bus.reply crlID Flag.Disable) (unsafeInit response)
+        Bus.reply crlID Flag.Enable $ unsafeLast response
 
 
 runState :: Bus () -> BusEndPoints -> [Topic] -> s -> (CorrelationID -> Message -> StateT s IO [Message]) -> IO (Either Bus.Error ())
@@ -60,8 +60,8 @@ handleLoopState topics s process = do
 handleState :: (CorrelationID -> Message -> StateT s IO [Message]) -> StateT s BusT ()
 handleState process = do
     MessageFrame msg crlID _ _ <- lift $ BusT Bus.receive
-    liftIO $ logger debug $ "Received request: " ++ (msg ^. Message.topic)
+    liftIO $ logger debug $ "Received request: " <> (msg ^. Message.topic)
     response <- hoist liftIO $ process crlID msg
     lift $ BusT $ unless (null response) $ do
-        mapM_ (Bus.reply crlID Flag.Disable) (init response)
-        Bus.reply crlID Flag.Enable $ last response
+        mapM_ (Bus.reply crlID Flag.Disable) (unsafeInit response)
+        Bus.reply crlID Flag.Enable $ unsafeLast response

@@ -12,4 +12,4 @@ full = broker
 
 
 broker :: Bool -> String
-broker numeric = (if numeric then "" else "ZMQ bus broker version ") ++ Version.showVersion Config.version
+broker numeric = (if numeric then "" else "ZMQ bus broker version ") <> Version.showVersion Config.version

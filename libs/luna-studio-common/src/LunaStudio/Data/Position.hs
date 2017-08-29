@@ -31,8 +31,8 @@ instance IsVector  Position
 instance Binary Position
 
 type instance Item Position = Double
-instance ToList    Position where toList = toList . view vector
-instance FromList  Position where fromList = Position . fromList
+instance Convertible Position [Double] where convert = toList . view vector
+instance Convertible [Double] Position where convert = Position . fromList
 
 -- === Functions === ---
 
@@ -52,11 +52,11 @@ rescale pos factor = pos & vector %~ flip scalarProduct factor
 
 leftTopPoint :: [Position] -> Maybe Position
 leftTopPoint []        = Nothing
-leftTopPoint positions = Just $ Position (Vector2 (minimum $ view x <$> positions) (minimum $ view y <$> positions))
+leftTopPoint positions = Just $ Position (Vector2 (unsafeMinimum $ view x <$> positions) (unsafeMinimum $ view y <$> positions))
 
 rightBottomPoint :: [Position] -> Maybe Position
 rightBottomPoint []        = Nothing
-rightBottomPoint positions = Just $ Position (Vector2 (maximum $ view x <$> positions) (maximum $ view y <$> positions))
+rightBottomPoint positions = Just $ Position (Vector2 (unsafeMaximum $ view x <$> positions) (unsafeMaximum $ view y <$> positions))
 
 minimumRectangle :: [Position] -> Maybe (Position, Position)
 minimumRectangle positions = (,) <$> leftTopPoint positions <*> rightBottomPoint positions

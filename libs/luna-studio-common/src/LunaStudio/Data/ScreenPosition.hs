@@ -32,8 +32,8 @@ instance Dim2      ScreenPosition
 instance IsVector  ScreenPosition
 
 type instance Item ScreenPosition = Double
-instance ToList    ScreenPosition where toList   = toList . view vector
-instance FromList  ScreenPosition where fromList = ScreenPosition . fromList
+instance Convertible ScreenPosition [Double] where convert = toList . view vector
+instance Convertible [Double] ScreenPosition where convert = ScreenPosition . fromList
 
 
 -- === Functions === ---

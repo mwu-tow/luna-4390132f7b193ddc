@@ -54,7 +54,7 @@ receiveAndHandleMessage :: Undo ()
 receiveAndHandleMessage = do
     msgFrame <- receiveMessage
     action <- withBus $ handleMessage $ msgFrame ^. MessageFrame.message
-    forM_ action $ \msg -> lift $ Bus.BusT $ sendMessage msg
+    for_ action $ \msg -> lift $ Bus.BusT $ sendMessage msg
 
 pattern UndoRequestTopic :: Topic
 pattern UndoRequestTopic <- "empire.undo.request"

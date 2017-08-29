@@ -15,7 +15,7 @@ import           System.ZMQ4.Monadic             (ZMQ)
 import qualified System.ZMQ4.Monadic             as ZMQ
 
 import qualified Debug.Trace                     as T
-import           Prologue                        hiding (hoistEither, trace)
+import           Prologue                        hiding (hoistEither, trace, liftIO)
 import           System.Log.MLogger
 import qualified ZMQ.Bus.Control.Handler.Methods as Methods
 import           ZMQ.Bus.Data.Flag               (Flag)
@@ -49,7 +49,7 @@ requestClientID addr = do
     let request = Methods.CreateID
     response <- Client.query socket request
     lift $ ZMQ.close socket
-    return $ Methods.clientID response
+    pure $ Methods.clientID response
 
 
 runBus :: MonadIO m => EP.BusEndPoints -> Bus a -> m (Either Error a)
@@ -81,7 +81,7 @@ getNewRequestID = do
     s <- get
     let requestID = Env.requestID s
     put $ s { Env.requestID = requestID + 1 }
-    return requestID
+    pure requestID
 
 
 reply :: Message.CorrelationID -> Flag -> Message -> Bus ()
@@ -94,7 +94,7 @@ send :: Flag -> Message -> Bus Message.CorrelationID
 send lastFrame msg = do
     correlationID <- Message.CorrelationID <$> getClientID <*> getNewRequestID
     reply correlationID lastFrame msg
-    return correlationID
+    pure correlationID
 
 
 sendFrame :: MessageFrame -> Bus ()
@@ -112,14 +112,14 @@ receive' = MessageFrame.fromByteString <$> receiveByteString
 withTimeout :: Bus' z a -> Int -> Bus' z (Either Error a)
 withTimeout action timeout = runExceptT $ do
     state' <- get
-    T.trace (show timeout) $ return ()
+    T.trace (show timeout) $ pure ()
     task <- lift3 $ ZMQ.async $ runExceptT $ runStateT action state'
     wait <- liftIO $ Async.async $ do Concurrent.threadDelay timeout
-                                      return "Timeout reached"
+                                      pure "Timeout reached"
     r <- liftIO $ Async.waitEitherCancel wait task
     (result, newState) <- hoistEither $ join r
     put newState
-    return result
+    pure result
 
 
 sendByteString :: ByteString -> Bus ()
@@ -136,7 +136,7 @@ receiveByteString = do
     logger trace "Waiting for a message..."
     bs <- lift2 $ ZMQ.receive sub
     logger trace "Message received"
-    return bs
+    pure bs
 
 
 subscribe :: Topic -> Bus ()

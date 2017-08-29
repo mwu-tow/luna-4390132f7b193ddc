@@ -76,7 +76,7 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
     div_
         ([ "className" $= Style.prefixFromList ["node__name", "noselect"]
         , "key" $= "nodeName"
-        ] ++ handlers) $ do
+        ] <> handlers) $ do
         div_
             [ "className" $= Style.prefix "node__name--positioner"
             ] $ do
@@ -108,8 +108,8 @@ nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> 
             _                     -> regularHandlersAndElem
     div_
         (
-        [ "className" $= Style.prefixFromList (["node__expression", "noselect"] ++ (if isLong then ["node__expression--long"] else []))
-        , "key"       $= "nodeExpression" ] ++ handlers
+        [ "className" $= Style.prefixFromList (["node__expression", "noselect"] <> (if isLong then ["node__expression--long"] else []))
+        , "key"       $= "nodeExpression" ] <> handlers
         ) nameElement
 
 node_ :: Ref App -> ExpressionNode -> Bool -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
@@ -125,6 +125,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
             zIndex        = n ^. Node.zPos
             z             = if isCollapsed n then zIndex else zIndex + nodeLimit
             hasSelf       = any (\p -> (Port.isSelf $ p ^. Port.portId) && (not $ Port.isInvisible p)) $ Node.inPortsList n
+            hasAlias      = any (Port.isAlias . (^. Port.portId)) $ Node.inPortsList n
             mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
             showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression    = n ^. Node.expression
@@ -137,12 +138,13 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
-                                                                       ++ (if returnsError n then ["node--error"] else [])
-                                                                       ++ (if n ^. Node.isSelected then ["node--selected"] else [])
-                                                                       ++ (if n ^. Node.isMouseOver && not performingConnect then ["show-ctrl-icon"] else [] )
-                                                                       ++ (if hasSelf then ["node--has-self"] else ["node--no-self"])
-                                                                       ++ highlight
-                                                                       ++ ifPortConstructor)
+                                                                       <> (if returnsError n then ["node--error"] else [])
+                                                                       <> (if n ^. Node.isSelected then ["node--selected"] else [])
+                                                                       <> (if n ^. Node.isMouseOver && not performingConnect then ["show-ctrl-icon"] else [] )
+                                                                       <> (if hasSelf then ["node--has-self"] else ["node--no-self"])
+                                                                       <> (if hasAlias then ["node--has-alias"] else ["node--no-alias"])
+                                                                       <> highlight
+                                                                       <> ifPortConstructor)
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc

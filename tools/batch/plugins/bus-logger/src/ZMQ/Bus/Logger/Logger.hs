@@ -35,7 +35,7 @@ logger = getLogger $moduleName
 
 run :: BusEndPoints -> [Topic] -> IO (Either Bus.Error ())
 run ep topics = Bus.runBus ep $ do
-    logger info $ "Subscribing to topics: " ++ show topics
+    logger info $ "Subscribing to topics: " <> show topics
     mapM_ Bus.subscribe topics
     Bus.runBusT $ evalStateT (forever logMessage) def
 
@@ -43,18 +43,18 @@ logMessage :: StateT Env BusT ()
 logMessage = do
     msgFrame <- lift $ Bus.BusT Bus.receive'
     case msgFrame of
-        Left err -> logger error $ "Unparseable message: " ++ err
+        Left err -> logger error $ "Unparseable message: " <> err
         Right (MessageFrame msg crlID senderID lastFrame) -> do
             time <- measureTime crlID
             let topic = msg ^. Message.topic
                 logMsg =  show senderID
-                       ++ " -> "
-                       ++ " (last = "
-                       ++ show lastFrame
-                       ++ ")"
-                       ++ "\t:: "
-                       ++ topic
-                       ++ Maybe.maybe  "" (\t -> " [" ++ show t ++ "]") time
+                       <> " -> "
+                       <> " (last = "
+                       <> show lastFrame
+                       <> ")"
+                       <> "\t:: "
+                       <> topic
+                       <> Maybe.maybe  "" (\t -> " [" <> show t <> "]") time
                 content = msg ^. Message.message
                 errorMsg = show content
             case lastPart '.' topic of
@@ -74,15 +74,15 @@ ppr msg = do
     let Response fname result _ = Bin.decode $ fromStrict msg
     case result of
         (Status (Value tname _ dataBytes)) -> do
-            logger info  $ unlines [ "requested method: " ++ fname
-                                   , "    content type: " ++ tname
+            logger info  $ unlines [ "requested method: " <> fname
+                                   , "    content type: " <> tname
                                    ]
             logger debug $ unlines [ "            data: "
                                    , unpack $ toStrict dataBytes
                                    ]
         (ErrorResult err) ->
-            logger error $ unlines [ "requested method: " ++ fname
-                                   , "  error response: " ++ err
+            logger error $ unlines [ "requested method: " <> fname
+                                   , "  error response: " <> err
                                    ]
 
 

@@ -33,8 +33,8 @@ instance Dim1 Size
 instance Dim2 Size
 
 type instance Item Size = Double
-instance ToList    Size where toList   = toList . view vector
-instance FromList  Size where fromList = Size . fromList
+instance Convertible Size [Double] where convert = toList . view vector
+instance Convertible [Double] Size where convert = Size . fromList
 
 
 -- === Functions === ---

@@ -6,15 +6,13 @@ module GZip (compress, decompress) where
 import           Common.Prelude
 import           Data.ByteString                   (useAsCStringLen)
 import           Data.ByteString.Lazy              (ByteString, fromStrict, toStrict)
-import qualified Data.ByteString.Lazy              as BS
 import           Foreign.Ptr                       (Ptr)
-import           GHCJS.Buffer                      (Buffer, MutableBuffer)
+import           GHCJS.Buffer                      (Buffer)
 import qualified GHCJS.Buffer                      as Buffer
 import           GHCJS.DOM.Types                   (Uint8Array)
 import           GHCJS.Marshal.Pure                (pFromJSVal, pToJSVal)
-import           GHCJS.Marshal                     (fromJSVal)
 import           GHCJS.Types                       (JSVal)
-import           JavaScript.TypedArray.ArrayBuffer (ArrayBuffer, MutableArrayBuffer, unsafeFreeze)
+import           JavaScript.TypedArray.ArrayBuffer (MutableArrayBuffer, unsafeFreeze)
 import           System.IO.Unsafe                  (unsafePerformIO)
 
 foreign import javascript unsafe
