@@ -68,7 +68,7 @@ extractMarkers (convert -> code) = Set.fromList markers where
     lexerStream = Lexer.evalDefLexer code
 
 readMarker :: Text -> Either String Word64
-readMarker text = Trace.traceShow text (fst <$> Text.decimal (Text.tail text))
+readMarker text = fst <$> Text.decimal (Text.tail text)
 
 remarkerCode :: Text -> Set.Set Luna.MarkerId -> (Text, Map.Map Luna.MarkerId Luna.MarkerId)
 remarkerCode orig@(convert -> code) reservedMarkers = (remarkedCode, substitutions) where

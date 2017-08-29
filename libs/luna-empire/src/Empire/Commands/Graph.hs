@@ -858,8 +858,6 @@ substituteCodeFromPoints path start end code cursor = do
 
 substituteCode :: FilePath -> Delta -> Delta -> Text -> Maybe Delta -> Empire ()
 substituteCode path start end code cursor = do
-    print path >> print start >> print end >> print code >> print cursor
-    liftIO $ IO.hFlush IO.stdout
     let loc = GraphLocation path (Breadcrumb [])
     newCode <- withUnit loc $ Code.applyDiff start end code
     handle (\(e :: SomeASTException) -> withUnit loc $ Graph.clsParseError ?= e) $ do
@@ -1369,11 +1367,6 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
         textTree     = SpanTree.buildSpanTree (convert text) code
         withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
         metaLine     = Text.drop (Text.length $ convert withoutMeta) text
-    print "withoutMeta"
-    liftIO $ Text.putStrLn (convert withoutMeta)
-    print "metaLine"
-    liftIO $ Text.putStrLn metaLine
-    liftIO $ IO.hFlush IO.stdout
     (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         code <- use Graph.code
         let markedRanges   = map (rangeToMarked code) ranges
@@ -1381,8 +1374,6 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
         FileMetadata m <- parseMetadata metaLine
         updatedMetas   <- runASTOp $ forM rangesReversed $ \(start, end) -> do
             (snippet, metas) <- remarkerSnippet m $ convert withoutMeta
-            print start >> print end >> print snippet
-            liftIO $ IO.hFlush IO.stdout
             Code.applyDiff start end snippet
             return metas
         code           <- use Graph.code
