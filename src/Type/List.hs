@@ -51,6 +51,7 @@ type instance IndexF a (l ': ls) = If (a == l) 0 (IndexF a ls + 1)
 
 data Recursive a
 
+-- TODO: rename to IndexOf
 type instance Index a (Recursive (l ': ls)) = If (a == l) ('Just 0) (SuccMaybe (Index a (Recursive ls)))
 type instance Index a (Recursive '[]      ) = ('Nothing :: Maybe Nat)
 
