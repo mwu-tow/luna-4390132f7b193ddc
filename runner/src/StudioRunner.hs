@@ -237,9 +237,9 @@ runBackend = do
     logs        <- localLogsDirectory
     backendBins <- backendBinsPath
     config      <- configPath
-    liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
-    liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
-    liftIO $ Environment.setEnv "CONFIG" (encodeString config)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_PATH" (encodeString config)
     case currentHost of
         Darwin -> do
             runLunaEmpireMacOS logs "supervisord.conf"
@@ -255,12 +255,12 @@ runLocal = do
     atom        <- atomAppPath
     config      <- configPath
     kill        <- killSupervisorBinPath
-    liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
-    liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
-    liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
-    liftIO $ Environment.setEnv "ATOM" (encodeString atom)
-    liftIO $ Environment.setEnv "CONFIG" (encodeString config)
-    liftIO $ Environment.setEnv "KILL" (encodeString kill)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome </> "atom")
+    liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_PATH" (encodeString config)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_KILL_PATH" (encodeString kill)
     case currentHost of
         Darwin -> do
             runLunaEmpireMacOS logs "supervisord-mac.conf"
@@ -278,12 +278,12 @@ runPackage = case currentHost of
         atom        <- atomAppPath
         config      <- configPath
         kill        <- killSupervisorBinPath
-        liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
-        liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
-        liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
-        liftIO $ Environment.setEnv "ATOM" (encodeString atom)
-        liftIO $ Environment.setEnv "CONFIG" (encodeString config)
-        liftIO $ Environment.setEnv "KILL" (encodeString kill)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_PATH" (encodeString config)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_KILL_PATH" (encodeString kill)
         checkLunaHome
         runLunaEmpireMacOS logs "supervisord-mac.conf"
     Linux -> do
@@ -293,12 +293,12 @@ runPackage = case currentHost of
         atom        <- atomAppPath
         config      <- configPath
         kill        <- killSupervisorBinPath
-        liftIO $ Environment.setEnv "LUNAATOM" (encodeString $ atomHome </> "atom")
-        liftIO $ Environment.setEnv "SUPERVISORLOGS" (encodeString logs)
-        liftIO $ Environment.setEnv "BACKENDBINSDIR" (encodeString backendBins)
-        liftIO $ Environment.setEnv "ATOM" (encodeString atom)
-        liftIO $ Environment.setEnv "CONFIG" (encodeString config)
-        liftIO $ Environment.setEnv "KILL" (encodeString kill)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_PATH" (encodeString config)
+        liftIO $ Environment.setEnv "LUNA_STUDIO_KILL_PATH" (encodeString kill)
         checkLunaHome
         runLunaEmpire logs "supervisord-linux.conf"
 
@@ -313,8 +313,8 @@ runApp :: (MonadRun m, MonadIO m) => Maybe String -> m ()
 runApp atom = do
     v <- version
     case atom of
-        Just arg -> liftIO $ Environment.setEnv "ATOM_ARG" arg
-        Nothing  -> liftIO $ Environment.setEnv "ATOM_ARG" " "
+        Just arg -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" arg
+        Nothing  -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" " "
     if v == "develop" then runLocal else runPackage
 
 data Options = Options
