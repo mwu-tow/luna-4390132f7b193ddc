@@ -12,7 +12,6 @@
     disabledPackages: [
       "wrap-guide"
       "web-view"
-      "luna-studio"
       "hidpi"
       "linter-ui-default"
       "linter"
