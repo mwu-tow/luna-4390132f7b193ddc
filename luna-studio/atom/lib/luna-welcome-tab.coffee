@@ -7,6 +7,8 @@ projects = require './projects'
 projectClasses = "inline-block btn luna-project "
 tutorialClasses = projectClasses + "luna-project-tutorial"
 recentClasses = projectClasses + "luna-project-recent"
+privateNewClasses = projectClasses + 'luna-project-private-new'
+comunnityNewClasses = projectClasses + 'luna-project-community-new'
 
 module.exports =
 class LunaWelcomeTab extends View
@@ -63,10 +65,19 @@ class LunaWelcomeTab extends View
                                 @div class: 'luna-community-section-container block', outlet: 'communityContainer', =>
 
     initialize: =>
-        @privateItems = []
         @tutorialItems = []
+        @privateItems = []
+        @privateNew = new ProjectItem('new project', null, privateNewClasses, => atom.pickFolder (paths) => atom.project.setPaths paths)
+        @communityItems = []
+        @comunnityNew = new ProjectItem('new project', null, comunnityNewClasses, => atom.confirm
+            message: "Not supported yet"
+            detailedMessage: "Community projects are not supported yet."
+            buttons:
+                Ok: -> )
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
+
+        @hideSearchResults()
         projects.recent.load (recentProjectPath) =>
             item = new ProjectItem(recentProjectPath, recentProjectPath, recentClasses)
             @privateItems.push(item)
@@ -76,7 +87,6 @@ class LunaWelcomeTab extends View
                 item = new ProjectItem(tutorial, tutorial, tutorialClasses, => projects.tutorial.open(tutorial))
                 @tutorialItems.push(item)
                 @tutorialsContainer.append(item.element)
-        @hideSearchResults()
 
     getFilterKey: ->
         return 'name'
@@ -103,12 +113,19 @@ class LunaWelcomeTab extends View
 
     hideSearchResults: =>
         @privateContainer.empty()
+        @privateContainer.append(@privateNew.element)
         for privateItem in @privateItems
             @privateContainer.append(privateItem.element)
 
         @tutorialsContainer.empty()
         for tutorialItem in @tutorialItems
             @tutorialsContainer.append(tutorialItem.element)
+
+        @communityContainer.empty()
+        @communityContainer.append(@comunnityNew.element)
+        for communityItem in @communityItems
+            @communityContainer.append(communityItem.element)
+
 
         @searchResultsSection.hide()
         @communitySection.show()
