@@ -52,7 +52,7 @@ data Graph = Graph { _ast                   :: AST Graph
                    , _breadcrumbHierarchy   :: LamItem
                    , _codeMarkers           :: Map Luna.MarkerId NodeRef
                    , _graphCode             :: Text
-                   , _parseError            :: Maybe SomeASTException
+                   , _parseError            :: Maybe SomeException
                    , _fileOffset            :: Delta
                    , _graphNodeCache        :: NodeCache
                    } deriving Show
@@ -61,7 +61,7 @@ data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
                          , _clsClass       :: NodeRef
                          , _clsCodeMarkers :: Map Luna.MarkerId NodeRef
                          , _clsCode        :: Text
-                         , _clsParseError  :: Maybe SomeASTException
+                         , _clsParseError  :: Maybe SomeException
                          , _clsFuns        :: Map NodeId (String, Graph)
                          , _clsNodeCache   :: NodeCache
                          } deriving Show
