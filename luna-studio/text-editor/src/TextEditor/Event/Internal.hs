@@ -5,8 +5,8 @@ import           Common.Prelude
 import           Data.Aeson     (FromJSON, ToJSON)
 
 
-data InternalEvent = Copy        { _path :: FilePath , _maySelections :: Maybe [(Int, Int)]}
-                   | Paste       { _path :: FilePath , _selections :: [(Int, Int)], _content :: Text }
+data InternalEvent = Copy        { _path :: FilePath , _selections :: [(Int, Int)]}
+                   | Paste       { _selections :: [(Int, Int)], _content :: [Text] }
                    | CloseFile   { _path :: FilePath }
                    | FileChanged { _path :: FilePath }
                    | GetBuffer   { _path :: FilePath }

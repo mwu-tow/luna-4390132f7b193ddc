@@ -38,12 +38,12 @@ import           Empire.Commands.GraphBuilder            (buildClassGraph, build
 import qualified Empire.Commands.GraphUtils              as GraphUtils
 import qualified Empire.Commands.Persistence             as Persistence
 import           Empire.Data.AST                         (SomeASTException, astExceptionFromException, astExceptionToException)
-import           Empire.Data.AST                         (SomeASTException)
 import           Empire.Empire                           (Empire)
 import qualified Empire.Empire                           as Empire
 import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
-import           Empire.Server.Server                    (errorMessage, replyFail, replyOk, replyResult, sendToBus')
+import           Empire.Server.Server                    (errorMessage, defInverse, modifyGraph, modifyGraphOk, prettyException,
+                                                          replyFail, replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
@@ -113,8 +113,6 @@ import qualified ZMQ.Bus.EndPoint                        as EP
 import           ZMQ.Bus.Trans                           (BusT (..))
 import qualified ZMQ.Bus.Trans                           as BusT
 
-import           GHC.Stack                               (renderStack, whoCreated)
-
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
@@ -126,53 +124,8 @@ saveCurrentProject loc = do
   projectRoot      <- use Env.projectRoot
   void $ liftIO $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Persistence.saveLocation projectRoot loc
 
-defaultLibraryPath = "Main.luna"
-
-webGUIHack :: G.GraphRequest req => req -> IO req
-webGUIHack req = do
-    lunaroot <- liftIO $ getEnv "LUNAROOT"
-    let path = lunaroot </> "projects" </> defaultLibraryPath
-        realLocation = req ^. G.location
-        realFile     = realLocation ^. GraphLocation.filePath
-        hackedReq    = if null realFile then req & G.location . GraphLocation.filePath .~ path
-                                        else req
-    return hackedReq
-
-prettyException :: Exception e => e -> IO String
-prettyException e = do
-    stack <- whoCreated e
-    return $ displayException e <> "\n" <> renderStack stack
-
-modifyGraph :: forall req inv res res'. (G.GraphRequest req, Response.ResponseResult req inv res') => (req -> Empire inv) -> (req -> Empire res) -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req -> StateT Env BusT ()
-modifyGraph inverse action success origReq@(Request uuid guiID request') = do
-    request          <- liftIO $ webGUIHack request'
-    currentEmpireEnv <- use Env.empireEnv
-    empireNotifEnv   <- use Env.empireNotif
-    endPoints        <- EP.clientFromConfig <$> (liftIO Config.load)
-    inv'             <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ inverse request
-    case inv' of
-        Left (exc :: SomeASTException) -> do
-            err <- liftIO $ prettyException exc
-            replyFail logger err origReq (Response.Error err)
-        Right (inv, _) -> do
-            let invStatus = Response.Ok inv
-            result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ action request
-            case result of
-                Left  (exc :: SomeASTException) -> do
-                    err <- liftIO $ prettyException exc
-                    replyFail logger err origReq invStatus
-                Right (result, newEmpireEnv) -> do
-                    Env.empireEnv .= newEmpireEnv
-                    success origReq inv result
-                    saveCurrentProject $ request ^. G.location
-
-modifyGraphOk :: forall req inv res . (Bin.Binary req, G.GraphRequest req, Response.ResponseResult req inv ()) => (req -> Empire inv) -> (req -> Empire res) -> Request req -> StateT Env BusT ()
-modifyGraphOk inverse action = modifyGraph inverse action (\req@(Request uuid guiID request) inv _ -> replyOk req inv)
-
 -- helpers
 
-defInverse :: a -> Empire ()
-defInverse = const $ return ()
 
 generateNodeId :: IO NodeId
 generateNodeId = UUID.nextRandom
@@ -191,45 +144,6 @@ getNodesByIds location nids = filter (\n -> Set.member (n ^. Node.nodeId) nidsSe
 getExpressionNodesByIds :: GraphLocation -> [NodeId] -> Empire [Node.ExpressionNode]
 getExpressionNodesByIds location nids = filter (\n -> Set.member (n ^. Node.nodeId) nidsSet) <$> Graph.getNodes location where
     nidsSet = Set.fromList nids
-
-constructResult :: GraphAPI.Graph -> GraphAPI.Graph -> Result.Result
-constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds (Right updatedInGraph) where
-    updatedInGraph = GraphAPI.Graph updatedNodes updatedConns updatedInputSidebar updatedOutputSidebar []
-    oldNodesMap    = Map.fromList . map (view Node.nodeId &&& id) $ oldGraph ^. GraphAPI.nodes
-    newNodeIdsSet  = Set.fromList . map (view Node.nodeId) $ newGraph ^. GraphAPI.nodes
-    removedNodeIds = filter (flip Set.notMember newNodeIdsSet) $ Map.keys oldNodesMap
-    updatedNodes   = filter (\n -> Just n /= Map.lookup (n ^. Node.nodeId) oldNodesMap) $ newGraph ^. GraphAPI.nodes
-    oldConnsMap    = Map.fromList . map (snd &&& id) $ oldGraph ^. GraphAPI.connections
-    newConnIdsSet  = Set.fromList . map snd $ newGraph ^. GraphAPI.connections
-    removedConnIds = filter (flip Set.notMember newConnIdsSet) $ Map.keys oldConnsMap
-    updatedConns   = filter (\c@(_, dst) -> Just c /= Map.lookup dst oldConnsMap) $ newGraph ^. GraphAPI.connections
-    updatedInputSidebar = if oldGraph ^. GraphAPI.inputSidebar /= newGraph ^. GraphAPI.inputSidebar
-        then newGraph ^. GraphAPI.inputSidebar else Nothing
-    updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
-        then newGraph ^. GraphAPI.outputSidebar else Nothing
-
-handleASTException :: Empire a -> Empire (Either SomeASTException a)
-handleASTException act = try act
-
-withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResult' getFinalGraph location action = do
-    oldGraph <- handleASTException $ Graph.getGraphNoTC location
-    void action
-    newGraph <- handleASTException $ getFinalGraph location
-    return $ case (oldGraph, newGraph) of
-        (Left _, Right g)    -> Result.Result def def (Right g)
-        (Left _, Left exc)   -> def & Result.graphUpdates .~ Left (displayException exc)
-        (Right g, Left exc)  -> Result.Result (g ^.. GraphAPI.nodes . traverse . Node.nodeId)
-                                              (g ^.. GraphAPI.connections . traverse . _2)
-                                              (Left (displayException exc))
-        (Right og, Right ng) -> constructResult og ng
-
-
-withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResult = withDefaultResult' Graph.getGraphNoTC
-
-withDefaultResultTC :: GraphLocation -> Empire a -> Empire Result.Result
-withDefaultResultTC = withDefaultResult' Graph.getGraph
 
 getNodeById :: GraphLocation -> NodeId -> Empire (Maybe Node.Node)
 getNodeById location nid = fmap listToMaybe $ getNodesByIds location [nid]
@@ -507,8 +421,8 @@ handleTypecheck req@(Request _ _ request) = do
 
 instance G.GraphRequest GetBuffer.Request where
     location = lens getter setter where
-        getter (GetBuffer.Request file _) = GraphLocation.GraphLocation file (Breadcrumb [])
-        setter (GetBuffer.Request _    s) (GraphLocation.GraphLocation file _) = GetBuffer.Request file s
+        getter (GetBuffer.Request file) = GraphLocation.GraphLocation file (Breadcrumb [])
+        setter (GetBuffer.Request _   ) (GraphLocation.GraphLocation file _) = GetBuffer.Request file
 
 handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
@@ -516,22 +430,11 @@ handleSubstitute = modifyGraph defInverse action replyResult where
         let file = location ^. GraphLocation.filePath
         withDefaultResultTC location $ do
             Graph.substituteCodeFromPoints file start end newText cursor
-            -- code  <- Graph.getCode location
-            -- (graph, crumb) <- handle (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [])) $ do
-            --     graph <- Graph.getGraph location
-            --     crumb <- Graph.decodeLocation location
-            --     return (Right graph, crumb)
-            -- return $ GetProgram.Result graph (Text.pack code) crumb --TODO Handle no graph
-    -- success (Request uuid guiID request) inv res = do
-    --     -- DISCLAIMER, FIXME[MM]: ugly hack - send response to bogus GetProgram request
-    --     -- after each substitute
-    --     let loc = request ^. G.location
-    --     replyResult (Request uuid guiID (GetProgram.Request loc)) () res
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()
 handleGetBuffer = modifyGraph defInverse action replyResult where
-    action (GetBuffer.Request file span) = do
-        code <- Graph.getBuffer file (unsafeHead <$> span)
+    action (GetBuffer.Request file) = do
+        code <- Graph.getBuffer file
         return $ GetBuffer.Result code
 
 

@@ -3,6 +3,7 @@ module NodeEditor.Event.Batch where
 
 import           Common.Prelude
 
+import qualified LunaStudio.API.Atom.Paste                  as AtomPaste
 import qualified LunaStudio.API.Atom.Substitute             as Substitute
 import qualified LunaStudio.API.Control.EmpireStarted       as EmpireStarted
 import qualified LunaStudio.API.Graph.AddConnection         as AddConnection
@@ -45,6 +46,7 @@ data Event = UnknownEvent                             String
            | AddNodeResponse                         AddNode.Response
            | AddPortResponse                         AddPort.Response
            | AddSubgraphResponse                 AddSubgraph.Response
+           | AtomPasteResponse                     AtomPaste.Response
            | AutolayoutNodesResponse         AutolayoutNodes.Response
            | CollaborationUpdate         CollaborationUpdate.Update
            | CollapseToFunctionResponse   CollapseToFunction.Response

@@ -25,6 +25,7 @@ handlers = Map.fromList [ handle AddConnectionResponse
                         , handle AddNodeResponse
                         , handle AddPortResponse
                         , handle AddSubgraphResponse
+                        , handle AtomPasteResponse
                         , handle AutolayoutNodesResponse
                         , handle CollaborationUpdate
                         , handle CollapseToFunctionResponse

@@ -65,9 +65,8 @@ module.exports =
                     @diffToOmit.delete(change.newText)
                 else
                     diff =
-                        # uri: @uri
-                        start: change.start
-                        end:   change.start.translate(change.oldExtent)
+                        start: change.oldRange.start
+                        end:   change.oldRange.end
                         text:  change.newText
                         cursor: @.getCursorBufferPosition()
                       #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
@@ -92,14 +91,21 @@ module.exports =
          buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort() for s in @getSelections()
 
     handleCopy: (e) =>
-        # e.preventDefault()
-        # e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _maySelections: @spans())
-
-    handlePaste: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Paste", _path: @uri, _selections: @spans(), _content: atom.clipboard.read())
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+
+    handlePaste: (e) =>
+        cbd = atom.clipboard.readWithMetadata()
+        cbdData = []
+        if cbd.metadata? && cbd.metadata.selections?
+            for x in cbd.metadata.selections
+                cbdData.push(x.text)
+        else
+            cbdData[0] = cbd.text
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
 
     handleSave: (e) =>
         e.preventDefault()
@@ -112,8 +118,8 @@ module.exports =
             @getBuffer().setText(text)
 
     setClipboard: (uri_send, text) =>
-        # if @uri == uri_send
-        #     atom.clipboard.write(text)
+        if @uri == uri_send
+            atom.clipboard.write(text)
 
     setBuffer: (uri_send, text) =>
         console.log(uri_send, @uri)

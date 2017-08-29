@@ -22,12 +22,13 @@ handle :: forall a. (Binary a, Topic.MessageTopic a) => (a -> Batch.Event) -> (S
 handle cons = (Topic.topic (undefined :: a), cons . decode . GZip.decompress)
 
 handlers :: Map.Map String (ByteString -> Batch.Event)
-handlers = Map.fromList [ handle EmpireStarted
-                        , handle ProjectSet
+handlers = Map.fromList [ handle BufferGetResponse
+                        , handle EmpireStarted
+                        , handle CopyResponse
                         , handle FileClosed
                         , handle FileOpened
                         , handle FileSaved
-                        , handle BufferGetResponse
+                        , handle ProjectSet
                         , handle SubstituteResponse
                         , handle SubstituteUpdate
                         ]

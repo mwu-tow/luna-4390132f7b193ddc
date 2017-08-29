@@ -2,10 +2,11 @@
 {-# LANGUAGE JavaScriptFFI #-}
 
 module JS.Atom
-    ( insertCode
+    ( activeLocation
+    , insertCode
+    , pushStatus
     , setBuffer
     , setClipboard
-    , pushStatus
     , subscribeDiff
     , subscribeEventListenerInternal
     ) where
@@ -56,6 +57,7 @@ foreign import javascript safe "$1.cursor" getCursor :: JSVal -> JSVal
 foreign import javascript safe "$1.column" getColumn :: JSVal -> Int
 foreign import javascript safe "$1.row"    getRow    :: JSVal -> Int
 foreign import javascript safe "{column: $1, row: $2}" mkPoint   :: Int -> Int -> JSVal
+foreign import javascript safe "globalRegistry.activeLocation" activeLocation' :: IO JSVal
 
 instance PFromJSVal Point where
     pFromJSVal jsval = Point (getColumn jsval) (getRow jsval)
@@ -75,6 +77,9 @@ instance FromJSVal TextEvent where
             cursor   = pFromJSVal $ getCursor jsval
             result   = TextEvent location start end text $ Just cursor
         return result
+
+activeLocation :: MonadIO m => m (Maybe GraphLocation)
+activeLocation = liftIO $ fromJSVal =<< activeLocation'
 
 subscribeDiff :: (TextEvent -> IO ()) -> IO (IO ())
 subscribeDiff callback = do

@@ -11,3 +11,6 @@ data Point = Point
         } deriving (Binary, Eq, Generic, NFData, Show)
 
 makeLenses ''Point
+
+instance Convertible (Int, Int) Point where
+    convert = uncurry Point
