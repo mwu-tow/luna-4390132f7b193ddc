@@ -117,7 +117,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ id $ do
+spec = around withChannels $ parallel $ do
     describe "text coordinates translation" $ do
         it "translates points to deltas and back" $ \env -> do
             let code = Text.unlines [ "  "
@@ -1100,6 +1100,37 @@ spec = around withChannels $ id $ do
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just uri, Just withCrypto, Just fullUri, Just response, Just result] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [3, 6, 8, 4, 9]
+                Graph.collapseToFunction loc [uri, withCrypto, fullUri, response, result]
+        it "sorts arguments by position when collapsing to function" $ let
+            initialCode = [r|
+                def main:
+                    «3»uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                    «5»crypto = "BTC"
+                    «6»withCrypto = uri + crypto
+                    «7»fiat = "USD"
+                    «8»fullUri = withCrypto + "&tsyms=" + fiat
+                    «4»response = Http.getJSON fullUri
+                    «9»result = response . lookupReal fiat
+                    «10»foo = id result
+                |]
+            expectedCode = [r|
+                def main:
+                    crypto = "BTC"
+                    fiat = "USD"
+                    def func1 fiat crypto:
+                        uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                        withCrypto = uri + crypto
+                        fullUri = withCrypto + "&tsyms=" + fiat
+                        response = Http.getJSON fullUri
+                        result = response . lookupReal fiat
+                        result
+                    result = func1 fiat crypto
+                    foo = id result
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just uri, Just withCrypto, Just fullUri, Just response, Just result, Just fiat, Just crypto] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [3, 6, 8, 4, 9, 7, 5]
+                Graph.setNodeMeta loc fiat (atXPos (-1000))
+                Graph.setNodeMeta loc crypto (atXPos 1000)
                 Graph.collapseToFunction loc [uri, withCrypto, fullUri, response, result]
         it "adds arguments in toplevel defs and adds a node" $ let
             initialCode = [r|
