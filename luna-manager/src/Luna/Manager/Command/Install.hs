@@ -35,7 +35,10 @@ import qualified System.Process.Typed as Process
 import qualified System.Directory as System
 import qualified System.Environment as Environment
 import Luna.Manager.Archive as Archive
-
+import qualified Luna.Manager.Gui.Initialize as Initilize
+import qualified Data.Aeson          as JSON
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 -- FIXME: Remove it as fast as we upload config yaml to the server
@@ -350,13 +353,23 @@ askLocation opts appType appName = do
         & defArg .~ Just (toTextIgnore pkgInstallDefPath) --TODO uzyć toText i złapać tryRight'
     return binPath
 
-installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
-installApp opts package = do
+installApp :: MonadInstall m => InstallOpts -> Bool -> ResolvedPackage -> m ()
+installApp opts guiInstaller package = do
+    installConfig <- get @InstallConfig
+    let pkgName    = package ^. header . name
+        appType    = package ^. resolvedAppType
+    binPath     <- if guiInstaller then do
+        case appType of
+                GuiApp   -> return $ toTextIgnore $ installConfig ^. defaultBinPathGuiApp
+                BatchApp -> return $ toTextIgnore $ installConfig ^. defaultBinPathBatchApp
+        else askLocation opts appType pkgName
+    installApp' binPath package
+
+installApp' :: MonadInstall m => Text -> ResolvedPackage -> m ()
+installApp' binPath package = do
     let pkgName    = package ^. header . name
         appType    = package ^. resolvedAppType
         pkgVersion = showPretty $ package ^. header . version
-    binPath     <- askLocation opts appType pkgName
-
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
     -- stopServices installPath appType
     downloadAndUnpackApp (package ^. desc . path) installPath pkgName appType
@@ -378,35 +391,49 @@ readVersion v = case readPretty v of
 isNotNightly :: Version -> Bool
 isNotNightly v = isNothing $ v ^. nightly
 
+dummyF :: MonadInstall m => Initilize.Option -> m ()
+dummyF (Initilize.Option (Initilize.Install appName appVersion)) = liftIO $ print appName
 
 -- === Running === --
 
-run :: MonadInstall m => InstallOpts -> m ()
-run opts = do
+run :: MonadInstall m => InstallOpts -> Bool -> m ()
+run opts guiInstaller = do
     repo <- getRepo
+    if guiInstaller then do
+        print $ show $ JSON.encode $ Initilize.Option $ Initilize.Install "luna-studio" $ Version 0 0 10 Nothing Nothing
+        Initilize.generateInitialJSON repo
+        options <- liftIO $ BS.getLine
+        liftIO $ print options
+        let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
+        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> print appName --dummyF a
 
-    (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
-        $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
-        & help   .~ choiceHelp "components" (repo ^. apps)
-        & defArg .~ maybeHead (repo ^. apps)
+        -- case install of
+        --     Nothing -> return ()
+        --     Just  opt  -> \(Option $ Install appName appVersion) -> return ()
+        print install
+        else do
+            (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
+                $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
+                & help   .~ choiceHelp "components" (repo ^. apps)
+                & defArg .~ maybeHead (repo ^. apps)
 
-    let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
-        vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter isNotNightly . sort . Map.keys $ vmap
+            let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
+                vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter isNotNightly . sort . Map.keys $ vmap
 
-    (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedVersion)
-        $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)
-        & help   .~ choiceHelp (appName <> " versions") vss
-        & defArg .~ fmap showPretty (maybeLast vss)
+            (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedVersion)
+                $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)
+                & help   .~ choiceHelp (appName <> " versions") vss
+                & defArg .~ fmap showPretty (maybeLast vss)
 
-    let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
-    when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
+            let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appPkgDesc
+            when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
 
-    version <- readVersion appVersion
-    let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
+            version <- readVersion appVersion
+            let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
 
-        resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
-        allApps = resolvedApp : appsToInstall
-    mapM_ (installApp opts) $ allApps
+                resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
+                allApps = resolvedApp : appsToInstall
+            mapM_ (installApp opts guiInstaller) $ allApps
 
     -- print $ "TODO: Install the libs (each with separate progress bar): " <> show pkgsToInstall -- w ogóle nie supportujemy przeciez instalowania osobnych komponentów i libów
     -- print $ "TODO: Add new exports to bashRC if not already present"

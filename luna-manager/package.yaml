@@ -42,6 +42,7 @@ dependencies:
   - system-filepath
   - safe-exceptions
   - errors
+  - aeson-pretty
 
 
 default-extensions:

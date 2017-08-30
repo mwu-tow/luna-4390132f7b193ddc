@@ -134,7 +134,7 @@ generateAppimage tmpAppPath functions appName = do
     (exitCode2, out2, err2) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
     case exitCode2 of
         ExitSuccess   -> return ()
-        ExitFailure a ->print $ "Fatal: AppImage not created. " <> err2
+        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err2
 
 -- TODO: refactor
 createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
@@ -152,6 +152,7 @@ createAppimage appName repoPath = do
     let mainAppImageFolder     = "usr"
         mainAppImageFolderPath = tmpAppDirPath </> mainAppImageFolder
     Shelly.mkdir_p mainAppImageFolderPath
+
     getApprun tmpAppDirPath functions
     copyResourcesAppImage repoPath appName tmpAppDirPath mainAppImageFolderPath
 

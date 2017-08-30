@@ -19,8 +19,9 @@ import           Luna.Manager.Shell.Shelly          (MonadSh, MonadShControl)
 chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m, MonadSh m, MonadShControl m) => m ()
 chooseCommand = do
     opts <- get @Options
+
     case opts ^. command of
-        Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.run       opt
+        Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.run       opt $ opts ^. globals . guiInstaller
         MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig]             $ CreatePackage.run opt
         Develop     opt -> evalDefHostConfigs @'[EnvConfig, PackageConfig, RepoConfig] $ Develop.run       opt
         -- TODO: other commands
