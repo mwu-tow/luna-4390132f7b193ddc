@@ -67,9 +67,9 @@ class LunaWelcomeTab extends View
     initialize: =>
         @tutorialItems = []
         @privateItems = []
-        @privateNew = new ProjectItem('new project', null, privateNewClasses, => atom.pickFolder (paths) => atom.project.setPaths paths)
+        @privateNew = new ProjectItem('new project', null, privateNewClasses, null, => atom.pickFolder (paths) => if paths? then atom.project.setPaths paths)
         @communityItems = []
-        @comunnityNew = new ProjectItem('new project', null, comunnityNewClasses, => atom.confirm
+        @comunnityNew = new ProjectItem('new project', null, comunnityNewClasses, null, => atom.confirm
             message: "Not supported yet"
             detailedMessage: "Community projects are not supported yet."
             buttons:
@@ -84,7 +84,7 @@ class LunaWelcomeTab extends View
             @privateContainer.append(item.element)
         projects.tutorial.list (tutorials) =>
             for tutorial in tutorials
-                item = new ProjectItem(tutorial, tutorial, tutorialClasses, => projects.tutorial.open(tutorial))
+                item = new ProjectItem(tutorial, tutorial, tutorialClasses, null, => projects.tutorial.open(tutorial))
                 @tutorialItems.push(item)
                 @tutorialsContainer.append(item.element)
 

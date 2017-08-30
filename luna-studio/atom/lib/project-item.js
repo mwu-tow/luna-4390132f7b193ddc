@@ -9,6 +9,7 @@ module.exports = ProjectItem = class ProjectItem {
     constructor(name,
             uri = name,
             classes = "",
+            logo = null,
             onOpen = (() => { return atom.project.setPaths([uri]); })) {
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
@@ -16,6 +17,7 @@ module.exports = ProjectItem = class ProjectItem {
         this.uri = uri;
         this.classes = classes;
         this.onOpen = onOpen;
+        this.logo = logo != null ? logo : "atom://luna-studio/rsc/logo.png";
         etch.initialize(this);
     }
 
@@ -24,9 +26,9 @@ module.exports = ProjectItem = class ProjectItem {
     }
 
     render () {
-        return  <div class={this.classes}>
-                    <img class="luna-project-logo" src="rsc/logo.png"></img>
-                    <div class="luna-project-caption" on={{click: this.onOpen}}>{this.name}</div>
+        return  <div class={this.classes} on={{click: this.onOpen}}>
+                    <img class="luna-project-logo" src={this.logo}></img>
+                    <div class="luna-project-caption">{this.name}</div>
                 </div>
     }
 };
