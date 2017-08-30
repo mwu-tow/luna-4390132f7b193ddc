@@ -1,5 +1,6 @@
 fs   = require 'fs'
 yaml = require 'js-yaml'
+Git = require 'nodegit'
 
 recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
 tutorialsPath   = process.env.LUNA_STUDIO_CONFIG + '/tutorials.yml'
@@ -47,5 +48,19 @@ module.exports =
                         tutorials = parsed
                 fun tutorials
 
-        open: (tutorial) ->
-            console.log ("Opening " + tutorial)
+        open: (tutorial) -> atom.pickFolder (paths) =>
+            if paths? && paths[0]?
+                dstPath = paths[0]
+
+                cloneOpts =
+                    fetchOpts:
+                        callbacks:
+                            certificateCheck: => 1
+
+                Git.Clone(tutorial, dstPath, cloneOpts)
+                    .then((repo) => atom.project.setPaths [dstPath])
+                    .catch((error) => atom.confirm
+                        message: "Error while cloning tutorial"
+                        detailedMessage: error.message
+                        buttons:
+                            Ok: -> );
