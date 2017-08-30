@@ -24,7 +24,7 @@
       "luna-syntax"
     ]
   editor:
-    fontFamily: "Dejavu Sans Mono"
+    fontFamily: ""
     fontSize: 12
     scrollPastEnd: true
   "exception-reporting":
