@@ -391,8 +391,6 @@ readVersion v = case readPretty v of
 isNotNightly :: Version -> Bool
 isNotNightly v = isNothing $ v ^. nightly
 
-dummyF :: MonadInstall m => Initilize.Option -> m ()
-dummyF (Initilize.Option (Initilize.Install appName appVersion)) = liftIO $ print appName
 
 -- === Running === --
 
@@ -405,7 +403,17 @@ run opts guiInstaller = do
         options <- liftIO $ BS.getLine
         liftIO $ print options
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
-        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> print appName --dummyF a
+        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> do
+            appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
+            appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ fromMaybe (error "dupa") $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
+            print appDesc
+            let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
+            when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
+            let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
+
+                resolvedApp = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
+                allApps = resolvedApp : appsToInstall
+            mapM_ (installApp opts guiInstaller) $ allApps
 
         -- case install of
         --     Nothing -> return ()
