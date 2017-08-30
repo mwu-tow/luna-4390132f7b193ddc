@@ -249,13 +249,14 @@ runBackend = do
 
 runLocal :: (MonadRun m, MonadIO m) => m ()
 runLocal = do
+    liftIO $ print "run local"
     atomHome    <- packageStudioAtomHome
     logs        <- localLogsDirectory
     backendBins <- backendBinsPath
     atom        <- atomAppPath
     config      <- configPath
     kill        <- killSupervisorBinPath
-    liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome </> "atom")
+    liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome)
     liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
     liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
     liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
@@ -315,7 +316,7 @@ runApp atom = do
     case atom of
         Just arg -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" arg
         Nothing  -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" " "
-    if v == "develop" then runLocal else runPackage
+    if v == "develop\n" then runLocal else runPackage
 
 data Options = Options
     { frontend :: Bool

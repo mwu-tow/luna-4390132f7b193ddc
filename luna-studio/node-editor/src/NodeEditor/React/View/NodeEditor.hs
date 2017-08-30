@@ -153,7 +153,7 @@ dynamicScale = React.defineView objDynStyle $ \cameraScale -> do
         [ "key" $= "scale"
         ] $ do
           --camera
-          elemString $ ":root { font-size: " <> show scale <> "px }"
+          elemString $ ":root { font-size: " <> show scale <> "px !important }"
           --elemString $ ".luna-camera-scale { transform: " <> showCameraScale cameraScale <> " }"
 
           --connections
