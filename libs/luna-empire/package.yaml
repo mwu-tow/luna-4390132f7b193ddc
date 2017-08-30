@@ -39,6 +39,7 @@ dependencies:
     - convert
     - data-default
     - dependent-state
+    - directory
     - exceptions
     - filepath
     - lens
