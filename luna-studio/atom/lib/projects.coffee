@@ -1,10 +1,17 @@
 fs   = require 'fs'
-yaml = require 'js-yaml'
 Git = require 'nodegit'
+request = require 'request'
+yaml = require 'js-yaml'
 
 recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
 tutorialsPath   = process.env.LUNA_STUDIO_CONFIG + '/tutorials.yml'
+tutorialsDownloadPath = if process.env.LUNA_STUDIO_TUTORIALS? then  process.env.LUNA_STUDIO_TUTORIALS else '/tmp'
 encoding = 'utf8'
+
+tutorialRequestOpts =
+    url: 'https://api.github.com/users/luna-packages/repos'
+    headers:
+        'User-Agent': 'luna-studio'
 
 loadRecentNoCheck = (fun) =>
     fs.readFile recentProjectsPath, encoding, (err, data) =>
@@ -38,29 +45,41 @@ module.exports =
                         console.log err
     tutorial:
         list: (fun) =>
-            fs.readFile tutorialsPath, (err, data) =>
-                tutorials = []
-                if err
-                    console.log err
-                else
-                    parsed = yaml.safeLoad(data)
+            try
+                request.get tutorialRequestOpts, (err, response, body) =>
+                    parsed = yaml.safeLoad(body)
+                    repos = []
                     if parsed?
-                        tutorials = parsed
-                fun tutorials
+                        for repo in parsed
+                            repos.push
+                                name: repo.name
+                                description: repo.description
+                                uri: repo.html_url
+                                thumb: ('https://raw.githubusercontent.com/luna-packages/' + repo.name + '/master/thumb.png')
+                    fun repos
+            catch error
+                atom.confirm
+                    message: "Error while getting tutorials"
+                    detailedMessage: error.message
+                    buttons:
+                        Ok: ->
 
-        open: (tutorial) -> atom.pickFolder (paths) =>
-            if paths? && paths[0]?
-                dstPath = paths[0]
-
-                cloneOpts =
-                    fetchOpts:
-                        callbacks:
-                            certificateCheck: => 1
-
-                Git.Clone(tutorial, dstPath, cloneOpts)
-                    .then((repo) => atom.project.setPaths [dstPath])
-                    .catch((error) => atom.confirm
-                        message: "Error while cloning tutorial"
-                        detailedMessage: error.message
-                        buttons:
-                            Ok: -> );
+        open: (tutorial) ->
+            dstPath = tutorialsDownloadPath + '/' + tutorial.name
+            cloneOpts =
+                fetchOpts:
+                    callbacks:
+                        certificateCheck: => 1
+                        credentials: (url, userName, bla) =>
+                            Git.Cred.sshKeyFromAgent(userName)
+            fs.access dstPath, (err) =>
+                if err
+                    Git.Clone(tutorial.uri, dstPath, cloneOpts)
+                        .then((repo) => atom.project.setPaths [dstPath])
+                        .catch((error) => atom.confirm
+                            message: "Error while cloning tutorial"
+                            detailedMessage: error.message
+                            buttons:
+                                Ok: -> )
+                else
+                    atom.project.setPaths [dstPath]
