@@ -29,7 +29,8 @@ extensionError :: SomeException
 extensionError = toException ExtensionError
 
 unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> FilePath -> m FilePath
-unpack guiInstaller file = if guiInstaller then do
+unpack guiInstaller file = do
+    if guiInstaller then return () else putStrLn "Unpacking archive"
     case currentHost of
         Windows ->  do
             ext <- tryJust extensionError $ extension file
@@ -39,15 +40,13 @@ unpack guiInstaller file = if guiInstaller then do
         Darwin  -> do
             ext <- tryJust extensionError $ extension file
             case ext of
-                "gz"  -> unpackTarGzUnix file
+                "gz"  -> unpackTarGzUnix guiInstaller file
                 "zip" -> unzipUnix file
         Linux   -> do
             ext <- tryJust extensionError $ extension file
             case ext of
-                "AppImage" -> do
-                    
-                    return file
-                "gz"       -> unpackTarGzUnix file
+                "AppImage" -> return file
+                "gz"       -> unpackTarGzUnix guiInstaller file
                 "rpm"      -> do
                     let name = basename file
                         dir = directory file
@@ -57,33 +56,6 @@ unpack guiInstaller file = if guiInstaller then do
                     unpackRPM (dir </> name </> fullFilename) (dir </> name)
                     Shelly.rm $ dir </> name </> (filename file)
                     return $ dir </> name
-
-        else do
-        putStrLn "Unpacking archive" >> case currentHost of
-            Windows ->  do
-                ext <- tryJust extensionError $ extension file
-                case ext of
-                    "zip" -> unzipFileWindows file
-                    "gz"  -> untarWin file
-            Darwin  -> do
-                ext <- tryJust extensionError $ extension file
-                case ext of
-                    "gz"  -> unpackTarGzUnix file
-                    "zip" -> unzipUnix file
-            Linux   -> do
-                ext <- tryJust extensionError $ extension file
-                case ext of
-                    "AppImage" -> return file
-                    "gz"       -> unpackTarGzUnix file
-                    "rpm"      -> do
-                        let name = basename file
-                            dir = directory file
-                            fullFilename = filename file
-                        Shelly.mkdir_p $ dir </> name
-                        Shelly.cp_r file $ dir </> name
-                        unpackRPM (dir </> name </> fullFilename) (dir </> name)
-                        Shelly.rm $ dir </> name </> (filename file)
-                        return $ dir </> name
 
 unzipUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath -> m FilePath
 unzipUnix file = do
@@ -98,13 +70,15 @@ unzipUnix file = do
             listed <- Shelly.ls $ dir </> name
             if length listed == 1 then return $ head listed else return $ dir </> name
 
-unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath -> m FilePath
-unpackTarGzUnix file = do
+unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m) => Bool -> FilePath -> m FilePath
+unpackTarGzUnix guiInstaller file = do
     let dir = directory file
         name = basename file
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
-        Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+        if guiInstaller then Shelly.cmd  "tar" "-xpzfv" file "--strip=1" "-C" name
+
+            else Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
         return $ dir </> name
 
 -- TODO: download unzipper if missing

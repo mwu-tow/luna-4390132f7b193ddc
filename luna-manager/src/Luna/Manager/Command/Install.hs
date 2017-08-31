@@ -29,7 +29,7 @@ import qualified Data.Yaml as Yaml
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
 import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh)
 import qualified Luna.Manager.Shell.Shelly as Shelly
-import System.Exit (exitSuccess)
+import System.Exit (exitSuccess, exitFailure)
 import System.IO (hFlush, stdout, stderr, hPutStrLn)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
@@ -165,7 +165,9 @@ checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType = do
     testInstallPath <- Shelly.test_d installPath
     if testInstallPath
         then do
-            if guiInstaller then liftIO $ hPutStrLn stderr "You have this version already installed"
+            if guiInstaller then do
+                liftIO $ hPutStrLn stderr "You have this version already installed"
+                liftIO $ exitFailure
                 else do
                     putStrLn "You have this version already installed. Do you want to reinstall? yes/no [no]"
                     ans <- liftIO $ getLine
