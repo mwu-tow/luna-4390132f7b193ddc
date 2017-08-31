@@ -244,6 +244,21 @@ ensureHasSelf e beg = IR.source e >>= flip IR.matchExpr `id` \case
         Code.gossipLengthsChangedBy 4 =<< IR.readTarget e
         Code.insertAt beg "_ . "
         return ()
+    LeftSection f a -> do
+        bl    <- IR.blank
+        IR.putLayer @SpanLength bl 1
+        name  <- ASTRead.getVarName =<< IR.source f
+        ac    <- IR.acc bl (stringToName name)
+        IR.putLayer @SpanLength ac (2 + fromIntegral (length name))
+        a'    <- IR.source a
+        app   <- IR.generalize <$> IR.app ac a'
+        aSpan <- IR.getLayer @SpanLength a'
+        IR.putLayer @SpanLength app (2 + fromIntegral (length name) + aSpan)
+        oldTarget <- IR.source e
+        IR.replaceSource app e
+        IR.deleteSubtree oldTarget
+        Code.insertAt beg "_."
+        Code.gossipLengthsChangedBy 2 =<< IR.readTarget e
     _ -> throwM . SelfPortNotExistantException =<< IR.source e
 
 makeAccessor :: GraphOp m => NodeRef -> EdgeRef -> Delta -> m ()

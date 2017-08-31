@@ -1215,6 +1215,22 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just p1, Just n1] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0,1]
                 Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Arg 0])
+        it "connects to self of left section" $ let
+            initialCode = [r|
+                def main:
+                    «1»n1 = 5
+                    «0»p1 = *5
+                    n1
+                |]
+            expectedCode = [r|
+                def main:
+                    n1 = 5
+                    p1 = n1.*5
+                    n1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just p1, Just n1] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0,1]
+                Graph.connect loc (outPortRef n1 []) (InPortRef' $ inPortRef p1 [Port.Self])
         it "connect to left section and disconnect" $ let
             initialCode = [r|
                 def main:
