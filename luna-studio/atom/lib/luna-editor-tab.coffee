@@ -88,7 +88,7 @@ module.exports =
     spans: =>
         buffer = @getBuffer()
         [buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition),
-         buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort() for s in @getSelections()
+         buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort((a,b) -> a - b) for s in @getSelections()
 
     handleCopy: (e) =>
         e.preventDefault()
