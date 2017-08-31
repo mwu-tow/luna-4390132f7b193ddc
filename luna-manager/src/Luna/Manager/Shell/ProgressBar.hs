@@ -16,7 +16,7 @@ import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey, 
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
-
+import System.IO (hFlush, stdout)
 
 import Text.Printf   ( printf )
 import System.Console.ANSI (clearLine, cursorUpLine)
@@ -32,10 +32,10 @@ data Progress = Progress { completed :: Int
                          , total     :: Int
                          }
 
-data Progress1 = Progress1 { progress1 :: Float} deriving (Generic, Show)
+data DownloadProgress = DownloadProgress { download_progress :: Float} deriving (Generic, Show)
 
-instance ToJSON   Progress1
-instance FromJSON Progress1
+instance ToJSON   DownloadProgress
+instance FromJSON DownloadProgress
 
 --------------------------------
 ------ ProgressBarUtils --------
@@ -63,9 +63,10 @@ progressBar (ProgressBar width todo done) = liftIO $ do
 
 progress :: MonadIO m => Progress -> m ()
 progress (Progress completed total) = liftIO $ do
-    print $ encode $ Progress1 pr
-    cursorUpLine 1
-    clearLine
+    print $ encode $ DownloadProgress pr
+    liftIO $ hFlush stdout
+    -- cursorUpLine 1
+    -- clearLine
     where
         pr = fromIntegral completed / fromIntegral total
 

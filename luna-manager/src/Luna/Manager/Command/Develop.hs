@@ -64,8 +64,6 @@ run opts = do
     --downloading and installing dependencies
     let appName  = opts ^. target -- "luna-studio"
         appPath  = opts ^. repositoryPath
-    print appName
-    print appPath
     repo <- getRepo
     resolvedApplication <- resolvePackageApp repo appName
     mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack

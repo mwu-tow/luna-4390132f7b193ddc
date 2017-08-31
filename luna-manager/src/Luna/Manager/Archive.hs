@@ -8,6 +8,10 @@ import Luna.Manager.Shell.Commands
 import Luna.Manager.Network
 import Luna.Manager.System.Host
 
+import Luna.Manager.Gui.InstallationProgress
+import System.IO (hFlush, stdout)
+import Data.Aeson (encode)
+
 import Prologue hiding (FilePath)
 
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
@@ -24,32 +28,62 @@ instance Exception ExtensionError
 extensionError :: SomeException
 extensionError = toException ExtensionError
 
-unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => FilePath -> m FilePath
-unpack file = putStrLn "Unpacking archive" >> case currentHost of
-    Windows ->  do
-        ext <- tryJust extensionError $ extension file
-        case ext of
-            "zip" -> unzipFileWindows file
-            "gz"  -> untarWin file
-    Darwin  -> do
-        ext <- tryJust extensionError $ extension file
-        case ext of
-            "gz"  -> unpackTarGzUnix file
-            "zip" -> unzipUnix file
-    Linux   -> do
-        ext <- tryJust extensionError $ extension file
-        case ext of
-            "AppImage" -> return file
-            "gz"       -> unpackTarGzUnix file
-            "rpm"      -> do
-                let name = basename file
-                    dir = directory file
-                    fullFilename = filename file
-                Shelly.mkdir_p $ dir </> name
-                Shelly.cp_r file $ dir </> name
-                unpackRPM (dir </> name </> fullFilename) (dir </> name)
-                Shelly.rm $ dir </> name </> (filename file)
-                return $ dir </> name
+unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> FilePath -> m FilePath
+unpack guiInstaller file = if guiInstaller then do
+    case currentHost of
+        Windows ->  do
+            ext <- tryJust extensionError $ extension file
+            case ext of
+                "zip" -> unzipFileWindows file
+                "gz"  -> untarWin file
+        Darwin  -> do
+            ext <- tryJust extensionError $ extension file
+            case ext of
+                "gz"  -> unpackTarGzUnix file
+                "zip" -> unzipUnix file
+        Linux   -> do
+            ext <- tryJust extensionError $ extension file
+            case ext of
+                "AppImage" -> do
+                    
+                    return file
+                "gz"       -> unpackTarGzUnix file
+                "rpm"      -> do
+                    let name = basename file
+                        dir = directory file
+                        fullFilename = filename file
+                    Shelly.mkdir_p $ dir </> name
+                    Shelly.cp_r file $ dir </> name
+                    unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                    Shelly.rm $ dir </> name </> (filename file)
+                    return $ dir </> name
+
+        else do
+        putStrLn "Unpacking archive" >> case currentHost of
+            Windows ->  do
+                ext <- tryJust extensionError $ extension file
+                case ext of
+                    "zip" -> unzipFileWindows file
+                    "gz"  -> untarWin file
+            Darwin  -> do
+                ext <- tryJust extensionError $ extension file
+                case ext of
+                    "gz"  -> unpackTarGzUnix file
+                    "zip" -> unzipUnix file
+            Linux   -> do
+                ext <- tryJust extensionError $ extension file
+                case ext of
+                    "AppImage" -> return file
+                    "gz"       -> unpackTarGzUnix file
+                    "rpm"      -> do
+                        let name = basename file
+                            dir = directory file
+                            fullFilename = filename file
+                        Shelly.mkdir_p $ dir </> name
+                        Shelly.cp_r file $ dir </> name
+                        unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                        Shelly.rm $ dir </> name </> (filename file)
+                        return $ dir </> name
 
 unzipUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath -> m FilePath
 unzipUnix file = do

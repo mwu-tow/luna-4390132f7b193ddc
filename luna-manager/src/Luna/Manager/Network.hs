@@ -46,7 +46,7 @@ type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeEx
 downloadFromURL :: MonadNetwork m => URIPath -> Text -> m FilePath
 downloadFromURL address info = tryJust downloadError =<< go where
     go = withJust (takeFileNameFromURL address) $ \name -> do
-        putStrLn $ (convert info) <>" (" <> convert address <> ")"
+        --putStrLn $ (convert info) <>" (" <> convert address <> ")" TODO: option for gui Installer
         dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
         request <- tryRight' $ HTTP.parseRequest (convert address)
@@ -80,10 +80,9 @@ downloadWithProgressBarTo address dstPath guiInstaller = do
             -- Consume the response updating the progress bar
             if guiInstaller then
                 HTTP.responseBody res $=+ updateProgress progress $$+- sinkFile (encodeString dstFile)
-                else
+                else do
                     HTTP.responseBody res $=+ updateProgressBar pg $$+- sinkFile (encodeString dstFile)
-
-            putStrLn "Download completed!"
+                    putStrLn "Download completed!"
             return dstFile
 
 -- downloadWithProgressBarAndUnpack :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m) => URIPath -> m FilePath

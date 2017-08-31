@@ -202,7 +202,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
-    unpacked           <- Archive.unpack downloadedPkg
+    unpacked           <- Archive.unpack False downloadedPkg
     Shelly.mkdir_p thirdPartyFullPath
     case packageType of
         BatchApp -> Shelly.mv unpacked thirdPartyFullPath

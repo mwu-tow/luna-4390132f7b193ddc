@@ -30,7 +30,7 @@ import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, t
 import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh)
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import System.Exit (exitSuccess)
-import System.IO (hFlush, stdout)
+import System.IO (hFlush, stdout, stderr, hPutStrLn)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
 import qualified System.Environment as Environment
@@ -39,6 +39,9 @@ import qualified Luna.Manager.Gui.Initialize as Initilize
 import qualified Data.Aeson          as JSON
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+
+import Luna.Manager.Gui.InstallationProgress
+import Data.Aeson (encode)
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 -- FIXME: Remove it as fast as we upload config yaml to the server
@@ -157,31 +160,33 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert appName </> convert appVersion
 
-checkIfAppAlreadyInstalledInCurrentVersion :: MonadInstall m => FilePath -> AppType -> m ()
-checkIfAppAlreadyInstalledInCurrentVersion installPath appType = do
+checkIfAppAlreadyInstalledInCurrentVersion :: MonadInstall m => Bool -> FilePath -> AppType -> m ()
+checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType = do
     testInstallPath <- Shelly.test_d installPath
     if testInstallPath
         then do
-            putStrLn "You have this version already installed. Do you want to reinstall? yes/no [no]"
-            ans <- liftIO $ getLine
-            if ans == "yes" then do
-                stopServices installPath appType
-                Shelly.rm_rf installPath
-                else if ans == "no"
-                    then void . liftIO $ exitSuccess
-                    else if ans == ""
-                        then void . liftIO $ exitSuccess
-                        else do
-                            checkIfAppAlreadyInstalledInCurrentVersion installPath appType
-            else return ()
+            if guiInstaller then liftIO $ hPutStrLn stderr "You have this version already installed"
+                else do
+                    putStrLn "You have this version already installed. Do you want to reinstall? yes/no [no]"
+                    ans <- liftIO $ getLine
+                    if ans == "yes" then do
+                        stopServices installPath appType
+                        Shelly.rm_rf installPath
+                        else if ans == "no"
+                            then void . liftIO $ exitSuccess
+                            else if ans == ""
+                                then void . liftIO $ exitSuccess
+                                else do
+                                    checkIfAppAlreadyInstalledInCurrentVersion False installPath appType
+        else return ()
 
 downloadAndUnpackApp :: MonadInstall m => Bool -> URIPath -> FilePath -> Text -> AppType -> m ()
 downloadAndUnpackApp guiInstaller pkgPath installPath appName appType = do
-    checkIfAppAlreadyInstalledInCurrentVersion installPath appType
+    checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType
     stopServices installPath appType
     Shelly.mkdir_p $ parent installPath
     pkg      <- downloadWithProgressBar pkgPath guiInstaller
-    unpacked <- Archive.unpack pkg
+    unpacked <- Archive.unpack guiInstaller pkg
     case currentHost of
          Linux   -> do
              Shelly.mkdir_p installPath
@@ -398,15 +403,14 @@ run :: MonadInstall m => InstallOpts -> Bool -> m ()
 run opts guiInstaller = do
     repo <- getRepo
     if guiInstaller then do
-        print $ show $ JSON.encode $ Initilize.Option $ Initilize.Install "luna-studio" $ Version 0 0 10 Nothing Nothing
         Initilize.generateInitialJSON repo
+        liftIO $ hFlush stdout
         options <- liftIO $ BS.getLine
-        liftIO $ print options
+
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
         forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> do
             appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
-            appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ fromMaybe (error "dupa") $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
-            print appDesc
+            appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ fromMaybe (error "no package with choosen version") $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
             let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
             when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
@@ -414,11 +418,9 @@ run opts guiInstaller = do
                 resolvedApp = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
                 allApps = resolvedApp : appsToInstall
             mapM_ (installApp opts guiInstaller) $ allApps
+            print $ encode $ InstallationProgress 1
+            liftIO $ hFlush stdout
 
-        -- case install of
-        --     Nothing -> return ()
-        --     Just  opt  -> \(Option $ Install appName appVersion) -> return ()
-        print install
         else do
             (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
                 $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
