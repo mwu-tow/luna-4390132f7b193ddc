@@ -148,7 +148,7 @@ createAppimage appName repoPath = do
     -- Shelly.cd tmpAppPath
 
     putStrLn "Downloading AppImage functions.sh"
-    functions <- downloadWithProgressBarTo "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath
+    functions <- downloadWithProgressBarTo "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath False
     let mainAppImageFolder     = "usr"
         mainAppImageFolderPath = tmpAppDirPath </> mainAppImageFolder
     Shelly.mkdir_p mainAppImageFolderPath
@@ -157,7 +157,7 @@ createAppimage appName repoPath = do
     copyResourcesAppImage repoPath appName tmpAppDirPath mainAppImageFolderPath
 
     putStrLn "Downloading AppImage desktopIntegration"
-    appWrapper <- downloadWithProgressBarTo "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath
+    appWrapper <- downloadWithProgressBarTo "https://raw.githubusercontent.com/probonopd/AppImageKit/master/desktopintegration" tmpAppDirPath False
     let dstWrapperPath = mainAppImageFolderPath </> convert (appName <> ".wrapper")
     Shelly.mv appWrapper dstWrapperPath
     makeExecutable dstWrapperPath

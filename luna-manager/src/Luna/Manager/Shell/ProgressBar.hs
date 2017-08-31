@@ -12,7 +12,10 @@ import Data.List (genericReplicate)
 import Data.Ratio ( (%) )
 import qualified Data.Text as Text
 
-
+import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON, encode)
+import qualified Data.Aeson          as JSON
+import qualified Data.Aeson.Types    as JSON
+import qualified Data.Aeson.Encoding as JSON
 
 
 import Text.Printf   ( printf )
@@ -25,6 +28,14 @@ data ProgressBar = ProgressBar { barWidth  :: Int --total progress bar width
                                , totalWork :: Int --total amount of work
                                }
 
+data Progress = Progress { completed :: Int
+                         , total     :: Int
+                         }
+
+data Progress1 = Progress1 { progress1 :: Float} deriving (Generic, Show)
+
+instance ToJSON   Progress1
+instance FromJSON Progress1
 
 --------------------------------
 ------ ProgressBarUtils --------
@@ -50,12 +61,27 @@ progressBar (ProgressBar width todo done) = liftIO $ do
         completed = min effectiveWidth $ floor numCompletedChars
         remaining = effectiveWidth - completed
 
+progress :: MonadIO m => Progress -> m ()
+progress (Progress completed total) = liftIO $ do
+    print $ encode $ Progress1 pr
+    cursorUpLine 1
+    clearLine
+    where
+        pr = fromIntegral completed / fromIntegral total
+
+updateProgress :: MonadIO m => Progress -> ConduitM ByteString ByteString m ()
+updateProgress (Progress completed total) = await >>= maybe (return ()) (\chunk -> do
+    let len = ByteString.length chunk
+        pg = Progress (completed+len) total
+    liftIO $ progress pg
+    yield chunk
+    updateProgress pg)
 
 --TODO: OSOBNA FUNKCJA PROGRESSBAR LIFTOWANA DO Conduit W MIEJSCU UZYCIA
-updateProgress :: MonadIO m => ProgressBar -> ConduitM ByteString ByteString m ()
-updateProgress (ProgressBar w completed pgTotal) = await >>= maybe (return ()) (\chunk -> do
+updateProgressBar :: MonadIO m => ProgressBar -> ConduitM ByteString ByteString m ()
+updateProgressBar (ProgressBar w completed pgTotal) = await >>= maybe (return ()) (\chunk -> do
     let len = ByteString.length chunk
         pg = ProgressBar w (completed+len) pgTotal
     liftIO $ progressBar pg
     yield chunk
-    updateProgress pg)
+    updateProgressBar pg)

@@ -175,12 +175,12 @@ checkIfAppAlreadyInstalledInCurrentVersion installPath appType = do
                             checkIfAppAlreadyInstalledInCurrentVersion installPath appType
             else return ()
 
-downloadAndUnpackApp :: MonadInstall m => URIPath -> FilePath -> Text -> AppType -> m ()
-downloadAndUnpackApp pkgPath installPath appName appType = do
+downloadAndUnpackApp :: MonadInstall m => Bool -> URIPath -> FilePath -> Text -> AppType -> m ()
+downloadAndUnpackApp guiInstaller pkgPath installPath appName appType = do
     checkIfAppAlreadyInstalledInCurrentVersion installPath appType
     stopServices installPath appType
     Shelly.mkdir_p $ parent installPath
-    pkg      <- downloadWithProgressBar pkgPath
+    pkg      <- downloadWithProgressBar pkgPath guiInstaller
     unpacked <- Archive.unpack pkg
     case currentHost of
          Linux   -> do
@@ -363,16 +363,16 @@ installApp opts guiInstaller package = do
                 GuiApp   -> return $ toTextIgnore $ installConfig ^. defaultBinPathGuiApp
                 BatchApp -> return $ toTextIgnore $ installConfig ^. defaultBinPathBatchApp
         else askLocation opts appType pkgName
-    installApp' binPath package
+    installApp' guiInstaller binPath package
 
-installApp' :: MonadInstall m => Text -> ResolvedPackage -> m ()
-installApp' binPath package = do
+installApp' :: MonadInstall m => Bool -> Text -> ResolvedPackage -> m ()
+installApp' guiInstaller binPath package = do
     let pkgName    = package ^. header . name
         appType    = package ^. resolvedAppType
         pkgVersion = showPretty $ package ^. header . version
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
     -- stopServices installPath appType
-    downloadAndUnpackApp (package ^. desc . path) installPath pkgName appType
+    downloadAndUnpackApp guiInstaller (package ^. desc . path) installPath pkgName appType
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
 

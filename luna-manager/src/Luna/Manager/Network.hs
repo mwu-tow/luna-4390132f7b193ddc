@@ -58,13 +58,13 @@ downloadFromURL address info = tryJust downloadError =<< go where
 newHTTPManager :: MonadIO m => m HTTP.Manager
 newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.managerResponseTimeout = HTTP.responseTimeoutMicro 5000000}
 
-downloadWithProgressBar  :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m) => URIPath -> m FilePath
-downloadWithProgressBar address = do
+downloadWithProgressBar  :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m) => URIPath -> Bool -> m FilePath
+downloadWithProgressBar address guiInstaller = do
     tmp <- getTmpPath
-    downloadWithProgressBarTo address tmp
+    downloadWithProgressBarTo address tmp guiInstaller
 
-downloadWithProgressBarTo :: (MonadIO m, MonadException SomeException m) => URIPath -> FilePath -> m FilePath
-downloadWithProgressBarTo address dstPath = do
+downloadWithProgressBarTo :: (MonadIO m, MonadException SomeException m) => URIPath -> FilePath -> Bool -> m FilePath
+downloadWithProgressBarTo address dstPath guiInstaller = do
     req     <- tryRight' $ HTTP.parseRequest (convert address)
     manager <- newHTTPManager
     tryRight' @SomeException <=< liftIO . Exception.try . runResourceT $ do
@@ -76,8 +76,13 @@ downloadWithProgressBarTo address dstPath = do
             let Just cl = lookup hContentLength (HTTP.responseHeaders res)
                 pgTotal = read (ByteStringChar.unpack cl)
                 pg      = ProgressBar 50 0 pgTotal
+                progress = Progress 0 pgTotal
             -- Consume the response updating the progress bar
-            HTTP.responseBody res $=+ updateProgress pg $$+- sinkFile (encodeString dstFile)
+            if guiInstaller then
+                HTTP.responseBody res $=+ updateProgress progress $$+- sinkFile (encodeString dstFile)
+                else
+                    HTTP.responseBody res $=+ updateProgressBar pg $$+- sinkFile (encodeString dstFile)
+
             putStrLn "Download completed!"
             return dstFile
 
