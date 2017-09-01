@@ -22,7 +22,7 @@ import           Empire.ASTOps.BreadcrumbHierarchy as ASTBreadcrumb
 import           Empire.ASTOps.Parse               as ASTParse
 import           Empire.ASTOps.Read                as ASTRead
 import           Empire.Commands.Code              (functionBlockStartRef, propagateLengths)
-import           Empire.Commands.AST              as AST
+import           Empire.Commands.AST               as AST
 import           Empire.Data.AST                   (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.BreadcrumbHierarchy   (navigateTo, replaceAt)
 import qualified Empire.Data.BreadcrumbHierarchy   as BH
@@ -53,12 +53,11 @@ makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph
 makeGraphCls fun lastUUID = do
     pmState   <- liftIO Graph.defaultPMState
     nodeCache <- use Graph.clsNodeCache
-    (funName, IR.Rooted ir ref, fileOffset, endOfNameOffset) <- runASTOp $ IR.matchExpr fun $ \case
+    (funName, IR.Rooted ir ref, fileOffset) <- runASTOp $ ASTRead.cutThroughMarked fun >>= \f -> IR.matchExpr f $ \case
         IR.ASGRootedFunction n root -> do
-            offset <- functionBlockStartRef fun
+            offset <- functionBlockStartRef f
             name   <- ASTRead.getVarName' =<< IR.source n
-            (SpacedSpan off len) <- (unwrap . view CodeSpan.realSpan) <$> (IR.getLayer @CodeSpan.CodeSpan =<< IR.source n)
-            return (nameToString name, root, offset, off + len)
+            return (nameToString name, root, offset)
     let ast   = Graph.AST ir pmState
     uuid <- maybe (liftIO UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
@@ -118,16 +117,25 @@ withRootedFunction uuid act = do
     diffs <- runASTOp $ do
         cls <- use Graph.clsClass
         funs <- ASTRead.classFunctions cls
-        forM funs $ \fun -> IR.matchExpr fun $ \case
+        forM funs $ \fun -> ASTRead.cutThroughMarked fun >>= \f -> IR.matchExpr f $ \case
             IR.ASGRootedFunction n _ -> do
                 name <- ASTRead.getVarName' =<< IR.source n
                 if (nameToString name == funName) then do
-                    LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
-                    IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off len))
-                    Just (funExpr :: IR.Expr IR.ASGRootedFunction) <- IR.narrow fun
+                    lenDiff <- if fun == f then do
+                        LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan f
+                        IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off len))
+                        return $ len - prevLen
+                    else do
+                        LeftSpacedSpan (SpacedSpan off funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan f
+                        IR.putLayer @CodeSpan.CodeSpan f $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off len))
+                        let diff = len - funLen
+                        LeftSpacedSpan (SpacedSpan off markedLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan.CodeSpan fun
+                        IR.putLayer @CodeSpan.CodeSpan fun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (markedLen + diff)))
+                        return diff
+                    Just (funExpr :: IR.Expr IR.ASGRootedFunction) <- IR.narrow f
                     let newRooted = IR.Rooted (newGraph ^. Graph.ast . Graph.ir) (newGraph ^. Graph.breadcrumbHierarchy . BH.self)
                     IR.modifyExprTerm funExpr $ wrapped . IR.termASGRootedFunction_body .~ newRooted
-                    return $ Just $ len - prevLen
+                    return $ Just lenDiff
                     else return Nothing
     let diff = fromMaybe (error "function not in AST?") $ listToMaybe $ catMaybes diffs
         funOffset = properGraph ^. Graph.fileOffset

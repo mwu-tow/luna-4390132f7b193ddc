@@ -491,7 +491,8 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                     IR.ClsASG _ _ _ _ f -> do
                         links <- mapM (\link -> (link,) <$> IR.source link) f
                         forM links $ \(link, fun) -> do
-                            IR.matchExpr fun $ \case
+                            fun' <- ASTRead.cutThroughMarked fun
+                            IR.matchExpr fun' $ \case
                                 IR.ASGRootedFunction n _ -> do
                                     name <- ASTRead.getVarName' =<< IR.source n
                                     return $ if convert name `elem` funsToRemove then Left link else Right link
@@ -802,7 +803,7 @@ renameNode loc nid name
             oldName <- use $ Graph.clsFuns . ix nid . _1
             Graph.clsFuns %= Map.adjust (_1 .~ (Text.unpack stripped)) nid
             runASTOp $ do
-                fun     <- ASTRead.getFunByName oldName
+                fun     <- ASTRead.getFunByName oldName >>= ASTRead.cutThroughMarked
                 IR.matchExpr fun $ \case
                     IR.ASGRootedFunction n _ -> flip ASTModify.renameVar (convert stripped) =<< IR.source n
                     _                        -> return ()
@@ -940,7 +941,7 @@ loadCode (GraphLocation file _) code = do
         klass <- use Graph.clsClass
         runASTOp $ do
             funs <- ASTRead.classFunctions klass
-            forM funs $ \f -> IR.matchExpr f $ \case
+            forM funs $ \f -> ASTRead.cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
                 IR.ASGRootedFunction n _ -> do
                     name <- ASTRead.getVarName' =<< IR.source n
                     return (convert name, f)
