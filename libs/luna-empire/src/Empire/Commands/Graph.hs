@@ -1192,8 +1192,10 @@ insertCodeBetween beforeNodes afterNodes codeToInsert = do
 
 generateCollapsedDefCode :: GraphOp m => [OutPortRef] -> [OutPortRef] -> [NodeId] -> m Text
 generateCollapsedDefCode inputs outputs bodyIds = do
-    inputNames <- fmap sort $ forM inputs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
-        ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
+    inputNames <- fmap (map (view _2) . sortOn fst) $ forM inputs $ \(OutPortRef (NodeLoc _ nodeId) pid) -> do
+        position <- fmap (view NodeMeta.position) <$> AST.getNodeMeta nodeId
+        name     <- ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
+        return (position, name)
     outputNames <- forM outputs $ \(OutPortRef (NodeLoc _ nodeId) pid) ->
         ASTRead.getASTOutForPort nodeId pid >>= ASTRead.getVarName
     codeBegs <- fmap (sortOn fst) $ forM bodyIds $ \nid -> do

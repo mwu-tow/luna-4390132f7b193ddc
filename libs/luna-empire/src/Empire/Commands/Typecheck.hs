@@ -14,6 +14,8 @@ import           Control.Monad.State              (execStateT)
 import qualified Data.Map                         as Map
 import           Empire.Prelude                   hiding (toList)
 import           Prologue                         (catMaybes)
+import           System.Directory                 (withCurrentDirectory)
+import           System.FilePath                  (takeDirectory)
 
 import qualified LunaStudio.Data.Error            as APIError
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
@@ -52,14 +54,14 @@ runTC imports = do
         Graph.breadcrumbHierarchy . BH.refs %= (\x -> Map.findWithDefault x x mapping)
     return ()
 
-runInterpreter :: Imports -> Command Graph (Maybe Interpreter.LocalScope)
-runInterpreter imports = runASTOp $ do
+runInterpreter :: FilePath -> Imports -> Command Graph (Maybe Interpreter.LocalScope)
+runInterpreter path imports = runASTOp $ do
     selfRef <- use $ Graph.breadcrumbHierarchy . BH.self
     IR.matchExpr selfRef $ \case
         IR.ASGFunction _ [] b -> do
             bodyRef <- IR.source b
             res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
-            result  <- liftIO $ runIO $ runError $ execStateT res def
+            result  <- liftIO $ withCurrentDirectory (takeDirectory path) $ runIO $ runError $ execStateT res def
             case result of
                 Left e  -> return Nothing
                 Right r -> return $ Just r
@@ -146,7 +148,7 @@ getCurrentScope = do
         _      -> recomputeCurrentScope
 
 run :: GraphLocation -> Command InterpreterEnv ()
-run loc@(GraphLocation _ br) = do
+run loc@(GraphLocation file br) = do
     std        <- use imports
     cln        <- use cleanUp
     threads    <- use listeners
@@ -161,5 +163,5 @@ run loc@(GraphLocation _ br) = do
             {-updateMonads loc-}
             liftIO cln
             liftIO $ mapM killThread threads
-            scope <- runInterpreter imps
+            scope <- runInterpreter file imps
             traverse_ (updateValues loc) scope

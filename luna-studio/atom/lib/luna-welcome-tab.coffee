@@ -67,9 +67,9 @@ class LunaWelcomeTab extends View
     initialize: =>
         @tutorialItems = []
         @privateItems = []
-        @privateNew = new ProjectItem('new project', null, privateNewClasses, => atom.pickFolder (paths) => atom.project.setPaths paths)
+        @privateNew = new ProjectItem({name: 'new project', uri: null}, privateNewClasses, => atom.pickFolder (paths) => if paths? then atom.project.setPaths paths)
         @communityItems = []
-        @comunnityNew = new ProjectItem('new project', null, comunnityNewClasses, => atom.confirm
+        @comunnityNew = new ProjectItem({name: 'new project', uri: null}, comunnityNewClasses, => atom.confirm
             message: "Not supported yet"
             detailedMessage: "Community projects are not supported yet."
             buttons:
@@ -79,12 +79,12 @@ class LunaWelcomeTab extends View
 
         @hideSearchResults()
         projects.recent.load (recentProjectPath) =>
-            item = new ProjectItem(recentProjectPath, recentProjectPath, recentClasses)
+            item = new ProjectItem({name: recentProjectPath}, recentClasses)
             @privateItems.push(item)
             @privateContainer.append(item.element)
         projects.tutorial.list (tutorials) =>
             for tutorial in tutorials
-                item = new ProjectItem(tutorial, tutorial, tutorialClasses, => projects.tutorial.open(tutorial))
+                item = new ProjectItem(tutorial, tutorialClasses, => projects.tutorial.open(tutorial))
                 @tutorialItems.push(item)
                 @tutorialsContainer.append(item.element)
 
@@ -97,7 +97,8 @@ class LunaWelcomeTab extends View
             @hideSearchResults()
         else
             fuzzyFilter ?= require('fuzzaldrin').filter
-            filteredItems = fuzzyFilter(@privateItems.concat @tutorialItems, filterQuery, key: @getFilterKey())
+            allItems = @tutorialItems.concat(@privateItems)
+            filteredItems = fuzzyFilter(allItems, filterQuery, key: @getFilterKey())
             @showSearchResults filteredItems
 
 

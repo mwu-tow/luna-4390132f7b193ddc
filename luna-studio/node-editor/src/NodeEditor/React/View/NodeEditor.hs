@@ -28,7 +28,7 @@ import           NodeEditor.React.View.Connection           (connection_, halfCo
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
 import           NodeEditor.React.View.ExpressionNode       (filterOutSearcherIfNotRelated, nodeDynamicStyles_, node_)
 import           NodeEditor.React.View.Monad                (monads_)
-import           NodeEditor.React.View.Plane                (planeConnections_, planeMonads_, planeNewConnection_, planeNodes_, svgPlane_)
+import           NodeEditor.React.View.Plane                (planeConnections_, planeCanvas_, planeMonads_, planeNewConnection_, planeNodes_, svgPlane_)
 import           NodeEditor.React.View.SelectionBox         (selectionBox_)
 import           NodeEditor.React.View.Sidebar              (sidebar_)
 import qualified NodeEditor.React.View.Style                as Style
@@ -120,7 +120,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
 
                 withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
                 withJust output $ sidebar_ ref Nothing
-                --planeCanvas_ mempty
+                planeCanvas_ mempty --required for cursor lock
 
         GraphLoading   -> noGraph_ True "Loading…"
         NoGraph        -> noGraph_ False ""
