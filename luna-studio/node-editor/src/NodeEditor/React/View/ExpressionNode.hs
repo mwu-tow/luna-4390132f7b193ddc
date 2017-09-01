@@ -209,8 +209,9 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                                               (if isInPort $ port ^. Port.portId then countArgPorts n else countOutPorts n)
                                               (withOut isAll (port ^. Port.portId) && countArgPorts n + countOutPorts n == 1)
     svg_
-        [ "key"       $= "nodePorts"
-        , "className" $= Style.prefixFromList [ "node__ports" ]
+        [ "viewBox"   $= "-20 -20 40 40"
+        , "key"       $= "nodePorts"
+        , "className" $= Style.prefixFromList [ "node__ports", "node-transform" ]
         ] $ do
         defs_
             [ "key" $= "defs" ] $ do
@@ -229,8 +230,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                     [ "className" $= Style.prefix "port-io-select-mask"
                     ] mempty
         g_
-            [ "className" $= Style.prefix "node-transform"
-            , "key"       $= "nodeTransform"
+            [ "key" $= "nodeTransform"
             ] $ do
             if isCollapsed n then do
                 ports $ filter (not . isSelf . (^. Port.portId)) nodePorts'

@@ -2,7 +2,8 @@
 //        sideports        //
 /////////////////////////////
 
-@edgeportsWidth: 16px;
+@sidebarWidth:   16px;
+@portHeight:     32px;
 @edgeNameMargin: 16px + 8px;
 
 .luna-sidebar {
@@ -12,7 +13,8 @@
     height:          100%;
     position:        absolute;
     width:           0;
-    .luna-port__shape { r: 4px !important }
+    .luna-port__shape  { r: 6px  !important }
+    .luna-port__select { r: 16px !important }
 }
 
 .luna-sidebar--freezemode {
@@ -29,18 +31,15 @@
 }
 
 .luna-sidebar__active-area {
-    width:          16px;
-    margin-top:    -50%;
-    position:       absolute;
-    margin-top:    -50%;
+    width: @sidebarWidth;
 }
 
 .luna-sidebar__body {
     background:     none; // #2a2a2a;
     display:        flex;
     flex-direction: column;
-    width:          @edgeportsWidth;
-    padding:        @edgeportsWidth/2 0;
+    width:          @sidebarWidth;
+    padding:        @sidebarWidth/2 0;
     border-radius:  0 @borderRadius @borderRadius 0;
 }
 
@@ -49,19 +48,21 @@
 /////////////////////////////
 
 .luna-sidebar__port {
-    height:   @edgeportsWidth;
+    height:   @portHeight;
     position: relative;
 }
 
 .luna-sidebar__port__svg {
     top:      50%;
-    height:   1px;
-    width:    1px;
+    height:   20px;
+    width:    20px;
     overflow: inherit;
     position: absolute;
 }
 
 .luna-sidebar__port__name {
+    font-size:   calc(var(--ul-total-zoom) ~'*' 12px);
+    line-height: @portHeight;
     top:        -1px;
     color:       darken(@colorText, 30%);
     position:    absolute;
@@ -77,12 +78,12 @@
 /////////////////////////////
 
 .luna-sidebar--i {
-    left: -6px;
+    left: 0;
     .luna-sidebar__port__name {
-        left: 26px;
+        left: @portHeight;
     }
     .luna-sidebar__port__svg {
-        left: @edgeportsWidth;
+        left: @sidebarWidth;
     }
 }
 
@@ -91,14 +92,14 @@
 /////////////////////////////
 
 .luna-sidebar--o {
-    right: 10px;
+    right: @sidebarWidth;
     .luna-sidebar__body {
         border-radius: @borderRadius 0 0 @borderRadius;
         right:         0;
     }
     .luna-sidebar__port__name {
         left:  inherit;
-        right: 26px;
+        right: @portHeight;
     }
 }
 

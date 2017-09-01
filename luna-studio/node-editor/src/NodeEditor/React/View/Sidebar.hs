@@ -90,6 +90,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                 when (isInputSidebar node) $ do
                     svg_ (
                         [ "className" $= Style.prefixFromList [ "sidebar__port__svg", "sidebar__port__svg--addbutton" ]
+                        , "viewBox"   $= "-10 -10 20 20"
                         , "key"       $= (name node <> "AddButton")
                         ] <> addButtonHandlers ) $ do
                         circle_
@@ -107,6 +108,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                             ] mempty
                     svg_
                         [ "className" $= Style.prefix "edit-icon"
+                        , "viewBox"   $= "-10 -10 20 20"
                         , onClick $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.ToggleInputMode nodeLoc)
                         , "key"       $= (name node <> "editIcon")
                         ] $ do

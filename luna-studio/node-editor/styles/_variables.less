@@ -10,7 +10,8 @@
   --ul-total-zoom: calc(var(--ui-font-size) ~'/' @ref-font-size ~'*' var(--ui-zoom));
 }
 
-@ui: var(--ul-total-zoom);
+@ui:               var(--ul-total-zoom);
+
 
 /////////////////////////////
 //          fonts          //
@@ -23,12 +24,13 @@
 @luna-font-size:          12px;
 @luna-line-height:        16px;
 
+
 /////////////////////////////
 //         colors          //
 /////////////////////////////
 
 @luna-syntax-background-color:   @syntax-background-color;
-@luna-graph-background-color:    darken(@luna-syntax-background-color,10%); //#181b1f;
+@luna-graph-background-color:    darken(@luna-syntax-background-color,0%); //#181b1f;
 
 @luna-syntax-text-color:         @syntax-text-color;
 @luna-text-color:                @syntax-text-color;
@@ -56,6 +58,11 @@
 @colorSearcherResultsBackground: @luna-syntax-background-color;
 @colorSearcherResultsSelected:   #3a414a;
 
+// node
+
+@luna-node-expression-background: lighten(@syntax-background-color,5%);
+
+
 /////////////////////////////
 //           grid          //
 /////////////////////////////
@@ -65,6 +72,7 @@
 @borderRadius:   3rem;
 @borderRadiusPx: 3px;
 
+
 /////////////////////////////
 //           grid          //
 /////////////////////////////
@@ -73,6 +81,7 @@
 @expandedNodeWidthPx: 160px;
 @expandedNodePadding: 12rem;
 
+
 /////////////////////////////
 //        animation        //
 /////////////////////////////
@@ -80,6 +89,7 @@
 @transitionSpeed: 60ms;
 @selectionSpeed:  100ms;
 @colorSpeed:      120ms;
+
 
 /////////////////////////////
 //          other          //
