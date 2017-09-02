@@ -30,6 +30,10 @@ instance Exception ExtensionError
 extensionError :: SomeException
 extensionError = toException ExtensionError
 
+data UnpackingError = UnpackingError deriving (Show)
+instance Exception UnpackingError where
+    displayException err = "Archive cannot be unpacked" <> show err
+
 unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpack guiInstaller totalProgress progressFieldName file = do
     if guiInstaller then return () else putStrLn "Unpacking archive"
@@ -79,20 +83,20 @@ logger progressFieldName totalProgress lastNumber n t = do
     let progress = (fromIntegral  currentFileNumber / fromIntegral n :: Double) * totalProgress
     print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
 
-unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
     let dir = directory file
         name = basename file
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
         if guiInstaller then do
-            (stdout, stderr, sysExit) <- Process.readProcess $ Process.shell "tar -tzf taruj.tar.gz | wc -l"
+            (stdout, stderr, sysExit) <- Process.readProcess $ Process.shell $ "tar -tzf " <> (encodeString file) <> " | wc -l"
             let n = Text.decimal $ Text.strip $ Text.decodeUtf8 $ BSL.toStrict stderr
             case n of
                 Right x -> do
                     currentUnpackingFileNumber <- liftIO $ newIORef 0
                     Shelly.log_stderr_with (logger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
-                Left err -> error err --TODO zamień error na exception
+                Left err -> raise' UnpackingError
             else void $ Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
         return $ dir </> name
 
