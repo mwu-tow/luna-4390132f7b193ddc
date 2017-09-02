@@ -2,24 +2,26 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Luna.Manager.Archive where
 
-import Control.Monad.Raise
 
-import Luna.Manager.Shell.Commands
-import Luna.Manager.Network
-import Luna.Manager.System.Host
 
-import Luna.Manager.Gui.InstallationProgress
-import System.IO (hFlush, stdout)
-import Data.Aeson (encode)
-
-import Prologue hiding (FilePath)
-
-import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
-import qualified Luna.Manager.Shell.Shelly as Shelly
 import           Luna.Manager.Shell.Shelly (MonadSh)
-import System.Exit
-import qualified System.Process.Typed as Process
+import           Control.Monad.Raise
+import           Data.Aeson (encode)
+import           Data.IORef
+import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
+import           Luna.Manager.Gui.InstallationProgress
+import           Luna.Manager.Network
+import           Luna.Manager.Shell.Commands
+import           Luna.Manager.System.Host
+import           Prologue hiding (FilePath)
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Read as Text
+import qualified Luna.Manager.Shell.Shelly as Shelly
+import qualified System.Process.Typed as Process
+import           System.Exit
+import           System.IO (hFlush, stdout, hGetContents)
 default (Text.Text)
 
 data ExtensionError = ExtensionError deriving (Show)
@@ -28,8 +30,8 @@ instance Exception ExtensionError
 extensionError :: SomeException
 extensionError = toException ExtensionError
 
-unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> FilePath -> m FilePath
-unpack guiInstaller file = do
+unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+unpack guiInstaller totalProgress progressFieldName file = do
     if guiInstaller then return () else putStrLn "Unpacking archive"
     case currentHost of
         Windows ->  do
@@ -40,13 +42,13 @@ unpack guiInstaller file = do
         Darwin  -> do
             ext <- tryJust extensionError $ extension file
             case ext of
-                "gz"  -> unpackTarGzUnix guiInstaller file
+                "gz"  -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
                 "zip" -> unzipUnix file
         Linux   -> do
             ext <- tryJust extensionError $ extension file
             case ext of
                 "AppImage" -> return file
-                "gz"       -> unpackTarGzUnix guiInstaller file
+                "gz"       -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
                 "rpm"      -> do
                     let name = basename file
                         dir = directory file
@@ -70,15 +72,28 @@ unzipUnix file = do
             listed <- Shelly.ls $ dir </> name
             if length listed == 1 then return $ head listed else return $ dir </> name
 
-unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m) => Bool -> FilePath -> m FilePath
-unpackTarGzUnix guiInstaller file = do
+logger :: Text.Text -> Double -> IORef Int -> Int -> Text.Text -> IO ()
+logger progressFieldName totalProgress lastNumber n t = do
+    modifyIORef' lastNumber succ
+    currentFileNumber <- readIORef lastNumber
+    let progress = (fromIntegral  currentFileNumber / fromIntegral n :: Double) * totalProgress
+    print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
+
+unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
     let dir = directory file
         name = basename file
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
-        if guiInstaller then Shelly.cmd  "tar" "-xpzfv" file "--strip=1" "-C" name
-
-            else Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+        if guiInstaller then do
+            (stdout, stderr, sysExit) <- Process.readProcess $ Process.shell "tar -tzf taruj.tar.gz | wc -l"
+            let n = Text.decimal $ Text.strip $ Text.decodeUtf8 $ BSL.toStrict stderr
+            case n of
+                Right x -> do
+                    currentUnpackingFileNumber <- liftIO $ newIORef 0
+                    Shelly.log_stderr_with (logger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
+                Left err -> error err --TODO zamień error na exception
+            else void $ Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
         return $ dir </> name
 
 -- TODO: download unzipper if missing

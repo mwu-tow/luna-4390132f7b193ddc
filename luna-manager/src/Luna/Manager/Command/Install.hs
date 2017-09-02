@@ -188,7 +188,7 @@ downloadAndUnpackApp guiInstaller pkgPath installPath appName appType = do
     stopServices installPath appType
     Shelly.mkdir_p $ parent installPath
     pkg      <- downloadWithProgressBar pkgPath guiInstaller
-    unpacked <- Archive.unpack guiInstaller pkg
+    unpacked <- Archive.unpack guiInstaller 0.9 "installation_progress" pkg
     case currentHost of
          Linux   -> do
              Shelly.mkdir_p installPath
