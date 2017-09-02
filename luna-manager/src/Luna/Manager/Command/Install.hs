@@ -257,11 +257,18 @@ copyResources appType installPath appName = case currentHost of
                 packageLogo      = resources </> (installConfig ^. logoFileName)
                 packageInfoPlist = resources </> (installConfig ^. infoFileName)
                 appLogo          = parent installPath </> convert (appName <> ".icns")
-                -- appInfoPlist     = (parent $ parent installPath) </> "Info.plist"
-            -- Shelly.rm appLogo
-            Shelly.cp packageLogo appLogo
-            -- Shelly.rm appInfoPlist
-            Shelly.cp packageInfoPlist (parent $ parent installPath)
+                appInfoPlist     = (parent $ parent installPath) </> "Info.plist"
+            logoTest      <- Shelly.test_f appLogo
+            infoPlistTest <- Shelly.test_f appInfoPlist
+            if logoTest then do
+                Shelly.rm appLogo
+                Shelly.cp packageLogo appLogo
+                else Shelly.cp packageLogo appLogo
+            if infoPlistTest then do
+                Shelly.rm appInfoPlist
+                Shelly.cp packageInfoPlist (parent $ parent installPath)
+                else Shelly.cp packageInfoPlist (parent $ parent installPath)
+
         BatchApp -> return ()
     Windows -> return ()
 
