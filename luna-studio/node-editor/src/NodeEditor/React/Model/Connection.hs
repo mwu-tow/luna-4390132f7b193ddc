@@ -194,7 +194,7 @@ toConnection srcRef dstRef srcNode dstNode = Connection srcRef dstRef sidebarCon
 toHalfConnection :: AnyPortRef -> Node -> Position -> HalfConnection
 toHalfConnection portRef n pos = HalfConnection portRef pos sidebarConn' mode' where
     sidebarConn' = has Node._Input n || has Node._Output n
-    mode' = case portRef of
+    mode' = if Node.argumentConstructorRef n == portRef then Normal else case portRef of
         OutPortRef' {}    -> Normal
         InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal
 
