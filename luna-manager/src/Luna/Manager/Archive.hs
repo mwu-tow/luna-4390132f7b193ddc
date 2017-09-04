@@ -98,21 +98,21 @@ directProgressLogger progressFieldName totalProgress actualProgress = do
             print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
         Left err -> raise' ProgressException --TODO czy nie powinien tu być jednak unpacking exception??
 
-unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m, MonadThrow m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m, MonadThrow m, MonadCatch m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
     let dir = directory file
         name = basename file
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
         if guiInstaller then do
-            (stdout, stderr, sysExit) <- Process.readProcess $ Process.shell $ "tar -tzf " <> (encodeString file) <> " | wc -l"
+            (sysExit, stdout, stderr) <- Process.readProcess $ Process.shell $ "tar -tzf " <> (encodeString file) <> " | wc -l"
             let n = Text.decimal $ Text.strip $ Text.decodeUtf8 $ BSL.toStrict stderr
             case n of
                 Right x -> do
                     currentUnpackingFileNumber <- liftIO $ newIORef 0
                     Shelly.log_stderr_with (countingFilesLogger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
                 Left err -> throwM (UnpackingException (Shelly.toTextIgnore file) (toException $ Exception.StringException err callStack ))
-            else void $ Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
+            else (Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name) `Exception.catchAny` (\err -> throwM (UnpackingException (Shelly.toTextIgnore file) $ toException err))
         return $ dir </> name
 
 -- TODO: download unzipper if missing
@@ -130,7 +130,7 @@ unzipFileWindows zipFile = do
           Shelly.cp zipFile name
           Shelly.cp script name
       Shelly.chdir (dir </> name) $ do
-          Shelly.cmd "cscript" (filename script) (filename zipFile)
+          Shelly.cmd "cscript" (filename script) (filename zipFile) `Exception.catchAny` (\err -> throwM (UnpackingException (Shelly.toTextIgnore zipFile) $ toException err))
           Shelly.rm $ dir </> name </> filename zipFile
           Shelly.rm $ dir </> name </> filename script
           listed <- Shelly.ls $ dir </> name
@@ -160,7 +160,7 @@ untarWin guiInstaller totalProgress progressFieldName zipFile = do
 
 
 
-            else Shelly.silently $ Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name
+            else Shelly.silently $ Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name `Exception.catchAny` (\err -> throwM (UnpackingException (Shelly.toTextIgnore zipFile) $ toException err))
         listed <- Shelly.ls $ dir </> name
         if length listed == 1
             then do

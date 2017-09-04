@@ -26,7 +26,8 @@ import qualified System.Process.Typed as Process
 import System.Exit
 import System.Directory (renameDirectory)
 import Luna.Manager.Shell.Shelly (MonadSh)
-
+import qualified Control.Exception.Safe as Exception
+import qualified Data.ByteString.Lazy.Char8 as BSLChar
 
 ----------------------------
 -- === Package config === --
@@ -81,6 +82,9 @@ instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
         reconfig cfg = cfg & buildScriptPath .~ "build-package.bat"
                            & defaultPackagePath .~ "C:\\tmp\\luna-package"
 
+data AppimageException = AppimageException SomeException deriving (Show)
+instance Exception AppimageException where
+   displayException (AppimageException exception ) = "AppImage not created because of: " <> displayException exception
 
 ----------------------
 -- === Appimage === --
@@ -126,15 +130,15 @@ getApprun tmpAppDirPath functions = do
     (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppDirPath) $ Process.shell $ ". " <> (encodeString functions) <> " && " <> apprun
     case exitCode of
         ExitSuccess   -> return ()
-        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err
+        ExitFailure a -> throwM (AppimageException (toException $ Exception.StringException (BSLChar.unpack err) callStack ))
 
 generateAppimage :: MonadCreatePackage m => FilePath -> FilePath -> Text -> m ()
 generateAppimage tmpAppPath functions appName = do
     let generateAppimage   = "generate_type2_appimage"
-    (exitCode2, out2, err2) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
-    case exitCode2 of
+    (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString tmpAppPath) $ Process.setEnv [("APP", (convert appName))] $ Process.shell $ ". " <> (encodeString functions) <> " && " <> generateAppimage
+    case exitCode of
         ExitSuccess   -> return ()
-        ExitFailure a -> print $ "Fatal: AppImage not created. " <> err2
+        ExitFailure a -> throwM (AppimageException (toException $ Exception.StringException (BSLChar.unpack err) callStack ))
 
 -- TODO: refactor
 createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
