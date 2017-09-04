@@ -73,9 +73,9 @@ downloadWithProgressBarTo address dstPath guiInstaller = Exception.handleAny (\e
             let dstFile = dstPath </> (fromText name)
             res <- HTTP.http req manager
             -- Get the Content-Length and initialize the progress bar
-            let Just cl = lookup hContentLength (HTTP.responseHeaders res)
-                pgTotal = read (ByteStringChar.unpack cl)
-                pg      = ProgressBar 50 0 pgTotal
+            let Just cl  = lookup hContentLength (HTTP.responseHeaders res)
+                pgTotal  = read (ByteStringChar.unpack cl)
+                pg       = ProgressBar 50 0 pgTotal
                 progress = Progress 0 pgTotal
             -- Consume the response updating the progress bar
             if guiInstaller then

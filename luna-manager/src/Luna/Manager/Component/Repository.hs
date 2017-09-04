@@ -30,17 +30,17 @@ import Luna.Manager.Shell.Shelly (toTextIgnore)
 
 data UndefinedPackageError = UndefinedPackageError deriving (Show)
 instance Exception UndefinedPackageError where
-    displayException err = "Package undefined in yaml file: " <> show err
+    displayException err = "Undefined package: " <> show err
 
 undefinedPackageError :: SomeException
 undefinedPackageError = toException UndefinedPackageError
 
-data MissingPackageDescriptionError = MissingPackageDescriptionError deriving (Show)
+data MissingPackageDescriptionError = MissingPackageDescriptionError Version deriving (Show)
 instance Exception MissingPackageDescriptionError where
-    displayException err = "Package description undefined in yaml file: " <> show err
+    displayException (MissingPackageDescriptionError v) = "No package for version: " <> show v
 
-missingPackageDescriptionError :: SomeException
-missingPackageDescriptionError = toException MissingPackageDescriptionError
+-- missingPackageDescriptionError :: SomeException
+-- missingPackageDescriptionError = toException MissingPackageDescriptionError
 
 ------------------------
 -- === Repository === --
@@ -101,7 +101,7 @@ resolvePackageApp repo appName = do
     appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
     let version = fst $ last $ toList $ appPkg ^. versions
         applicationType = appPkg ^. appType
-    appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ last $ toList $ appPkg ^. versions
+    appDesc <- tryJust (toException $ MissingPackageDescriptionError version) $ Map.lookup currentSysDesc $ snd $ last $ toList $ appPkg ^. versions
     return $ ResolvedApplication (ResolvedPackage (PackageHeader appName version) appDesc applicationType) (snd $ resolve repo appDesc)
 
 getSynopis :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Text

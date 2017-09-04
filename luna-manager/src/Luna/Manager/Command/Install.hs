@@ -393,7 +393,7 @@ installApp' guiInstaller binPath package = do
 
 data VersionException = VersionException Text  deriving (Show)
 instance Exception VersionException where
-    displayException (VersionException v ) = "Incorrect version: " <> show v
+    displayException (VersionException v ) = "Unknown version: " <> show v
 
 -- versionError :: SomeException
 -- versionError = toException VersionException
@@ -421,7 +421,7 @@ run opts guiInstaller = do
         forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> do
             appPkg           <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
             evaluatedVersion <- tryJust (toException $ VersionException $ convert $ show appVersion) $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
-            appDesc          <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc evaluatedVersion
+            appDesc          <- tryJust (toException $ MissingPackageDescriptionError appVersion) $ Map.lookup currentSysDesc evaluatedVersion
             let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
             when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
