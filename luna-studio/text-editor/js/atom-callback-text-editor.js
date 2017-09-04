@@ -14,6 +14,7 @@ module.exports = function () {
         eventListenerInternal: [],
         diffListener: [],
         statusListener: [],
+        interpreterUpdateListener: [],
         lexer: null,
     };
 
@@ -50,6 +51,15 @@ module.exports = function () {
         },
         pushStatus: function(data1, data2, data3) {
             listeners.statusListener.forEach(function(listener) {
+                listener(data1, data2, data3);
+            });
+        },
+
+        onInterpreterUpdate: function (listener) {
+            listeners.interpreterUpdateListener.push(listener);
+        },
+        pushInterpreterUpdate: function(data1, data2, data3) {
+            listeners.interpreterUpdateListener.forEach(function(listener) {
                 listener(data1, data2, data3);
             });
         },

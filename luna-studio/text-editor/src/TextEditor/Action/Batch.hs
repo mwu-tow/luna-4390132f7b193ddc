@@ -46,3 +46,12 @@ copy = withUUID .: BatchCmd.copy
 
 paste :: GraphLocation -> [Range] -> [Text] -> Command State ()
 paste = withUUID .:. BatchCmd.paste
+
+interpreterStart :: Command State ()
+interpreterStart = withUUID BatchCmd.interpreterStart
+
+interpreterPause :: Command State ()
+interpreterPause = withUUID BatchCmd.interpreterPause
+
+interpreterReload :: Command State ()
+interpreterReload = withUUID BatchCmd.interpreterReload

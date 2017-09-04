@@ -127,7 +127,8 @@ restoreConnect portDrag = do
 
 restorePortDrag :: NodeLoc -> Connect -> Command State ()
 restorePortDrag nodeLoc connect = when (connect ^. connectSourcePort . PortRef.nodeLoc == nodeLoc) $ do
-    Connect.stopConnectingUnsafe connect
     case connect ^. connectSourcePort of
-        OutPortRef' sourcePort -> startPortDrag (connect ^. connectStartPos) sourcePort (connect ^. connectIsArgumentConstructor) (connect ^. connectMode)
+        OutPortRef' sourcePort -> do
+            Connect.stopConnectingUnsafe connect
+            startPortDrag (connect ^. connectStartPos) sourcePort (connect ^. connectIsArgumentConstructor) (connect ^. connectMode)
         _                      -> return ()

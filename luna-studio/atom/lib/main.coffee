@@ -6,7 +6,7 @@ LunaStudioTab  = require './luna-studio-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
 LunaSemanticGrammar = require './luna-grammar'
 projects = require './projects'
-
+Statusbar = require './statusbar-view'
 (require './luna-visualizers')()
 codeEditor = (require './gen/text-editor-ghcjs.js')()
 nodeEditor = (require './gen/node-editor-ghcjs.js')()
@@ -82,6 +82,10 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
         @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
 
+    consumeStatusBar: (statusBar) ->
+        myElement = new Statusbar(codeEditor)
+        @statusBarTile = statusBar.addLeftTile(item: myElement, priority: -1)
+
     deserializeLunaEditorTab: ({uri}) ->
         actStatus = (status) ->
             if status == 'Init'
@@ -99,6 +103,8 @@ module.exports = LunaStudio =
 
     deactivate: ->
         @subscribe.dispose()
+        @statusBarTile?.destroy()
+        @statusBarTile = null
 
     handleItemChange: (item) =>
         if item instanceof LunaEditorTab

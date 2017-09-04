@@ -1,21 +1,22 @@
 module TextEditor.Batch.Commands where
 
-import           Common.Batch.Connector.Connection (Message (Message), sendRequest)
-import           Common.Prelude                    hiding (span)
-import           Data.UUID.Types                   (UUID)
-import qualified LunaStudio.API.Atom.CloseFile     as CloseFile
-import qualified LunaStudio.API.Atom.Copy          as Copy
-import qualified LunaStudio.API.Atom.FileChanged   as FileChanged
-import qualified LunaStudio.API.Atom.GetBuffer     as GetBuffer
-import qualified LunaStudio.API.Atom.IsSaved       as IsSaved
-import qualified LunaStudio.API.Atom.OpenFile      as OpenFile
-import qualified LunaStudio.API.Atom.Paste         as Paste
-import qualified LunaStudio.API.Atom.SaveFile      as SaveFile
-import qualified LunaStudio.API.Atom.SetProject    as SetProject
-import qualified LunaStudio.API.Atom.Substitute    as Substitute
-import           LunaStudio.Data.GraphLocation     (GraphLocation)
-import           LunaStudio.Data.Point             (Point)
-import           LunaStudio.Data.Range             (Range)
+import           Common.Batch.Connector.Connection  (Message (Message), sendRequest)
+import           Common.Prelude                     hiding (span)
+import           Data.UUID.Types                    (UUID)
+import qualified LunaStudio.API.Atom.CloseFile      as CloseFile
+import qualified LunaStudio.API.Atom.Copy           as Copy
+import qualified LunaStudio.API.Atom.FileChanged    as FileChanged
+import qualified LunaStudio.API.Atom.GetBuffer      as GetBuffer
+import qualified LunaStudio.API.Atom.IsSaved        as IsSaved
+import qualified LunaStudio.API.Atom.OpenFile       as OpenFile
+import qualified LunaStudio.API.Atom.Paste          as Paste
+import qualified LunaStudio.API.Atom.SaveFile       as SaveFile
+import qualified LunaStudio.API.Atom.SetProject     as SetProject
+import qualified LunaStudio.API.Atom.Substitute     as Substitute
+import qualified LunaStudio.API.Control.Interpreter as Interpreter
+import           LunaStudio.Data.GraphLocation      (GraphLocation)
+import           LunaStudio.Data.Point              (Point)
+import           LunaStudio.Data.Range              (Range)
 
 -- Atom requests --
 
@@ -49,3 +50,12 @@ copy path spans uuid guiID = sendRequest $ Message uuid guiID $ Copy.Request pat
 
 paste :: GraphLocation -> [Range] -> [Text] -> UUID -> Maybe UUID -> IO ()
 paste location spans content uuid guiID = sendRequest $ Message uuid guiID $ Paste.Request location spans content
+
+interpreterPause :: UUID -> Maybe UUID -> IO ()
+interpreterPause uuid guiID = sendRequest $ Message uuid guiID $ Interpreter.Pause
+
+interpreterStart :: UUID -> Maybe UUID -> IO ()
+interpreterStart uuid guiID = sendRequest $ Message uuid guiID $ Interpreter.Pause
+
+interpreterReload :: UUID -> Maybe UUID -> IO ()
+interpreterReload uuid guiID = sendRequest $ Message uuid guiID $ Interpreter.Reload

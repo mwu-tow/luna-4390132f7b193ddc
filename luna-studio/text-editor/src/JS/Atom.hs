@@ -4,6 +4,7 @@
 module JS.Atom
     ( activeLocation
     , insertCode
+    , pushInterpreterUpdate
     , pushStatus
     , setBuffer
     , setClipboard
@@ -36,6 +37,9 @@ foreign import javascript safe "atomCallbackTextEditor.setClipboard($1, $2)"
 
 foreign import javascript safe "atomCallbackTextEditor.pushStatus($1, $2, $3)"
     pushStatus :: JSString -> JSString -> JSString -> IO ()
+
+foreign import javascript safe "atomCallbackTextEditor.pushInterpreterUpdate($1, $2)"
+    pushInterpreterUpdate' :: JSString -> JSVal -> IO ()
 
 foreign import javascript safe "atomCallbackTextEditor.subscribeEventListenerInternal($1)"
     subscribeEventListenerInternal' :: Callback (JSVal -> IO ()) -> IO ()
@@ -100,3 +104,6 @@ subscribeEventListenerInternal callback = do
     wrappedCallback <- syncCallback1 ContinueAsync $ \jsval -> withJustM (fromJSVal jsval) callback
     subscribeEventListenerInternal' wrappedCallback
     return $ unsubscribeEventListenerInternal' wrappedCallback >> releaseCallback wrappedCallback
+
+pushInterpreterUpdate :: MonadIO m => String -> Maybe Text -> m ()
+pushInterpreterUpdate name value = liftIO $ pushInterpreterUpdate' (convert name) (pToJSVal value)
