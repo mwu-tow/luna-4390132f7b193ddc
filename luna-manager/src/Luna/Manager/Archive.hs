@@ -42,7 +42,7 @@ unpack guiInstaller totalProgress progressFieldName file = do
             ext <- tryJust extensionError $ extension file
             case ext of
                 "zip" -> unzipFileWindows file
-                "gz"  -> untarWin file
+                "gz"  -> untarWin guiInstaller totalProgress progressFieldName file
         Darwin  -> do
             ext <- tryJust extensionError $ extension file
             case ext of
@@ -76,12 +76,21 @@ unzipUnix file = do
             listed <- Shelly.ls $ dir </> name
             if length listed == 1 then return $ head listed else return $ dir </> name
 
-logger :: Text.Text -> Double -> IORef Int -> Int -> Text.Text -> IO ()
-logger progressFieldName totalProgress lastNumber n t = do
+countingFilesLogger :: Text.Text -> Double -> IORef Int -> Int -> Text.Text -> IO ()
+countingFilesLogger progressFieldName totalProgress lastNumber n t = do
     modifyIORef' lastNumber succ
     currentFileNumber <- readIORef lastNumber
     let progress = (fromIntegral  currentFileNumber / fromIntegral n :: Double) * totalProgress
     print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
+
+directProgressLogger :: Text.Text -> Double ->Text.Text -> IO ()
+directProgressLogger progressFieldName totalProgress actualProgress = do
+    let parsedActualProgress = Text.rational actualProgress
+    case parsedActualProgress of
+        Right x -> do
+            let progress =  (fst x) * totalProgress
+            print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
+        Left err -> raise' UnpackingError
 
 unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
@@ -95,7 +104,7 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
             case n of
                 Right x -> do
                     currentUnpackingFileNumber <- liftIO $ newIORef 0
-                    Shelly.log_stderr_with (logger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
+                    Shelly.log_stderr_with (countingFilesLogger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
                 Left err -> raise' UnpackingError
             else void $ Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
         return $ dir </> name
@@ -127,20 +136,25 @@ unzipFileWindows zipFile = do
                       liftIO $ print $ Shelly.toTextIgnore $ dir </> name
                       return $ dir </> name
 
-untarWin :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)=> FilePath -> m FilePath
-untarWin zipFile = do
-  let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
-  --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
+untarWin :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+untarWin guiInstaller totalProgress progressFieldName zipFile = do
+    let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
+    --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
-  script <- downloadFromURL scriptPath "Downloading archiving tool"
-  let dir = directory zipFile
-      name = dir </> basename zipFile
-  Shelly.silently $ do
+    script <- downloadFromURL scriptPath "Downloading archiving tool"
+    let dir = directory zipFile
+        name = dir </> basename zipFile
+
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
         -- Shelly.cp script dir
         -- liftIO $ print name
-        Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name
+        if guiInstaller then do
+            Shelly.log_stderr_with (directProgressLogger progressFieldName totalProgress) $ Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
+
+
+
+            else Shelly.silently $ Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name
         listed <- Shelly.ls $ dir </> name
         if length listed == 1
             then do
