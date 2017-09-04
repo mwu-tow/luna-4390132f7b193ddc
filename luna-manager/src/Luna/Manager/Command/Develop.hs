@@ -16,6 +16,9 @@ import Luna.Manager.Component.Repository
 import Luna.Manager.Command.CreatePackage --(downloadAndUnpackDependency, PackageConfig)
 import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
+
+import Control.Monad.Trans.Resource ( MonadBaseControl)
+
 -- hardcodedRepo :: Repo
 -- hardcodedRepo = Repo defpkgs ["studio"] where
 --     defpkgs = mempty & at "lib1"         .~ Just (Package "lib1 synopsis"   BatchApp $ fromList [ (Version 1 0 0 Nothing      , fromList [(SysDesc Linux X64, PackageDesc mempty "path")] )])
@@ -35,7 +38,7 @@ import Luna.Manager.System.Host
 instance Convertible FilePath Text where
     convert = convert . encodeString
 
-run :: (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m) => DevelopOpts -> m ()
+run :: (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m, MonadCatch m, MonadBaseControl IO m) => DevelopOpts -> m ()
 run opts = do
     -- root <- Shelly.pwd
     -- let devPath   = root      </> "luna-workspace"

@@ -14,9 +14,8 @@ import qualified Network.HTTP.Conduit       as HTTP
 import           Network.HTTP.Conduit       (httpLbs)
 import qualified Network.URI                as URI
 import qualified Data.ByteString.Lazy.Char8 as ByteStringL
-import qualified Control.Exception.Base     as Exception
 
-import Control.Monad.Trans.Resource (runResourceT)
+import Control.Monad.Trans.Resource ( MonadBaseControl, runResourceT)
 
 import Data.Conduit (($$+-),($=+))
 import Data.Conduit.List (sinkNull)
@@ -24,15 +23,16 @@ import Data.Conduit.Binary (sinkFile)
 import Network.HTTP.Types (hContentLength)
 import qualified Data.ByteString.Char8 as ByteStringChar (unpack, writeFile)
 import qualified Data.Text as Text
-
+import qualified Control.Exception.Safe as Exception
 
 -- === Errors === --
 
-data DownloadError = DownloadError deriving (Show)
-instance Exception DownloadError
+data DownloadException = DownloadException Text SomeException deriving (Show)
+instance Exception DownloadException where
+    displayException (DownloadException file exception) = "Couldn't download file: " <> convert file <> " because of: "  <> displayException exception
 
-downloadError :: SomeException
-downloadError = toException DownloadError
+-- downloadError :: SomeException
+-- downloadError = toException DownloadError
 
 
 -- === Utils === --
@@ -41,33 +41,33 @@ takeFileNameFromURL :: URIPath -> Maybe Text
 takeFileNameFromURL url = convert <$> name where
     name = maybeLast . URI.pathSegments =<< URI.parseURI (convert url)
 
-type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m, MonadSh m)
+type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m, MonadSh m, MonadCatch m, MonadThrow m,  MonadBaseControl IO m)
 
 downloadFromURL :: MonadNetwork m => URIPath -> Text -> m FilePath
-downloadFromURL address info = tryJust downloadError =<< go where
+downloadFromURL address info = go `Exception.catchAny` \e -> throwM (DownloadException address e)  where
     go = withJust (takeFileNameFromURL address) $ \name -> do
         --putStrLn $ (convert info) <>" (" <> convert address <> ")" TODO: option for gui Installer
         dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
-        request <- tryRight' $ HTTP.parseRequest (convert address)
-        resp    <- tryRight' @SomeException =<< liftIO (Exception.try $ httpLbs request manager)
+        request <- HTTP.parseRequest (convert address)
+        resp    <- httpLbs request manager
         liftIO $ ByteStringL.writeFile (encodeString dest) $ HTTP.responseBody resp
-        return (Just dest)
+        return dest
 
 
 newHTTPManager :: MonadIO m => m HTTP.Manager
 newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.managerResponseTimeout = HTTP.responseTimeoutMicro 5000000}
 
-downloadWithProgressBar  :: (MonadIO m, MonadException SomeException m, MonadGetter EnvConfig m, MonadSh m) => URIPath -> Bool -> m FilePath
+downloadWithProgressBar  :: MonadNetwork m => URIPath -> Bool -> m FilePath
 downloadWithProgressBar address guiInstaller = do
     tmp <- getTmpPath
     downloadWithProgressBarTo address tmp guiInstaller
 
-downloadWithProgressBarTo :: (MonadIO m, MonadException SomeException m) => URIPath -> FilePath -> Bool -> m FilePath
-downloadWithProgressBarTo address dstPath guiInstaller = do
-    req     <- tryRight' $ HTTP.parseRequest (convert address)
+downloadWithProgressBarTo :: MonadNetwork m => URIPath -> FilePath -> Bool -> m FilePath
+downloadWithProgressBarTo address dstPath guiInstaller = Exception.handleAny (\e -> throwM (DownloadException address e)) $  do
+    req     <- HTTP.parseRequest (convert address)
     manager <- newHTTPManager
-    tryRight' @SomeException <=< liftIO . Exception.try . runResourceT $ do
+    runResourceT $ do
     -- Start the request
         withJust (takeFileNameFromURL address) $ \name -> do
             let dstFile = dstPath </> (fromText name)

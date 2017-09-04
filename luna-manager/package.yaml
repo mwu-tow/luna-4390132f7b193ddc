@@ -32,6 +32,7 @@ dependencies:
   - optparse-applicative
   - typelevel
   - signal
+  - monad-control
 
   - lens-utils
   - constraints

@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import Luna.Manager.Component.Repository
 import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
-
+import Control.Monad.Raise
 import Data.Aeson                    (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON, encode)
 import qualified Data.Aeson          as JSON
 import qualified Data.Aeson.Types    as JSON
@@ -40,20 +40,33 @@ instance ToJSON Apps      --  where toEncoding = lensJSONToEncoding; toJSON = le
 
 instance FromJSON Option
 instance FromJSON Install
-instance FromJSON Initialize where parseJSON  = lensJSONParse
+instance FromJSON Initialize   where parseJSON  = lensJSONParse
 instance FromJSON Applications where parseJSON  = lensJSONParse
-instance FromJSON Apps       where parseJSON  = lensJSONParse
+instance FromJSON Apps         where parseJSON  = lensJSONParse
 
-getVersionsList :: Repo -> Text -> [Version]
-getVersionsList repo appName = sort . Map.keys $ vmap  where
-    appPkg = fromMaybe (error "no package for this app") $ Map.lookup appName $ repo ^. packages
-    vmap   = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
 
-resolveAppToInitialize :: Repo -> Text -> Apps
-resolveAppToInitialize repo name = Apps name versions where
-    versions = getVersionsList repo name
 
-generateInitialJSON :: MonadIO m => Repo -> m ()
+data UnresolvedDepError = UnresolvedDepError deriving (Show)
+makeLenses ''UnresolvedDepError
+
+instance Exception UnresolvedDepError where
+    displayException err = "Following dependencies were unable to be resolved: " <> show err
+
+unresolvedDepError :: SomeException
+unresolvedDepError = toException UnresolvedDepError
+
+getVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m [Version]
+getVersionsList repo appName = do
+    appPkg <- tryJust unresolvedDepError $ Map.lookup appName $ repo ^. packages
+    let vmap   = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
+    return $ sort . Map.keys $ vmap
+
+resolveAppToInitialize :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Apps
+resolveAppToInitialize repo name = do
+    versions <- getVersionsList repo name
+    return $ Apps name versions
+
+generateInitialJSON :: (MonadIO m, MonadException SomeException m) => Repo -> m ()
 generateInitialJSON repo = do
-    let resolved = map (resolveAppToInitialize repo) (repo ^. apps)
+    resolved <- mapM (resolveAppToInitialize repo) (repo ^. apps)
     print $ encode $ Initialize $ Applications resolved

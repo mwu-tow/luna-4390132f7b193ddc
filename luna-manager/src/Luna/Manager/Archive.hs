@@ -6,6 +6,7 @@ module Luna.Manager.Archive where
 
 import           Luna.Manager.Shell.Shelly (MonadSh)
 import           Control.Monad.Raise
+import qualified Control.Exception.Safe as Exception
 import           Data.Aeson (encode)
 import           Data.IORef
 import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
@@ -15,6 +16,7 @@ import           Luna.Manager.Shell.Commands
 import           Luna.Manager.System.Host
 import           Prologue hiding (FilePath)
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSLChar
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Read as Text
@@ -30,9 +32,13 @@ instance Exception ExtensionError
 extensionError :: SomeException
 extensionError = toException ExtensionError
 
-data UnpackingError = UnpackingError deriving (Show)
-instance Exception UnpackingError where
-    displayException err = "Archive cannot be unpacked" <> show err
+data ProgressException = ProgressException deriving (Show)
+instance Exception ProgressException where
+    displayException exception = "Can not return progress."
+
+data UnpackingException = UnpackingException Text SomeException deriving (Show)
+instance Exception UnpackingException where
+    displayException (UnpackingException file exception ) = "Archive cannot be unpacked: " <> convert file <> " because of: " <> displayException exception
 
 unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpack guiInstaller totalProgress progressFieldName file = do
@@ -90,9 +96,9 @@ directProgressLogger progressFieldName totalProgress actualProgress = do
         Right x -> do
             let progress =  (fst x) * totalProgress
             print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
-        Left err -> raise' UnpackingError
+        Left err -> raise' ProgressException --TODO czy nie powinien tu być jednak unpacking exception??
 
-unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m, MonadThrow m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
     let dir = directory file
         name = basename file
@@ -105,7 +111,7 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
                 Right x -> do
                     currentUnpackingFileNumber <- liftIO $ newIORef 0
                     Shelly.log_stderr_with (countingFilesLogger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
-                Left err -> raise' UnpackingError
+                Left err -> throwM (UnpackingException (Shelly.toTextIgnore file) (toException $ Exception.StringException err callStack ))
             else void $ Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name
         return $ dir </> name
 
@@ -130,10 +136,10 @@ unzipFileWindows zipFile = do
           listed <- Shelly.ls $ dir </> name
           if length listed == 1
               then do
-                  liftIO $ print $ Shelly.toTextIgnore $ head listed
+                --   liftIO $ print $ Shelly.toTextIgnore $ head listed
                   return $ head listed
                   else do
-                      liftIO $ print $ Shelly.toTextIgnore $ dir </> name
+                    --   liftIO $ print $ Shelly.toTextIgnore $ dir </> name
                       return $ dir </> name
 
 untarWin :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
@@ -177,7 +183,7 @@ unpackRPM file filepath = liftIO $ do
     (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " <> encodeString file <> " | cpio -idmv"
     case exitCode of
         ExitSuccess   -> return ()
-        ExitFailure a -> print $ "Fatal: rpm not unpacked. " <> err
+        ExitFailure e -> throwM (UnpackingException (Shelly.toTextIgnore file) (toException $ Exception.StringException (BSLChar.unpack err) callStack )) -- print $ "Fatal: rpm not unpacked. " <> err
 
 createTarGzUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do

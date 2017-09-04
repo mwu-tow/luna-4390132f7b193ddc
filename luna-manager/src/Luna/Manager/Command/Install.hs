@@ -418,8 +418,9 @@ run opts guiInstaller = do
 
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
         forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> do
-            appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
-            appDesc <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ fromMaybe (error "no package with choosen version") $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
+            appPkg           <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
+            evaluatedVersion <- tryJust versionError $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
+            appDesc          <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc evaluatedVersion
             let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
             when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall

@@ -12,7 +12,8 @@ import Luna.Manager.Command         (chooseCommand)
 import Control.Concurrent (myThreadId)
 import qualified Control.Exception.Safe as Exception
 import qualified Luna.Manager.Shell.Shelly as Shelly
-
+import System.Exit (exitSuccess, exitFailure)
+import System.IO (hFlush, stdout, stderr, hPutStrLn)
 
 main :: IO ()
 main = run
@@ -22,7 +23,10 @@ run = Shelly.shelly $ do
     tmp <- evalGetTmp
     threadId <- liftIO myThreadId
     liftIO $ handleSignal threadId
-    evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
+    Exception.handleAny handleTopLvlError $ evalOptionsParserT chooseCommand `Exception.finally` (cleanUp tmp)
 
-handleTopLvlError :: MonadIO m => SomeException -> m ()
-handleTopLvlError e = putStrLn $ "Fatal: " <> displayException e
+handleTopLvlError :: (MonadIO m, MonadMask m, Shelly.MonadSh m) => SomeException -> m ()
+handleTopLvlError e = do
+    liftIO $ hPutStrLn stderr $ "Fatal: " <> displayException e
+    Shelly.quietExit 1
+    -- liftIO $ exitFailure

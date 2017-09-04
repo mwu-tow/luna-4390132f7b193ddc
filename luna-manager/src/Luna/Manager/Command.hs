@@ -15,8 +15,9 @@ import           Luna.Manager.Command.CreatePackage (PackageConfig)
 import qualified Luna.Manager.Command.Develop       as Develop
 import qualified Luna.Manager.Shell.Shelly          as Shelly
 import           Luna.Manager.Shell.Shelly          (MonadSh, MonadShControl)
+import Control.Monad.Trans.Resource ( MonadBaseControl)
 
-chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m, MonadSh m, MonadShControl m) => m ()
+chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m, MonadSh m, MonadShControl m, MonadThrow m, MonadCatch m, MonadBaseControl IO m) => m ()
 chooseCommand = do
     opts <- get @Options
 

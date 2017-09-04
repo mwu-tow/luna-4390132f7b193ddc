@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeInType #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Monad.Raise (module Control.Monad.Raise, module X) where
 
@@ -13,6 +14,10 @@ import qualified Luna.Manager.Shell.Shelly as Shelly
 import Control.Lens.Utils
 import Control.Exception   as X (Exception, SomeException, toException)
 import Control.Monad.Catch (MonadThrow, throwM)
+import Control.Monad.Catch        (MonadCatch(..))
+import Control.Monad.State.Layered
+import qualified Control.Monad.State.Strict as S
+import Control.Monad.Trans.Control (MonadBaseControl(..), MonadTransControl(..), ComposeSt(..),defaultRestoreT, defaultLiftWith, defaultRestoreM, defaultLiftBaseWith)
 
 import Control.Monad              (join)
 import Data.Constraint            (Constraint)
@@ -71,8 +76,15 @@ instance {-# OVERLAPPABLE #-} (Monad m, Exception e) => MonadException e (Except
 instance                      (Monad m)              => MonadException SomeException (ExceptT SomeException m) where raise = throwE
 instance                      Exception e            => MonadException e IO where raise = Exception.throwM
 instance                      Exception e            => MonadException e Shelly.Sh where raise = Exception.throwM
-
-
+deriving instance MonadCatch m => MonadCatch (StateT t m)
+instance MonadBaseControl b m => MonadBaseControl b (StateT t m) where
+    type StM (StateT t m) a = ComposeSt (StateT t) m a
+    liftBaseWith f   = defaultLiftBaseWith f
+    restoreM         = defaultRestoreM
+instance MonadTransControl (StateT t) where
+    type StT (StateT t) a = StT (S.StateT t) a
+    liftWith = defaultLiftWith StateT (\(StateT s) -> s)
+    restoreT = defaultRestoreT StateT
 -- === Utils === --
 
 tryJust :: MonadException e m => e -> Maybe a -> m a
