@@ -51,7 +51,7 @@ class Statusbar extends View
         @startPauseButton[0].className = interpreterPauseClasses
         @startPauseButton[0].disabled = false
 
-    unlockPause: =>
+    unlockStart: =>
         @startPauseButton[0].className = interpreterStartClasses
         @startPauseButton[0].disabled = false
 
