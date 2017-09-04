@@ -39,6 +39,7 @@ import qualified Luna.Manager.Gui.Initialize as Initilize
 import qualified Data.Aeson          as JSON
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import qualified Control.Exception.Safe as Exception
 
 import Luna.Manager.Gui.InstallationProgress
 import Data.Aeson (encode)
@@ -390,16 +391,16 @@ installApp' guiInstaller binPath package = do
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
 
-data VersionError = VersionError deriving (Show)
-instance Exception VersionError where
-    displayException err = "Incorrect version: " <> show err
+data VersionException = VersionException Text  deriving (Show)
+instance Exception VersionException where
+    displayException (VersionException v ) = "Incorrect version: " <> show v
 
-versionError :: SomeException
-versionError = toException VersionError
+-- versionError :: SomeException
+-- versionError = toException VersionException
 
-readVersion :: (MonadIO m, MonadException SomeException m) => Text -> m Version
+readVersion :: (MonadIO m, MonadException SomeException m, MonadThrow m) => Text -> m Version
 readVersion v = case readPretty v of
-    Left e  -> raise versionError
+    Left e  -> throwM $ VersionException v
     Right v -> return $ v
 
 isNotNightly :: Version -> Bool
@@ -408,7 +409,7 @@ isNotNightly v = isNothing $ v ^. nightly
 
 -- === Running === --
 
-run :: MonadInstall m => InstallOpts -> Bool -> m ()
+run :: (MonadInstall m) => InstallOpts -> Bool -> m ()
 run opts guiInstaller = do
     repo <- getRepo
     if guiInstaller then do
@@ -419,7 +420,7 @@ run opts guiInstaller = do
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
         forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> do
             appPkg           <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
-            evaluatedVersion <- tryJust versionError $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
+            evaluatedVersion <- tryJust (toException $ VersionException $ convert $ show appVersion) $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
             appDesc          <- tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc evaluatedVersion
             let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
             when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
