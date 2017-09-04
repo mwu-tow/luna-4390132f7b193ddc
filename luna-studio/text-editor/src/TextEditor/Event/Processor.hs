@@ -16,6 +16,7 @@ import qualified TextEditor.Event.Loop               as Loop
 import qualified TextEditor.Event.Preprocessor.Batch as BatchEventPreprocessor
 import           TextEditor.Event.Source             (AddHandler (..))
 import qualified TextEditor.Event.Source             as JSHandlers
+import qualified TextEditor.Handler.Control          as Control
 import qualified TextEditor.Handler.ProjectManager   as ProjectManager
 import qualified TextEditor.Handler.Text             as Text
 import           TextEditor.State.Global             (State)
@@ -35,7 +36,8 @@ consoleTimeEnd   = consoleTimeEnd'   . convert
 
 actions :: LoopRef -> [Event -> Maybe (Command State ())]
 actions _ =
-    [ ProjectManager.handle
+    [ Control.handle
+    , ProjectManager.handle
     , Text.handle
     ]
 

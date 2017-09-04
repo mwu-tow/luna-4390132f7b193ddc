@@ -14,6 +14,7 @@ import           LunaStudio.API.Atom.SaveFile               as SaveFile
 import           LunaStudio.API.Atom.SetProject             as SetProject
 import           LunaStudio.API.Atom.Substitute             as Substitute
 import           LunaStudio.API.Control.EmpireStarted       as EmpireStarted
+import           LunaStudio.API.Control.Interpreter         as Interpreter
 import           LunaStudio.API.Graph.AddConnection         as AddConnection
 import           LunaStudio.API.Graph.AddNode               as AddNode
 import           LunaStudio.API.Graph.AddPort               as AddPort
@@ -117,6 +118,9 @@ instance ToJSON AddConnection.Request
 instance ToJSON AddNode.Request
 instance ToJSON AddPort.Request
 instance ToJSON AddSubgraph.Request
+instance ToJSON AtomCopy.Request
+instance ToJSON AtomCopy.Result
+instance ToJSON AtomPaste.Request
 instance ToJSON AutolayoutNodes.Inverse
 instance ToJSON AutolayoutNodes.Request
 instance ToJSON CloseFile.Request
@@ -126,10 +130,7 @@ instance ToJSON CollapseToFunction.Inverse
 instance ToJSON CollapseToFunction.Request
 instance ToJSON Connection.Connection
 instance ToJSON Copy.Request
-instance ToJSON AtomCopy.Request
-instance ToJSON AtomPaste.Request
 instance ToJSON Copy.Result
-instance ToJSON AtomCopy.Result
 instance ToJSON CreateLibrary.Request
 instance ToJSON CreateLibrary.Result
 instance ToJSON CreateLibrary.Update
@@ -153,6 +154,8 @@ instance ToJSON Graph.Graph
 instance ToJSON i => ToJSON (Port.Port i)
 instance ToJSON ImportProject.Request
 instance ToJSON ImportProject.Result
+instance ToJSON Interpreter.Request
+instance ToJSON Interpreter.Update
 instance ToJSON IsSaved.Request
 instance ToJSON IsSaved.Result
 instance ToJSON IsSaved.Saved
@@ -181,8 +184,8 @@ instance ToJSON OpenFile.Request
 instance ToJSON OpenProject.Request
 instance ToJSON OpenProject.Result
 instance ToJSON OpenProject.Update
-instance ToJSON payload => ToJSON (Response.Status payload)
 instance ToJSON Paste.Request
+instance ToJSON payload => ToJSON (Response.Status payload)
 instance ToJSON PEnvelope.Envelope
 instance ToJSON PLibrary.Library
 instance ToJSON Point
