@@ -161,14 +161,17 @@ prepareInstallPath appType appPath appName appVersion = expand $ case currentHos
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
         BatchApp -> appPath </> convert appName </> convert appVersion
 
-checkIfAppAlreadyInstalledInCurrentVersion :: MonadInstall m => Bool -> FilePath -> AppType -> m ()
-checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType = do
+data TheSameVersionException = TheSameVersionException Version  deriving (Show)
+instance Exception TheSameVersionException where
+    displayException (TheSameVersionException v ) = "You have this version already installed: " <> (convert $ showPretty v)
+
+checkIfAppAlreadyInstalledInCurrentVersion :: MonadInstall m => Bool -> FilePath -> AppType -> Version -> m ()
+checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType pkgVersion = do
     testInstallPath <- Shelly.test_d installPath
     if testInstallPath
         then do
             if guiInstaller then do
-                liftIO $ hPutStrLn stderr "You have this version already installed"
-                liftIO $ exitFailure
+                throwM $ TheSameVersionException pkgVersion
                 else do
                     putStrLn "You have this version already installed. Do you want to reinstall? yes/no [no]"
                     ans <- liftIO $ getLine
@@ -180,12 +183,12 @@ checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType = do
                             else if ans == ""
                                 then void . liftIO $ exitSuccess
                                 else do
-                                    checkIfAppAlreadyInstalledInCurrentVersion False installPath appType
+                                    checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType pkgVersion
         else return ()
 
-downloadAndUnpackApp :: MonadInstall m => Bool -> URIPath -> FilePath -> Text -> AppType -> m ()
-downloadAndUnpackApp guiInstaller pkgPath installPath appName appType = do
-    checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType
+downloadAndUnpackApp :: MonadInstall m => Bool -> URIPath -> FilePath -> Text -> AppType -> Version -> m ()
+downloadAndUnpackApp guiInstaller pkgPath installPath appName appType pkgVersion = do
+    checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType pkgVersion
     stopServices installPath appType
     Shelly.mkdir_p $ parent installPath
     pkg      <- downloadWithProgressBar pkgPath guiInstaller
@@ -387,7 +390,7 @@ installApp' guiInstaller binPath package = do
         pkgVersion = showPretty $ package ^. header . version
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
     -- stopServices installPath appType
-    downloadAndUnpackApp guiInstaller (package ^. desc . path) installPath pkgName appType
+    downloadAndUnpackApp guiInstaller (package ^. desc . path) installPath pkgName appType $ package ^. header . version
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
 
