@@ -211,7 +211,13 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     case packageType of
         BatchApp -> Shelly.mv unpacked thirdPartyFullPath
         GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
-        Lib      -> Shelly.mv unpacked libFullPath
+        Lib      -> do
+            unpackedIsDir <- Shelly.test_d unpacked
+            if unpackedIsDir then do
+                listed <- Shelly.ls unpacked
+                print $ show listed
+                mapM_ (flip Shelly.mv libFullPath) listed
+                else Shelly.mv unpacked libFullPath
 
 ------------------------------
 -- === linkingLibsMacOS === --
