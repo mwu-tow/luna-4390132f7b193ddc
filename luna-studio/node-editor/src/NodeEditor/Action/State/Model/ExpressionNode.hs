@@ -14,9 +14,9 @@ import           NodeEditor.Action.State.NodeEditor         (getConnectionsToNod
                                                              modifyExpressionNode)
 import           NodeEditor.React.Model.Connection          (canConnect, dst)
 import           NodeEditor.React.Model.Constants           (nodeRadius)
-import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, NodeLoc, argConstructorMode, countArgPorts, hasPort, inPortAt,
-                                                             inPortsList, isCollapsed, isMouseOver, nodeId, nodeLoc, outPortAt,
-                                                             outPortsList, position, position, zPos)
+import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, NodeLoc, argConstructorMode, argumentConstructorRef,
+                                                             countArgPorts, hasPort, inPortAt, inPortsList, isCollapsed, isMouseOver,
+                                                             nodeId, nodeLoc, outPortAt, outPortsList, position, position, zPos)
 import           NodeEditor.React.Model.Port                (AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), Mode (..),
                                                              isOutPort, isSelf, mode, portId, valueType)
 import           NodeEditor.State.Action                    (connectSourcePort, penConnectAction)
@@ -119,5 +119,5 @@ calculatePortSelfMode node = do
 isArgConstructorConnectSrc :: NodeLoc -> Command State Bool
 isArgConstructorConnectSrc nl = do
     mayConnectSrc <- view connectSourcePort `fmap2` use (actions . currentConnectAction)
-    mayPortRef    <- (\n -> InPortRef' $ InPortRef nl [Arg $ countArgPorts n]) `fmap2` getExpressionNode nl
+    mayPortRef    <- argumentConstructorRef `fmap2` getExpressionNode nl
     return $ isJust mayConnectSrc && mayConnectSrc == mayPortRef

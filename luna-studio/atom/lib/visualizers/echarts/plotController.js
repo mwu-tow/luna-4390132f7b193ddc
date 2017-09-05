@@ -31,7 +31,7 @@
 
       for (var i = 0; i < rawData.length; i++) {
           axisData.push(i + '');
-          var ascList = rawData[i].sort();
+          var ascList = rawData[i].concat().sort();
 
           var Q1 = quantile(ascList, 0.25);
           var Q2 = quantile(ascList, 0.5);
