@@ -80,12 +80,10 @@ cabal.sandbox.config
 # aws credentials
 aws.config
 
-### DEPRECATED ###
-# cabal-dev
-
 build_*/**/.stack-work
 .autoenv.zsh
 
+luna-package.yaml
 temp
 stack
 !**/.gitkeep
@@ -93,4 +91,3 @@ supervisor/tmp/*
 **/.stack-work
 supervisord.log
 workspace
-MissingH.cabal
