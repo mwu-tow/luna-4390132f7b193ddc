@@ -1,3 +1,96 @@
+native class Int:
+    def +  that: primIntAdd      self that
+    def *  that: primIntMultiply self that
+    def -  that: primIntSubtract self that
+    def /  that: primIntDivide   self that
+    def %  that: primIntModulo   self that
+    def >  that: primIntGt       self that
+    def <  that: primIntLt       self that
+    def == that: primIntEquals   self that
+
+    def negate: primIntNegate self
+    def toReal: primIntToReal self
+    def toText: primIntToText self
+
+    def shortRep: self.toText
+    def toJSON: JSONNumber self.toReal
+
+    def miliseconds: primIntMiliseconds self
+    def seconds: self*1000 . miliseconds
+    def minutes: self*60 . seconds
+
+native class Real:
+    def +  that: primRealAdd      self that
+    def *  that: primRealMultiply self that
+    def -  that: primRealSubtract self that
+    def /  that: primRealDivide   self that
+    def >  that: primRealGt       self that
+    def <  that: primRealLt       self that
+    def == that: primRealEquals   self that
+
+    def negate:     primRealNegate self
+    def toText:     primRealToText self
+    def round prec: primRealRound  self prec
+
+    def shortRep: self.toText
+    def toJSON: JSONNumber self
+
+native class Text:
+    def +  that: primTextConcat self that
+    def >  that: primTextGt     self that
+    def <  that: primTextLt     self that
+    def == that: primTextEquals self that
+    def equals that: primTextEquals self that
+
+    def isEmpty: primTextIsEmpty self
+    def length:  primTerxtLength self
+
+    def hasPrefix  p: primTextHasPrefix self p
+    def isPrefixOf t: t.hasPrefix p
+
+    def characters: primTextCharacters self
+    def words:      primTextWords      self
+    def lines:      primTextLines      self
+
+    def lowercase: primTextLowercase self
+    def uppercase: primTextUppercase self
+    def reverse:   primTextReverse   self
+
+    def escapeJSON: primTextEscapeJSON self
+    def shortRep:   primTextShortRep   self
+    def toBinary:   primTextToBinary   self
+    def toText:     self
+    def toJSON:     JSONString self
+
+native class Binary:
+    def +  that: primBinaryConcat self that
+    def == that: primBinaryEquals self that
+
+    def length: primBinaryLength self
+    def toText: primBinaryToText self
+
+    def shortRep: "Binary<" + self.length.toText + ">"
+    def toBinary: self
+
+
+class Complex:
+    real      :: Real
+    imaginary :: Real
+
+    def shortRep: self.real.shortRep + " + " + self.imaginary.shortRep + "i"
+
+    def + that:
+        r = self.real.+ that.real
+        i = self.imaginary.+ that.imaginary
+        Complex r i
+
+    def * that:
+        r = self.real.* that.real      - self.imaginary.* that.imaginary
+        i = self.real.* that.imaginary + self.imaginary.* that.real
+        Complex r i
+
+    def modulus: self.real*self.real + self.imaginary*self.imaginary
+
 class Bool:
     True
     False
@@ -113,6 +206,36 @@ class Tuple3 a b c:
         Tuple3 a b c: self.first.equals a . and (self.second.equals b) . and (self.third.equals c)
         other:        False
 
+class Tuple4 a b c d:
+    Tuple4 a b c d
+
+    def toJSON: case self of
+        Tuple4 a b c d: JSONArray (Prepend a.toJSON (Prepend b.toJSON (Prepend c.toJSON (Prepend d.toJSON Empty))))
+
+    def first: case self of
+        Tuple4 a b c d: a
+
+    def second: case self of
+        Tuple4 a b c d: b
+
+    def third: case self of
+        Tuple4 a b c d: c
+
+    def fourth: case self of
+        Tuple4 a b c d: d
+
+    def map f: Tuple4 (f self.first) (f self.second) (f self.third) (f self.fourth)
+
+    def toText: case self of
+        Tuple4 a b c d: "Tuple4 " + a.toText + " " + b.toText + " " + c.toText + " " + d.toText
+
+    def shortRep: case self of
+        Tuple4 a b c d: "(" + a.shortRep + ", " + b.shortRep + ", " + c.shortRep + ", " + d.shortRep + ")"
+
+    def equals that: case that of
+        Tuple4 a b c d: self.first.equals a . and (self.second.equals b) . and (self.third.equals c) . and (self.fourth.equals d)
+        other:        False
+
 class Maybe a:
     Nothing
     Just a
@@ -176,6 +299,46 @@ class Maybe a:
         Nothing: case that of
             Nothing: True
             other:   False
+
+class Either a b:
+    Left  a
+    Right b
+
+    def toJSON: case self of
+        Left  a: a.toJSON
+        Right b: b.toJSON
+
+    def either lf rf: case self of
+        Left  a: lf a
+        Right b: rf b
+
+    def isLeft: case self of
+        Left  _: True
+        Right _: False
+
+    def isRight: case self of
+        Left  _: False
+        Right _: True
+
+    def left: case self of
+        Left  a: a
+        Right _: errorStr "Either.left: Right"
+
+    def right: case self of
+        Left  _: errorStr "Either.right: Left"
+        Right b: b
+
+    def toText: case self of
+        Left  a: "Left " + a.toText
+        Right b: "Right " + b.toText
+
+    def shortRep: case self of
+        Left  a: "Left " + a.shortRep
+        Right b: "Right " + b.shortRep
+
+    def equals that: case self of
+        Left  a: if that.isLeft  then a.equals that.left  else False
+        Right b: if that.isRight then b.equals that.right else False
 
 class List a:
     Empty
@@ -254,7 +417,7 @@ class List a:
         Tuple2 Empty y: y
 
     def sort:
-        halfLen = self.length.div 2
+        halfLen = self.length / 2
         case 0.equals halfLen of
             True: self
             False:
@@ -297,6 +460,11 @@ class List a:
         Prepend Nothing xs:  xs.collect
 
     def makeString sep: self.fold "" (x: y: x.toString + sep + y.toString)
+
+    def concat: case self of
+        Empty: Empty
+        Prepend Empty r: r.concat
+        Prepend (Prepend x xs) ys: Prepend x (Prepend xs ys).concat
 
 class Map k v:
     Map
