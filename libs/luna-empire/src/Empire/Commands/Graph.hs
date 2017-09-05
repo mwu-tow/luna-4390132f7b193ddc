@@ -260,7 +260,7 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
 
         return (fromIntegral insertedCharacters, codePosition)
 
-    Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off >= codePosition then off + insertedCharacters else off)
+    Graph.clsFuns . traverse . Graph.funGraph . Graph.fileOffset %= (\off -> if off >= codePosition then off + insertedCharacters else off)
     (uuid', graph) <- makeGraphCls parse (Just uuid)
 
     runASTOp $ GraphBuilder.buildClassNode uuid' name
@@ -476,7 +476,7 @@ removeNodes :: GraphLocation -> [NodeId] -> Empire ()
 removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
     withUnit loc $ do
         funs <- use Graph.clsFuns
-        let funsUUIDs = Map.fromList $ map (\(k, (n,g)) -> (k, n)) $ Map.assocs funs
+        let funsUUIDs = Map.fromList $ map (\(k, fun) -> (k, fun ^. Graph.funName)) $ Map.assocs funs
             funsToRemove = catMaybes $ map (flip Map.lookup funsUUIDs) nodeIds
 
         let graphsToRemove = Map.elems $ Map.filterWithKey (\a _ -> a `elem` nodeIds) funs
@@ -505,7 +505,7 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                     return (start - off, start + len)
                 forM (reverse spans) $ \(start, end) -> do
                     let removedCharacters = end - start
-                    Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\off -> if off > end then off - removedCharacters else off)
+                    Graph.clsFuns . traverse . Graph.funGraph . Graph.fileOffset %= (\off -> if off > end then off - removedCharacters else off)
                     Code.removeAt start end
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize left)
                 mapM (IR.deleteSubtree <=< IR.source) toRemove
@@ -648,8 +648,8 @@ setNodeMetaGraph nodeId newMeta = do
 
 setNodeMetaFun :: NodeId -> NodeMeta -> Command ClsGraph ()
 setNodeMetaFun nodeId newMeta = runASTOp $ do
-    Just (name, _) <- use $ Graph.clsFuns . at nodeId
-    f              <- ASTRead.getFunByName name
+    Just fun <- use $ Graph.clsFuns . at nodeId
+    f        <- ASTRead.getFunByName $ fun ^. Graph.funName
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
@@ -668,8 +668,8 @@ setNodePositionAST nodeId newPos = do
 
 setNodePositionCls :: ClassOp m => NodeId -> Position -> m ()
 setNodePositionCls nodeId newPos = do
-    Just (name, _) <- use $ Graph.clsFuns . at nodeId
-    f              <- ASTRead.getFunByName name
+    Just fun <- use $ Graph.clsFuns . at nodeId
+    f        <- ASTRead.getFunByName $ fun ^. Graph.funName
     oldMeta <- fromMaybe def <$> AST.readMeta f
     AST.writeMeta f $ oldMeta & NodeMeta.position .~ newPos
 
@@ -791,7 +791,7 @@ decodeLocation loc@(GraphLocation file crumbs) = case crumbs of
         _             -> do
             definitionsIDs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
                 funs <- use Graph.clsFuns
-                return $ Map.map fst funs
+                return $ Map.map (view Graph.funName) funs
             withGraph (functionLocation loc) $ GraphBuilder.decodeBreadcrumbs definitionsIDs crumbs
 
 renameNode :: GraphLocation -> NodeId -> Text -> Empire ()
@@ -800,8 +800,8 @@ renameNode loc nid name
         let stripped = Text.strip name
         withUnit loc $ do
             _ <- liftIO $ ASTParse.runProperVarParser stripped
-            oldName <- use $ Graph.clsFuns . ix nid . _1
-            Graph.clsFuns %= Map.adjust (_1 .~ (Text.unpack stripped)) nid
+            oldName <- use $ Graph.clsFuns . ix nid . Graph.funName
+            Graph.clsFuns %= Map.adjust (Graph.funName .~ (Text.unpack stripped)) nid
             runASTOp $ do
                 fun     <- ASTRead.getFunByName oldName >>= ASTRead.cutThroughMarked
                 IR.matchExpr fun $ \case
@@ -930,7 +930,7 @@ loadCode (GraphLocation file _) code = do
     activeFiles . at file . traverse . Library.body . Graph.clsCodeMarkers .= (coerce exprMap)
     activeFiles . at file . traverse . Library.body . Graph.code .= code
     funs <- use $ activeFiles . at file . traverse . Library.body . Graph.clsFuns
-    let funsUUIDs = Map.fromList $ map (\(k, (n,g)) -> (n, k)) $ Map.assocs funs
+    let funsUUIDs = Map.fromList $ map (\(k, fun) -> (fun ^. Graph.funName, k)) $ Map.assocs funs
     activeFiles . at file . traverse . Library.body . Graph.clsFuns .= Map.empty
     withUnit (GraphLocation file (Breadcrumb [])) $ do
         putNewIRCls ir
@@ -975,10 +975,10 @@ autolayoutTopLevel :: GraphLocation -> Empire ()
 autolayoutTopLevel loc = do
     withUnit loc $ runASTOp $ do
         clsFuns    <- use Graph.clsFuns
-        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, (name, graph)) -> do
-            f    <- ASTRead.getFunByName name
+        needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, fun) -> do
+            f    <- ASTRead.getFunByName $ fun ^. Graph.funName
             meta <- AST.readMeta f
-            let fileOffset = graph ^. Graph.fileOffset
+            let fileOffset = fun ^. Graph.funGraph . Graph.fileOffset
             return $ if meta /= def then Nothing else Just (id, fileOffset)
 
         let sortedNeedLayout = sortOn snd needLayout
@@ -1059,7 +1059,7 @@ getNodeIdForMarker index = do
     exprMap      <- getExprMap
     let exprMap' :: Map.Map Luna.MarkerId NodeRef
         exprMap' = coerce exprMap
-        ref = Map.lookup (fromIntegral index) exprMap'
+        ref      = Map.lookup (fromIntegral index) exprMap'
     case ref of
         Nothing -> return Nothing
         Just r  -> IR.matchExpr r $ \case
@@ -1262,7 +1262,7 @@ prepareCopy loc@(GraphLocation _ (Breadcrumb [])) nodeIds = withUnit loc $ do
                 nonExistent = filter (isNothing . snd) names
             forM nonExistent $ \(nid, _) ->
                 throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Breadcrumb.Definition nid])
-            refs <- mapM ASTRead.getFunByName [ name | (_nid, Just (name, _graph)) <- names]
+            refs <- mapM ASTRead.getFunByName [ name | (_nid, Just (view Graph.funName -> name)) <- names]
             forM refs $ \ref -> do
                 LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
                 return $ fromIntegral len
@@ -1398,7 +1398,7 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
 -- internal
 
 getName :: GraphLocation -> NodeId -> Empire (Maybe Text)
-getName loc nid = withGraph' loc (runASTOp $ GraphBuilder.getNodeName nid) $ use (Graph.clsFuns . ix nid . _1 . packed . re _Just)
+getName loc nid = withGraph' loc (runASTOp $ GraphBuilder.getNodeName nid) $ use (Graph.clsFuns . ix nid . Graph.funName . packed . re _Just)
 
 generateNodeName :: GraphOp m => NodeRef -> m Text
 generateNodeName = ASTPrint.genNodeBaseName >=> generateNodeNameFromBase

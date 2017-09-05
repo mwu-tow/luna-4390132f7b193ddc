@@ -64,7 +64,7 @@ makeGraphCls fun lastUUID = do
     portMapping <- fromJustM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
     let bh    = BH.LamItem portMapping ref def
         graph = Graph.Graph ast bh def def def fileOffset nodeCache
-    Graph.clsFuns . at uuid ?= (funName, graph)
+    Graph.clsFuns . at uuid ?= Graph.FunctionGraph funName graph Map.empty
     updatedCache <- withRootedFunction uuid $ do
         runASTOp $ propagateLengths ref
         runAliasAnalysis
@@ -97,7 +97,7 @@ zoomInternalBreadcrumb breadcrumb act = runInternalBreadcrumb breadcrumb act
 
 withRootedFunction :: NodeId -> Command Graph.Graph a -> Command Graph.ClsGraph a
 withRootedFunction uuid act = do
-    graph    <- preuse (Graph.clsFuns . ix uuid . _2) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition uuid])
+    graph    <- preuse (Graph.clsFuns . ix uuid . Graph.funGraph) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition uuid])
     env      <- ask
     clsGraph <- get
     let properGraph = let clsMarkers    = clsGraph ^. Graph.clsCodeMarkers
@@ -112,8 +112,8 @@ withRootedFunction uuid act = do
             ref <- ASTRead.getCurrentASTRef
             IR.getLayer @SpanLength ref
         return (a, len)
-    Graph.clsFuns . ix uuid . _2 .= newGraph
-    funName <- use $ Graph.clsFuns . ix uuid . _1
+    Graph.clsFuns . ix uuid . Graph.funGraph .= newGraph
+    funName <- use $ Graph.clsFuns . ix uuid . Graph.funName
     diffs <- runASTOp $ do
         cls <- use Graph.clsClass
         funs <- ASTRead.classFunctions cls
@@ -139,7 +139,7 @@ withRootedFunction uuid act = do
                     else return Nothing
     let diff = fromMaybe (error "function not in AST?") $ listToMaybe $ catMaybes diffs
         funOffset = properGraph ^. Graph.fileOffset
-    Graph.clsFuns . traverse . _2 . Graph.fileOffset %= (\a -> if a > funOffset then a + diff else a)
+    Graph.clsFuns . traverse . Graph.funGraph . Graph.fileOffset %= (\a -> if a > funOffset then a + diff else a)
     Graph.clsCodeMarkers .= newGraph ^. Graph.codeMarkers
     Graph.code           .= newGraph ^. Graph.code
     Graph.clsParseError  .= newGraph ^. Graph.parseError

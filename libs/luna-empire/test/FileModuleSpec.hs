@@ -32,6 +32,7 @@ import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortDefault     (PortDefault (..))
 import           LunaStudio.Data.PortRef         (AnyPortRef (..))
 import qualified LunaStudio.Data.Position        as Position
+import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 
 import           Empire.Empire
@@ -621,7 +622,7 @@ spec = around withChannels $ parallel $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
-                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                    return $ map (\fun -> (fun ^. Graph.funName, fun ^. Graph.funGraph . Graph.fileOffset)) $ Map.elems funs
                 return offsets
             offsets `shouldMatchList` [("foo",0), ("bar",41), ("main",64)]
         it "maintains proper function file offsets after adding a function" $ \env -> do
@@ -636,7 +637,7 @@ spec = around withChannels $ parallel $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
-                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                    return $ map (\fun -> (fun ^. Graph.funName, fun ^. Graph.funGraph . Graph.fileOffset)) $ Map.elems funs
                 return offsets
             offsets `shouldMatchList` [("foo",0), ("bar",22), ("aaa",45), ("main",64)]
         it "maintains proper function file offsets after removing a function" $ \env -> do
@@ -650,7 +651,7 @@ spec = around withChannels $ parallel $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
-                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                    return $ map (\fun -> (fun ^. Graph.funName, fun ^. Graph.funGraph . Graph.fileOffset)) $ Map.elems funs
                 return offsets
             offsets `shouldMatchList` [("foo",0), ("main",19)]
         it "maintains proper function file offsets after renaming a function" $ \env -> do
@@ -665,7 +666,7 @@ spec = around withChannels $ parallel $ do
                 funIds <- (map (view Node.nodeId)) <$> Graph.getNodes loc
                 offsets <- Graph.withUnit loc $ do
                     funs <- use Graph.clsFuns
-                    return $ map (\(n,g) -> (n, g ^. Graph.fileOffset)) $ Map.elems funs
+                    return $ map (\fun -> (fun ^. Graph.funName, fun ^. Graph.funGraph . Graph.fileOffset)) $ Map.elems funs
                 return offsets
             offsets `shouldMatchList` [("foo", 0), ("qwerty", 22), ("main", 48)]
         it "adds the first function in a file" $ \env -> do
@@ -698,4 +699,22 @@ spec = around withChannels $ parallel $ do
 
                 def main:
                     None
+                |]
+        it "pastes top level function with marker" $ \env -> do
+            (nodes, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc multiFunCode
+                Graph.pasteText loc [Range 15 15] ["«3»def quux: None### META {\"metas\":[{\"marker\":3,\"meta\":{\"_displayResult\":false,\"_selectedVisualizer\":null,\"_position\":{\"fromPosition\":{\"_vector2_y\":0,\"_vector2_x\":0}}}}]}"]
+                (,) <$> Graph.getNodes loc <*> Graph.getCode loc
+            length nodes `shouldBe` 4
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                def foo:
+                    5
+                def quux: None
+                def bar:
+                    "bar"
+
+                def main:
+                    print bar
                 |]

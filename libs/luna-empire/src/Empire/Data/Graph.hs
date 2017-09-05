@@ -57,12 +57,17 @@ data Graph = Graph { _ast                   :: AST Graph
                    , _graphNodeCache        :: NodeCache
                    } deriving Show
 
+data FunctionGraph = FunctionGraph { _funName    :: String
+                                   , _funGraph   :: Graph
+                                   , _funMarkers :: Map Luna.MarkerId NodeRef
+                                   } deriving Show
+
 data ClsGraph = ClsGraph { _clsAst         :: AST ClsGraph
                          , _clsClass       :: NodeRef
                          , _clsCodeMarkers :: Map Luna.MarkerId NodeRef
                          , _clsCode        :: Text
                          , _clsParseError  :: Maybe SomeException
-                         , _clsFuns        :: Map NodeId (String, Graph)
+                         , _clsFuns        :: Map NodeId FunctionGraph
                          , _clsNodeCache   :: NodeCache
                          } deriving Show
 
@@ -167,6 +172,7 @@ defaultClsAST = mdo
     return (ast, cls)
 
 makeLenses ''Graph
+makeLenses ''FunctionGraph
 makeLenses ''ClsGraph
 makeLenses ''AST
 makeLenses ''NodeCache
