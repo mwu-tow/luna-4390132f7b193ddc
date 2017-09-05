@@ -28,7 +28,8 @@ import           NodeEditor.React.View.Connection           (connection_, halfCo
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
 import           NodeEditor.React.View.ExpressionNode       (filterOutSearcherIfNotRelated, nodeDynamicStyles_, node_)
 import           NodeEditor.React.View.Monad                (monads_)
-import           NodeEditor.React.View.Plane                (planeConnections_, planeCanvas_, planeMonads_, planeNewConnection_, planeNodes_, svgPlane_)
+import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, planeNewConnection_,
+                                                             planeNodes_, svgPlane_)
 import           NodeEditor.React.View.SelectionBox         (selectionBox_)
 import           NodeEditor.React.View.Sidebar              (sidebar_)
 import qualified NodeEditor.React.View.Style                as Style
@@ -57,7 +58,7 @@ show4 a = showFFloat (Just 4) a "" -- limit Double to two decimal numbers TODO: 
 
 applySearcherHints :: NodeEditor -> NodeEditor
 applySearcherHints ne = maybe ne replaceNode $ ne ^. NodeEditor.searcher where
-    connect srcPortRef dstPortRef ne' = ne' & NodeEditor.connections . at dstPortRef ?~ Connection.Connection srcPortRef dstPortRef Connection.Normal
+    connect srcPortRef dstPortRef ne' = ne' & NodeEditor.connections . at dstPortRef ?~ Connection.Connection srcPortRef dstPortRef False Connection.Normal
     tryConnect nl nn ne'              = maybe ne' (\srcPortRef -> connect srcPortRef (InPortRef nl [Self]) ne') $ nn ^. Searcher.predPortRef
     toModel n nl pos                  = moveNodeToTop $ (convert (def :: NodePath, n)) & ExpressionNode.nodeLoc  .~ nl
                                                                                        & ExpressionNode.position .~ pos

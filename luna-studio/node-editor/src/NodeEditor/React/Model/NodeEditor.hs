@@ -184,34 +184,36 @@ atMostFirstLevel' (OutPortId' p) = OutPortId' $ atMostFirstLevel p
 
 toPosConnection :: NodeEditor -> Connection -> Maybe PosConnection
 toPosConnection ne connection = do
-    let src        = connection ^. Connection.src
-        dst        = connection ^. Connection.dst
-        srcPortRef = src & PortRef.srcPortId %~ atMostFirstLevel
-        dstPortRef = dst & PortRef.dstPortId %~ atMostFirstLevel
-        srcNodeLoc = srcPortRef ^. PortRef.srcNodeLoc
-        dstNodeLoc = dstPortRef ^. PortRef.dstNodeLoc
-        dstPortId  = dstPortRef ^. PortRef.dstPortId
-        mode       = connection ^. Connection.mode
+    let src         = connection ^. Connection.src
+        dst         = connection ^. Connection.dst
+        srcPortRef  = src & PortRef.srcPortId %~ atMostFirstLevel
+        dstPortRef  = dst & PortRef.dstPortId %~ atMostFirstLevel
+        srcNodeLoc  = srcPortRef ^. PortRef.srcNodeLoc
+        dstNodeLoc  = dstPortRef ^. PortRef.dstNodeLoc
+        dstPortId   = dstPortRef ^. PortRef.dstPortId
+        mode        = connection ^. Connection.mode
+        sidebarConn = connection ^. Connection.sidebarConn
     srcNode <- getNode srcNodeLoc ne
     dstNode <- getNode dstNodeLoc ne
     srcPort <- getPort srcPortRef ne
     if hasPort dstPortId dstNode then do
         dstPort <- getPort dstPortRef ne
         (srcPos, dstPos) <- Connection.connectionPositions srcNode srcPort dstNode dstPort (ne ^. layout)
-        return $ PosConnection src dst srcPos dstPos mode (srcPort ^. Port.color)
+        return $ PosConnection src dst srcPos dstPos sidebarConn mode (srcPort ^. Port.color)
     else if countArgPorts dstNode == getPortNumber dstPortId then case dstNode of
         Expression n -> fmap (Connection.toPosConnection srcPortRef dstPortRef) $
-            toPosHalfConnection ne $ HalfConnection (OutPortRef' src) (Connection.argumentConstructorPosition n) mode
+            toPosHalfConnection ne $ HalfConnection (OutPortRef' src) (Connection.argumentConstructorPosition n) sidebarConn mode
         _            -> Nothing
     else Nothing
 
 
 toPosHalfConnection :: NodeEditor -> HalfConnection -> Maybe PosHalfConnection
 toPosHalfConnection ne halfConnection = do
-    let src    = halfConnection ^. Connection.from
-        dstPos = halfConnection ^. Connection.dstPos
-        pid    = src ^. PortRef.portId
-        mode   = halfConnection ^. Connection.mode
+    let src         = halfConnection ^. Connection.from
+        dstPos      = halfConnection ^. Connection.dstPos
+        pid         = src ^. PortRef.portId
+        mode        = halfConnection ^. Connection.mode
+        sidebarConn = halfConnection ^. Connection.sidebarConn
     node <- getNode (src ^. PortRef.nodeLoc) ne
     (srcPos, c) <-
         if hasPort pid node then do
@@ -222,7 +224,7 @@ toPosHalfConnection ne halfConnection = do
             Expression n -> return (Connection.argumentConstructorPosition n, Color 0)
             _            -> Nothing
         else Nothing
-    return $ PosHalfConnection srcPos dstPos mode c
+    return $ PosHalfConnection srcPos dstPos sidebarConn mode c
 
 getVisualizations :: NodeEditor -> [VisualizationProperties]
 getVisualizations ne = concatMap getVisualizationsForNode . Map.toList $ ne ^. nodeVisualizations where

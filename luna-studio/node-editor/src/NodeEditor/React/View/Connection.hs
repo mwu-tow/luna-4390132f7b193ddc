@@ -7,7 +7,7 @@ import qualified NodeEditor.Event.UI               as UI
 import           NodeEditor.React.Event.Connection (ModifiedEnd (Destination, Source))
 import qualified NodeEditor.React.Event.Connection as Connection
 import           NodeEditor.React.Model.App        (App)
-import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Sidebar), PosConnection, PosHalfConnection)
+import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Normal), PosConnection, PosHalfConnection)
 import qualified NodeEditor.React.Model.Connection as Connection
 import           NodeEditor.React.Store            (Ref, dispatch)
 import qualified NodeEditor.React.View.Style       as Style
@@ -45,19 +45,18 @@ connection = React.defineView name $ \(ref, model) -> do
         mid      = averagePosition src dst
         eventSrc = onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.ConnectionEvent $ Connection.MouseDown m connId Source)
         eventDst = onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.ConnectionEvent $ Connection.MouseDown m connId Destination)
-        lineClassWithMode = ["connection__line"] <> case model ^. Connection.pMode of
-            Sidebar     -> ["connection__sidebar"]
+        classes  = ["connection__line"] <> (if model ^. Connection.sidebarConn then ["connection__sidebar"] else []) <> case model ^. Connection.pMode of
             Internal    -> ["connection__internal"]
             Highlighted -> ["connection__highligthed"]
             Dimmed      -> ["connection__dimmed"]
-            _           -> []
+            Normal      -> []
     g_
         [ "key"       $= "connection"
         , "className" $= Style.prefix "connection"
         ] $ do
         line src dst
             [ "key"       $= "line"
-            , "className" $= Style.prefixFromList lineClassWithMode
+            , "className" $= Style.prefixFromList classes
             , "stroke"    $= convert (model ^. Connection.color)
             ]
         g_
@@ -66,7 +65,7 @@ connection = React.defineView name $ \(ref, model) -> do
             ] $ do
             line src mid
                 [ "key"       $= "1"
-                , "className" $= Style.prefixFromList lineClassWithMode
+                , "className" $= Style.prefixFromList classes
                 ]
             line src mid
                 [ "key"       $= "2"
@@ -78,7 +77,7 @@ connection = React.defineView name $ \(ref, model) -> do
             , "key" $= "dst" ] $ do
             line mid dst
                 [ "key"       $= "1"
-                , "className" $= Style.prefixFromList lineClassWithMode
+                , "className" $= Style.prefixFromList classes
                 ]
             line mid dst
                 [ "key"       $= "2"
@@ -91,16 +90,15 @@ connection_ ref model = React.viewWithSKey connection (jsShow $ model ^. Connect
 
 halfConnection :: ReactView PosHalfConnection
 halfConnection = React.defineView name $ \model -> do
-    let src   = model ^. Connection.srcPos
-        dst   = model ^. Connection.dstPos
-        color = "stroke" $= convert (model ^. Connection.color)
-        lineClassWithMode = ["connection__line"] <> case model ^. Connection.phMode of
-            Sidebar     -> ["connection__sidebar"]
+    let src     = model ^. Connection.srcPos
+        dst     = model ^. Connection.dstPos
+        color   = "stroke" $= convert (model ^. Connection.color)
+        classes = ["connection__line"] <> (if model ^. Connection.sidebarConn then ["connection__sidebar"] else []) <> case model ^. Connection.phMode of
             Internal    -> ["connection__internal"]
             Highlighted -> ["connection__highligthed"]
             Dimmed      -> ["connection__dimmed"]
-            _           -> []
-    line src dst [ color, "className" $= Style.prefixFromList lineClassWithMode ]
+            Normal      -> []
+    line src dst [ color, "className" $= Style.prefixFromList classes ]
 
 halfConnection_ :: Int -> PosHalfConnection -> ReactElementM ViewEventHandler ()
 halfConnection_ key model = React.viewWithSKey halfConnection (fromString $ "half-connection" <> show key) model mempty

@@ -5,14 +5,16 @@ module NodeEditor.React.Model.IsNode
 , module X
 ) where
 
-import           Control.Arrow                ((&&&))
-import           Data.HashMap.Strict          (HashMap)
-import qualified Data.HashMap.Strict          as HashMap
-import           LunaStudio.Data.Node         (NodeId)
-import           LunaStudio.Data.NodeLoc      as X (HasNodeLoc (..), nodeLoc)
-import qualified LunaStudio.Data.NodeLoc      as NodeLoc
 import           Common.Prelude
-import           NodeEditor.React.Model.Port (AnyPort, AnyPortId (InPortId', OutPortId'), InPort, InPortId, OutPort, OutPortId)
+import           Control.Arrow               ((&&&))
+import           Data.HashMap.Strict         (HashMap)
+import qualified Data.HashMap.Strict         as HashMap
+import           LunaStudio.Data.Node        (NodeId)
+import           LunaStudio.Data.NodeLoc     as X (HasNodeLoc (..), nodeLoc)
+import qualified LunaStudio.Data.NodeLoc     as NodeLoc
+import           LunaStudio.Data.PortRef     (AnyPortRef (..), InPortRef (..))
+import           NodeEditor.React.Model.Port (AnyPort, AnyPortId (InPortId', OutPortId'), InPort, InPortId, InPortIndex (Arg), OutPort,
+                                              OutPortId)
 import qualified NodeEditor.React.Model.Port as Port
 
 
@@ -37,7 +39,7 @@ instance LookupPort AnyPortId AnyPort where
     lookupPort node (InPortId'  portId) = InPortId' `fmap2` lookupPort node portId
     lookupPort node (OutPortId' portId) = OutPortId' `fmap2` lookupPort node portId
 
-class HasPorts node where
+class HasNodeLoc node => HasPorts node where
     inPortsList :: node -> [InPort]
     outPortsList :: node -> [OutPort]
     inPortAt             :: InPortId  -> Traversal' node InPort
@@ -52,6 +54,9 @@ class HasPorts node where
     countArgPorts = length .  filter (Port.isArg . view Port.portId) . inPortsList
     countProjectionPorts :: node -> Int
     countProjectionPorts = length .  filter (Port.isProjection . view Port.portId) . outPortsList
+    argumentConstructorRef :: node -> AnyPortRef
+    argumentConstructorRef n = InPortRef' (InPortRef (n ^. nodeLoc) [Arg $ countArgPorts n])
+
 
 class HasPort portId where
     hasPort :: HasPorts node =>  portId -> node -> Bool

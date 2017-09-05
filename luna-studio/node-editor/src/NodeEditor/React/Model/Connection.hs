@@ -29,37 +29,41 @@ import           NodeEditor.React.Model.Port                (EitherPort, InPort,
 import qualified NodeEditor.React.Model.Port                as Port
 
 
-data Mode = Normal | Sidebar | Highlighted | Dimmed | Internal deriving (Eq, Show, Typeable, Generic)
+data Mode = Normal | Highlighted | Dimmed | Internal deriving (Eq, Show, Typeable, Generic)
 
 
 data Connection = Connection
-        { _rSrc  :: OutPortRef
-        , _rDst  :: InPortRef
-        , _rMode :: Mode
+        { _rSrc           :: OutPortRef
+        , _rDst           :: InPortRef
+        , _rIsSidebarConn :: Bool
+        , _rMode          :: Mode
         } deriving (Eq, Show, Typeable, Generic)
 
 
 data PosConnection = PosConnection
-        { _pSrc    :: OutPortRef
-        , _pDst    :: InPortRef
-        , _pSrcPos :: Position
-        , _pDstPos :: Position
-        , _pMode   :: Mode
-        , _pColor  :: Color
+        { _pSrc           :: OutPortRef
+        , _pDst           :: InPortRef
+        , _pSrcPos        :: Position
+        , _pDstPos        :: Position
+        , _pIsSidebarConn :: Bool
+        , _pMode          :: Mode
+        , _pColor         :: Color
         } deriving (Eq, Show, Typeable, Generic)
 
 
 data HalfConnection = HalfConnection
-        { _from  :: AnyPortRef
-        , _hDst  :: Position
-        , _hMode :: Mode
+        { _from           :: AnyPortRef
+        , _hDst           :: Position
+        , _hIsSidebarConn :: Bool
+        , _hMode          :: Mode
         } deriving (Eq, Show, Typeable, Generic)
 
 data PosHalfConnection = PosHalfConnection
-        { _phSrc    :: Position
-        , _phDst    :: Position
-        , _phMode   :: Mode
-        , _phColor  :: Color
+        { _phSrc           :: Position
+        , _phDst           :: Position
+        , _phIsSidebarConn :: Bool
+        , _phMode          :: Mode
+        , _phColor         :: Color
         } deriving (Eq, Show, Typeable, Generic)
 
 makeLenses ''Connection
@@ -72,25 +76,30 @@ class HasDst a where
     dst :: Lens' a InPortRef
     connectionId :: Lens' a InPortRef
     connectionId = dst
-class HasSrcPos a where srcPos :: Lens' a Position
-class HasDstPos a where dstPos :: Lens' a Position
-class HasMode   a where mode   :: Lens' a Mode
-class HasColor  a where color  :: Lens' a Color
-instance HasSrc    Connection        where src    = rSrc
-instance HasDst    Connection        where dst    = rDst
-instance HasMode   Connection        where mode   = rMode
-instance HasSrc    PosConnection     where src    = pSrc
-instance HasDst    PosConnection     where dst    = pDst
-instance HasSrcPos PosConnection     where srcPos = pSrcPos
-instance HasDstPos PosConnection     where dstPos = pDstPos
-instance HasMode   PosConnection     where mode   = pMode
-instance HasColor  PosConnection     where color  = pColor
-instance HasDstPos HalfConnection    where dstPos = hDst
-instance HasMode   HalfConnection    where mode   = hMode
-instance HasSrcPos PosHalfConnection where srcPos = phSrc
-instance HasDstPos PosHalfConnection where dstPos = phDst
-instance HasMode   PosHalfConnection where mode   = phMode
-instance HasColor  PosHalfConnection where color  = phColor
+class HasSrcPos     a where srcPos      :: Lens' a Position
+class HasDstPos     a where dstPos      :: Lens' a Position
+class IsSidebarConn a where sidebarConn :: Lens' a Bool
+class HasMode       a where mode        :: Lens' a Mode
+class HasColor      a where color       :: Lens' a Color
+instance HasSrc        Connection        where src         = rSrc
+instance HasDst        Connection        where dst         = rDst
+instance IsSidebarConn Connection        where sidebarConn = rIsSidebarConn
+instance HasMode       Connection        where mode        = rMode
+instance HasSrc        PosConnection     where src         = pSrc
+instance HasDst        PosConnection     where dst         = pDst
+instance HasSrcPos     PosConnection     where srcPos      = pSrcPos
+instance HasDstPos     PosConnection     where dstPos      = pDstPos
+instance IsSidebarConn PosConnection     where sidebarConn = pIsSidebarConn
+instance HasMode       PosConnection     where mode        = pMode
+instance HasColor      PosConnection     where color       = pColor
+instance HasDstPos     HalfConnection    where dstPos      = hDst
+instance IsSidebarConn HalfConnection    where sidebarConn = hIsSidebarConn
+instance HasMode       HalfConnection    where mode        = hMode
+instance HasSrcPos     PosHalfConnection where srcPos      = phSrc
+instance HasDstPos     PosHalfConnection where dstPos      = phDst
+instance IsSidebarConn PosHalfConnection where sidebarConn = phIsSidebarConn
+instance HasMode       PosHalfConnection where mode        = phMode
+instance HasColor      PosHalfConnection where color       = phColor
 
 type ConnectionsMap = HashMap ConnectionId Connection
 
@@ -135,10 +144,10 @@ canConnect :: AnyPortRef -> AnyPortRef -> Bool
 canConnect = isJust .: toValidEmpireConnection
 
 instance Convertible PosConnection HalfConnection where
-    convert = HalfConnection <$> OutPortRef' . view src <*> view dstPos <*> view mode
+    convert = HalfConnection <$> OutPortRef' . view src <*> view dstPos <*> view sidebarConn <*> view mode
 
 toPosConnection :: OutPortRef -> InPortRef -> PosHalfConnection -> PosConnection
-toPosConnection src' dst' = PosConnection src' dst' <$> view srcPos <*> view dstPos <*> view mode <*> view color
+toPosConnection src' dst' = PosConnection src' dst' <$> view srcPos <*> view dstPos <*> view sidebarConn <*> view mode <*> view color
 
 instance Convertible Connection Empire.Connection where
     convert = Empire.Connection <$> view src <*> view dst
@@ -178,17 +187,16 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
     _ -> return def
 
 toConnection :: OutPortRef -> InPortRef -> Node -> Node -> Connection
-toConnection srcRef dstRef (Node.Input {}) _  = Connection srcRef dstRef Sidebar
-toConnection srcRef dstRef _ (Node.Output {}) = Connection srcRef dstRef Sidebar
-toConnection srcRef dstRef _ dstNode = Connection srcRef dstRef $
-    if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
+toConnection srcRef dstRef srcNode dstNode = Connection srcRef dstRef sidebarConn' mode' where
+    sidebarConn' = has Node._Input srcNode || has Node._Output dstNode
+    mode'        = if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
 
 toHalfConnection :: AnyPortRef -> Node -> Position -> HalfConnection
-toHalfConnection portRef (Node.Input {})  pos = HalfConnection portRef pos Sidebar
-toHalfConnection portRef (Node.Output {}) pos = HalfConnection portRef pos Sidebar
-toHalfConnection portRef n pos = HalfConnection portRef pos $ case portRef of
-    OutPortRef' {}    -> Normal
-    InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal
+toHalfConnection portRef n pos = HalfConnection portRef pos sidebarConn' mode' where
+    sidebarConn' = has Node._Input n || has Node._Output n
+    mode' = if Node.argumentConstructorRef n == portRef then Normal else case portRef of
+        OutPortRef' {}    -> Normal
+        InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal
 
 halfConnectionSrcPosition :: Node -> EitherPort -> Position -> Layout -> Maybe Position
 halfConnectionSrcPosition (Node.Input  _  ) (Right port) _ layout = inputSidebarPortPosition  port layout
