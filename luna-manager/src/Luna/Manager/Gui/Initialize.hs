@@ -59,7 +59,7 @@ getVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -
 getVersionsList repo appName = do
     appPkg <- tryJust unresolvedDepError $ Map.lookup appName $ repo ^. packages
     let vmap   = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
-    return $ sort . Map.keys $ vmap
+    return $ reverse . sort . Map.keys $ vmap
 
 resolveAppToInitialize :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Apps
 resolveAppToInitialize repo name = do
