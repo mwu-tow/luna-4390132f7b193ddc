@@ -98,15 +98,15 @@ instance Monad m => MonadHostConfig RunnerConfig 'Windows arch m where
 
 scriptDir :: MonadIO m => m FilePath
 scriptDir = do
-  localExePath <- liftIO $ getExecutablePath
-  return $ directory $ decodeString $ localExePath
+    localExePath <- liftIO $ getExecutablePath
+    return $ directory $ decodeString $ localExePath
 
 mainAppDir :: MonadIO m => m FilePath
 mainAppDir = liftIO $ do
     scriptPath <- scriptDir
     return $ parent $ parent $ parent $ scriptPath
 
-version :: (MonadRun m, MonadIO m) => m T.Text
+version :: MonadRun m => m T.Text
 version = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
@@ -114,19 +114,19 @@ version = do
     version <- liftIO $ readFile $ encodeString versionFilePath
     return $ T.pack $ version
 
-backendBinsPath :: (MonadRun m, MonadIO m) => m FilePath
+backendBinsPath :: MonadRun m => m FilePath
 backendBinsPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. binsFolder) </> (runnerCfg ^. backendBinsFolder)
 
-configPath :: (MonadRun m, MonadIO m) => m FilePath
+configPath :: MonadRun m => m FilePath
 configPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. configFolder)
 
-atomAppPath :: (MonadRun m, MonadIO m) => m FilePath
+atomAppPath :: MonadRun m => m FilePath
 atomAppPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
@@ -135,38 +135,38 @@ atomAppPath = do
         Darwin  -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "Atom.app" </> "Contents" </> "MacOS" </> "Atom"
         Windows -> return $ main </> (runnerCfg ^. thirdPartyFolder) </> "Atom" </> "atom.exe"
 
-backendDir :: (MonadRun m, MonadIO m) => m FilePath
+backendDir :: MonadRun m => m FilePath
 backendDir = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. configFolder) </> (runnerCfg ^. supervisorFolder)
 
-supervisordBinPath :: (MonadRun m, MonadIO m) => m FilePath
+supervisordBinPath :: MonadRun m => m FilePath
 supervisordBinPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. thirdPartyFolder) </> (runnerCfg ^. supervisordFolder) </> (runnerCfg ^. supervisordBin)
 
-killSupervisorBinPath :: (MonadRun m, MonadIO m) => m FilePath
+killSupervisorBinPath :: MonadRun m => m FilePath
 killSupervisorBinPath = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. thirdPartyFolder) </> (runnerCfg ^. supervisorKillFolder) </> (runnerCfg ^. supervisorKillBin)
 
-packageStudioAtomHome :: (MonadRun m, MonadIO m) => m FilePath
+packageStudioAtomHome :: MonadRun m => m FilePath
 packageStudioAtomHome = do
     runnerCfg <- get @RunnerConfig
     main <- mainAppDir
     return $ main </> (runnerCfg ^. userConfigFolder) </> (runnerCfg ^. studioHome)
 
-userStudioAtomHome :: (MonadRun m, MonadIO m) => m FilePath
+userStudioAtomHome :: MonadRun m => m FilePath
 userStudioAtomHome = do
     runnerCfg <- get @RunnerConfig
     home      <- liftIO $ getHomeDirectory
     v         <- version
     return $ decodeString home </> (runnerCfg ^. mainHomeDir) </> (runnerCfg ^. configHomeFolder) </> fromText (runnerCfg ^. appName) </> fromText v
 
-localLogsDirectory :: (MonadRun m, MonadIO m) => m FilePath
+localLogsDirectory :: MonadRun m => m FilePath
 localLogsDirectory = do
     main <- mainAppDir
     return $  main </> decodeString "logs"
@@ -174,25 +174,25 @@ localLogsDirectory = do
 
 
 
-userLogsDirectory :: (MonadRun m, MonadIO m) => m FilePath
+userLogsDirectory :: MonadRun m => m FilePath
 userLogsDirectory = do
     runnerCfg <- get @RunnerConfig
     home      <- liftIO $ getHomeDirectory
     v         <- version
     return $ decodeString home </> (runnerCfg ^. mainHomeDir) </> (runnerCfg ^. logsFolder) </> fromText (runnerCfg ^. appName) </> fromText v
 
-copyLunaStudio :: (MonadRun m, MonadIO m) => m ()
+copyLunaStudio :: MonadRun m => m ()
 copyLunaStudio = do
-  packageAtomHome <- packageStudioAtomHome
-  atomHome <- userStudioAtomHome
-  Shelly.shelly $ Shelly.mkdir_p atomHome
-  Shelly.shelly $ Shelly.cp_r packageAtomHome atomHome
+    packageAtomHome <- packageStudioAtomHome
+    atomHome <- userStudioAtomHome
+    Shelly.shelly $ Shelly.mkdir_p atomHome
+    Shelly.shelly $ Shelly.cp_r packageAtomHome atomHome
 
 testDirectory :: MonadIO m => FilePath -> m Bool
 testDirectory path = Shelly.shelly $ Shelly.test_d path
 
 
-checkLunaHome :: (MonadRun m, MonadIO m) => m ()
+checkLunaHome :: MonadRun m => m ()
 checkLunaHome = do
     runnerCfg       <- get @RunnerConfig
     userAtomHome    <- userStudioAtomHome
@@ -201,7 +201,7 @@ checkLunaHome = do
         True -> return ()
         False -> copyLunaStudio
 
-runLunaEmpireMacOS :: (MonadRun m, MonadIO m) => FilePath -> T.Text -> m ()
+runLunaEmpireMacOS :: MonadRun m => FilePath -> T.Text -> m ()
 runLunaEmpireMacOS logs configFile = do
     lunaSupervisor <- backendDir
     supervisord    <- supervisordBinPath
@@ -209,7 +209,7 @@ runLunaEmpireMacOS logs configFile = do
     runProcess_ $ setWorkingDir (encodeString lunaSupervisor) $ shell ((encodeString supervisord) ++ " -n -c " ++ (T.unpack configFile)) -- done with system.process.typed because with shelly clicking on app in launchpad returned abnormal exit code
 
 
-runLunaEmpire :: (MonadRun m, MonadIO m) => FilePath -> T.Text -> m ()
+runLunaEmpire :: MonadRun m => FilePath -> T.Text -> m ()
 runLunaEmpire logs configFile = do
     lunaSupervisor <- backendDir
     supervisord    <- supervisordBinPath
@@ -218,7 +218,7 @@ runLunaEmpire logs configFile = do
         Shelly.cd lunaSupervisor
         Shelly.cmd supervisord "-n" "-c" configFile
 
-runFrontend :: (MonadRun m, MonadIO m) => Maybe T.Text -> m ()
+runFrontend :: MonadRun m => Maybe T.Text -> m ()
 runFrontend args = do
     atomHome    <- packageStudioAtomHome
     atom        <- atomAppPath
@@ -230,9 +230,9 @@ runFrontend args = do
         Linux -> case args of
             Just arg -> Shelly.shelly $ Shelly.cmd atom "-w" arg
             Nothing  -> Shelly.shelly $ Shelly.cmd atom "-w"
-        Windows -> liftIO $ print "Unsupported system"
+        Windows -> liftIO $ putStrLn "Unsupported system"
 
-runBackend :: (MonadRun m, MonadIO m) => m ()
+runBackend :: MonadRun m => m ()
 runBackend = do
     logs        <- localLogsDirectory
     backendBins <- backendBinsPath
@@ -241,15 +241,13 @@ runBackend = do
     liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
     liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_PATH" (encodeString config)
     case currentHost of
-        Darwin -> do
-            runLunaEmpireMacOS logs "supervisord.conf"
-        Linux -> do
-            runLunaEmpire logs "supervisord.conf"
-        Windows -> liftIO $ print "Unsupported system"
+        Darwin  -> runLunaEmpireMacOS logs "supervisord.conf"
+        Linux   -> runLunaEmpire logs "supervisord.conf"
+        Windows -> liftIO $ putStrLn "Unsupported system"
 
-runLocal :: (MonadRun m, MonadIO m) => m ()
+runLocal :: MonadRun m => m ()
 runLocal = do
-    liftIO $ print "run local"
+    liftIO $ putStrLn "run local"
     atomHome    <- packageStudioAtomHome
     logs        <- localLogsDirectory
     backendBins <- backendBinsPath
@@ -268,9 +266,9 @@ runLocal = do
         Linux -> do
             runLunaEmpire logs "supervisord-linux.conf"
 
-        Windows -> liftIO $ print "Unsupported system"
+        Windows -> liftIO $ putStrLn "Unsupported system"
 
-runPackage :: (MonadRun m, MonadIO m) => m ()
+runPackage :: MonadRun m => m ()
 runPackage = case currentHost of
     Darwin -> do
         atomHome    <- userStudioAtomHome
@@ -310,13 +308,13 @@ runPackage = case currentHost of
         liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
         Shelly.shelly $ Shelly.cmd atom
 
-runApp :: (MonadRun m, MonadIO m) => Maybe String -> m ()
+runApp :: MonadRun m => Maybe String -> m ()
 runApp atom = do
     v <- version
     case atom of
         Just arg -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" arg
         Nothing  -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" " "
-    if v == "develop\n" then runLocal else runPackage
+    if v == "develop" then runLocal else runPackage
 
 data Options = Options
     { frontend :: Bool
@@ -332,7 +330,7 @@ optionParser = Options
 
 
 
-run :: (MonadIO m) => Options -> m ()
+run :: MonadIO m => Options -> m ()
 run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
 
     if frontend && backend
@@ -361,6 +359,4 @@ parser = liftIO $ filteredParser p opts
         p = prefs showHelpOnEmpty
 
 main :: IO ()
-main =  do
-    opt <- parser
-    run opt
+main = run =<< parser
