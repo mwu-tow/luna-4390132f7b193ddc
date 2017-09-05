@@ -106,7 +106,7 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
         Shelly.mkdir_p name
         if guiInstaller then do
             (sysExit, stdout, stderr) <- Process.readProcess $ Process.shell $ "tar -tzf " <> (encodeString file) <> " | wc -l"
-            let n = Text.decimal $ Text.strip $ Text.decodeUtf8 $ BSL.toStrict stderr
+            let n = Text.decimal $ Text.strip $ Text.decodeUtf8 $ BSL.toStrict stdout
             case n of
                 Right x -> do
                     currentUnpackingFileNumber <- liftIO $ newIORef 0
