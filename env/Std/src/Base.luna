@@ -7,6 +7,7 @@ native class Int:
     def >  that: primIntGt       self that
     def <  that: primIntLt       self that
     def == that: primIntEquals   self that
+    def equals that: primIntEquals self that
 
     def negate: primIntNegate self
     def toReal: primIntToReal self
@@ -27,6 +28,7 @@ native class Real:
     def >  that: primRealGt       self that
     def <  that: primRealLt       self that
     def == that: primRealEquals   self that
+    def equals that: primRealEquals self that
 
     def negate:     primRealNegate self
     def toText:     primRealToText self
@@ -65,6 +67,7 @@ native class Text:
 native class Binary:
     def +  that: primBinaryConcat self that
     def == that: primBinaryEquals self that
+    def equals that: primBinaryEquals self that
 
     def length: primBinaryLength self
     def toText: primBinaryToText self
