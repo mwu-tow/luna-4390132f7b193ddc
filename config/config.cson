@@ -1,7 +1,4 @@
 "*":
-  core:
-      automaticallyUpdate: false
-      telemetryConsent: "no"
   "advanced-open-file":
     fuzzyMatch: true
   "color-picker":
@@ -10,13 +7,15 @@
     autoHideMenuBar: true
     automaticallyUpdate: false
     disabledPackages: [
-      "wrap-guide"
-      "web-view"
+      "dev-live-reload"
       "hidpi"
       "linter-ui-default"
       "linter"
       "platformio-ide-terminal"
       "tool-bar-almighty"
+      "web-view"
+      "welcome"
+      "wrap-guide"
     ]
     packagesWithKeymapsDisabled: []
     themes: [
@@ -78,4 +77,4 @@
   "tree-view":
     hideIgnoredNames: true
     hideVcsIgnoredFiles: true
-squashDirectoryNames: true
+    squashDirectoryNames: true

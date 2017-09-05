@@ -314,7 +314,7 @@ runApp atom = do
     case atom of
         Just arg -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" arg
         Nothing  -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" " "
-    if v == "develop\n" then runLocal else runPackage
+    if v == "develop" then runLocal else runPackage
 
 data Options = Options
     { frontend :: Bool
