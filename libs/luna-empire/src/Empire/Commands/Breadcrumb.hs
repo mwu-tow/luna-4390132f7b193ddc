@@ -17,7 +17,7 @@ import           Data.Maybe                      (listToMaybe, maybe)
 import qualified Data.Map                        as Map
 import qualified Data.UUID.V4                    as UUID
 
-import           Empire.ASTOp                      (putNewIR, putNewIRCls, runAliasAnalysis, runASTOp)
+import           Empire.ASTOp                      (GraphOp, putNewIR, putNewIRCls, runAliasAnalysis, runASTOp)
 import           Empire.ASTOps.BreadcrumbHierarchy as ASTBreadcrumb
 import           Empire.ASTOps.Parse               as ASTParse
 import           Empire.ASTOps.Read                as ASTRead
@@ -49,6 +49,17 @@ withBreadcrumb file breadcrumb actG actC = withLibrary file $ zoomBreadcrumb bre
 makeGraph :: NodeRef -> Maybe NodeId -> Command Library.Library (NodeId, Graph.Graph)
 makeGraph fun lastUUID = zoom Library.body $ makeGraphCls fun lastUUID
 
+extractMarkers :: GraphOp m => NodeRef -> m [Word64]
+extractMarkers root = do
+    IR.matchExpr root $ \case
+        IR.Marked m e -> do
+            marker <- ASTBreadcrumb.getMarker =<< IR.source m
+            return [marker]
+        _ -> do
+            ins <- IR.inputs root
+            markers <- mapM (\i -> IR.source i >>= extractMarkers) ins
+            return $ concat markers
+
 makeGraphCls :: NodeRef -> Maybe NodeId -> Command Graph.ClsGraph (NodeId, Graph.Graph)
 makeGraphCls fun lastUUID = do
     pmState   <- liftIO Graph.defaultPMState
@@ -62,11 +73,16 @@ makeGraphCls fun lastUUID = do
     uuid <- maybe (liftIO UUID.nextRandom) return lastUUID
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromJustM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
+    globalMarkers <- use Graph.clsCodeMarkers
     let bh    = BH.LamItem portMapping ref def
-        graph = Graph.Graph ast bh def def def fileOffset nodeCache
+        graph = Graph.Graph ast bh def globalMarkers def def fileOffset nodeCache
     Graph.clsFuns . at uuid ?= Graph.FunctionGraph funName graph Map.empty
     updatedCache <- withRootedFunction uuid $ do
-        runASTOp $ propagateLengths ref
+        runASTOp $ do
+            markers <- extractMarkers ref
+            let localMarkers = Map.filterWithKey (\k _ -> k `elem` markers) globalMarkers
+            Graph.codeMarkers .= localMarkers
+            propagateLengths ref
         runAliasAnalysis
         runASTOp $ do
             ASTBreadcrumb.makeTopBreadcrumbHierarchy ref
@@ -100,11 +116,13 @@ withRootedFunction uuid act = do
     graph    <- preuse (Graph.clsFuns . ix uuid . Graph.funGraph) <?!> BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition uuid])
     env      <- ask
     clsGraph <- get
-    let properGraph = let clsMarkers    = clsGraph ^. Graph.clsCodeMarkers
-                          clsCode       = clsGraph ^. Graph.code
-                          clsParseError = clsGraph ^. Graph.clsParseError
+    functionMarkers <- use $ Graph.clsFuns . ix uuid . Graph.funMarkers
+    let properGraph = let clsCode        = clsGraph ^. Graph.code
+                          clsCodeMarkers = clsGraph ^. Graph.clsCodeMarkers
+                          clsParseError  = clsGraph ^. Graph.clsParseError
                       in graph & Graph.code .~ clsCode
-                               & Graph.codeMarkers .~ clsMarkers
+                               & Graph.codeMarkers .~ functionMarkers
+                               & Graph.globalMarkers .~ clsCodeMarkers
                                & Graph.parseError .~ clsParseError
     ((res, len), newGraph) <- liftIO $ runEmpire env properGraph $ do
         a <- act
@@ -140,7 +158,8 @@ withRootedFunction uuid act = do
     let diff = fromMaybe (error "function not in AST?") $ listToMaybe $ catMaybes diffs
         funOffset = properGraph ^. Graph.fileOffset
     Graph.clsFuns . traverse . Graph.funGraph . Graph.fileOffset %= (\a -> if a > funOffset then a + diff else a)
-    Graph.clsCodeMarkers .= newGraph ^. Graph.codeMarkers
+    Graph.clsFuns . ix uuid . Graph.funMarkers .= newGraph ^. Graph.codeMarkers
+    Graph.clsCodeMarkers %= \m -> Map.union m (newGraph ^. Graph.codeMarkers)
     Graph.code           .= newGraph ^. Graph.code
     Graph.clsParseError  .= newGraph ^. Graph.parseError
     return res

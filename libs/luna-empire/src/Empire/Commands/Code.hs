@@ -207,8 +207,9 @@ addExprMapping index ref = do
 
 getNextExprMarker :: GraphOp m => m Word64
 getNextExprMarker = do
-    exprMap <- getExprMap
-    let keys         = Map.keys exprMap
+    globalExprMap <- use Graph.globalMarkers
+    localExprMap  <- getExprMap
+    let keys         = Map.keys $ Map.union globalExprMap localExprMap
         highestIndex = Safe.maximumMay keys
     return $ maybe 0 succ highestIndex
 

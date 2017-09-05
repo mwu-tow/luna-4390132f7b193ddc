@@ -51,6 +51,7 @@ import           Luna.Pass.Data.ExprMapping
 data Graph = Graph { _ast                   :: AST Graph
                    , _breadcrumbHierarchy   :: LamItem
                    , _codeMarkers           :: Map Luna.MarkerId NodeRef
+                   , _globalMarkers         :: Map Luna.MarkerId NodeRef
                    , _graphCode             :: Text
                    , _parseError            :: Maybe SomeException
                    , _fileOffset            :: Delta
