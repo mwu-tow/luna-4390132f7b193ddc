@@ -353,7 +353,7 @@ handleSearchNodes = modifyGraph defInverse replyResult where
         currentEmpireEnv <- use Env.empireEnv
         empireNotifEnv   <- use Env.empireNotif
         let invStatus = Response.Ok ()
-        endPoints <- EP.clientFromConfig <$> (liftIO Config.load)
+            endPoints = env ^. Env.config . to EP.clientFromConfig
         liftIO $ void $ forkIO $ do
             result <- Empire.execEmpire empireNotifEnv currentEmpireEnv $ do
                 sMap <- liftIO . readMVar =<< view Empire.scopeVar

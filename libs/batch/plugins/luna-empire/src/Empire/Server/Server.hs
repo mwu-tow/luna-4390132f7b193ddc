@@ -100,7 +100,7 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
     request          <- liftIO $ webGUIHack request'
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
-    endPoints        <- EP.clientFromConfig <$> (liftIO Config.load)
+    endPoints        <- use $ Env.config . to EP.clientFromConfig
     inv'             <- liftIO $ try $ runEmpire empireNotifEnv currentEmpireEnv $ inverse request
     case inv' of
         Left (exc :: SomeException) -> do

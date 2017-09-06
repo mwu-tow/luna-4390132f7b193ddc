@@ -58,7 +58,6 @@ import           System.Mem                           (performGC)
 import           System.Remote.Monitoring
 import           ZMQ.Bus.Bus                          (Bus)
 import qualified ZMQ.Bus.Bus                          as Bus
-import qualified ZMQ.Bus.Config                       as Config
 import qualified ZMQ.Bus.Data.Flag                    as Flag
 import           ZMQ.Bus.Data.Message                 (Message)
 import qualified ZMQ.Bus.Data.Message                 as Message
@@ -90,7 +89,7 @@ run endPoints topics formatted projectRoot = do
     toBusChan        <- atomically newTChan
     fromEmpireChan   <- atomically newTChan
     tcReq            <- newEmptyMVar
-    let env     = Env.make toBusChan fromEmpireChan tcReq scope projectRoot
+    env              <- Env.make toBusChan fromEmpireChan tcReq scope projectRoot
     let commEnv = Empire.CommunicationEnv fromEmpireChan tcReq scope
     forkIO $ void $ Bus.runBus endPoints $ BusT.runBusT $ evalStateT (startAsyncUpdateWorker fromEmpireChan) env
     forkIO $ void $ Bus.runBus endPoints $ startToBusWorker toBusChan

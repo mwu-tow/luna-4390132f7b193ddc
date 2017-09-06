@@ -15,6 +15,8 @@ import           Empire.Data.Graph             (Graph, ClsGraph)
 import qualified Empire.Empire                 as Empire
 import           LunaStudio.API.AsyncUpdate    (AsyncUpdate)
 import           LunaStudio.Data.GraphLocation (GraphLocation (..))
+import           ZMQ.Bus.Config                (Config)
+import qualified ZMQ.Bus.Config                as Config
 import           ZMQ.Bus.Data.Message          (Message)
 
 instance Show (TChan Message) where
@@ -25,11 +27,14 @@ data Env = Env { _empireEnv   :: Empire.Env
                , _formatted   :: Bool
                , _toBusChan   :: TChan Message
                , _projectRoot :: FilePath
+               , _config      :: Config
                } deriving (Show)
 makeLenses ''Env
 
-make :: TChan Message -> TChan AsyncUpdate -> MVar (GraphLocation, ClsGraph, Bool) -> MVar Empire.SymbolMap -> FilePath -> Env
-make toBus fromEmpire tc sm = Env def (Empire.CommunicationEnv fromEmpire tc sm) True toBus
+make :: TChan Message -> TChan AsyncUpdate -> MVar (GraphLocation, ClsGraph, Bool) -> MVar Empire.SymbolMap -> FilePath -> IO Env
+make toBus fromEmpire tc sm fp = do
+    zmqConfig <- Config.load
+    return $ Env def (Empire.CommunicationEnv fromEmpire tc sm) True toBus fp zmqConfig
 
 newtype LoggerEnv = LoggerEnv { _formatLog :: Bool }
 makeLenses ''LoggerEnv
