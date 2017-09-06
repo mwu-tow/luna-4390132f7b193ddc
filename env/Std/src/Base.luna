@@ -20,6 +20,11 @@ native class Int:
     def seconds: self*1000 . miliseconds
     def minutes: self*60 . seconds
 
+    def pred: self - 1
+    def succ: self + 1
+
+    def upto i: if self < i then Prepend self (self+1 . upto i) else (if self == i then [self] else [])
+
 native class Real:
     def +  that: primRealAdd      self that
     def *  that: primRealMultiply self that
@@ -34,8 +39,14 @@ native class Real:
     def toText:     primRealToText self
     def round prec: primRealRound  self prec
 
+    def sin: primRealSin self
+    def cos: primRealCos self
+    def tan: primRealTan self
+
     def shortRep: self.toText
     def toJSON: JSONNumber self
+
+def pi: 3.14159265359
 
 native class Text:
     def +  that: primTextConcat self that
@@ -388,9 +399,9 @@ class List a:
         Empty: a
         Prepend x xs: f x (xs.fold a f)
 
-    def plus that: case (self) of
+    def + that: case (self) of
         Empty: that
-        Prepend x xs: Prepend x (xs.plus that)
+        Prepend x xs: Prepend x (xs.+ that)
 
     def length: case (self) of
         Empty: 0
@@ -462,7 +473,7 @@ class List a:
         Prepend (Just x) xs: Prepend x xs.collect
         Prepend Nothing xs:  xs.collect
 
-    def makeString sep: self.fold "" (x: y: x.toString + sep + y.toString)
+    def makeText sep: self . each .toText . intersperse sep . fold '' (+)
 
     def concat: case self of
         Empty: Empty
@@ -487,7 +498,7 @@ class Map k v:
     def toList: case self of
         Tip: Empty
         Bin s k v l r:
-            l . toList . plus (Empty . prepend (Tuple2 k v)) . plus r.toList
+            l.toList + Empty.prepend (Tuple2 k v) + r.toList
 
     def map f: case self of
         Tip: Tip
