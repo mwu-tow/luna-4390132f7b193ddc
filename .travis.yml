@@ -12,10 +12,14 @@ cache:
 
 before_install:
 # Download and unpack the stack executable
-    - sudo apt-get update && sudo apt-get install openssh-client libzmq3-dev rpm2cpio
+    - sudo apt-get update && sudo apt-get install -y software-properties-common openssh-client libzmq3-dev rpm2cpio
+    - sudo add-apt-repository -y ppa:hvr/ghc
+    - sudo apt-get update
+    - sudo apt-get install -y cabal-install-1.22 ghc-8.0.3
     - mkdir -p ~/.local/bin
     - export PATH=$HOME/.local/bin:$PATH
     - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    - export PATH=/opt/ghc/8.0.2/bin:$PATH
     - stack install hsc2hs
     - stack install happy
     - curl -o /tmp/luna-manager http://packages.luna-lang.org/linux/luna-manager
@@ -23,6 +27,14 @@ before_install:
     - curl -o /tmp/packageConfig.yaml http://packages.luna-lang.org/linux/studio/packageConfig.yaml
     - sudo mv /tmp/packageConfig.yaml /home/travis/packageConfig.yaml
     - chmod +x /usr/bin/luna-manager
+
+addons:
+  apt:
+    sources:
+    - hvr-ghc
+    packages:
+    - ghc-8.0.2
+
 
 install:
     - "npm install -g npm"
