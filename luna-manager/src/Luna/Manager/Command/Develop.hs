@@ -71,11 +71,8 @@ run opts = do
     resolvedApplication <- resolvePackageApp repo appName
     mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
     --generate packageConfig.yaml
-    generateYaml repo resolvedApplication (convert appPath) (convert appPath </> "luna-package.yaml")
+    generateYaml repo resolvedApplication (convert appPath </> "luna-package.yaml")
     pkgConfig <- get @PackageConfig
-    let versionFile = convert appPath </> (pkgConfig ^. configFolder) </> (pkgConfig ^. versionFileName)
-    Shelly.mkdir_p $ parent versionFile
-    liftIO $ writeFile (encodeString versionFile) "develop"
 
 
     -- building backend

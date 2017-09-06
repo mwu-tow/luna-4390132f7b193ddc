@@ -128,10 +128,10 @@ addPackageToMap pkgMap pkg = Map.insert (fst pkg) (snd pkg) pkgMap
 emptyMapPkgs :: Map Text Package
 emptyMapPkgs = Map.empty
 
-generateYaml :: (MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> FilePath -> m ()
-generateYaml repo resolvedApplication repositoryPath filePath = do
+generateYaml :: (MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> m ()
+generateYaml repo resolvedApplication filePath = do
     let appName = resolvedApplication ^. resolvedApp . header . name
-    pkg <- generatePackage repo (Just repositoryPath) $ resolvedApplication ^. resolvedApp
+    pkg <- generatePackage repo (Just ".") $ resolvedApplication ^. resolvedApp
     deps <- mapM (generatePackage repo Nothing) (resolvedApplication ^. pkgsToPack)
 
     let defpkgs = foldl addPackageToMap emptyMapPkgs $ pkg : deps
