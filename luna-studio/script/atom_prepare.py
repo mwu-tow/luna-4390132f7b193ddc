@@ -28,7 +28,7 @@ def prepare_ghcjs(output, placeholder, ghcjs):
     placeholder_abs = prep_path(placeholder)
     ghcjs_abs = prep_path(ghcjs)
     prepare_holder(output_abs, 'module.exports = (function(){', '});', uuid, imports, placeholder_abs)
-    put_ghcjs(output_abs, ghcjs_abs, 'GHCJS_CODE_BE_THERE')
+    put_ghcjs(output_abs, ghcjs_abs, '<GHCJS_CODE>')
 
 def prepare_css(output, styles_file):
     output_abs = prep_path(output)
