@@ -207,8 +207,9 @@ addExprMapping index ref = do
 
 getNextExprMarker :: GraphOp m => m Word64
 getNextExprMarker = do
-    exprMap <- getExprMap
-    let keys         = Map.keys exprMap
+    globalExprMap <- use Graph.globalMarkers
+    localExprMap  <- getExprMap
+    let keys         = Map.keys $ Map.union globalExprMap localExprMap
         highestIndex = Safe.maximumMay keys
     return $ maybe 0 succ highestIndex
 
@@ -295,8 +296,8 @@ functionBlockStart funUUID = do
     unit <- use Graph.clsClass
     funs <- use Graph.clsFuns
     let fun = Map.lookup funUUID funs
-    (name, _) <- fromJustM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
-    ref       <- ASTRead.getFunByName name
+    funGraph  <- fromJustM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
+    ref       <- ASTRead.getFunByName $ funGraph ^. Graph.funName
     functionBlockStartRef ref
 
 functionBlockStartRef :: ClassOp m => NodeRef -> m Delta

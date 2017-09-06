@@ -40,6 +40,11 @@ cutThroughGroups r = match r $ \case
     Grouped g -> cutThroughGroups =<< IR.source g
     _         -> return r
 
+cutThroughMarked :: ClassOp m => NodeRef -> m NodeRef
+cutThroughMarked r = match r $ \case
+    Marked m expr -> cutThroughMarked =<< IR.source expr
+    _             -> return r
+
 isInputSidebar :: GraphOp m => NodeId -> m Bool
 isInputSidebar nid = do
     lambda <- use Graph.breadcrumbHierarchy
@@ -341,7 +346,7 @@ classFunctions unit = IR.matchExpr unit $ \case
         IR.matchExpr klass' $ \case
             IR.ClsASG _ _ _ _ funs -> do
                 funs' <- mapM IR.source funs
-                catMaybes <$> forM funs' (\f -> IR.matchExpr f $ \case
+                catMaybes <$> forM funs' (\f -> cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
                     IR.ASGRootedFunction{} -> return (Just f)
                     _                      -> return Nothing)
     _ -> return []
@@ -363,9 +368,11 @@ getFunByName name = do
     cls <- use Graph.clsClass
     maybeFuns <- do
         funs <- classFunctions cls
-        forM funs $ \fun -> IR.matchExpr fun $ \case
-            IR.ASGRootedFunction n' _ -> do
-                n <- getVarName' =<< IR.source n'
-                return $ if nameToString n == name then Just fun else Nothing
+        forM funs $ \fun -> do
+            funExpr <- cutThroughMarked fun
+            IR.matchExpr funExpr $ \case
+                IR.ASGRootedFunction n' _ -> do
+                    n <- getVarName' =<< IR.source n'
+                    return $ if nameToString n == name then Just fun else Nothing
     case catMaybes maybeFuns of
         [f] -> return f

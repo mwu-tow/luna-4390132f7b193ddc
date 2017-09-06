@@ -81,7 +81,7 @@ buildClassGraph :: ClassOp m => m API.Graph
 buildClassGraph = do
     funs <- use Graph.clsFuns
 
-    nodes' <- mapM (\(uuid, (name,_)) -> buildClassNode uuid name) $ Map.assocs funs
+    nodes' <- mapM (\(uuid, funGraph) -> buildClassNode uuid (funGraph ^. Graph.funName)) $ Map.assocs funs
     pure $ API.Graph nodes' [] Nothing Nothing []
 
 

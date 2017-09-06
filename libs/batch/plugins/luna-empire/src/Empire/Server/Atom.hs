@@ -37,7 +37,6 @@ import qualified Empire.Empire                  as Empire
 import           Empire.Server.Server           (errorMessage, defInverse, modifyGraph, replyFail,
                                                 replyOk, replyResult, withDefaultResult)
 import qualified System.Log.MLogger             as Logger
-import qualified ZMQ.Bus.Config                 as Config
 import qualified ZMQ.Bus.EndPoint               as EP
 import           ZMQ.Bus.Trans                  (BusT (..))
 
