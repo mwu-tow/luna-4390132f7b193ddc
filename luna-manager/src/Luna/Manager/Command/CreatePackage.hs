@@ -16,6 +16,7 @@ import           Luna.Manager.System.Host
 import           Luna.Manager.System.Path
 import           Luna.Manager.Component.Version (Version)
 import           Luna.Manager.Component.Pretty
+import           Luna.Manager.Gui.Initialize (getVersionsList)
 import           Prologue hiding (FilePath)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -52,7 +53,7 @@ data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
 
 makeLenses ''PackageConfig
 
-type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig] m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)
+type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig, RepoConfig] m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)
 
 
 -- === Instances === --
@@ -85,6 +86,10 @@ instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
 data AppimageException = AppimageException SomeException deriving (Show)
 instance Exception AppimageException where
    displayException (AppimageException exception ) = "AppImage not created because of: " <> displayException exception
+
+data ExistingVersionException = ExistingVersionException Version deriving (Show)
+instance Exception ExistingVersionException where
+  displayException (ExistingVersionException v) = "This version already exists: " <> (convert $ showPretty v)
 
 ----------------------
 -- === Appimage === --
@@ -219,6 +224,12 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
                 mapM_ (flip Shelly.mv libFullPath) listed
                 else Shelly.mv unpacked libFullPath
 
+isNewestVersion :: MonadCreatePackage m => Version -> Text -> m Bool
+isNewestVersion appVersion appName = do
+    repo <- getRepo
+    versionList <- getVersionsList repo appName
+    if (head versionList) >= appVersion then return False else return True
+
 ------------------------------
 -- === linkingLibsMacOS === --
 ------------------------------
@@ -280,8 +291,10 @@ createPkg verbose cfgFolderPath resolvedApplication = do
         appPath    = if (appDesc ^. path) == "./" then cfgFolderPath else convert (appDesc ^. path)
         appHeader  = app ^. header
         appName    = appHeader ^. name
-        appVersion = appHeader ^. version
         appType    = app ^. resolvedAppType
+    appVersion <- do
+        isNewest <- isNewestVersion (appHeader ^. version) appName
+        if isNewest then return (appHeader ^. version) else throwM $ ExistingVersionException (appHeader ^. version)
     mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
     runPkgBuildScript verbose appPath
     copyFromDistToDistPkg appName appPath
