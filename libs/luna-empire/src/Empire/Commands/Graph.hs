@@ -815,6 +815,7 @@ renameNode loc nid name
         resendCode loc
     | otherwise = do
         withTC loc False $ runASTOp $ do
+            _ <- liftIO $ ASTParse.runProperVarParser name
             v <- ASTRead.getASTVar nid
             ASTModify.renameVar v $ convert name
             Code.replaceAllUses v name
