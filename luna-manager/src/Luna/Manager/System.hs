@@ -98,7 +98,7 @@ exportPath' pathToExport = case currentHost of
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
 exportPath :: (MonadException SomeException m, MonadIO m) => FilePath -> Shell -> m ()
 exportPath pathToExport shellType = do
-    let pathToExportText = convert $ encodeString pathToExport --tryRight' <<= toText pathToExport
+    let pathToExportText = convert $ encodeString pathToExport
     case shellType of
         Bash    -> do
             filesAvailable <- mapM runControlCheck [".bashrc", ".bash_profile", ".profile"]
@@ -137,7 +137,7 @@ runServicesWindows path logsPath = Shelly.chdir path $ do
     Shelly.mkdir_p logsPath
     let installPath = path </> Shelly.fromText "installAll.bat"
     Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
-    Shelly.silently $ Shelly.cmd installPath
+    Shelly.silently $ Shelly.cmd installPath --TODO create proper error
 
 stopServicesWindows :: MonadIO m => FilePath -> m ()
 stopServicesWindows path = Shelly.shelly $ do
@@ -146,4 +146,4 @@ stopServicesWindows path = Shelly.shelly $ do
         Shelly.silently $ Shelly.cmd uninstallPath `catch` handler where
 
             handler :: MonadSh m => SomeException -> m ()
-            handler ex = return () -- Shelly.liftSh $ print ex
+            handler ex = return () -- Shelly.liftSh $ print ex --TODO create proper error
