@@ -308,17 +308,17 @@ runPackage = case currentHost of
         liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
         Shelly.shelly $ Shelly.cmd atom
 
-runApp :: MonadRun m => Maybe String -> m ()
-runApp atom = do
-    v <- version
+runApp :: MonadRun m => Bool -> Maybe String -> m ()
+runApp develop atom = do
     case atom of
         Just arg -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" arg
         Nothing  -> liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" " "
-    if v == "develop" then runLocal else runPackage
+    if develop then runLocal else runPackage
 
 data Options = Options
     { frontend :: Bool
     , backend  :: Bool
+    , develop    :: Bool
     , atom     :: Maybe String} deriving Show
 
 
@@ -326,20 +326,21 @@ optionParser :: Parser Options
 optionParser = Options
     <$> switch (long "frontend" <> short 'f')
     <*> switch (long "backend" <> short 'b')
+    <*> switch (long "develop" <> short 'd')
     <*> (optional $ strOption $ long "atom" <> short 'a')
 
 
 
 run :: MonadIO m => Options -> m ()
-run (Options frontend backend atom) = evalDefHostConfigs @'[RunnerConfig] $ do
+run (Options frontend backend develop atom) = evalDefHostConfigs @'[RunnerConfig] $ do
 
     if frontend && backend
-        then runApp atom
+        then runApp develop atom
         else if  frontend
             then runFrontend $ T.pack <$> atom
             else if backend
                 then runBackend
-                else runApp atom
+                else runApp develop atom
 
 filterArg :: String -> Bool
 filterArg arg = not $ List.isInfixOf "-psn" arg
