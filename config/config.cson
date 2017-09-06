@@ -4,7 +4,6 @@
   "color-picker":
     randomColor: false
   core:
-    autoHideMenuBar: true
     automaticallyUpdate: false
     disabledPackages: [
       "dev-live-reload"
