@@ -1,3 +1,4 @@
 module.exports = function (type) {
-    if (type.constructor == "Circle" || (type.constructor == "List" && type.fields[0].constructor == "Circle")) return [{name: "circles", path: "paper.html"}];
+    if (type.constructor == "Geo" || (type.constructor == "Stream" && type.fields[0].constructor == "Geo")) return [{ path: "paper.html" }];
+    else return [];
 };
