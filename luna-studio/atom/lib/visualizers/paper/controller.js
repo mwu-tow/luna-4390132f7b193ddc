@@ -43,12 +43,18 @@
     return def;
   };
 
-  window.addEventListener("message", function (evt) {
-    var data = JSON.parse(evt.data.data);
-        canvas = document.getElementById("drawing");
+  var canvas;
+
+  window.addEventListener("load", function () {
+    canvas = document.getElementById("drawing");
     paper.setup(canvas);
-    paper.project.clear();
     paper.view.center = [0,0];
+  });
+
+  window.addEventListener("message", function (evt) {
+    if (evt.data.event != "data" && evt.data.event != "datapoint") return;
+    var data = JSON.parse(evt.data.data);
+    paper.project.clear();
     render(data);
     paper.view.draw();
   });
