@@ -38,7 +38,7 @@
     fontSize: 20
     someSetting2: "#ff00000"
   "luna-dpi":
-    zoom: 1.375
+    zoom: 1.0
   minimap:
     displayMinimapOnLeft: true
     minimapScrollIndicator: false
