@@ -9,7 +9,8 @@ import           LunaStudio.Data.Size             (Size, width)
 import           NodeEditor.React.Model.Constants (gridSize)
 import           NodeEditor.React.Model.Port      (InPortId, OutPortId, getPortNumber, isSelf)
 
-portDistance = gridSize * 2.0
+portHeight = gridSize * 2.0
+portWidth  = portHeight
 
 data InputSidebar = InputSidebar { _inputSidebarPosition :: ScreenPosition
                                  , _inputSidebarSize     :: Size
@@ -25,10 +26,11 @@ makeLenses ''OutputSidebar
 portPositionInInputSidebar :: Size -> OutPortId -> Position
 portPositionInInputSidebar sidebarSize pid = fromDoubles posX posY where
     portNum = getPortNumber pid
-    posX    = sidebarSize ^. width
-    posY    = (fromIntegral portNum) * portDistance + 8 -- TODO: Where the offset is coming from?
+    posX    = portWidth/2 --sidebarSize ^. width
+    posY    = (fromIntegral portNum) * portHeight + portHeight/2
 
 portPositionInOutputSidebar :: InPortId -> Position
-portPositionInOutputSidebar pid = fromDoubles 0 posY where
+portPositionInOutputSidebar pid = fromDoubles posX posY where
     portNum = getPortNumber pid
-    posY    = (fromIntegral $ if isSelf pid then 0 else portNum) * portDistance + 8 -- TODO: Where the offset is coming from?
+    posX    = portWidth/2
+    posY    = (fromIntegral $ if isSelf pid then 0 else portNum) * portHeight + portHeight/2

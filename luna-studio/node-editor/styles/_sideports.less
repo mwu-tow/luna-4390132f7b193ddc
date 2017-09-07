@@ -2,9 +2,22 @@
 //        sideports        //
 /////////////////////////////
 
-@sidebarWidth:   16px;
-@portHeight:     32px;
-@edgeNameMargin: 16px + 8px;
+@sidebarWidth:      32px;
+@sidebarPortHeight: @sidebarWidth;
+@sidebarPortWidth:  @sidebarWidth;
+@edgeNameMargin:    @sidebarWidth * .75;
+@sidebarActiveAreaWidth:         @sidebarWidth;
+@sidebarActiveAreaWidthDragMode: @sidebarActiveAreaWidth * 2;
+
+@sidebarPortRadius: 7px;
+
+@defaultIconFillColor:   #444;
+@highlightIconFillColor: #fff;
+
+// icon drawing
+@s: 2px;
+@w: (@sidebarPortRadius - @s * 1.5 ) * 2;
+
 
 .luna-sidebar {
     display:         flex;
@@ -12,9 +25,9 @@
     flex-direction:  column;
     height:          100%;
     position:        absolute;
-    width:           0;
-    .luna-port__shape  { r: 6px  !important }
-    .luna-port__select { r: 16px !important }
+    pointer-events:  none;
+    .luna-port__shape  { r: @sidebarPortRadius  !important }
+    .luna-port__select { r: @sidebarPortWidth/2 !important }
 }
 
 .luna-sidebar--freezemode {
@@ -26,21 +39,20 @@
 
 .luna-sidebar--dragmode {
     .luna-sidebar__active-area {
-        width: 64px;
+        width: @sidebarActiveAreaWidthDragMode;
     }
 }
 
 .luna-sidebar__active-area {
-    width: @sidebarWidth;
+    width: @sidebarActiveAreaWidth;
 }
 
 .luna-sidebar__body {
-    background:     none; // #2a2a2a;
     display:        flex;
     flex-direction: column;
     width:          @sidebarWidth;
     padding:        @sidebarWidth/2 0;
-    border-radius:  0 @borderRadius @borderRadius 0;
+    position:       relative;
 }
 
 /////////////////////////////
@@ -48,23 +60,21 @@
 /////////////////////////////
 
 .luna-sidebar__port {
-    height:   @portHeight;
+    height:   @sidebarPortHeight;
     position: relative;
 }
 
 .luna-sidebar__port__svg {
-    top:      50%;
-    height:   20px;
-    width:    20px;
+    height:   @sidebarPortHeight;
+    width:    @sidebarPortWidth;
     overflow: inherit;
     position: absolute;
 }
 
 .luna-sidebar__port__name {
     font-size:   calc(var(--ul-total-zoom) ~'*' 12px);
-    line-height: @portHeight;
-    top:        -1px;
-    color:       darken(@colorText, 30%);
+    line-height: @sidebarPortHeight;
+    color:       @luna-text-color;
     position:    absolute;
     white-space: nowrap;
 }
@@ -80,9 +90,6 @@
 .luna-sidebar--i {
     left: 0;
     .luna-sidebar__port__name {
-        left: @portHeight;
-    }
-    .luna-sidebar__port__svg {
         left: @sidebarWidth;
     }
 }
@@ -92,14 +99,13 @@
 /////////////////////////////
 
 .luna-sidebar--o {
-    right: @sidebarWidth;
+    right: 0;
     .luna-sidebar__body {
-        border-radius: @borderRadius 0 0 @borderRadius;
-        right:         0;
+        right: 0;
     }
     .luna-sidebar__port__name {
         left:  inherit;
-        right: @portHeight;
+        right: @sidebarPortWidth;
     }
 }
 
@@ -111,10 +117,10 @@
     transform: rotate(45deg);
     rect {
         opacity: 0;
-        width:   2px;
-        height:  2px;
-        x:      -1px;
-        y:      -1px;
+        width:   @s;
+        height:  @s;
+        x:      -@s/2;
+        y:      -@s/2;
     }
 }
 
@@ -131,7 +137,7 @@
 
 .luna-sidebar__port__svg--inbetween--last {
     top:    inherit;
-    bottom: 7px;
+    bottom: -@sidebarPortHeight;
 }
 
 .luna-port-add-inbetween {
@@ -141,7 +147,7 @@
 }
 
 .luna-port-add-inbetween__droplet {
-    fill: #fff;
+    fill: @highlightIconFillColor;
 }
 
 .luna-port-add-inbetween:hover {
@@ -167,8 +173,6 @@
 
 .luna-sidebar__port__svg--addbutton {
     position:       relative;
-    padding-top:    8px;
-    padding-bottom: 7px;
 }
 
 .luna-sidebar__port__svg--inbetween--last:hover {
@@ -184,27 +188,23 @@
 }
 
 .luna-edit-icon {
-    width:    1px;
-    height:   1px;
+    width:    @sidebarPortWidth;
+    height:   @sidebarPortHeight;
     overflow: inherit;
-    bottom:   0;
-    position: absolute;
-    left:     16px;
     &:hover {
         .luna-edit-icon__shape01 {
-            fill: #fff;
-            r:    7;
+            fill: @highlightIconFillColor;
         }
     }
 }
 
 .luna-edit-icon__shape01 {
-    fill:         #555;
-    stroke-width: 2px;
-    r:            6px;
+    fill:         @defaultIconFillColor;
+    r:            @sidebarPortRadius;
 }
 
 .luna-edit-icon__shape02 {
+    bottom:   -@sidebarPortHeight/2;
     fill:      @luna-graph-background-color;
     transform: rotate(225deg);
     rect {
@@ -224,20 +224,19 @@
 
 .luna-edit-icon__select {
     fill: none;
-    r: 11px !important;
+    r: @sidebarPortWidth/2 !important;
 }
 
 .luna-sidebar:not(.luna-sidebar--editmode) {
     .luna-sidebar__port:hover {
         .luna-sidebar__port__name {
-            color: @colorText;
+            color: @luna-text-color;
         }
         .luna-port__shape {
-            fill: #fff !important;
+            fill: @highlightIconFillColor !important;
         }
     }
     .luna-edit-icon {
-        bottom: -8px;
         opacity: 0;
         circle { r: 0 }
     }
@@ -245,30 +244,29 @@
         &:hover {
             .luna-edit-icon {
                 opacity: 1;
-                circle { r: 6px }
-                &:hover circle { r: 7px }
+                circle { r: @sidebarPortRadius }
             }
         }
     }
     .luna-sidebar__port__svg--addbutton {
         .luna-port__shape {
-            r:    6px !important;
-            fill: #444;
+            r:    @sidebarPortRadius !important;
+            fill: @defaultIconFillColor;
         }
         &:hover {
-            .luna-port__shape { fill: #fff }
+            .luna-port__shape { fill: @highlightIconFillColor }
         }
         rect {
-            height: 2px;
-            width:  8px;
-            x:     -4px;
-            y:     -1px;
+            height: @s;
+            width:  @w;
+            x:     -@w/2;
+            y:     -@s/2;
         }
         rect + rect {
-            height: 8px;
-            width:  2px;
-            x:     -1px;
-            y:     -4px;
+            height: @w;
+            width:  @s;
+            x:     -@s/2;
+            y:     -@w/2;
         }
     }
 }
@@ -276,47 +274,42 @@
 // edit mode
 
 .luna-sidebar--editmode {
-    .luna-port-add-inbetween { display: block }
-    .luna-sidebar__port__name     { left:    38px }
-    .luna-port__shape        { r:       6px !important }
+    .luna-port-add-inbetween  { display: block }
     .luna-port__plus {
         rect {
             opacity: 1;
             fill:    @luna-graph-background-color;
-            height:  8px;
-            y:      -4px;
+            height:  @w;
+            y:      -@w/2;
         }
         rect + rect {
-            height: 2px;
-            width:  8px;
-            y:     -1px;
-            x:     -4px;
+            height: @s;
+            width:  @w;
+            y:     -@s/2;
+            x:     -@w/2;
         }
     }
-    .luna-sidebar__port__svg:hover .luna-port__shape { r: 7px }
     .luna-edit-icon {
-        bottom: -8px;
         .luna-edit-icon__shape01 {
-            fill: #fff;
-            r:    7;
+            fill: @highlightIconFillColor;
         }
     }
     .luna-sidebar__port__svg--addbutton {
-        .luna-port__shape { fill: #444 }
+        .luna-port__shape { fill: @defaultIconFillColor }
         &:hover {
-            .luna-port__shape { fill: #fff }
+            .luna-port__shape { fill: @highlightIconFillColor }
         }
         rect {
-            height: 2px;
-            width:  8px;
-            x:     -4px;
-            y:     -1px;
+            height: @s;
+            width:  @w;
+            x:     -@w/2;
+            y:     -@s/2;
         }
         rect + rect {
-            height: 8px;
-            width:  2px;
-            x:     -1px;
-            y:     -4px;
+            height: @w;
+            width:  @s;
+            x:     -@s/2;
+            y:     -@w/2;
         }
     }
 }

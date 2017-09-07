@@ -35,6 +35,9 @@ import           React.Flux                              as React hiding (view)
 name :: SidebarNode node => node -> JSString
 name node = "sidebarPorts" <> if isInputSidebar node then "Inputs" else "Outputs"
 
+portViewBox :: JSString
+portViewBox = "-16 -16 32 32"
+
 portHandlers :: Ref App -> SidebarMode -> Bool -> Bool -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
 portHandlers ref AddRemove _ isOnly portRef =
     [ onMouseDown $ \e _ -> [stopPropagation e] ] <>
@@ -88,9 +91,10 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                     then sidebarPlaceholderForPort_ >> sidebarDraggedPort_ ref p
                     else sidebarPort_ ref nodeLoc p mode isPortDragged (countProjectionPorts node == 1) (filterOutSearcherIfNotRelated (toAnyPortRef nodeLoc $ p ^. Port.portId) maySearcher)
                 when (isInputSidebar node) $ do
+
                     svg_ (
                         [ "className" $= Style.prefixFromList [ "sidebar__port__svg", "sidebar__port__svg--addbutton" ]
-                        , "viewBox"   $= "-10 -10 20 20"
+                        , "viewBox"   $= portViewBox
                         , "key"       $= (name node <> "AddButton")
                         ] <> addButtonHandlers ) $ do
                         circle_
@@ -104,11 +108,12 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                         circle_
                             [ "className" $= Style.prefix "port__select"
                             , "key"       $= jsShow "addButtonSelect"
-                            , "r"         $= jsShow2 (lineHeight/1.5)
+                            , "r"         $= jsShow2 16
                             ] mempty
+
                     svg_
                         [ "className" $= Style.prefix "edit-icon"
-                        , "viewBox"   $= "-10 -10 20 20"
+                        , "viewBox"   $= portViewBox
                         , onClick $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.ToggleInputMode nodeLoc)
                         , "key"       $= (name node <> "editIcon")
                         ] $ do
@@ -124,8 +129,9 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                         circle_
                             [ "className" $= Style.prefix "edit-icon__select"
                             , "key"       $= jsShow "editIconSelect"
-                            , "r"         $= jsShow2 (lineHeight/1.5)
+                            , "r"         $= jsShow2 16
                             ] mempty
+
 
 sidebarPortName_ :: Ref App -> AnyPortRef -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] <> handlers) nameElement where
@@ -155,6 +161,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
         when (isOutPort portId) $ addButton_ ref portRef
         svg_
             [ "className" $= Style.prefix "sidebar__port__svg"
+            , "viewBox"   $= portViewBox
             ] $ do
             circle_
                 [ "className" $= Style.prefix "port__shape"
@@ -168,7 +175,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
             circle_ (
                 [ "className" $= Style.prefix "port__select"
                 , "key"       $= (jsShow portId <> jsShow num <> "b")
-                , "r"         $= jsShow2 (lineHeight/1.5)
+                , "r"         $= jsShow2 16
                 ] <> portHandlers ref mode isPortDragged isOnly portRef ) mempty
         sidebarPortName_ ref portRef (p ^. Port.name) maySearcher
 
