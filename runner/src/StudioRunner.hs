@@ -222,7 +222,7 @@ runFrontend :: MonadRun m => Maybe T.Text -> m ()
 runFrontend args = do
     atomHome    <- packageStudioAtomHome
     atom        <- atomAppPath
-    liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome </> "atom")
+    liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome )
     case currentHost of
         Darwin -> case args of
             Just arg -> Shelly.shelly $ Shelly.cmd atom "-w" arg
