@@ -23,6 +23,6 @@ chooseCommand = do
 
     case opts ^. command of
         Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.run       opt $ opts ^. globals . guiInstaller
-        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig]             $ CreatePackage.run opt
+        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig, RepoConfig] $ CreatePackage.run opt
         Develop     opt -> evalDefHostConfigs @'[EnvConfig, PackageConfig, RepoConfig] $ Develop.run       opt
         -- TODO: other commands

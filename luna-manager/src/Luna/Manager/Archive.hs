@@ -144,7 +144,7 @@ unzipFileWindows zipFile = do
 
 untarWin :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 untarWin guiInstaller totalProgress progressFieldName zipFile = do
-    let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
+    let scriptPath = "http://packages.luna-lang.org/windows/tar2.exe"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
     script <- downloadFromURL scriptPath "Downloading archiving tool"
@@ -156,7 +156,7 @@ untarWin guiInstaller totalProgress progressFieldName zipFile = do
         -- Shelly.cp script dir
         -- liftIO $ print name
         if guiInstaller then do
-            Shelly.log_stderr_with (directProgressLogger progressFieldName totalProgress) $ Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
+            Shelly.log_stdout_with (directProgressLogger progressFieldName totalProgress) $ Shelly.cmd (dir </> filename script) "untar" (filename zipFile) name-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
 
 
 

@@ -4,6 +4,7 @@ module Luna.Manager.System where
 
 import Prologue hiding (FilePath,null, filter, appendFile, toText, fromText)
 import System.Directory (executable, setPermissions, getPermissions, doesPathExist, getHomeDirectory)
+import System.Exit
 import System.Process.Typed
 import qualified System.Environment  as Environment
 import Data.List.Split (splitOn)
@@ -20,6 +21,8 @@ import Luna.Manager.System.Host
 
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import Luna.Manager.Shell.Shelly (MonadSh)
+
+import qualified System.Process.Typed as Process
 
 data Shell = Bash | Zsh | Unknown deriving (Show)
 
@@ -95,7 +98,7 @@ exportPath' pathToExport = case currentHost of
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
 exportPath :: (MonadException SomeException m, MonadIO m) => FilePath -> Shell -> m ()
 exportPath pathToExport shellType = do
-    let pathToExportText = convert $ encodeString pathToExport --tryRight' <<= toText pathToExport
+    let pathToExportText = convert $ encodeString pathToExport
     case shellType of
         Bash    -> do
             filesAvailable <- mapM runControlCheck [".bashrc", ".bash_profile", ".profile"]
@@ -112,7 +115,11 @@ exportPath pathToExport shellType = do
         Unknown -> raise' unrecognizedShellError
 
 exportPathWindows :: MonadIO m => FilePath -> m ()
-exportPathWindows path = Shelly.shelly $ Shelly.appendToPath $ parent path -- $ Shelly.cmd "setx" "/M" "\"%PATH%;" (encodeString path) "\""
+exportPathWindows path = liftIO $ do
+    (exitCode, out, err) <- Process.readProcess $ Process.shell $ "setx path \"%Path%;" ++ (encodeString $ parent path) ++ "\""
+    case exitCode of
+        ExitSuccess -> return ()
+        ExitFailure a -> print $ "Path was not exported." <> err  -- TODO this should be warning not print but installation was succesfull just path was not exported
 
 makeExecutable :: MonadIO m => FilePath -> m ()
 makeExecutable file = case currentHost of
@@ -130,7 +137,7 @@ runServicesWindows path logsPath = Shelly.chdir path $ do
     Shelly.mkdir_p logsPath
     let installPath = path </> Shelly.fromText "installAll.bat"
     Shelly.setenv "LOGSDIR" $ Shelly.toTextIgnore logsPath
-    Shelly.silently $ Shelly.cmd installPath
+    Shelly.silently $ Shelly.cmd installPath --TODO create proper error
 
 stopServicesWindows :: MonadIO m => FilePath -> m ()
 stopServicesWindows path = Shelly.shelly $ do
@@ -139,4 +146,4 @@ stopServicesWindows path = Shelly.shelly $ do
         Shelly.silently $ Shelly.cmd uninstallPath `catch` handler where
 
             handler :: MonadSh m => SomeException -> m ()
-            handler ex = return () -- Shelly.liftSh $ print ex
+            handler ex = return () -- Shelly.liftSh $ print ex --TODO create proper error
