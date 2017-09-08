@@ -213,10 +213,15 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
         Lib      -> do
             unpackedIsDir <- Shelly.test_d unpacked
+            print $ show unpackedIsDir
             if unpackedIsDir then do
                 listed <- Shelly.ls unpacked
-                print $ show listed
-                mapM_ (flip Shelly.mv libFullPath) listed
+                if length listed == 1 then do
+                    listedIsDir <- Shelly.test_d $ head listed
+                    if listedIsDir then
+                        mapM_ (flip Shelly.mv libFullPath) listed
+                        else Shelly.mv unpacked libFullPath
+                    else Shelly.mv unpacked libFullPath
                 else Shelly.mv unpacked libFullPath
 
 ------------------------------

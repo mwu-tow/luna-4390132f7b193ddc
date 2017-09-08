@@ -70,12 +70,12 @@ instance Exception BashConfigNotFoundError where
 bashConfigNotFoundError :: SomeException
 bashConfigNotFoundError = toException BashConfigNotFoundError
 
-data UnrecognizedShellError = UnrecognizedShellError deriving (Show)
-instance Exception UnrecognizedShellError where
+data UnrecognizedShellException = UnrecognizedShellException deriving (Show)
+instance Exception UnrecognizedShellException where
     displayException _ = "Unrecognized shell. Please add ~/.local/bin to your exports."
 
 unrecognizedShellError :: SomeException
-unrecognizedShellError = toException UnrecognizedShellError
+unrecognizedShellError = toException UnrecognizedShellException
 
 exportPath' :: MonadIO m => FilePath -> m ()
 exportPath' pathToExport = case currentHost of
@@ -88,8 +88,8 @@ exportPath' pathToExport = case currentHost of
     Windows -> exportPathWindows pathToExport
     -- | e == unrecognizedShellError  -> error "d"
     -- | e == bashConfigNotFoundError -> error "x"
-    -- UnrecognizedShellError ->
-    -- `catches` [Handler (\ (ex :: UnrecognizedShellError) -> liftIO $ putStrLn $ displayException ex),
+    -- UnrecognizedShellException ->
+    -- `catches` [Handler (\ (ex :: UnrecognizedShellException) -> liftIO $ putStrLn $ displayException ex),
     --                                                                               Handler (\ (ex :: BashConfigNotFoundError) -> liftIO $ putStrLn $ displayException ex)]
 
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
