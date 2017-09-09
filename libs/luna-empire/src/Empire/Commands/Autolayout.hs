@@ -3,7 +3,7 @@
 module Empire.Commands.Autolayout where
 
 import           Control.Arrow             ((&&&))
-import           Control.Monad.State.Lazy  (execState, get, gets, modify)
+import           Control.Monad.State.Lazy  (evalState, get, gets, modify)
 import qualified Control.Monad.State.Lazy  as S
 import           Data.Foldable             (find)
 import qualified Data.List                 as List
@@ -26,67 +26,73 @@ import           LunaStudio.Data.Vector2   (Vector2 (Vector2))
 type Connection = (OutPortRef, InPortRef)
 
 
+type SubgraphId = NodeId
 data DFSState = NotProcessed | InProcess | Processed deriving (Eq, Show)
-data NodeInfo = NodeInfo { _nodeId   :: NodeId
-                         , _actPos   :: Position
-                         , _subgraph :: Maybe NodeId
-                         , _dfsState :: DFSState
-                         , _inConns  :: [Connection]
-                         , _outConns :: [Connection]
-                         } deriving Show
-makeLenses ''NodeInfo
+data AutolayoutNode = AutolayoutNode { _nodeId   :: NodeId
+                                     , _actPos   :: Position
+                                     , _subgraph :: Maybe SubgraphId
+                                     , _dfsState :: DFSState
+                                     , _inConns  :: [Connection]
+                                     , _outConns :: [Connection]
+                                     } deriving Show
+makeLenses ''AutolayoutNode
 
-data Subgraph = Subgraph { _subgraphId :: NodeId
+
+
+data Subgraph = Subgraph { _subgraphId :: SubgraphId
                          , _members    :: Set NodeId
-                         , _yMinMaxAtX :: Map Double (Double, Double)
-                         }
+                         } deriving Show
+
 makeLenses ''Subgraph
 
-type NodesInfoMap      = Map NodeId NodeInfo
-type SubgraphMap       = Map NodeId Subgraph
-type AutolayoutState a = S.State NodesInfoMap a
+data AutolayoutState = AutolayoutState { _varPosNodes   :: Map NodeId AutolayoutNode
+                                       , _constPosNodes :: Map NodeId Position
+                                       , _connections   :: [Connection]
+                                       , _subgraphs     :: Map SubgraphId Subgraph
+                                       } deriving Show
 
+makeLenses ''AutolayoutState
 
 autolayoutNodes :: [NodeId] -> [(NodeId, Position)] -> [Connection] -> [(NodeId, Position)]
-autolayoutNodes nids allNodes allConns =
-    let nidsSet   = Set.fromList nids
-        nodeInSet = flip Set.member nidsSet . view _1
-        nodes = filter nodeInSet allNodes
-        leftTop  = maybe (fromDoubles 0 0) snap $ leftTopPoint $ view _2 <$> nodes
-        nodesMap = Map.fromList $ flip map nodes $ \n ->
-            let nid       = n ^. _1
-                inConns'  = filter ((== nid) . view (_2 . dstNodeId)) allConns
-                outConns' = filter ((== nid) . view (_1 . srcNodeId)) allConns
-            in (nid, NodeInfo nid leftTop Nothing NotProcessed inConns' outConns')
-    in Map.toList $ fmap (view actPos) $ execState (findPositions leftTop allNodes allConns) nodesMap
+autolayoutNodes nids allNodes allConns = evalState (findPositions leftTop) (AutolayoutState nodesMap (Map.fromList constPosN) allConns mempty) where
+    nidsSet   = Set.fromList nids
+    nodeInSet = flip Set.member nidsSet . view _1
+    (nodes, constPosN) = List.partition nodeInSet allNodes
+    leftTop  = maybe (fromDoubles 0 0) snap $ leftTopPoint $ view _2 <$> nodes
+    nodesMap = Map.fromList $ flip map nodes $ \n ->
+        let nid       = n ^. _1
+            inConns'  = filter ((== nid) . view (_2 . dstNodeId)) allConns
+            outConns' = filter ((== nid) . view (_1 . srcNodeId)) allConns
+        in (nid, AutolayoutNode nid leftTop def NotProcessed inConns' outConns')
 
 
-clearDFSState :: AutolayoutState ()
-clearDFSState = traverse . dfsState .= NotProcessed
+clearDFSState :: S.State AutolayoutState ()
+clearDFSState = varPosNodes . traverse . dfsState .= NotProcessed
 
-findPositions :: Position -> [(NodeId, Position)] -> [Connection] -> AutolayoutState ()
-findPositions pos allNodes allConns = do
+findPositions :: Position -> S.State AutolayoutState [(NodeId, Position)]
+findPositions startPos = do
+    nids <- use $ varPosNodes . to Map.keys
     removeCycles
-    nids <- gets Map.keys
     clearDFSState
     mapM_ findPositionRecursive nids
     mapM_ alignChainsX nids
     clearDFSState
-    subgraphs <- alignNodesY pos
-    alignToEndpoint subgraphs allNodes allConns
+    alignNodesY startPos
+    placeSubgraphs
 
-findPositionRecursive :: NodeId -> AutolayoutState ()
+
+findPositionRecursive :: NodeId -> S.State AutolayoutState ()
 findPositionRecursive nid = withJustM (lookupNode nid) $ \n -> do
-    ix nid . dfsState .= Processed
+    varPosNodes . ix nid . dfsState .= Processed
     alignNeighboursX n >>= mapM_ findPositionRecursive
 
-lookupNode :: NodeId -> AutolayoutState (Maybe NodeInfo)
-lookupNode nid = gets $ Map.lookup nid
+lookupNode :: NodeId -> S.State AutolayoutState (Maybe AutolayoutNode)
+lookupNode nid = preuse $ varPosNodes . ix nid
 
-lookupNodes :: [NodeId] -> AutolayoutState [NodeInfo]
+lookupNodes :: [NodeId] -> S.State AutolayoutState [AutolayoutNode]
 lookupNodes = fmap catMaybes . mapM lookupNode
 
-areInChain :: NodeInfo -> NodeInfo -> Bool
+areInChain :: AutolayoutNode -> AutolayoutNode -> Bool
 areInChain n1 n2 =
     (maybe False (isIdTheSame n2) $ onlyToSelfConnNid n1) ||
     (maybe False (isIdTheSame n1) $ onlyToSelfConnNid n2) ||
@@ -102,63 +108,63 @@ areInChain n1 n2 =
             [conn] -> Just $ conn ^. _2 . dstNodeId
             _      -> Nothing
 
-areOnTheSameLevel :: NodeInfo -> NodeInfo -> Bool
+areOnTheSameLevel :: AutolayoutNode -> AutolayoutNode -> Bool
 areOnTheSameLevel node1 node2 = areOnTheSameLevel' node1 node2 || areOnTheSameLevel' node2 node1 where
     areOnTheSameLevel' n1 n2 = case (sortOutConns $ n1 ^. outConns, sortInConns $ n2 ^. inConns) of
         ([], _)          -> False
         (_, [])          -> False
         (c1 : _, c2 : _) -> c1 == c2
 
-getPrevInChain :: NodeInfo -> AutolayoutState (Maybe NodeInfo)
+getPrevInChain :: AutolayoutNode -> S.State AutolayoutState (Maybe AutolayoutNode)
 getPrevInChain n =
     find (areInChain n) . catMaybes <$> mapM (lookupNode . view (_1 . srcNodeId)) (n ^. inConns)
 
-getNextInChain :: NodeInfo -> AutolayoutState (Maybe NodeInfo)
+getNextInChain :: AutolayoutNode -> S.State AutolayoutState (Maybe AutolayoutNode)
 getNextInChain n =
     find (areInChain n) . catMaybes <$> mapM (lookupNode . view (_2 . dstNodeId)) (n ^. outConns)
 
-isHeadInChain :: NodeInfo -> AutolayoutState Bool
+isHeadInChain :: AutolayoutNode -> S.State AutolayoutState Bool
 isHeadInChain = fmap isNothing . getPrevInChain
 
-isLastInChain :: NodeInfo -> AutolayoutState Bool
+isLastInChain :: AutolayoutNode -> S.State AutolayoutState Bool
 isLastInChain = fmap isNothing . getNextInChain
 
 
-removeCycles :: AutolayoutState ()
-removeCycles = get >>= mapM_ removeCyclesForNode . Map.keys
+removeCycles :: S.State AutolayoutState ()
+removeCycles = use varPosNodes >>= mapM_ removeCyclesForNode . Map.keys
 
-removeCyclesForNode :: NodeId -> AutolayoutState ()
+removeCyclesForNode :: NodeId -> S.State AutolayoutState ()
 removeCyclesForNode nid = withJustM (lookupNode nid) $ \n -> when (n ^. dfsState == NotProcessed) $ do
-    ix nid . dfsState .= InProcess
+    varPosNodes . ix nid . dfsState .= InProcess
     let removeConnectionsWithNode :: NodeId -> [Connection] -> [Connection]
         removeConnectionsWithNode nid' = filter (\(src, dst) -> src ^. srcNodeId /= nid && dst ^. dstNodeId /= nid')
-        processDstNode :: NodeId -> AutolayoutState ()
+        processDstNode :: NodeId -> S.State AutolayoutState ()
         processDstNode dstId = withJustM (lookupNode dstId) $ \dstNode -> case dstNode ^. dfsState of
             NotProcessed -> removeCyclesForNode dstId
             Processed    -> return ()
             InProcess    -> do
-                ix dstId . inConns  %= removeConnectionsWithNode nid
-                ix nid   . outConns %= removeConnectionsWithNode dstId
+                varPosNodes . at dstId . _Just . inConns  %= removeConnectionsWithNode nid
+                varPosNodes . at nid   . _Just . outConns %= removeConnectionsWithNode dstId
     for_ (view (_2 . dstNodeId) <$> n ^. outConns) $ processDstNode
-    ix nid . dfsState .= Processed
+    varPosNodes . ix nid . dfsState .= Processed
 
-alignNeighboursX :: NodeInfo -> AutolayoutState (Set NodeId)
+alignNeighboursX :: AutolayoutNode -> S.State AutolayoutState (Set NodeId)
 alignNeighboursX n = do
     let prevX = n ^. actPos . x - gapBetweenNodes
         nextX = n ^. actPos . x + gapBetweenNodes
-        proccessPred :: NodeInfo -> AutolayoutState (Maybe NodeId)
+        proccessPred :: AutolayoutNode -> S.State AutolayoutState (Maybe NodeId)
         proccessPred node = if node ^. dfsState == Processed && node ^. actPos . x <= prevX
             then return Nothing
             else do
                 let nid = node ^. nodeId
-                ix nid . actPos . x .= prevX
+                varPosNodes . ix nid . actPos . x .= prevX
                 return $ Just nid
-        proccessSucc :: NodeInfo -> AutolayoutState (Maybe NodeId)
+        proccessSucc :: AutolayoutNode -> S.State AutolayoutState (Maybe NodeId)
         proccessSucc node = if node ^. dfsState == Processed && node ^. actPos . x >= nextX
             then return Nothing
             else do
                 let nid = node ^. nodeId
-                ix nid . actPos . x .= nextX
+                varPosNodes . ix nid . actPos . x .= nextX
                 return $ Just nid
     preds <- lookupNodes . map (view srcNodeId . fst) $ n ^. inConns
     succs <- lookupNodes . map (view dstNodeId . snd) $ n ^. outConns
@@ -166,7 +172,7 @@ alignNeighboursX n = do
     succsToUpdate <- fmap catMaybes $ mapM proccessSucc succs
     return . Set.fromList $ predsToUpdate <> succsToUpdate
 
-alignChainsX :: NodeId -> AutolayoutState ()
+alignChainsX :: NodeId -> S.State AutolayoutState ()
 alignChainsX nid = withJustM (lookupNode nid) $ \n -> do
     preds  <- lookupNodes . map (view srcNodeId . fst) $ n ^. inConns
     succs  <- lookupNodes . map (view dstNodeId . snd) $ n ^. outConns
@@ -175,12 +181,12 @@ alignChainsX nid = withJustM (lookupNode nid) $ \n -> do
     if alignToLeft then do
         let maxPredX = unsafeMaximum $ map (view $ actPos . x) preds
         when (maxPredX < n ^. actPos . x - gapBetweenNodes ) $ do
-            ix (n ^. nodeId) . actPos . x .= maxPredX + gapBetweenNodes
+            varPosNodes . ix (n ^. nodeId) . actPos . x .= maxPredX + gapBetweenNodes
             for_ succs $ alignChainsX . view nodeId
     else if not $ null succs then do
         let minSuccX = unsafeMinimum $ map (view $ actPos . x) succs
         when (minSuccX > n ^. actPos . x + gapBetweenNodes ) $ do
-            ix (n ^. nodeId) . actPos . x .= minSuccX - gapBetweenNodes
+            varPosNodes . ix (n ^. nodeId) . actPos . x .= minSuccX - gapBetweenNodes
             for_ preds $ alignChainsX . view nodeId
     else return ()
 
@@ -203,30 +209,42 @@ maxMaybe (Just a) Nothing  = Just a
 maxMaybe Nothing  (Just b) = Just b
 maxMaybe (Just a) (Just b) = Just $ max a b
 
-findYPositionForward :: NodeInfo -> Subgraph -> AutolayoutState (Maybe Double)
-findYPositionForward n s = do
+yMinMaxAtX :: [(NodeId, Position)] -> Map Double (Double, Double)
+yMinMaxAtX nodes = foldl updateMap def nodes where
+    updateValue (miny, maxy) (y, _) = (min miny y, max maxy y)
+    updateMap minMaxMap (_, npos) = Map.insertWith updateValue (npos ^. x) (npos ^. y, npos ^. y) minMaxMap
+
+
+findYPositionForward :: AutolayoutNode -> SubgraphId -> S.State AutolayoutState (Maybe Double)
+findYPositionForward n sid = do
     succs <- lookupNodes . map (view $ _2 . dstNodeId) . sortOutConns $ n ^. outConns
-    let mayNYPos = (+gapBetweenNodes) . snd <$> (Map.lookup (n ^. actPos . x) $ s ^. yMinMaxAtX)
+    nids <- fromMaybe def <$> preuse (subgraphs . ix sid . members)
+    nodes <- Map.toList . fmap (view actPos) . flip Map.restrictKeys nids <$> use varPosNodes
+    let minMaxMap = yMinMaxAtX nodes
+        mayNYPos = (+gapBetweenNodes) . snd <$> (Map.lookup (n ^. actPos . x) minMaxMap)
     if null succs || (not . areOnTheSameLevel n $ unsafeHead succs)
         then return mayNYPos
     else if isJust (view subgraph $ unsafeHead succs)
         then return . maxMaybe mayNYPos $ Just . (view $ actPos . y) $ unsafeHead succs
-        else maxMaybe mayNYPos <$> findYPositionForward (unsafeHead succs) s
+        else maxMaybe mayNYPos <$> findYPositionForward (unsafeHead succs) sid
 
-findYPositionBackward :: NodeInfo -> Subgraph -> AutolayoutState (Maybe Double)
-findYPositionBackward n s = do
+findYPositionBackward :: AutolayoutNode -> SubgraphId -> S.State AutolayoutState (Maybe Double)
+findYPositionBackward n sid = do
     preds <- lookupNodes . map (view $ _1 . srcNodeId) . sortInConns $ n ^. inConns
-    let mayNYPos = (+gapBetweenNodes) . snd <$> (Map.lookup (n ^. actPos . x) $ s ^. yMinMaxAtX)
+    nids <- fromMaybe def <$> preuse (subgraphs . ix sid . members)
+    nodes <- Map.toList . fmap (view actPos) . flip Map.restrictKeys nids <$> use varPosNodes
+    let minMaxMap = yMinMaxAtX nodes
+        mayNYPos = (+gapBetweenNodes) . snd <$> Map.lookup (n ^. actPos . x) minMaxMap
     if null preds || (not . areOnTheSameLevel n $ unsafeHead preds)
         then return mayNYPos
     else if isJust (view subgraph $ unsafeHead preds)
         then return . maxMaybe mayNYPos $ Just . (view $ actPos . y) $ unsafeHead preds
-        else maxMaybe mayNYPos <$> findYPositionBackward (unsafeHead preds) s
+        else maxMaybe mayNYPos <$> findYPositionBackward (unsafeHead preds) sid
 
-findYPosition :: NodeInfo -> Subgraph -> AutolayoutState (Maybe Double)
-findYPosition n s = maxMaybe <$> findYPositionBackward n s <*> findYPositionForward n s
+findYPosition :: AutolayoutNode -> SubgraphId -> S.State AutolayoutState (Maybe Double)
+findYPosition n sid = maxMaybe <$> findYPositionBackward n sid <*> findYPositionForward n sid
 
-findHigherNodeForward :: NodeInfo -> AutolayoutState (Maybe NodeInfo)
+findHigherNodeForward :: AutolayoutNode -> S.State AutolayoutState (Maybe AutolayoutNode)
 findHigherNodeForward n = do
     succs <- lookupNodes . map (view $ _2 . dstNodeId) . sortOutConns $ n ^. outConns
     if null succs || (isJust . view subgraph $ unsafeHead succs)
@@ -235,7 +253,7 @@ findHigherNodeForward n = do
         then findHigherNodeForward $ unsafeHead succs
         else return . Just $ unsafeHead succs
 
-findHigherNodeBackward :: NodeInfo -> AutolayoutState (Maybe NodeInfo)
+findHigherNodeBackward :: AutolayoutNode -> S.State AutolayoutState (Maybe AutolayoutNode)
 findHigherNodeBackward n = do
     preds <- lookupNodes . map (view $ _1 . srcNodeId) . sortInConns $ n ^. inConns
     if null preds || (isJust . view subgraph $ unsafeHead preds)
@@ -244,69 +262,121 @@ findHigherNodeBackward n = do
         then findHigherNodeBackward $ unsafeHead preds
         else return . Just $ unsafeHead preds
 
-findHigherNode :: NodeInfo -> AutolayoutState (Maybe NodeInfo)
+findHigherNode :: AutolayoutNode -> S.State AutolayoutState (Maybe AutolayoutNode)
 findHigherNode n = if n ^. dfsState == InProcess then return Nothing else do
         mayNode <- findHigherNodeBackward n
         case mayNode of
             Just node -> return $ Just node
             Nothing   -> findHigherNodeForward n
 
--- add consistency to subgraph position map
-addToSubgraph :: Subgraph -> NodeInfo -> AutolayoutState Subgraph
-addToSubgraph s n = do
-    ix (n ^. nodeId) . dfsState .= InProcess
-    if isJust $ n ^. subgraph then return s else findHigherNode n >>= \mayN ->
-        if isJust mayN then addToSubgraph s $ unsafeFromJust mayN else do
-            y' <- maybe (n ^. actPos . y) id <$> findYPosition n s
-            modify $ Map.update (\n' -> Just $ n' & actPos . y .~ y'
-                                                  & subgraph   ?~ s ^. subgraphId
-                                                  & dfsState   .~ Processed) (n ^. nodeId)
-            let getYMinMaxAtX = maybe (y', y') (\(minY, maxY) -> (min minY y', max maxY y')) $ Map.lookup (n ^. actPos . x) $ s ^. yMinMaxAtX
-                updatedS :: Subgraph
-                updatedS = s & members    %~ Set.insert (n ^. nodeId)
-                             & yMinMaxAtX %~ Map.insert (n ^. actPos . x) getYMinMaxAtX
-                proccessN :: Subgraph -> NodeId -> AutolayoutState Subgraph
-                proccessN s' nl = lookupNode nl >>= maybe (return s') (addToSubgraph s')
-            foldlM proccessN updatedS $ (map (view $ _1 . srcNodeId) . sortInConns  $ n ^. inConns)
-                             <> (map (view $ _2 . dstNodeId) . sortOutConns $ n ^. outConns)
+findSubgraph :: SubgraphId -> NodeId -> S.State AutolayoutState ()
+findSubgraph sid nid = withJustM (lookupNode nid) $ \n -> do
+    let addToSubgraph n = do
+            y' <- maybe (n ^. actPos . y) id <$> findYPosition n sid
+            varPosNodes . ix nid %= \n' -> n' & actPos . y .~ y'
+                                              & subgraph   ?~ sid
+                                              & dfsState   .~ Processed
+            subgraphs . ix sid . members %= Set.insert nid
+            mapM_ (findSubgraph sid) $ (map (view $ _1 . srcNodeId) . sortInConns  $ n ^. inConns)
+                                    <> (map (view $ _2 . dstNodeId) . sortOutConns $ n ^. outConns)
 
-alignSubgraph :: Position -> Subgraph -> AutolayoutState Position
-alignSubgraph pos s = case getSubgraphMinimumRectangle s of
+    varPosNodes . ix nid . dfsState .= InProcess
+    unless (isJust $ n ^. subgraph) $ findHigherNode n >>= maybe (addToSubgraph n) (findSubgraph sid . view nodeId)
+
+alignSubgraph :: Position -> SubgraphId -> S.State AutolayoutState Position
+alignSubgraph pos sid = getSubgraphMinimumRectangle sid >>= \rect -> case rect of
     Nothing                     -> return pos
     Just (leftTop, rightBottom) -> do
-        moveSubgraph (pos ^. vector - leftTop ^. vector) s
+        moveSubgraph (pos ^. vector - leftTop ^. vector) sid
         return $ pos & y %~ (+ (rightBottom ^. y - leftTop ^. y + gapBetweenNodes))
 
-moveSubgraph :: Vector2 Double -> Subgraph -> AutolayoutState ()
-moveSubgraph shift s = mapM_ moveNode $ s ^. members where
-    moveNode nid = (ix nid . actPos %= move shift)
+moveSubgraph :: Vector2 Double -> SubgraphId -> S.State AutolayoutState ()
+moveSubgraph shift sid = do
+    let moveNode nid = varPosNodes . ix nid . actPos %= move shift
+    nids <- use $ subgraphs . ix sid . members . to Set.toList
+    mapM_ moveNode nids
 
-getSubgraphMinimumRectangle :: Subgraph -> Maybe (Position, Position)
-getSubgraphMinimumRectangle s = if Map.null $ s ^. yMinMaxAtX
-    then Nothing
-    else Just ( fromDoubles (unsafeMinimum . Map.keys $ s ^. yMinMaxAtX) (unsafeMinimum . map fst . Map.elems $ s ^. yMinMaxAtX)
-              , fromDoubles (unsafeMaximum . Map.keys $ s ^. yMinMaxAtX) (unsafeMaximum . map snd . Map.elems $ s ^. yMinMaxAtX) )
+getSubgraphMinimumRectangle :: SubgraphId -> S.State AutolayoutState (Maybe (Position, Position))
+getSubgraphMinimumRectangle sid = do
+    nids <- Set.toList <$> (use $ subgraphs . ix sid . members)
+    positions <- map (view actPos) <$> lookupNodes nids
+    let mergeWithResult :: Maybe (Position, Position) -> Position -> Maybe (Position, Position)
+        mergeWithResult Nothing pos = Just (pos, pos)
+        mergeWithResult (Just (minPos, maxPos)) pos = do
+            let minx = min (minPos ^. x) (pos ^. x)
+                miny = min (minPos ^. y) (pos ^. y)
+                maxx = max (maxPos ^. x) (pos ^. x)
+                maxy = max (maxPos ^. y) (pos ^. y)
+            Just (fromDoubles minx miny, fromDoubles maxx maxy)
+    return $ foldl mergeWithResult Nothing positions
 
-refreshSubgraph :: Subgraph -> AutolayoutState Subgraph
-refreshSubgraph (Subgraph sid nids _) = Subgraph sid nids <$> updatedMap where
-    updatedMap :: AutolayoutState (Map Double (Double, Double))
-    updatedMap = do
-        nodes <- lookupNodes (Set.toList nids)
-        let mapUpdate :: Map Double (Double, Double) -> NodeInfo -> Map Double (Double, Double)
-            mapUpdate m n = Map.insertWith (\(y1Min, y1Max) (y2Min, y2Max) -> (min y1Min y2Min, max y1Max y2Max)) (n ^. actPos . x) (n ^. actPos . y, n ^. actPos . y) m
-        return $ foldl mapUpdate def nodes
-
-alignNodesY :: Position -> AutolayoutState SubgraphMap
+alignNodesY :: Position -> S.State AutolayoutState ()
 alignNodesY pos = do
-    nids <- gets Map.keys
-    let makeSubgraph :: NodeInfo -> AutolayoutState Subgraph
-        makeSubgraph n = addToSubgraph (Subgraph (n ^. nodeId) def def) n
-    subgraphs <- fmap catMaybes . forM nids $ \nid -> lookupNode nid >>= \mayNode ->
-        if isNothing mayNode || (isJust . join $ view subgraph <$> mayNode)
-            then return Nothing
-            else forM mayNode makeSubgraph
-    void $ foldlM alignSubgraph pos subgraphs
-    fmap Map.fromList . forM subgraphs $ fmap (view subgraphId &&& id) . refreshSubgraph
+    nids <- use $ varPosNodes . to Map.keys
+    let makeSubgraph :: NodeId -> S.State AutolayoutState ()
+        makeSubgraph nid = do
+            subgraphs . at nid ?= Subgraph nid def
+            findSubgraph nid nid
+    forM nids $ \nid -> withJustM (lookupNode nid) $ \n ->
+        when (isNothing $ n ^. subgraph) $ makeSubgraph nid
+    use (subgraphs . to Map.keys) >>= void . foldlM alignSubgraph pos
+
+acceptSubgraph :: SubgraphId -> S.State AutolayoutState [(NodeId, Position)]
+acceptSubgraph sid = withJustM (preuse $ subgraphs . ix sid . members . to Set.toList) $ \nids -> do
+    subgraphs . at sid .= Nothing
+    let changeState n = do
+            let nid = n ^. nodeId
+            constPosNodes . at nid ?= n ^. actPos
+            varPosNodes   . at nid .= Nothing
+            return $ Just (nid, n ^. actPos)
+        acceptNode nid = lookupNode nid >>= maybe (return Nothing) changeState
+    catMaybes <$> mapM acceptNode nids
+
+placeSubgraphs :: S.State AutolayoutState [(NodeId, Position)]
+placeSubgraphs = do
+    sids <- use (subgraphs . to Map.keys)
+    fmap concat . forM sids $ \sid -> do
+        alignToEndpoint sid
+        meetTheConstraints sid
+        acceptSubgraph sid
+
+lookupMax :: Map k a -> Maybe (k, a)
+lookupMax m = if Map.null m then Nothing else Just $ Map.findMax m
+
+alignToEndpoint :: SubgraphId -> S.State AutolayoutState ()
+alignToEndpoint sid = do
+    nids <- fromMaybe def <$> preuse (subgraphs . ix sid . members)
+    nodes <- use varPosNodes
+    constPosNodes' <- use constPosNodes
+    let constPosId = Map.keysSet constPosNodes'
+        isSrcEndConn (src, dst) = Set.member (src ^. srcNodeId) constPosId && Set.member (dst ^. dstNodeId) nids
+        isDstEndConn (src, dst) = Set.member (src ^. srcNodeId) nids && Set.member (dst ^. dstNodeId) constPosId
+        isEndConn conn = isSrcEndConn conn || isDstEndConn conn
+        processInConn :: Maybe (Vector2 Double) -> Connection -> Maybe (Vector2 Double)
+        processInConn res (src, dst) = do
+            case Map.lookup (src ^. srcNodeId) constPosNodes' of
+                Nothing  -> res
+                Just pos -> case view actPos <$> Map.lookup (dst ^. dstNodeId) nodes of
+                    Nothing -> res
+                    Just oldPos -> do
+                        let shift = findSuccessorPosition (src ^. srcNodeId, pos) (Map.toList constPosNodes') ^. vector - oldPos ^. vector
+                        if isNothing res || Just (shift ^. x) > (view x <$> res) then Just shift else res
+        processOutConn :: Maybe (Vector2 Double) -> Connection -> Maybe (Vector2 Double)
+        processOutConn res (src, dst) = do
+            case Map.lookup (dst ^. dstNodeId) constPosNodes' of
+                Nothing  -> res
+                Just pos -> case view actPos <$> Map.lookup (src ^. srcNodeId) nodes of
+                    Nothing -> res
+                    Just oldPos -> do
+                        let shift = findSuccessorPosition (dst ^. dstNodeId, pos) (Map.toList constPosNodes') ^. vector - oldPos ^. vector
+                        if isNothing res || Just (shift ^. x) < (view x <$> res) then Just shift else res
+    (sInConns, sOutConns) <- List.partition isSrcEndConn . filter isEndConn <$> use connections
+    let mayInShift = foldl processInConn Nothing sInConns
+        mayOutShift = foldl processOutConn Nothing sOutConns
+    case (mayInShift, mayOutShift) of
+        (Just inShift, _)  -> moveSubgraph inShift sid
+        (_, Just outShift) -> moveSubgraph outShift sid
+        _ -> return ()
 
 findPredecessorPosition :: (NodeId, Position) -> [(NodeId, Position)] -> Position
 findPredecessorPosition node nodes = fromDoubles xPos yPos where
@@ -321,22 +391,47 @@ findSuccessorPosition node nodes = fromDoubles xPos yPos where
     findYPos y' = if any (\n -> n ^. _2 . x == xPos && n ^. _2 . y == y') nodes then findYPos $ y' + gapBetweenNodes else y'
 
 
-alignToEndpoint :: SubgraphMap -> [(NodeId, Position)] -> [Connection] -> AutolayoutState ()
-alignToEndpoint subgraphs nodes conns = for_ subgraphs $ \s -> for_ (findEndPoint s nodes conns) $ \((src, dst), node) -> do
-    mayNode <- lookupNode $ if src ^. srcNodeId /= node ^. _1 then src ^. srcNodeId else dst ^. dstNodeId
-    for_ mayNode $ \n -> do
-        state <- get
-        let newPos = if src ^. srcNodeId == node ^. _1
-                then findSuccessorPosition   node $ filter (\n -> Map.notMember (n ^. _1) state) nodes
-                else findPredecessorPosition node $ filter (\n -> Map.notMember (n ^. _1) state) nodes
-            shift  = newPos ^. vector - n ^. actPos . vector
-        moveSubgraph shift s
 
-findEndPoint :: Subgraph -> [(NodeId, Position)] -> [Connection] -> Maybe (Connection, (NodeId, Position))
-findEndPoint s nodes conns = listToMaybe endPoints where
-    inSubgraph nid = Set.member nid $ s ^. members
-    endPoints :: [(Connection, (NodeId, Position))]
-    endPoints = catMaybes . flip map conns $ \conn@(src, dst) ->
-        if      inSubgraph (src ^. srcNodeId) && (not $ inSubgraph (dst ^. dstNodeId)) then (conn, ) <$> find (\n -> n ^. _1 == dst ^. dstNodeId) nodes
-        else if (not $ inSubgraph (src ^. srcNodeId)) && inSubgraph (dst ^. dstNodeId) then (conn, ) <$> find (\n -> n ^. _1 == src ^. srcNodeId) nodes
-        else    Nothing
+
+meetTheConstraints :: SubgraphId -> S.State AutolayoutState ()
+meetTheConstraints sid = do
+    nids <- fromMaybe def <$> preuse (subgraphs . ix sid . members)
+    constPNMap <- use constPosNodes
+    conns <- use connections
+    nodes <- Map.toList . fmap (view actPos) . flip Map.restrictKeys nids <$> use varPosNodes
+    let constYMinMaxAtX :: Map Double (Double, Double)
+        constYMinMaxAtX = yMinMaxAtX $ Map.toList constPNMap
+        checkNodeConstraints :: Map Double (Double, Double) -> (NodeId, Position) -> Bool
+        checkNodeConstraints minMaxMap (nid, pos) = do
+            let meetsConstraint (miny, maxy) = pos ^. y <= miny - gapBetweenNodes || pos ^. y >= maxy + gapBetweenNodes
+            all meetsConstraint . Map.elems $ Map.filterWithKey (\mx _ -> abs (pos ^. x - mx) < gapBetweenNodes) minMaxMap
+        neededShiftY' :: Map Double (Double, Double) -> (NodeId, Position) -> Double
+        neededShiftY' minMaxMap (nid, pos) = do
+            let minimalShiftY :: (Double, Double) -> Double
+                minimalShiftY (_, maxy) = maxy + gapBetweenNodes - pos ^. y
+                neededShifts :: [Double]
+                neededShifts = map minimalShiftY . Map.elems $ Map.filterWithKey (\mx _ -> abs (pos ^. x - mx) < gapBetweenNodes) minMaxMap
+            foldl max 0 neededShifts
+        neededShiftY :: Map Double (Double, Double) -> [(NodeId, Position)] -> Double
+        neededShiftY minMaxMap nodes = foldl (\res -> max res . neededShiftY' minMaxMap) 0 nodes
+        alignDownIfNeeded :: S.State AutolayoutState ()
+        alignDownIfNeeded = if all (checkNodeConstraints constYMinMaxAtX) nodes then return ()
+                            else let shift = Vector2 0 $ neededShiftY constYMinMaxAtX nodes in
+                                if shift == 0 then return () else do
+                                    moveSubgraph shift sid
+        alignRight :: S.State AutolayoutState ()
+        alignRight = do
+            let findSuccPos Nothing = Nothing
+                findSuccPos (Just (px, (py, _))) = Just $ fromDoubles (px + gapBetweenNodes) py
+                mayNewPos = findSuccPos $ lookupMax constYMinMaxAtX
+                foldFunc Nothing (_, pos) = Just pos
+                foldFunc (Just res) (_, pos) = if res ^. x < pos ^. x then Just res
+                    else if res ^. x == pos ^. x && res ^. y < pos ^. y then Just res
+                    else Just pos
+                mayOldPos = foldl foldFunc Nothing nodes
+                findShift oldPos newPos = newPos ^. vector - oldPos ^. vector
+            withJust ((,) <$> mayOldPos <*> mayNewPos) $ \(oldPos, newPos) -> moveSubgraph (findShift oldPos newPos) sid
+    let isForeignConn (src, dst) = if      Set.member (src ^. srcNodeId) nids && Map.member (dst ^. dstNodeId) constPNMap then True
+                                   else if Map.member (src ^. srcNodeId) constPNMap && Set.member (dst ^. dstNodeId) nids then True
+                                   else False
+    if any isForeignConn conns then alignDownIfNeeded else alignRight
