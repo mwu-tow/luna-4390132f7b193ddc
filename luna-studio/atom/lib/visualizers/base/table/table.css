@@ -1,31 +1,20 @@
-html {
-  font-size: 1px;
-}
 body {
-  font-family: monospace;
-  font-size: 8rem;
-  font-weight: lighter;
-  color: #666;
-  padding: 0;
-  margin: 0;
+    font: 12px/16px monospace;
+    color: #777;
+    padding: 10px 7px; /* 12 - 5 */
+    margin: 0;
 }
 table {
-  border-collapse: collapse;
-  width: 90%;
-  height: 100%;
-  display: block;
-  overflow: scroll;
-  margin: 10px;
+    line-height: 16px;
+    border-collapse: collapse;
+    width: 100%;
+    display: block;
 }
-tr:first-child td { padding-top:    6rem; }
-tr:last-child td  { padding-bottom: 6rem; }
-td {
+th,td {
     cell-spacing: 0;
     border: none;
-    padding: 0rem 10rem;
+    padding: 0 5px;
 }
-
-td:first-child {
-    color: #333;
-    padding-right: 0;
+th {
+  opacity: 0.25;
 }
