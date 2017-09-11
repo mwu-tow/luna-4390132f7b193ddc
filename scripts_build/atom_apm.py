@@ -56,14 +56,14 @@ def apm_luna_atom_package (third_party_path, atom_home_path, package_name, packa
     popen = subprocess.Popen(('git', 'clone', package_address, package_name), stdout=subprocess.PIPE)
     popen.wait()
     output = popen.stdout.read()
-    print (output)
+    print (output.decode('utf-8'))
     os.chdir(package_name)
     os.environ['ATOM_HOME'] = atom_home_path
     print(os.getcwd())
     install = subprocess.Popen ((apm, 'install', '.'), stdout=subprocess.PIPE)
     install.wait()
     output2 = install.stdout.read()
-    print (output2)
+    print (output2.decode('utf-8'))
 
 
 
@@ -81,8 +81,7 @@ def apm(third_party_path, atom_home_path, studio_package_name):
     popen = subprocess.Popen((apm, 'install', '.'), stdout=subprocess.PIPE)
     popen.wait()
     output = popen.stdout.read()
-    print ("luna studio instalacja apm")
-    print(output)
+    print(output.decode('utf-8'))
 
 def list_packages(third_party_path, atom_home_path):
     apm = apm_path(third_party_path)
@@ -98,7 +97,7 @@ def apm_package(third_party_path, atom_home_path, package_name, package_version)
     popen = subprocess.Popen((apm, 'install', package_name + '@' + package_version), stdout=subprocess.PIPE)
     popen.wait()
     output = popen.stdout.read()
-    print(output)
+    print(output.decode('utf-8'))
 
 
 def apm_packages(third_party_path, atom_home_path, package_config_path):
