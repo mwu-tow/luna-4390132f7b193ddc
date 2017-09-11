@@ -1,12 +1,15 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Empire.ASTOps.Deconstruct where
 
 import           Empire.Prelude
 
+import           Data.Text.Position (Delta)
 import           Empire.ASTOp       (GraphOp, match)
 import qualified Empire.ASTOps.Read as Read
-import           Empire.Data.AST    (NodeRef, NotAppException (..))
+import           Empire.Data.AST    (EdgeRef, NodeRef, NotAppException (..))
+import           Empire.Data.Layers (SpanLength, SpanOffset)
 
 import qualified Luna.IR            as IR
 import           Luna.IR.Term.Uni
@@ -77,6 +80,20 @@ extractArguments' FLam expr = match expr $ \case
         arg'    <- IR.source b
         return $ arg' : args
     Grouped g -> IR.source g >>= extractArguments' FLam
+    _       -> return []
+
+extractLamArgLinks :: GraphOp m => NodeRef -> m [(Delta, EdgeRef)]
+extractLamArgLinks = extractLamArgLinks' 0
+
+extractLamArgLinks' :: GraphOp m => Delta -> NodeRef -> m [(Delta, EdgeRef)]
+extractLamArgLinks' lamOff expr = match expr $ \case
+    Lam b a -> do
+        off     <- IR.getLayer @SpanOffset a
+        nextLam <- IR.source a
+        argLen  <- IR.getLayer @SpanLength =<< IR.source b
+        args    <- extractLamArgLinks' (lamOff + argLen + off) nextLam
+        return $ (lamOff, b) : args
+    Grouped g -> IR.source g >>= extractLamArgLinks' lamOff
     _       -> return []
 
 dumpAccessors :: GraphOp m => NodeRef -> m (Maybe NodeRef, [String])
