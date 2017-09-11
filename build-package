@@ -15,11 +15,11 @@ frontend_dir = scripts_build.atom_prepare.prep_path('../luna-studio')
 
 
 
-def build_app (backend_args, frontend_args, runner_args):
+def build_app (backend_args, frontend_args, runner_args, link):
     try:
         scripts_build.stack_build.run(backend_args, frontend_args, runner_args)
         scripts_build.atom_prepare.run()
-        scripts_build.atom_apm.run() # RENAME: LunaStudioInstallInAtom ?
+        scripts_build.atom_apm.run(link) # RENAME: LunaStudioInstallInAtom ?
         scripts_build.copy_configs.run()
 
     except subprocess.CalledProcessError:
@@ -36,11 +36,11 @@ def build_backend (backend_args):
         print("Status : FAIL")
         sys.exit(1)
 
-def build_frontend (frontend_args):
+def build_frontend (frontend_args, link):
     try:
         scripts_build.stack_build.create_bin_dirs()
         scripts_build.stack_build.build_ghcjs(frontend_args)
-        scripts_build.atom_apm.run()
+        scripts_build.atom_apm.run(link)
         scripts_build.copy_configs.run()
 
     except subprocess.CalledProcessError:
@@ -51,6 +51,7 @@ def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", help="build just backend", action="store_true")
     parser.add_argument("--frontend", help="build just frontend", action="store_true")
+    parser.add_argument("--link", help="link luna-studio package to atom_home", action="store_true")
     parser.add_argument("--backend-stack", help="options for stack build backend", action="append", dest="stack_backend_args", default=['--copy-bins'])
     parser.add_argument("--frontend-stack", help="options for stack build frontend", action="append", dest="stack_frontend_args", default=[])
     parser.add_argument("--runner-stack", help="options for stack build runner", action="append", dest="stack_runner_args", default=['--copy-bins'])
@@ -59,7 +60,7 @@ def main ():
     if args.backend:
         build_backend (args.stack_backend_args)
     elif args.frontend:
-        build_frontend (args.stack_frontend_args)
-    else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args)
+        build_frontend (args.stack_frontend_args, args.link)
+    else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args, args.link)
 
 main()

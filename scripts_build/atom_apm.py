@@ -78,19 +78,31 @@ def apm_luna_local_atom_package (third_party_path, atom_home_path, package_name,
     output3 = link.stdout.read()
     print (output3.decode('utf-8'))
 
-def apm(third_party_path, atom_home_path, studio_package_name):
+def apm(third_party_path, atom_home_path, studio_package_name, link):
     package_path = atom_home_path + '/packages/' + studio_package_name
     oniguruma_package_path = package_path + '/node_modules/oniguruma'
     oniguruma = oniguruma_path(third_party_path)
     apm = apm_path(third_party_path)
-    os.makedirs(package_path, exist_ok=True)
-    copy_studio(studio_atom_source_path, package_path)
-    distutils.dir_util.copy_tree(oniguruma, oniguruma_package_path)
-    os.chdir(package_path)
-    popen = subprocess.Popen((apm, 'install', '.'), stdout=subprocess.PIPE)
-    popen.wait()
-    output = popen.stdout.read()
-    print(output.decode('utf-8'))
+    if link:
+        os.chdir(studio_atom_source_path)
+        os.environ['ATOM_HOME'] = atom_home_path
+        install = subprocess.Popen((apm, 'install', '.'), stdout=subprocess.PIPE)
+        install.wait()
+        output_install = install.stdout.read()
+        print(output_install.decode('utf-8'))
+        link = subprocess.Popen((apm, 'link', '.'), stdout=subprocess.PIPE)
+        link.wait()
+        output_link = link.stdout.read()
+        print(output_link.decode('utf-8'))
+    else:
+        os.makedirs(package_path, exist_ok=True)
+        copy_studio(studio_atom_source_path, package_path)
+        distutils.dir_util.copy_tree(oniguruma, oniguruma_package_path)
+        os.chdir(package_path)
+        popen = subprocess.Popen((apm, 'install', '.'), stdout=subprocess.PIPE)
+        popen.wait()
+        output = popen.stdout.read()
+        print(output.decode('utf-8'))
 
 
 def list_packages(third_party_path, atom_home_path):
@@ -128,8 +140,8 @@ def apm_packages(third_party_path, atom_home_path, package_config_path):
                     output = popen.stdout.read()
                     apm_package(third_party_path, atom_home_path, package.split()[0], package.split()[1])
 
-def run():
-    apm(third_party_path, atom_home_path, studio_package_name)
+def run(link):
+    apm(third_party_path, atom_home_path, studio_package_name, link)
     apm_luna_atom_package (third_party_path, atom_home_path, 'luna-syntax', 'https://github.com/luna/luna-studio-syntax-theme.git')
     apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dark-ui', 'https://github.com/luna/luna-studio-ui-theme.git')
     apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dpi', 'https://github.com/luna/luna-studio-dpi.git')
@@ -139,4 +151,4 @@ def run():
     apm_packages(third_party_path, atom_home_path,  package_config_path)
 
 if __name__ == '__main__':
-    run()
+    run(False)
