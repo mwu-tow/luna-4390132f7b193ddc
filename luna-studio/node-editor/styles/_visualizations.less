@@ -47,10 +47,16 @@
     .luna-plane {
         > *:not(.luna-visualization--active) {
             opacity: 0.38;
+            .luna-visualization-container {
+                background: none;
+            }
+            .luna-dropdown { display: none; }
         }
     }
 }
 .luna-visualization--active {
+    position: relative;
+    z-index:  1000000;
     .luna-visualization-cover {
         display: none;
     }
@@ -62,7 +68,7 @@
 
 .luna-studio-window--has-visualization-fullscreen {
     .luna-studio-window__center {
-        width: 100%;
+        width:  100%;
         height: 100%;
     }
     .luna-visualization--fullscreen {
@@ -100,15 +106,15 @@
 /////////////////////////////
 
 .luna-dropdown {
-    @w: 24px;
-    color:         @luna-text-color;
-    position:      absolute;
-    line-height:   24px;
-    z-index:       1;
-    top:           0;
-    right:         -@w;
-    width:         @w;
-    text-align:    center;
+    @w:          24px;
+    color:       @luna-text-color;
+    position:    absolute;
+    line-height: 24px;
+    z-index:     1;
+    top:         0;
+    right:       -@w;
+    width:       @w;
+    text-align:  center;
     &:hover {
         .luna-dropdown__menu {
             position:   absolute;
