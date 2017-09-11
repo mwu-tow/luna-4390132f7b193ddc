@@ -47,7 +47,7 @@ unpack guiInstaller totalProgress progressFieldName file = do
         Windows ->  do
             ext <- tryJust extensionError $ extension file
             case ext of
-                "zip" -> unzipFileWindows file
+                "zip" -> unzipFileWindows guiInstaller file
                 "gz"  -> untarWin guiInstaller totalProgress progressFieldName file
         Darwin  -> do
             ext <- tryJust extensionError $ extension file
@@ -116,11 +116,11 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
         return $ dir </> name
 
 -- TODO: download unzipper if missing
-unzipFileWindows :: (MonadIO m, MonadNetwork m)=> FilePath -> m FilePath
-unzipFileWindows zipFile = do
+unzipFileWindows :: (MonadIO m, MonadNetwork m)=> Bool -> FilePath -> m FilePath
+unzipFileWindows guiInstaller zipFile = do
     let scriptPath = "http://packages.luna-lang.org/windows/j_unzip.vbs"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
-    script <- downloadFromURL scriptPath "Downloading archiving tool"
+    script <- downloadFromURL guiInstaller scriptPath "Downloading archiving tool"
     let dir = directory zipFile
         name = dir </> basename zipFile
     -- Shelly.shelly $ Shelly.cp script dir
@@ -147,7 +147,7 @@ untarWin guiInstaller totalProgress progressFieldName zipFile = do
     let scriptPath = "http://packages.luna-lang.org/windows/tar2.exe"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
 
-    script <- downloadFromURL scriptPath "Downloading archiving tool"
+    script <- downloadFromURL guiInstaller scriptPath "Downloading archiving tool"
     let dir = directory zipFile
         name = dir </> basename zipFile
 
@@ -168,11 +168,11 @@ untarWin guiInstaller totalProgress progressFieldName zipFile = do
                 else do
                     return $ dir </> name
 
-zipFileWindows :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)=> FilePath -> Text -> m FilePath
-zipFileWindows folder appName = do
+zipFileWindows :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)=> Bool -> FilePath -> Text -> m FilePath
+zipFileWindows guiInstaller folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
     let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
-    script <- downloadFromURL scriptPath "Downloading archiving tool"
+    script <- downloadFromURL guiInstaller scriptPath "Downloading archiving tool"
     Shelly.chdir (parent folder) $ do
         Shelly.cp script $ parent folder
         Shelly.cmd (parent folder </> filename script) "tar" name folder

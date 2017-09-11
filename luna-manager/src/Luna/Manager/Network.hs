@@ -43,10 +43,10 @@ takeFileNameFromURL url = convert <$> name where
 
 type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeException m, MonadSh m, MonadCatch m, MonadThrow m,  MonadBaseControl IO m)
 
-downloadFromURL :: MonadNetwork m => URIPath -> Text -> m FilePath
-downloadFromURL address info = go `Exception.catchAny` \e -> throwM (DownloadException address e)  where
+downloadFromURL :: MonadNetwork m => Bool -> URIPath -> Text -> m FilePath
+downloadFromURL guiInstaller address info = go `Exception.catchAny` \e -> throwM (DownloadException address e)  where
     go = withJust (takeFileNameFromURL address) $ \name -> do
-        --putStrLn $ (convert info) <>" (" <> convert address <> ")" TODO: option for gui Installer
+        if guiInstaller then putStrLn $ (convert info) <>" (" <> convert address <> ")" else return ()
         dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
         request <- HTTP.parseRequest (convert address)

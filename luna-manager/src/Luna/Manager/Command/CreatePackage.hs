@@ -207,11 +207,12 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     let depName          = resolvedPackage ^. header . name
         packageType      = resolvedPackage ^. resolvedAppType
         componentsFolder = pkgConfig ^. componentsToCopy
+        guiInstaller     = False
 
     thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
-    downloadedPkg      <- downloadFromURL (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
-    unpacked           <- Archive.unpack False 1.0 "unpacking_progress" downloadedPkg
+    downloadedPkg      <- downloadFromURL guiInstaller (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
+    unpacked           <- Archive.unpack guiInstaller 1.0 "unpacking_progress" downloadedPkg
     Shelly.mkdir_p thirdPartyFullPath
     case packageType of
         BatchApp -> Shelly.mv unpacked thirdPartyFullPath
@@ -321,7 +322,7 @@ createPkg verbose cfgFolderPath resolvedApplication = do
     case currentHost of
         Linux   -> createAppimage appName $ appPath
         Darwin  -> void $ createTarGzUnix mainAppDir appName
-        Windows -> void $ zipFileWindows mainAppDir appName
+        Windows -> void $ zipFileWindows False mainAppDir appName
 
 run :: MonadCreatePackage m => MakePackageOpts -> m ()
 run opts = do

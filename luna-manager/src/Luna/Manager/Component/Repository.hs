@@ -138,6 +138,11 @@ generateYaml repo resolvedApplication filePath = do
     liftIO $ BS.writeFile (encodeString filePath) $ Yaml.encode $ Repo defpkgs [appName]
     -- return ()
 
+generateConfigYamlWithNewPackage :: (MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> m ()
+generateConfigYamlWithNewPackage repo resolvedApplication s3PackagePath = do
+
+    return ()
+
 -- === Instances === --
 
 -- JSON
@@ -180,7 +185,7 @@ parseConfig :: (MonadIO m, MonadException SomeException m) => FilePath -> m Repo
 parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither $ encodeString cfgPath)
 
 downloadRepo :: MonadNetwork m => URIPath -> m FilePath
-downloadRepo address = downloadFromURL address "Downloading repository configuration file"
+downloadRepo address = downloadFromURL False address "Downloading repository configuration file"
 
 getRepo :: MonadRepo m => m Repo
 getRepo = do
