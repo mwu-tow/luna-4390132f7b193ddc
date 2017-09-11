@@ -1,3 +1,5 @@
+@visualization-background: #181818;
+
 .luna-node__short-value-positioner {
     display:        flex;
     flex-direction: column;
@@ -23,7 +25,8 @@
 .luna-visualization-container {
     position:   relative;
     width:      300px;
-    .graphBackground;
+    background: @visualization-background;
+    border-radius: @borderRadiusPx;
 }
 .luna-visualization-cover {
     position: absolute;
@@ -101,18 +104,24 @@
 /////////////////////////////
 
 .luna-dropdown {
-    color:         #888;
-    border-radius: 8px;
-    padding:       0 8px;
+    @w: 24px;
+    color:         @luna-text-color;
     position:      absolute;
-    line-height:   16px;
+    line-height:   24px;
     z-index:       1;
-    background:    @luna-syntax-background-color;
-    top:           15px;
-    left:          8px;
+    top:           0;
+    right:         -@w;
+    width:         @w;
+    text-align:    center;
     &:hover {
         .luna-dropdown__menu {
-            display: block;
+            position:   absolute;
+            width:      200px;
+            text-align: left;
+            display:    block;
+            li {
+              padding-left: 8px;
+            }
         }
     }
 }
