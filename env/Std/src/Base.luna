@@ -326,6 +326,8 @@ class Either a b:
         Left  a: lf a
         Right b: rf b
 
+    def toMaybe: self.either (_: Nothing) Just
+
     def isLeft: case self of
         Left  _: True
         Right _: False
@@ -537,6 +539,12 @@ class JSON:
     JSONArray  (List JSON)
     JSONObject (Map Text JSON)
     JSONNull
+
+    def safeParse data: primParseJSON (data.toText)
+
+    def parse data: case JSON.safeParse data of
+       Right json: json
+       Left err:   errorStr err
 
     def toJSON: self
 
@@ -754,8 +762,29 @@ class Stream a:
     def map f: case self of
         Stream elt s: Stream (f elt) (s.map f)
 
-    def takeWhile f: case self of
-        Stream elt s: if f elt then Prepend elt (s.takeWhile f) else Empty
+    def consume n: case self of
+        Stream elt s:
+            case (n == 0) of
+                True: (Empty, Stream elt s)
+                False:
+                    (elems, stream) = s.consume (n - 1)
+                    (Prepend elt elems, stream)
+
+    def consumeWhile f: case self of
+        Stream elt s:
+            case (f elt) of
+                False: (Empty, Stream elt s)
+                True:
+                    (elems, stream) = s.consumeWhile f
+                    (Prepend elt elems, stream)
+
+    def take n: self.consume n . first
+
+    def drop n: self.consume n . second
+
+    def takeWhile f: self.consumeWhile f . first
+
+    def dropWhile f: self.consumeWhile f . second
 
     def average:
         folder = el: (Tuple2 count sum): Tuple2 count.succ (sum + el)
@@ -776,6 +805,12 @@ def every timeInterval act:
     time    = timeInterval.toMicroseconds
     current = act
     future  = delayAsync time (every timeInterval act)
+    Stream current future.read
+
+def everyWithState timeInterval stateFunc state:
+    time = timeInterval.toMicroseconds
+    (current, newState) = stateFunc state
+    future = delayAsync time (everyWithState timeInterval stateFunc newState)
     Stream current future.read
 
 def print x: putStr x.toText
