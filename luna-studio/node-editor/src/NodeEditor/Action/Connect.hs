@@ -15,7 +15,6 @@ module NodeEditor.Action.Connect
 import           Common.Action.Command                      (Command)
 import           Common.Prelude
 import           Control.Monad.Trans.Maybe                  (MaybeT (MaybeT), runMaybeT)
-import qualified JS.GoogleAnalytics                         as GA
 import qualified LunaStudio.Data.Connection                 as ConnectionAPI
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'))
 import qualified LunaStudio.Data.PortRef                    as PortRef
@@ -139,5 +138,4 @@ connectToPort dst action = do
                 void . localAddConnection outPortRef $ newConn ^. ConnectionAPI.dst
                 Batch.addPort outPortRef $ Just $ newConn ^. ConnectionAPI.dst
             _ -> connect (Left $ newConn ^. ConnectionAPI.src) (Left $ newConn ^. ConnectionAPI.dst)
-        GA.sendEvent $ GA.Connect GA.Manual
     stopConnectingUnsafe action

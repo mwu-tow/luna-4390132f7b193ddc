@@ -5,6 +5,7 @@ module NodeEditor.Handler.App
 import           Common.Prelude
 
 import           Common.Action.Command          (Command)
+import qualified JS.Analytics                   as Analytics
 import           NodeEditor.Action.Basic        (setFile, unselectAll, unsetFile, updateScene)
 import qualified NodeEditor.Action.Batch        as Batch
 import           NodeEditor.Action.State.Action (endActions, endAllActions)
@@ -19,13 +20,12 @@ import           NodeEditor.State.Global        (State)
 import qualified NodeEditor.State.Global        as Global
 import qualified NodeEditor.State.UI            as UI
 
-
 handle :: Event -> Maybe (Command Global.State ())
 handle (UI (AppEvent (App.MouseMove evt _))) = Just $ Global.ui . UI.mousePos <~ mousePosition evt
 handle (UI (AppEvent  App.Resize          )) = Just   updateScene
 handle (UI (AppEvent  App.MouseLeave      )) = Just $ endActions actionsClosingOnMouseLeave
-handle (Shortcut (Shortcut.Event command _)) = Just $ handleCommand command
-handle  Init                                 = Just $ Batch.getProgram def >> Batch.searchNodes
+handle (Shortcut (Shortcut.Event command _)) = Just $ Analytics.track Analytics.AppStarted >> handleCommand command
+handle  Init                                 = Just $ Analytics.track Analytics.AppStarted >> Batch.getProgram def >> Batch.searchNodes
 handle (Atom (Atom.SetFile path)           ) = Just $ setFile path
 handle (Atom  Atom.UnsetFile               ) = Just   unsetFile
 handle _                                     = Nothing

@@ -4,7 +4,6 @@ import           Common.Action.Command              (Command)
 import           Common.Prelude
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
-import qualified JS.GoogleAnalytics                 as GA
 import           LunaStudio.Data.Geometry           (snap)
 import           LunaStudio.Data.LabeledTree        (LabeledTree (LabeledTree))
 import qualified LunaStudio.Data.Node               as Empire
@@ -43,7 +42,6 @@ createNode parentPath nodePos expr isDefinition = do
     localAddExpressionNode node
     selectNode nl
     Batch.addNode nl expr nodeMeta connectTo
-    GA.sendEvent $ GA.AddNode $ if isJust connectTo then GA.AutoConnect else GA.Simple
 
 localAddExpressionNodes :: [ExpressionNode] -> Command State ()
 localAddExpressionNodes = mapM_ localAddExpressionNode

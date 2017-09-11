@@ -1,64 +1,31 @@
 path     = require 'path'
+request  = require 'request'
 SubAtom  = require 'sub-atom'
+yaml     = require 'js-yaml'
 
+analytics = require './gen/analytics'
 LunaEditorTab  = require './luna-editor-tab'
 LunaStudioTab  = require './luna-studio-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
 LunaSemanticGrammar = require './luna-grammar'
-projects = require './projects'
+projects  = require './projects'
 Statusbar = require './statusbar-view'
 (require './luna-visualizers')()
 codeEditor = (require './gen/text-editor-ghcjs.js')()
 nodeEditor = (require './gen/node-editor-ghcjs.js')()
 
+
 LUNA_STUDIO_URI  = 'atom://luna/studio'
 LUNA_WELCOME_URI = 'atom://luna/welcome'
 
+analyticsConfigRequest =
+    url: 'https://raw.githubusercontent.com/luna/luna-studio-config/master/analytics.yml'
+    headers:
+        'User-Agent': 'luna-studio'
+
 module.exports = LunaStudio =
-
-    config:
-        showWelcomeScreen:
-            title: 'Welcome screen'
-            description: 'Show welcome screen on start up'
-            type: 'boolean'
-            default: true
-        preferredNodeEditorPosition:
-            title: 'Preferred pane for node editor'
-            type: 'string'
-            default: 'right'
-            enum: [
-                { value: 'left' , description: 'Left pane' }
-                { value: 'right', description: 'Right pane' }
-                { value: 'up'   , description: 'Upper pane' }
-                { value: 'down' , description: 'Lower pane' }
-            ]
-        preferredCodeEditorPosition:
-            title: 'Preferred pane for code editor'
-            type: 'string'
-            default: 'left'
-            enum: [
-                { value: 'left' , description: 'Left pane' }
-                { value: 'right', description: 'Right pane' }
-                { value: 'up'   , description: 'Upper pane' }
-                { value: 'down' , description: 'Lower pane' }
-            ]
-        typecolors_l:
-            title: 'Set L for LCH type colouring'
-            type: 'number'
-            default: 30
-
-        typecolors_c:
-            title: 'Set C for LCH type colouring'
-            type: 'number'
-            default: 45
-
-        typecolors_h:
-            title: 'Set initial H for LCH type colouring'
-            type: 'number'
-            default: 100.7
-
-
     activate: (state) ->
+        @loadAnalyticsConfig()
         atom.grammars.addGrammar(new LunaSemanticGrammar(atom.grammars, codeEditor.lex))
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
@@ -81,6 +48,14 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
         @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
+
+    loadAnalyticsConfig: ->
+        try
+            request.get analyticsConfigRequest, (err, response, body) =>
+                filters = yaml.safeLoad(body)
+                analytics.setFilters filters
+        catch error
+            console.error error
 
     consumeStatusBar: (statusBar) ->
         myElement = new Statusbar(codeEditor)
@@ -134,3 +109,49 @@ module.exports = LunaStudio =
         if projectPath?
             projects.recent.add projectPath
             codeEditor.pushInternalEvent(tag: "SetProject", _path: projectPath)
+
+    config:
+        showWelcomeScreen:
+            title: 'Welcome screen'
+            description: 'Show welcome screen on start up'
+            type: 'boolean'
+            default: true
+        preferredNodeEditorPosition:
+            title: 'Preferred pane for node editor'
+            type: 'string'
+            default: 'right'
+            enum: [
+                { value: 'left' , description: 'Left pane' }
+                { value: 'right', description: 'Right pane' }
+                { value: 'up'   , description: 'Upper pane' }
+                { value: 'down' , description: 'Lower pane' }
+            ]
+        preferredCodeEditorPosition:
+            title: 'Preferred pane for code editor'
+            type: 'string'
+            default: 'left'
+            enum: [
+                { value: 'left' , description: 'Left pane' }
+                { value: 'right', description: 'Right pane' }
+                { value: 'up'   , description: 'Upper pane' }
+                { value: 'down' , description: 'Lower pane' }
+            ]
+        typecolors_l:
+            title: 'Set L for LCH type colouring'
+            type: 'number'
+            default: 30
+
+        typecolors_c:
+            title: 'Set C for LCH type colouring'
+            type: 'number'
+            default: 45
+
+        typecolors_h:
+            title: 'Set initial H for LCH type colouring'
+            type: 'number'
+            default: 100.7
+
+        analyticsEnabled:
+            title: 'Send anonymous data to improve the application'
+            type: 'boolean'
+            default: true

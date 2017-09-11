@@ -4,7 +4,6 @@ import           Common.Action.Command                    (Command)
 import           Common.Prelude
 import           Control.Monad                            (filterM)
 import qualified Data.Set                                 as Set
-import qualified JS.GoogleAnalytics                       as GA
 import           LunaStudio.Data.NodeLoc                  (NodeLoc)
 import           NodeEditor.Action.Basic.RemoveConnection (localRemoveConnectionsContainingNodes)
 import           NodeEditor.Action.Basic.SelectNode       (selectPreviousNodes)
@@ -22,7 +21,6 @@ removeNodes :: [NodeLoc] -> Command State ()
 removeNodes nls = do
     removedNodes <- localRemoveNodes nls
     Batch.removeNodes removedNodes
-    GA.sendEvent $ GA.RemoveNode $ length removedNodes
 
 removeSelectedNodes :: Command State ()
 removeSelectedNodes = getSelectedNodes >>= removeNodes . map (view nodeLoc)
