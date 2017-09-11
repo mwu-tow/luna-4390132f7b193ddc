@@ -616,7 +616,7 @@ renamePort loc portRef newName = do
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
 setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
     let expression = Text.strip expr'
-    newCode <- withTC loc False $ runASTOp $ do
+    newCode <- withGraph loc $ runASTOp $ do
         oldExpr   <- ASTRead.getASTTarget nodeId
         oldBegin  <- Code.getASTTargetBeginning nodeId
         oldLen    <- IR.getLayer @SpanLength oldExpr

@@ -368,7 +368,7 @@ handleSetNodeExpression = modifyGraph inverse action replyResult where
     inverse (SetNodeExpression.Request location nodeId _) = do
         oldExpr <- Graph.withGraph location $ runASTOp $ GraphUtils.getASTTarget nodeId >>= Print.printExpression
         return $ SetNodeExpression.Inverse (Text.pack oldExpr)
-    action (SetNodeExpression.Request location nodeId expression) = withDefaultResult location $
+    action (SetNodeExpression.Request location nodeId expression) = withDefaultResultTC location $
         Graph.setNodeExpression location nodeId expression
 
 inverseSetNodesMeta :: GraphLocation -> [(NodeId, NodeMeta)] -> Empire SetNodesMeta.Inverse
