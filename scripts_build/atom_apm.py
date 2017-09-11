@@ -92,12 +92,8 @@ def apm(third_party_path, atom_home_path, studio_package_name):
     popen = subprocess.Popen((apm, 'install', '.'), stdout=subprocess.PIPE)
     popen.wait()
     output = popen.stdout.read()
-<<<<<<< HEAD
     print(output.decode('utf-8'))
-=======
-    print ("luna studio installing apm")
-    print(output)
->>>>>>> 5b510ac09eb380552631d6a2ad3e2a23192b05fd
+
 
 def list_packages(third_party_path, atom_home_path):
     apm = apm_path(third_party_path)
