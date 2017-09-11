@@ -219,7 +219,6 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
         Lib      -> do
             unpackedIsDir <- Shelly.test_d unpacked
-            print $ show unpackedIsDir
             if unpackedIsDir then do
                 listed <- Shelly.ls unpacked
                 if length listed == 1 then do
