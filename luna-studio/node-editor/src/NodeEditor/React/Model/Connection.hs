@@ -189,7 +189,7 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
 toConnection :: OutPortRef -> InPortRef -> Node -> Node -> Connection
 toConnection srcRef dstRef srcNode dstNode = Connection srcRef dstRef sidebarConn' mode' where
     sidebarConn' = has Node._Input srcNode || has Node._Output dstNode
-    mode'        = if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
+    mode'        = getConnectionMode dstRef dstNode
 
 toHalfConnection :: AnyPortRef -> Node -> Position -> HalfConnection
 toHalfConnection portRef n pos = HalfConnection portRef pos sidebarConn' mode' where
@@ -197,6 +197,9 @@ toHalfConnection portRef n pos = HalfConnection portRef pos sidebarConn' mode' w
     mode' = if Node.argumentConstructorRef n == portRef then Normal else case portRef of
         OutPortRef' {}    -> Normal
         InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal
+
+getConnectionMode :: InPortRef -> Node -> Mode
+getConnectionMode dstRef dstNode = if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
 
 halfConnectionSrcPosition :: Node -> EitherPort -> Position -> Layout -> Maybe Position
 halfConnectionSrcPosition (Node.Input  _  ) (Right port) _ layout = inputSidebarPortPosition  port layout
