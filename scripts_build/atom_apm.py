@@ -59,7 +59,6 @@ def apm_luna_atom_package (third_party_path, atom_home_path, package_name, packa
     print (output.decode('utf-8'))
     os.chdir(package_name)
     os.environ['ATOM_HOME'] = atom_home_path
-    print(os.getcwd())
     install = subprocess.Popen ((apm, 'install', '.'), stdout=subprocess.PIPE)
     install.wait()
     output2 = install.stdout.read()
@@ -71,14 +70,13 @@ def apm_luna_local_atom_package (third_party_path, atom_home_path, package_name,
     apm = apm_path(third_party_path)
     os.chdir(package_path)
     os.environ['ATOM_HOME'] = atom_home_path
-    print(os.getcwd())
     install = subprocess.Popen ((apm, 'install', '.'), stdout=subprocess.PIPE)
     install.wait()
     output2 = install.stdout.read()
     link = subprocess.Popen ((apm, 'link', '.'), stdout=subprocess.PIPE)
     link.wait()
     output3 = link.stdout.read()
-    print (output3)
+    print (output3.decode('utf-8'))
 
 def apm(third_party_path, atom_home_path, studio_package_name):
     package_path = atom_home_path + '/packages/' + studio_package_name
