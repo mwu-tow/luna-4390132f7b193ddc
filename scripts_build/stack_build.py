@@ -17,8 +17,8 @@ def create_bin_dirs():
     for path in ('../dist/bin/private', '../dist/bin/public/luna-studio'):
         os.makedirs(ap.prep_path(path), exist_ok=True)
 
-def build_ghcjs(frontend, frontend_args):
-    os.chdir(frontend)
+def build_ghcjs(frontend_args):
+    os.chdir(frontend_dir)
     if system.system == system.systems.WINDOWS:
         return ()
     elif system.system == system.systems.LINUX:
@@ -83,7 +83,7 @@ def run(backend_args, frontend_args, runner_args):
     create_bin_dirs()
     build_runner(runner_dir, runner_args)
     mv_runner(runner_dir)
-    build_ghcjs(frontend_dir, frontend_args)
+    build_ghcjs(frontend_args)
     build_backend(backend_args)
     link_main_bin ()
 
