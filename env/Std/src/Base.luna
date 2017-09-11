@@ -56,7 +56,7 @@ native class Text:
     def equals that: primTextEquals self that
 
     def isEmpty: primTextIsEmpty self
-    def length:  primTerxtLength self
+    def length:  primTextLength self
 
     def hasPrefix  p: primTextHasPrefix self p
     def isPrefixOf t: t.hasPrefix p
@@ -286,6 +286,10 @@ class Maybe a:
         Nothing: Nothing
         Just a: Just (f a)
 
+    def flatMap f: case self of
+        Nothing: Nothing
+        Just a: f a
+
     def each f: case self of
         Nothing: Nothing
         Just a:
@@ -363,6 +367,10 @@ class List a:
     def head: case (self) of
         Empty: Nothing
         Prepend x xs: Just x
+
+    def tail: case self of
+        Empty: Nothing
+        Prepend x xs: Just xs
 
     def prepend a: Prepend a self
 
@@ -482,6 +490,8 @@ class List a:
         Prepend Empty r: r.concat
         Prepend (Prepend x xs) ys: Prepend x (Prepend xs ys).concat
 
+    def flatMap f: self.map f . concat
+
 class Map k v:
     Map
     Tip
@@ -533,6 +543,7 @@ class Map k v:
         other: False
 
 class JSON:
+    JSON
     JSONNumber Real
     JSONString Text
     JSONBool   Bool
@@ -742,7 +753,8 @@ class MVar:
     def put v: primPutMVar  self v
 
 class Stream a:
-    Stream a (Stream a)
+    head :: a
+    tail :: Stream a
 
     def isStream: True
 
@@ -789,6 +801,11 @@ class Stream a:
     def average:
         folder = el: (Tuple2 count sum): Tuple2 count.succ (sum + el)
         self . foldFrom (Tuple2 0 0.0) folder . map ((Tuple2 count sum): sum./ count.toReal)
+
+    def eval: self.each id
+
+    def rateLimit timeInterval:
+        everyWithState timeInterval (s: (s.head, s.tail)) self
 
 def streamFrom act:
     var = newMVar
