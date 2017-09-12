@@ -104,6 +104,7 @@ run opts = do
             downloadAndUnpackStack stackFolderPath
             cloneRepo appName appPath
             Shelly.cmd $ appPath </> (developCfg ^. bootstrapFile)
+            downloadDeps appName appPath
 
 
 
