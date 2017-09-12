@@ -29,16 +29,25 @@ import Control.Monad.Trans.Resource ( MonadBaseControl)
 
 
 
-data DevelopConfig = DevelopConfig { _stackPath :: FilePath
+data DevelopConfig = DevelopConfig { _stackPath      :: Text
+                                   , _devPath        :: FilePath
+                                   , _appsPath       :: FilePath
+                                   , _toolsPath      :: FilePath
+                                   , _stackLocalPath :: FilePath
                                     }
 makeLenses ''DevelopConfig
 
-type MonadDevelop m = (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m, MonadCatch m, MonadBaseControl IO m)
+type MonadDevelop m = (MonadStates '[EnvConfig, RepoConfig, PackageConfig, DevelopConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m, MonadCatch m, MonadBaseControl IO m)
 
 
 instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
     defaultHostConfig = return $ DevelopConfig
-        { _stackPath = "https://www.stackage.org/stack/linux-x86_64-static"}
+        { _stackPath      = "https://www.stackage.org/stack/linux-x86_64-static"
+        , _devPath        = "luna-workspace"
+        , _appsPath       = "apps"
+        , _toolsPath      = "tools"
+        , _stackLocalPath = "stack"
+        }
 
 instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
@@ -46,6 +55,25 @@ instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
 
 instance Monad m => MonadHostConfig DevelopConfig 'Windows arch m where
     defaultHostConfig = defaultHostConfigFor @Linux
+
+
+downloadAndUnpackStack :: MonadDevelop m => FilePath -> m ()
+downloadAndUnpackStack path = do
+    developConfig <- get @DevelopConfig
+    let stackURL = developConfig ^. stackPath
+        guiInstaller = False
+        totalProgress = 1.0
+        progressFielsdName = ""
+    stackArch <- downloadWithProgressBar stackURL guiInstaller
+    stackArch' <- Archive.unpack guiInstaller totalProgress progressFielsdName stackArch
+    Shelly.mv stackArch' path
+    return ()
+
+cloneRepo :: MonadDevelop m => Text -> FilePath -> m Text
+cloneRepo appName appPath = Shelly.run "git" ["clone", repoPath, Shelly.toTextIgnore appPath] where
+    repoPath = "git@github.com:luna/" <> appName <> ".git"
+
+
 
 run :: MonadDevelop m => DevelopOpts -> m ()
 run opts = do
