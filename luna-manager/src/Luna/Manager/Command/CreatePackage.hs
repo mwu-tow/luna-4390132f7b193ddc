@@ -70,7 +70,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
         , _binsPrivate        = "private"
         , _mainBin            = "main"
         , _utilsFolder        = "resources"
-        , _logoFileName       = "logo.png"
+        , _logoFileName       = "logo.svg"
         , _desktopFileName    = "app.desktop"
         , _versionFileName    = "version.txt"
         }
@@ -111,7 +111,7 @@ copyResourcesAppImage repoPath appName tmpAppDirPath mainAppImageFolderPath = do
     let utilsPath   = srcPkgPath </> (pkgConfig ^. binFolder) </> (pkgConfig ^. mainBin) </> (pkgConfig ^. utilsFolder)
         logoFile    = utilsPath </> convert (pkgConfig ^. logoFileName)
         desktopFile = utilsPath </> convert (pkgConfig ^. desktopFileName)
-    Shelly.cp logoFile    $ tmpAppDirPath </> convert (appName <> ".png")
+    Shelly.cp logoFile    $ tmpAppDirPath </> convert (appName <> ".svg")
     Shelly.cp desktopFile $ tmpAppDirPath </> convert (appName <> ".desktop")
     copyDir srcPkgPath mainAppImageFolderPath
 
