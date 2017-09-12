@@ -1,4 +1,15 @@
-@visualization-background: #181818;
+@visualization-background:        transparent;
+@visualization-background-hover:  #141414;
+@visualization-background-active: #181818;
+
+.luna-visualization-container-hover () {
+    background: @visualization-background-hover;
+    .outlineStroke;
+}
+
+/////////////////////////////
+//       short value       //
+/////////////////////////////
 
 .luna-node__short-value-positioner {
     display:        flex;
@@ -22,48 +33,79 @@
     overflow-y:         hidden;     //---------------
 }
 
-.luna-visualization-container {
-    position:   relative;
-    width:      300px;
-    background: @visualization-background;
-    border-radius: @borderRadiusPx;
-}
-.luna-visualization-cover {
-    position: absolute;
-    height:   100%;
-    width:    100%;
-}
 
+
+/////////////////////////////
+//      visualization      //
+/////////////////////////////
 
 .luna-visualization {
+    position: relative;
+
     .luna-node-translate {
         position: absolute;
         top:      32rem;
     }
 }
 
-.luna-graph--has-visualization-active {
-    background: darken(@luna-graph-background-color, 1.5%);
-    .luna-plane {
-        > *:not(.luna-visualization--active) {
-            opacity: 0.38;
-            .luna-visualization-container {
-                background: none;
-            }
-            .luna-dropdown { display: none; }
-        }
-    }
+.luna-visualization-container {
+    position:   relative;
+    width:      300px;
+    background: @visualization-background;
+    border-radius: @borderRadiusPx;
 }
-.luna-visualization--active {
-    position: relative;
-    z-index:  1000000;
-    .luna-visualization-cover {
-        display: none;
+
+.luna-visualization-cover {
+    position: absolute;
+    height:   100%;
+    width:    100%;
+}
+
+.luna-visualization:hover {
+    z-index: 999999;
+    .luna-visualization-container {
+        .luna-visualization-container-hover;
+    }
+    .luna-dropdown-menu {
+        opacity: 1;
     }
 }
 
 /////////////////////////////
-//          zoom           //
+//       active mode       //
+/////////////////////////////
+
+.luna-graph--has-visualization-active {
+
+    .luna-visualization:not(.luna-visualization--active) {
+        .luna-visualization-container {
+            background: none;
+        }
+        .luna-dropdown { display: none; }
+        &:hover {
+            .luna-visualization-container {
+                .luna-visualization-container-hover;
+            }
+        }
+    }
+
+    .luna-visualization--active {
+        z-index:  1000000;
+        .luna-visualization-cover {
+            display: none;
+        }
+        .luna-visualization-container {
+            .outlineStroke;
+            background: @visualization-background-active;
+        }
+    }
+
+}
+
+
+
+/////////////////////////////
+//     fullscreen mode     //
 /////////////////////////////
 
 .luna-studio-window--has-visualization-fullscreen {
@@ -101,40 +143,48 @@
     }
 }
 
+
+
 /////////////////////////////
-//         dropdown        //
+//      dropdown menu      //
 /////////////////////////////
 
 .luna-dropdown {
     @w:          24px;
+    cursor:      pointer;
     color:       @luna-text-color;
     position:    absolute;
     line-height: 24px;
     z-index:     1;
     top:         0;
-    right:       -@w;
+    left:       -@w;
     width:       @w;
     text-align:  center;
     &:hover {
         .luna-dropdown__menu {
-            position:   absolute;
-            width:      200px;
-            text-align: left;
-            display:    block;
-            li {
-              padding-left: 8px;
-            }
+            opacity: 1;
+            display: flex;
         }
     }
 }
 
 .luna-dropdown__menu {
-    display:       none;
-    margin-bottom: 4px;
-    list-style:    none;
+    opacity:        0;
+    display:        none;
+    margin-bottom:  4px;
+    list-style:     none;
+    width:          200px;
+    text-align:     right;
+    align-items:    flex-end;
+    flex-direction: column;
+    white-space:    nowrap;
+    position:       absolute;
+    right:          0;
     li {
+        cursor:  pointer;
+        padding: 0 8px;
         &:hover {
-            color: #ccc;
+            color: lighten(@luna-text-color, 20%);
         }
     }
 }
