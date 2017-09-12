@@ -18,7 +18,7 @@ import System.IO (hFlush, stdout, stderr, hPutStrLn)
 main :: IO ()
 main = run
 
-run :: (MonadIO m, MonadException SomeException m, MonadMask m) => m () -- MonadException SomeException m -- wywalic!
+run :: (MonadIO m, MonadException SomeException m, MonadMask m) => m ()
 run = Shelly.shelly $ do
     tmp <- evalGetTmp
     threadId <- liftIO myThreadId
@@ -29,4 +29,3 @@ handleTopLvlError :: (MonadIO m, MonadMask m, Shelly.MonadSh m) => SomeException
 handleTopLvlError e = do
     liftIO $ hPutStrLn stderr $ "Fatal: " <> displayException e
     Shelly.quietExit 1
-    -- liftIO $ exitFailure
