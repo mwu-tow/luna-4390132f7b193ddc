@@ -1,8 +1,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module NodeEditor.Event.Shortcut where
 
+import           Common.Analytics (IsTrackedEvent (..))
 import           Common.Prelude
-import           Data.Aeson     (FromJSON)
+import           Data.Aeson       (FromJSON)
+
 
 data Command = Cancel
              | OpenSearcher
@@ -61,3 +63,6 @@ data ShortcutEvent = Event
                    } deriving (FromJSON, Generic, NFData, Show, Typeable)
 
 makeLenses ''ShortcutEvent
+
+instance IsTrackedEvent ShortcutEvent where
+    eventName = Just . head . words . show . view shortcut

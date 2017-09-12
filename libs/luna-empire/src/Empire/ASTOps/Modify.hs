@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 {-| This module contains operations that output modified nodes.
     These functions use reading, deconstructing and building APIs.
@@ -12,9 +13,12 @@ module Empire.ASTOps.Modify where
 
 import           Control.Lens (folded, ifiltered)
 import           Data.List    (find)
+import qualified Data.Text.IO as Text
+import qualified Safe
 
 import           Empire.Prelude
 
+import           Data.Text.Position                 (Delta)
 import           LunaStudio.Data.Node               (NodeId)
 import qualified LunaStudio.Data.Port               as Port
 import           Empire.ASTOp                       (GraphOp, ASTOp, match)
@@ -32,6 +36,8 @@ import qualified Empire.Data.Graph                  as Graph
 import qualified OCI.IR.Combinators                 as IR
 import qualified Luna.IR                            as IR
 import           Luna.IR.Term.Uni
+
+import qualified Data.List as L (take, head, drop, tail)
 
 
 
@@ -144,16 +150,44 @@ shiftPosition from to lst = uncurry (insertAt to) $ getAndRemove from lst where
     getAndRemove 0 (x : xs) = (x, xs)
     getAndRemove i (x : xs) = let (r, rs) = getAndRemove (i - 1) xs in (r, x : rs)
 
+swapLamVars :: GraphOp m => Delta -> (Delta, EdgeRef) -> (Delta, EdgeRef) -> m Int
+swapLamVars lamBeg one two = do
+    one'      <- IR.source $ snd one
+    two'      <- IR.source $ snd two
+    oneLength <- IR.getLayer @SpanLength one'
+    twoLength <- IR.getLayer @SpanLength two'
+    oneCode   <- Code.getAt (lamBeg + fst one) (lamBeg + fst one + oneLength)
+    twoCode   <- Code.getAt (lamBeg + fst two) (lamBeg + fst two + twoLength)
+    Code.applyMany [ (lamBeg + fst one, lamBeg + fst one + oneLength, twoCode)
+                   , (lamBeg + fst two, lamBeg + fst two + twoLength, oneCode)
+                   ]
+    IR.replaceSource two' (snd one)
+    IR.replaceSource one' (snd two)
+    one'      <- IR.source $ snd one
+    two'      <- IR.source $ snd two
+    IR.putLayer @SpanLength one' twoLength
+    IR.putLayer @SpanLength two' oneLength
+    let change = if fst one > fst two then fromIntegral oneLength - fromIntegral twoLength else fromIntegral twoLength - fromIntegral oneLength
+    return change
+
 moveLambdaArg :: GraphOp m => Port.OutPortId -> Int -> NodeRef -> m ()
 moveLambdaArg [] _ _ = throwM $ CannotRemovePortException
 moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ \case
     Grouped g -> IR.source g >>= moveLambdaArg p newPosition
     Lam _ _   -> do
-        args <- ASTDeconstruct.extractArguments lambda
+        Just lamBeg   <- Code.getOffsetRelativeToFile lambda
+        args <- ASTDeconstruct.extractLamArgLinks lambda
         out  <- ASTRead.getFirstNonLambdaRef    lambda
-        let newArgs = shiftPosition port newPosition args
-        newRef <- lams newArgs out
-        when (lambda /= newRef) $ rewireCurrentNode newRef
+        let moveStart = min port newPosition
+            moveEnd   = max port newPosition
+            moveRange = moveEnd - moveStart + 1
+            argsMoving = L.take moveRange $ L.drop moveStart args
+            h = L.head $ reverse argsMoving
+            t = L.tail $ reverse argsMoving
+        if (newPosition < port) then
+            void $ foldM (\mRef oRef -> swapLamVars lamBeg mRef oRef >> return oRef) h t
+        else
+            void $ foldM (\(mRef,delta) oRef -> swapLamVars lamBeg (mRef & _1 %~ (+fromIntegral delta)) oRef >>= \d -> return (oRef, d)) (L.head argsMoving, 0) (L.tail argsMoving)
     ASGFunction _ as _ -> do
         for_ (as ^? ix port) $ \alink -> do
             Just funBeg   <- Code.getOffsetRelativeToFile   lambda

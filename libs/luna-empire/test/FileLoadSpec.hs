@@ -13,6 +13,7 @@ import qualified Data.Map                        as Map
 import           Data.Reflection                 (Given (..), give)
 import qualified Data.Set                        as Set
 import qualified Data.Text                       as Text
+import qualified Data.Text.IO                    as Text
 import           Data.Text.Span                  (LeftSpacedSpan (..), SpacedSpan (..))
 import           Empire.ASTOp                    (runASTOp)
 import qualified Empire.ASTOps.Parse             as ASTParse
@@ -392,6 +393,32 @@ spec = around withChannels $ parallel $ do
                 after <- Graph.getGraph $ loc' |> foo
                 return (before, after)
             before `shouldBe` after
+        it "changing order of ports changes code" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc testLuna
+                [main] <- Graph.getNodes loc
+                let loc' = loc |>= main ^. Node.nodeId
+                Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
+                before@(Graph.Graph _ _ (Just input) _ _) <- Graph.getGraph $ loc' |> foo
+                Graph.movePort (loc' |> foo) (outPortRef (input ^. Node.nodeId) [Port.Projection 0]) 1
+                code <- Graph.withUnit loc $ use Graph.code
+                return code
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+            def main:
+                «0»pi = 3.14
+                «1»foo = b: a:
+                    «5»lala = 17.0
+                    «12»buzz = x: y:
+                        «9»x * y
+                    «6»pi = 3.14
+                    «7»n = buzz a lala
+                    «8»m = buzz b pi
+                    «11»m + n
+                «2»c = 4.0
+                «3»bar = foo 8.0 c
+            |]
     describe "code spans" $ do
         it "simple example" $ \env -> do
             let code = Text.pack $ normalizeQQ $ [r|
@@ -1199,6 +1226,106 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.movePort loc (outPortRef input [Port.Projection 1]) 0
+        it "reorders function ports in a lambda" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = a: b:
+                        a + b
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = b: a:
+                        a + b
+                    c = foo 2 2
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc' (outPortRef input [Port.Projection 1]) 0
+        it "reorders function ports in a lambda 2" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa  : bb: ccc :   dddddd:
+                        aaaa + bb + ccc + dddddd
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = dddddd  : aaaa: bb :   ccc:
+                        aaaa + bb + ccc + dddddd
+                    c = foo 2 2
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc' (outPortRef input [Port.Projection 3]) 0
+        it "reorders function ports in a lambda 3" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa  : bb: ccc :   dddddd:
+                        aaaa + bb + ccc + dddddd
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = bb  : ccc: dddddd :   aaaa:
+                        aaaa + bb + ccc + dddddd
+                    c = foo 2 2
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc' (outPortRef input [Port.Projection 0]) 3
+        it "reorders function ports in a lambda 4" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa  : bb: ccc :   dddddd:
+                        aaaa + bb + ccc + dddddd
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = bb  : aaaa: ccc :   dddddd:
+                        aaaa + bb + ccc + dddddd
+                    c = foo 2 2
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc' (outPortRef input [Port.Projection 0]) 1
+        it "reorders function ports in a lambda 5" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa  : bb: ccc :   dddddd:
+                        aaaa + bb + ccc + dddddd
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = bb  : ccc: aaaa :   dddddd:
+                        aaaa + bb + ccc + dddddd
+                    c = foo 2 2
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc' (outPortRef input [Port.Projection 0]) 2
         it "connect to left section" $ let
             initialCode = [r|
                 def main:

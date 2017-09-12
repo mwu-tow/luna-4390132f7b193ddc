@@ -1,9 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module TextEditor.Event.Internal where
 
+import           Common.Analytics (IsTrackedEvent (..))
 import           Common.Prelude
-import           Data.Aeson     (FromJSON, ToJSON)
-
+import           Data.Aeson       (FromJSON, ToJSON)
 
 data InternalEvent = Copy        { _path :: FilePath , _selections :: [(Int, Int)]}
                    | CloseFile   { _path :: FilePath }
@@ -23,3 +23,5 @@ makeLenses ''InternalEvent
 
 instance ToJSON   InternalEvent
 instance FromJSON InternalEvent
+
+instance IsTrackedEvent InternalEvent
