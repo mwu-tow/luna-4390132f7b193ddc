@@ -29,17 +29,23 @@ import Control.Monad.Trans.Resource ( MonadBaseControl)
 
 
 
-
+data DevelopConfig = DevelopConfig { _stackPath :: FilePath
+                                    }
+makeLenses ''DevelopConfig
 
 type MonadDevelop m = (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m, MonadCatch m, MonadBaseControl IO m)
 
 
--- TODO: To refactor
-instance Convertible FilePath Text where
-    convert = convert . encodeString
+instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
+    defaultHostConfig = return $ DevelopConfig
+        { _stackPath = "https://www.stackage.org/stack/linux-x86_64-static"}
 
+instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
+    defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
+        reconfig cfg = cfg & stackPath .~ "https://www.stackage.org/stack/osx-x86_64"
 
-
+instance Monad m => MonadHostConfig DevelopConfig 'Windows arch m where
+    defaultHostConfig = defaultHostConfigFor @Linux
 
 run :: MonadDevelop m => DevelopOpts -> m ()
 run opts = do
