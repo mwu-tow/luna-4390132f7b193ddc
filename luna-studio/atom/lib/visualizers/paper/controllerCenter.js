@@ -2,13 +2,15 @@
 
   var renderers = {
     circle: function (data) {
-      var c = new paper.Path.Circle({ radius: data.radius,
+      var c = new paper.Path.Circle({ center: paper.view.center,
+                                      radius: data.radius,
                                       fillColor: "white"
                                     });
       return c;
     },
     rect: function (data) {
-      var r = new paper.Path.Rectangle({ size: [data.width, data.height],
+      var r = new paper.Path.Rectangle({ point: paper.view.center.subtract([data.width / 2, data.height / 2]),
+                                         size: [data.width, data.height],
                                          fillColor: "white"
                                        });
       return r;

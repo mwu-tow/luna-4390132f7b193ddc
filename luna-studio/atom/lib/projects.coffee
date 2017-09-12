@@ -1,7 +1,7 @@
-fs   = require 'fs'
-Git = require 'nodegit'
+fs      = require 'fs'
+Git     = require 'nodegit'
 request = require 'request'
-yaml = require 'js-yaml'
+yaml    = require 'js-yaml'
 
 recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
 tutorialsPath   = process.env.LUNA_STUDIO_CONFIG + '/tutorials.yml'

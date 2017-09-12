@@ -5,6 +5,7 @@ body {
     margin: 0;
 }
 table {
+    font-size:   12px;
     line-height: 16px;
     border-collapse: collapse;
     width: 100%;

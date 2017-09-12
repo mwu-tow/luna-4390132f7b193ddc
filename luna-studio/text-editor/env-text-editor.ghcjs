@@ -1,4 +1,5 @@
-var app              = require('./app-text-editor'),
+var analytics        = require('./analytics')
+    app              = require('./app-text-editor'),
     init             = require('./init'),
     common           = require('./common'),
     config           = require('./config'),

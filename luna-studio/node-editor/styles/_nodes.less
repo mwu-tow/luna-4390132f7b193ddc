@@ -96,13 +96,18 @@
 }
 
 .luna-node__expression {
+    @l: @gridSizePx;
+    @a: 24px;
+    @ph: (@a - @l)/2;
+    @pv: @a/3;
     .roundCorners;
+    .outlineStroke;
     overflow:      hidden;
     text-overflow: ellipsis;
-    padding:       calc(@ui ~'*' 4px)
-                   calc(@ui ~'*' 8px);
+    padding:       calc(@ui ~'*' @ph)
+                   calc(@ui ~'*' @pv);
     background:    @luna-node-expression-background;
-    .outlineStroke;
+    min-width:     calc(@ui ~'*' @a - 2 * @pv);
 }
 
 /////////////////////////////

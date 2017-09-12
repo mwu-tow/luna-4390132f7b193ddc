@@ -1,4 +1,5 @@
-var app              = require('./app'),
+var analytics        = require('./analytics')
+    app              = require('./app'),
     atomCallback     = require('./atom-callback')();
     common           = require('./common'),
     config           = require('./config');

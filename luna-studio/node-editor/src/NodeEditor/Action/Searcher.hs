@@ -5,7 +5,6 @@ module NodeEditor.Action.Searcher where
 import           Common.Action.Command                      (Command)
 import           Common.Prelude
 import qualified Data.Text                                  as Text
-import qualified JS.GoogleAnalytics                         as GA
 import qualified JS.Searcher                                as Searcher
 import           Luna.Syntax.Text.Lexer                     (evalDefLexer)
 import           LunaStudio.Data.Geometry                   (snap)
@@ -123,7 +122,6 @@ openWith input mode = do
     let action   = Searcher
         inputLen = Text.length input
     begin action
-    GA.sendEvent GA.NodeSearcher
     modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False
     modifyInput input inputLen inputLen action
     renderIfNeeded

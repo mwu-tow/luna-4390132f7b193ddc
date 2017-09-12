@@ -14,14 +14,13 @@ import           LunaStudio.Data.PortRef              (AnyPortRef, InPortRef, Ou
 import           LunaStudio.Data.Position             (Position)
 import           LunaStudio.Data.ScreenPosition       (ScreenPosition)
 import           NodeEditor.React.Model.Connection    (ConnectionId)
-import qualified NodeEditor.React.Model.Connection    as Connection
 import           NodeEditor.React.Model.Visualization (VisualizationId, VisualizationMode)
 
 
-data NodeDrag = NodeDrag { _nodeDragStartPos                 :: Position
-                         , _nodeDragNodeLoc                  :: NodeLoc
-                         , _nodeDragNodesStartPos            :: Map NodeLoc Position
-                         , _nodeDragSnappedConnIdAndPrevMode :: Maybe (ConnectionId, Connection.Mode)
+data NodeDrag = NodeDrag { _nodeDragStartPos      :: Position
+                         , _nodeDragNodeLoc       :: NodeLoc
+                         , _nodeDragNodesStartPos :: Map NodeLoc Position
+                         , _nodeDragSnappedConnId :: Maybe ConnectionId
                          } deriving (Eq, Show, Generic, Typeable)
 
 makeLenses ''NodeDrag

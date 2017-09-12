@@ -21,17 +21,16 @@ import           NodeEditor.Action.State.Action             (beginActionWithKey,
 import           NodeEditor.Action.State.Model              (createConnectionModel, getIntersectingConnections)
 import           NodeEditor.Action.State.NodeEditor         (getConnection, getExpressionNode, getNodeEditor, getSelectedNodes,
                                                              modifyConnection, modifyExpressionNode, modifyInPort, modifyNodeEditor,
-                                                             modifyOutPort)
+                                                             modifyOutPort, getNode)
 import           NodeEditor.Event.Mouse                     (workspacePosition)
-import           NodeEditor.React.Model.Connection          (Mode (Dimmed, Highlighted), dst, src)
+import           NodeEditor.React.Model.Connection          (Mode (Dimmed, Highlighted), dst, src, getConnectionMode)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node.ExpressionNode (inPortAt, inPortAt, inPortsList, isSelected, nodeLoc, outPortAt, position)
 import           NodeEditor.React.Model.NodeEditor          (halfConnections, toPosConnection)
 import           NodeEditor.React.Model.Port                (isSelf, mode, portId)
 import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), NodeDrag (NodeDrag), nodeDragAction,
-                                                             nodeDragNodeLoc, nodeDragNodesStartPos, nodeDragSnappedConnIdAndPrevMode,
-                                                             nodeDragStartPos)
+                                                             nodeDragNodeLoc, nodeDragNodesStartPos, nodeDragSnappedConnId, nodeDragStartPos)
 import           NodeEditor.State.Global                    (State)
 import           React.Flux                                 (MouseEvent)
 
@@ -79,13 +78,16 @@ clearSnappedConnection :: NodeDrag -> Command State ()
 clearSnappedConnection nodeDrag = do
     let nl = nodeDrag ^. nodeDragNodeLoc
     modifyNodeEditor $ halfConnections .= def
-    withJust (nodeDrag ^. nodeDragSnappedConnIdAndPrevMode) $ \(connId, m) -> do
-        modifyConnection connId $ Connection.mode .= m
+    withJust (nodeDrag ^. nodeDragSnappedConnId) $ \connId -> do
+        mayNode <- getNode $ connId ^. PortRef.nodeLoc
+        modifyConnection connId $ Connection.mode .= case mayNode of
+            Nothing -> Connection.Normal
+            Just n  -> getConnectionMode connId n
         updatePortsModeForNode $ connId ^. PortRef.nodeLoc
         withJustM (getConnection connId) $ updatePortsModeForNode . view (src . PortRef.nodeLoc)
     updatePortsModeForNode nl
     continue $ \nodeDrag' -> do
-        update $ nodeDrag' & nodeDragSnappedConnIdAndPrevMode .~ Nothing
+        update $ nodeDrag' & nodeDragSnappedConnId .~ Nothing
 
 snapConnectionsForNodes :: Position -> [NodeLoc] -> Command State ()
 snapConnectionsForNodes mousePos nodeLocs = when (length nodeLocs == 1) $ forM_ nodeLocs $ \nl -> do
@@ -105,8 +107,8 @@ snapConnectionsForNodes mousePos nodeLocs = when (length nodeLocs == 1) $ forM_ 
                         let conns = map (Connection.mode .~ Highlighted) [connModel1, connModel2]
                             conns' = mapMaybe (toPosConnection ne) conns
                         modifyNodeEditor $ halfConnections .= map convert conns'
-                        continue $ \nodeDrag -> when (Just connId /= (fst <$> nodeDrag ^. nodeDragSnappedConnIdAndPrevMode))
-                                                    $ update $ nodeDrag & nodeDragSnappedConnIdAndPrevMode ?~ (connId, conn ^. Connection.mode)
+                        continue $ \nodeDrag -> when (Just connId /= nodeDrag ^. nodeDragSnappedConnId)
+                                                    $ update $ nodeDrag & nodeDragSnappedConnId ?~ connId
                         modifyConnection connId $ Connection.mode .= Dimmed
                         modifyExpressionNode nl $ do
                             outPortAt []                                . mode .= Port.Highlighted
@@ -126,7 +128,7 @@ handleNodeDragMouseUp evt nodeDrag = do
     else do
         metaUpdate <- map (view nodeLoc &&& view position) <$> getSelectedNodes
         moveNodes metaUpdate
-        withJust (nodeDrag ^. nodeDragSnappedConnIdAndPrevMode) $ \(connId, _) -> do
+        withJust (nodeDrag ^. nodeDragSnappedConnId) $ \connId -> do
             mayConn <- getConnection connId
             withJust mayConn $ \conn -> do
                 connect (Left $ conn ^. src) $ Right nl
