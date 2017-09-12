@@ -4,6 +4,8 @@ module NodeEditor.Event.UI where
 
 import           Common.Prelude
 
+import           Common.Analytics                     (IsTrackedEvent (..))
+import           Data.Char                            (isAlpha)
 import qualified NodeEditor.React.Event.App           as App
 import qualified NodeEditor.React.Event.Breadcrumbs   as Breadcrumbs
 import qualified NodeEditor.React.Event.Connection    as Connection
@@ -23,3 +25,6 @@ data UIEvent = AppEvent           App.Event
              | SidebarEvent       Sidebar.Event
              | VisualizationEvent Visualization.Event
              deriving (Generic, NFData, Show, Typeable)
+
+instance IsTrackedEvent UIEvent where
+    eventName _ = Nothing

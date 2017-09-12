@@ -2,9 +2,11 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module TextEditor.Event.Connection where
 
-import           Data.Aeson                             (ToJSON, toJSON)
+import           Common.Analytics                  (IsTrackedEvent)
 import           Common.Batch.Connector.Connection (WebMessage)
 import           Common.Prelude
+import           Data.Aeson                        (ToJSON, toJSON)
+
 
 data Event = Message { _message :: WebMessage }
            | Opened
@@ -17,3 +19,4 @@ makeLenses ''Event
 instance ToJSON Event
 instance ToJSON WebMessage where
     toJSON _ = toJSON "(webmessage)"
+instance IsTrackedEvent Event

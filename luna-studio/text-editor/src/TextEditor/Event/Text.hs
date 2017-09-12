@@ -6,6 +6,7 @@ import           Data.Aeson                    (FromJSON, ToJSON)
 import           LunaStudio.Data.GraphLocation (GraphLocation)
 import qualified LunaStudio.Data.GraphLocation as GraphLocation
 import           LunaStudio.Data.Point         (Point)
+import Common.Analytics (IsTrackedEvent)
 
 
 data TextEvent = TextEvent
@@ -20,3 +21,5 @@ makeLenses ''TextEvent
 
 filePath :: Lens' TextEvent FilePath
 filePath = location . GraphLocation.filePath
+
+instance IsTrackedEvent TextEvent
