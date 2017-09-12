@@ -31,14 +31,17 @@ import Control.Monad.Trans.Resource ( MonadBaseControl)
 
 
 
-
+type MonadDevelop m = (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m, MonadCatch m, MonadBaseControl IO m)
 
 
 -- TODO: To refactor
 instance Convertible FilePath Text where
     convert = convert . encodeString
 
-run :: (MonadStates '[EnvConfig, RepoConfig, PackageConfig] m, MonadIO m, MonadException SomeException m, MonadSh m, MonadShControl m, MonadCatch m, MonadBaseControl IO m) => DevelopOpts -> m ()
+
+
+
+run :: MonadDevelop m => DevelopOpts -> m ()
 run opts = do
     -- root <- Shelly.pwd
     -- let devPath   = root      </> "luna-workspace"
@@ -75,10 +78,7 @@ run opts = do
     pkgConfig <- get @PackageConfig
 
 
-    -- building backend
-    -- putStrLn "Building Luna Studio Backend"
-    -- Shelly.chdir (appPath </> "build" </> "backend") $ do
-    --     Shelly.run stackBin ["build", "--copy-bins", "--fast", "--install-ghc", appPath]
+
 
     return ()
 
