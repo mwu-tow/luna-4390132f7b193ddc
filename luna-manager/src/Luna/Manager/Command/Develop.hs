@@ -16,7 +16,7 @@ import Luna.Manager.Component.Repository
 import Luna.Manager.Command.CreatePackage --(downloadAndUnpackDependency, PackageConfig)
 import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
-
+import Luna.Manager.System.Path (expand)
 import Control.Monad.Trans.Resource ( MonadBaseControl)
 
 -- hardcodedRepo :: Repo
@@ -34,6 +34,7 @@ data DevelopConfig = DevelopConfig { _stackPath      :: Text
                                    , _appsPath       :: FilePath
                                    , _toolsPath      :: FilePath
                                    , _stackLocalPath :: FilePath
+                                   , _bootstrapFile  :: FilePath
                                     }
 makeLenses ''DevelopConfig
 
@@ -42,11 +43,12 @@ type MonadDevelop m = (MonadStates '[EnvConfig, RepoConfig, PackageConfig, Devel
 
 instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
     defaultHostConfig = return $ DevelopConfig
-        { _stackPath      = "https://www.stackage.org/stack/linux-x86_64-static"
+        { _stackPath      = "https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64-static.tar.gz"
         , _devPath        = "luna-workspace"
         , _appsPath       = "apps"
         , _toolsPath      = "tools"
         , _stackLocalPath = "stack"
+        , _bootstrapFile  = "bootstrap"
         }
 
 instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
@@ -56,6 +58,9 @@ instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
 instance Monad m => MonadHostConfig DevelopConfig 'Windows arch m where
     defaultHostConfig = defaultHostConfigFor @Linux
 
+data PathException = PathException deriving (Show)
+instance Exception PathException where
+    displayException exception = "Can not download dependencies without repository path."
 
 downloadAndUnpackStack :: MonadDevelop m => FilePath -> m ()
 downloadAndUnpackStack path = do
@@ -67,54 +72,38 @@ downloadAndUnpackStack path = do
     stackArch <- downloadWithProgressBar stackURL guiInstaller
     stackArch' <- Archive.unpack guiInstaller totalProgress progressFielsdName stackArch
     Shelly.mv stackArch' path
-    return ()
 
 cloneRepo :: MonadDevelop m => Text -> FilePath -> m Text
 cloneRepo appName appPath = Shelly.run "git" ["clone", repoPath, Shelly.toTextIgnore appPath] where
     repoPath = "git@github.com:luna/" <> appName <> ".git"
 
+downloadDeps :: MonadDevelop m => Text -> FilePath -> m ()
+downloadDeps appName appPath = do
+    repo <- getRepo
+    resolvedApplication <- resolvePackageApp repo appName
+    mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
 
 
 run :: MonadDevelop m => DevelopOpts -> m ()
 run opts = do
-    -- root <- Shelly.pwd
-    -- let devPath   = root      </> "luna-workspace"
-    --     toolsPath = devPath   </> "tools"
-    --     appsPath  = devPath   </> "apps"
-    --     stackPath = toolsPath </> "stack"
-    --     stackBin  = stackPath </> "stack"
-    -- Shelly.mkdir_p toolsPath
-    -- Shelly.mkdir_p appsPath
-
-    -- Stack installation
-    -- let stackName    = "stack"
-    --     stackVersion = "1.5.1"
-    -- putStrLn . convert $ "Downloading " <> stackName <> " (" <> stackVersion <> ")"
-    -- stackArch  <- downloadWithProgressBar $ "https://github.com/commercialhaskell/stack/releases/download/v" <> stackVersion <> "/stack-" <> stackVersion <> "-linux-x86_64-static.tar.gz"
-    -- stackArch' <- Archive.unpack stackArch
-    -- Shelly.mv stackArch' stackPath
-
-    -- cloning repo
-    -- let appName  = "luna-studio"
-    --     repoPath = "git@github.com:luna/" <> convert appName <> ".git"
-    --     appPath  = appsPath </> appName
-    -- putStrLn . convert $ "Clonning repository " <> repoPath
-    -- Shelly.run "git" ["clone", repoPath, convert appPath]
-
-    --downloading and installing dependencies
-    let appName  = opts ^. target -- "luna-studio"
-        appPath  = opts ^. repositoryPath
-    repo <- getRepo
-    resolvedApplication <- resolvePackageApp repo appName
-    mapM_ (downloadAndUnpackDependency $ convert appPath) $ resolvedApplication ^. pkgsToPack
-    --generate packageConfig.yaml
-    generateYaml repo resolvedApplication (convert appPath </> "luna-package.yaml")
-    pkgConfig <- get @PackageConfig
-
-
-
-
-    return ()
+    developCfg <- get @DevelopConfig
+    let appName  = opts ^. target
+    if (opts ^. downloadDependencies) then do
+        path <- tryJust (toException PathException) (opts ^. repositoryPath)
+        downloadDeps appName $ convert path
+        else do
+            let path = opts ^. repositoryPath
+            workingPath <- case path of
+                Just workingPath -> return workingPath
+                Nothing -> do
+                    current <- getCurrentPath
+                    return $ Shelly.toTextIgnore current
+            appPath         <- expand $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. appsPath) </> convert appName
+            stackFolderPath <- expand  $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. toolsPath) </> (developCfg ^. stackLocalPath)
+            Shelly.mkdir_p $ parent stackFolderPath
+            downloadAndUnpackStack stackFolderPath
+            cloneRepo appName appPath
+            Shelly.cmd $ appPath </> (developCfg ^. bootstrapFile)
 
 
 

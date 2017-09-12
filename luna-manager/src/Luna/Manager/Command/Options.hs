@@ -50,8 +50,9 @@ data SwitchVersionOpts = SwitchVersionOpts
     } deriving (Show)
 
 data DevelopOpts = DevelopOpts
-    { _target :: Text
-    , _repositoryPath :: Text
+    { _target               :: Text
+    , _repositoryPath       :: Maybe Text
+    , _downloadDependencies :: Bool
     } deriving (Show)
 
 makeLenses ''GlobalOpts
@@ -93,7 +94,7 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     -- Options
     optsProgram        = Options           <$> optsGlobal <*> hsubparser commands
     optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch" <> help "Do not run interactive mode")
-                                           <*> Opts.switch (long "gui" <> short 'g')
+                                           <*> Opts.switch (long "gui" )
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
                                            <*> Opts.switch (long "verbose" <> short 'v')
@@ -101,7 +102,8 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
     optsDevelop        = Develop           <$> optsDevelop'
     optsDevelop'       = DevelopOpts       <$> (strArgument $ metavar "TARGET" <> help "Config file path")
-                                           <*> ( strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Repository path" )
+                                           <*> (optional . strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Repository path" )
+                                           <*> Opts.switch (long "download-dependencies")
     optsInstall        = Install           <$> optsInstall'
     optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
                                            <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )
