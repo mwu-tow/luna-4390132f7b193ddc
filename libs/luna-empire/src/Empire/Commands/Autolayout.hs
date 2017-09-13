@@ -28,19 +28,21 @@ type Connection = (OutPortRef, InPortRef)
 
 type SubgraphId = NodeId
 data DFSState = NotProcessed | InProcess | Processed deriving (Eq, Show)
-data AutolayoutNode = AutolayoutNode { _nodeId   :: NodeId
-                                     , _actPos   :: Position
-                                     , _subgraph :: Maybe SubgraphId
-                                     , _dfsState :: DFSState
-                                     , _inConns  :: [Connection]
-                                     , _outConns :: [Connection]
+data AutolayoutNode = AutolayoutNode { _nodeId         :: NodeId
+                                     , _actPos         :: Position
+                                     , _positionInCode :: Int
+                                     , _subgraph       :: Maybe SubgraphId
+                                     , _dfsState       :: DFSState
+                                     , _inConns        :: [Connection]
+                                     , _outConns       :: [Connection]
                                      } deriving Show
 makeLenses ''AutolayoutNode
 
 
 
-data Subgraph = Subgraph { _subgraphId :: SubgraphId
-                         , _members    :: Set NodeId
+data Subgraph = Subgraph { _subgraphId            :: SubgraphId
+                         , _firstAppearanceInCode :: Int
+                         , _members               :: Set NodeId
                          } deriving Show
 
 makeLenses ''Subgraph
@@ -53,17 +55,19 @@ data AutolayoutState = AutolayoutState { _varPosNodes   :: Map NodeId Autolayout
 
 makeLenses ''AutolayoutState
 
-autolayoutNodes :: [NodeId] -> [(NodeId, Position)] -> [Connection] -> [(NodeId, Position)]
+autolayoutNodes :: [NodeId] -> [(NodeId, Int, Position)] -> [Connection] -> [(NodeId, Position)]
 autolayoutNodes nids allNodes allConns = evalState (findPositions leftTop) (AutolayoutState nodesMap (Map.fromList constPosN) allConns mempty) where
     nidsSet   = Set.fromList nids
     nodeInSet = flip Set.member nidsSet . view _1
-    (nodes, constPosN) = List.partition nodeInSet allNodes
-    leftTop  = maybe (fromDoubles 0 0) snap $ leftTopPoint $ view _2 <$> nodes
-    nodesMap = Map.fromList $ flip map nodes $ \n ->
+    (nodes, constPosN') = List.partition nodeInSet allNodes
+    constPosN = map (\(nid, _, pos) -> (nid, pos)) constPosN'
+    leftTop   = maybe (fromDoubles 0 0) snap $ leftTopPoint $ view _3 <$> nodes
+    nodesMap  = Map.fromList $ flip map nodes $ \n ->
         let nid       = n ^. _1
+            posInCode = n ^. _2
             inConns'  = filter ((== nid) . view (_2 . dstNodeId)) allConns
             outConns' = filter ((== nid) . view (_1 . srcNodeId)) allConns
-        in (nid, AutolayoutNode nid leftTop def NotProcessed inConns' outConns')
+        in (nid, AutolayoutNode nid leftTop posInCode def NotProcessed inConns' outConns')
 
 
 clearDFSState :: S.State AutolayoutState ()
@@ -277,6 +281,7 @@ findSubgraph sid nid = withJustM (lookupNode nid) $ \n -> do
                                               & subgraph   ?~ sid
                                               & dfsState   .~ Processed
             subgraphs . ix sid . members %= Set.insert nid
+            subgraphs . ix sid . firstAppearanceInCode %= min (n ^. positionInCode)
             mapM_ (findSubgraph sid) $ (map (view $ _1 . srcNodeId) . sortInConns  $ n ^. inConns)
                                     <> (map (view $ _2 . dstNodeId) . sortOutConns $ n ^. outConns)
 
@@ -315,7 +320,7 @@ alignNodesY pos = do
     nids <- use $ varPosNodes . to Map.keys
     let makeSubgraph :: NodeId -> S.State AutolayoutState ()
         makeSubgraph nid = do
-            subgraphs . at nid ?= Subgraph nid def
+            subgraphs . at nid ?= Subgraph nid maxBound def
             findSubgraph nid nid
     forM nids $ \nid -> withJustM (lookupNode nid) $ \n ->
         when (isNothing $ n ^. subgraph) $ makeSubgraph nid
@@ -334,7 +339,7 @@ acceptSubgraph sid = withJustM (preuse $ subgraphs . ix sid . members . to Set.t
 
 placeSubgraphs :: S.State AutolayoutState [(NodeId, Position)]
 placeSubgraphs = do
-    sids <- use (subgraphs . to Map.keys)
+    sids <- map (view subgraphId) . List.sortOn (view firstAppearanceInCode) <$> use (subgraphs . to Map.elems)
     fmap concat . forM sids $ \sid -> do
         alignToEndpoint sid
         meetTheConstraints sid

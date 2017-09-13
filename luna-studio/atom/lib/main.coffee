@@ -49,13 +49,13 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
         @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
-        stats.collect()
 
     loadAnalyticsConfig: ->
         try
             request.get analyticsConfigRequest, (err, response, body) =>
                 filters = yaml.safeLoad(body)
                 analytics.setFilters filters
+                stats.collect()
         catch error
             console.error error
 
@@ -79,6 +79,7 @@ module.exports = LunaStudio =
               new LunaEditorTab(uri, codeEditor)
 
     deactivate: ->
+        stats.finalize()
         @subscribe.dispose()
         @statusBarTile?.destroy()
         @statusBarTile = null
