@@ -22,7 +22,7 @@ default (T.Text)
 stack = "../../tools/stack/stack"
 
 tools = "../../tools"
-supportedNodeVersion = "6.9.5"
+supportedNodeVersion = "6.11.3"
 supportedPythonVersion = "3.6.2"
 -------------------
 -- === Hosts === --
@@ -84,10 +84,18 @@ installNode = do
     current <- liftIO $ System.getCurrentDirectory
     let nodeFolder = current </> tools </> "node"
     Shelly.chdir_p nodeFolder $ do
-        Shelly.cmd "wget" ["http://nodejs.org/dist/v6.9.5/node-v6.9.5-linux-x86.tar.gz"]
         Shelly.mkdir_p supportedNodeVersion
-        Shelly.cmd  "tar" "-xpzf" "./node-v6.9.5-linux-x86.tar.gz" "--strip=1" "-C" supportedNodeVersion
-        Shelly.rm "./node-v6.9.5-linux-x86.tar.gz"
+        case currentHost of
+            Linux  -> do
+                Shelly.cmd "wget" ["https://nodejs.org/download/release/latest-v6.x/node-v6.11.3-linux-x86.tar.gz"]
+                Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-linux-x86.tar.gz" "--strip=1" "-C" supportedNodeVersion
+                Shelly.rm "./node-v6.11.3-linux-x86.tar.gz"
+            Darwin -> do
+                Shelly.cmd "wget" ["https://nodejs.org/download/release/latest-v6.x/node-v6.11.3-darwin-x64.tar.gz"]
+                Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-darwin-x64.tar.gz" "--strip=1" "-C" supportedNodeVersion
+                Shelly.rm "./node-v6.11.3-darwin-x64.tar.gz"
+
+
 
 
 haskellBins :: [T.Text]
