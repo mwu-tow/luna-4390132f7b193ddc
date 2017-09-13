@@ -17,6 +17,7 @@ objName = "node-properties"
 nodeProperties :: ReactView (Ref App, NodeProperties)
 nodeProperties = React.defineView objName $ \(ref, prop) -> do
     let nodeLoc    = prop ^. Prop.nodeLoc
+        ports      = if prop ^. Prop.isExpanded && null (Prop.inPortsList prop) then maybeToList $ prop ^? Prop.inPortAt [] else Prop.inPortsList prop
         controls p = div_
                         [ "className" $= Style.prefix "node__control"
                         ] $ do
@@ -30,7 +31,7 @@ nodeProperties = React.defineView objName $ \(ref, prop) -> do
            [ "key"       $= "label-self"
            , "className" $= Style.prefixFromList [ "node__label", "node__label--self" ]
            ] $ elemString "self"
-        forM_ (Prop.inPortsList prop) $ controls
+        forM_ ports $ controls
 
 nodeProperties_ :: Ref App -> NodeProperties -> ReactElementM ViewEventHandler ()
 nodeProperties_ ref prop = React.viewWithSKey nodeProperties objName (ref, prop) mempty

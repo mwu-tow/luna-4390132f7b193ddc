@@ -20,10 +20,11 @@ module.exports = {
             filters.push(new RegExp(strings[i]))
     },
     track: function (title, data) {
-        if (atom.config.get('luna-studio.analyticsEnabled') && test(title))
+        if (atom.config.get('luna-studio.analyticsEnabled') && test(title)) {
             console.log("track: " + title, data);
-            // mixpanel.track(title, data);
-        else
+            mixpanel.track(title, data);
+        } else {
             console.log("discard: " + title, data);
+        }
     }
 }

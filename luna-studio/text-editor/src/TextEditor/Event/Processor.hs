@@ -7,6 +7,7 @@ import           Data.Monoid                         (Last (..))
 import           GHCJS.Prim                          (JSException)
 
 import           Common.Action.Command               (Command, execCommand)
+import qualified Common.Analytics                    as Analytics
 import           Common.Prelude
 import           Common.Report                       (error)
 import           TextEditor.Event.Event              (Event)
@@ -22,6 +23,7 @@ import qualified TextEditor.Handler.Text             as Text
 import           TextEditor.State.Global             (State)
 import qualified TextEditor.State.Global             as Global
 import           WebSocket                           (WebSocket)
+
 
 displayProcessingTime :: Bool
 displayProcessingTime = False
@@ -52,6 +54,7 @@ preprocessEvent ev = do
 processEvent :: LoopRef -> Event -> IO ()
 processEvent loop ev = modifyMVar_ (loop ^. Loop.state) $ \state -> do
     realEvent <- preprocessEvent ev
+    Analytics.track realEvent
     when displayProcessingTime $ do
         consoleTimeStart $ (realEvent ^. Event.name) <>" show and force"
         --putStrLn . show . length $ show realEvent

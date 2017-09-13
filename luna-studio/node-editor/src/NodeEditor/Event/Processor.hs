@@ -7,6 +7,7 @@ import           Data.Monoid                            (Last (..))
 import           GHCJS.Prim                             (JSException)
 
 import           Common.Action.Command                  (Command, execCommand)
+import qualified Common.Analytics                       as Analytics
 import           Common.Prelude
 import           Common.Report
 import qualified JS.Debug
@@ -85,6 +86,7 @@ preprocessEvent ev = do
 processEvent :: LoopRef -> Event -> IO ()
 processEvent loop ev = handle handleAnyException $ modifyMVar_ (loop ^. Loop.state) $ \state -> do
     realEvent <- preprocessEvent ev
+    Analytics.track realEvent
     when displayProcessingTime $ do
         consoleTimeStart $ (realEvent ^. Event.name) <>" show and force"
         JS.Debug.error (convert $ realEvent ^. Event.name) ()

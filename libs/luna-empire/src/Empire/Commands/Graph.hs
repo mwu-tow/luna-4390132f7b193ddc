@@ -720,8 +720,9 @@ instance Exception SelfPortDefaultException where
     toException = astExceptionToException
 
 getPortDefault :: GraphLocation -> InPortRef -> Empire (Maybe PortDefault)
-getPortDefault loc port@(InPortRef  _ (Self : _))              = throwM $ SelfPortDefaultException port
-getPortDefault loc (InPortRef  (NodeLoc _ nodeId) (Arg x : _)) = withGraph loc $ runASTOp $ flip GraphBuilder.getInPortDefault x =<< GraphUtils.getASTTarget nodeId
+getPortDefault loc port@(InPortRef  _ (Self : _))             = throwM $ SelfPortDefaultException port
+getPortDefault loc (InPortRef (NodeLoc _ nodeId) (Arg x : _)) = withGraph loc $ runASTOp $ flip GraphBuilder.getInPortDefault x =<< GraphUtils.getASTTarget nodeId
+getPortDefault loc (InPortRef (NodeLoc _ nodeId) [])          = withGraph loc $ runASTOp $ GraphBuilder.getDefault =<< GraphUtils.getASTTarget nodeId
 
 setPortDefault :: GraphLocation -> InPortRef -> Maybe PortDefault -> Empire ()
 setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = do
@@ -826,9 +827,10 @@ dumpGraphViz loc = withGraph loc $ return ()
 
 autolayoutNodes :: GraphOp m => [NodeId] -> m ()
 autolayoutNodes nids = timeIt "autolayoutNodes" $ do
-    nodes <- GraphBuilder.buildNodesForAutolayout <!!> "buildNodesForAutolayout"
+    nodes' <- GraphBuilder.buildNodesForAutolayout <!!> "buildNodesForAutolayout"
     conns <- GraphBuilder.buildConnections        <!!> "buildConnections"
-    let autolayout = Autolayout.autolayoutNodes nids nodes conns
+    let nodes = zipWith (\(nid, pos) posInCode -> (nid, posInCode, pos)) nodes' [1..]
+        autolayout = Autolayout.autolayoutNodes nids nodes conns
     traverse_ (uncurry setNodePositionAST) autolayout <!!> "setNodePositionsAST"
 
 openFile :: FilePath -> Empire ()

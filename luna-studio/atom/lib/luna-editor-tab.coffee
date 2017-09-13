@@ -81,7 +81,7 @@ module.exports =
     handleEvents: =>
         atom.commands.add @element,
             'core:copy':  (e) => @handleCopy(e)
-            'core:cut':   (e) => @handleCopy(e)
+            'core:cut':   (e) => @handleCut(e)
             'core:paste': (e) => @handlePaste(e)
             'core:save':  (e) => @handleSave(e)
 
@@ -93,6 +93,9 @@ module.exports =
     handleCopy: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+
+    handleCut: (e) =>
         @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
     handlePaste: (e) =>

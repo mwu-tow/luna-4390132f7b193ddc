@@ -3,6 +3,7 @@ module NodeEditor.Event.Batch where
 
 import           Common.Prelude
 
+import           Common.Analytics                           (IsTrackedEvent (..))
 import qualified LunaStudio.API.Atom.Paste                  as AtomPaste
 import qualified LunaStudio.API.Atom.Substitute             as Substitute
 import qualified LunaStudio.API.Control.EmpireStarted       as EmpireStarted
@@ -39,7 +40,6 @@ import qualified LunaStudio.API.Project.ExportProject       as ExportProject
 import qualified LunaStudio.API.Project.ImportProject       as ImportProject
 import qualified LunaStudio.API.Project.ListProjects        as ListProjects
 import qualified LunaStudio.API.Project.OpenProject         as OpenProject
-
 
 data Event = UnknownEvent                             String
            | AddConnectionResponse             AddConnection.Response
@@ -83,3 +83,7 @@ data Event = UnknownEvent                             String
            | TypeCheckResponse                     TypeCheck.Response
            | UndoResponse                               Undo.Response
            deriving (Eq, Show, Generic, NFData)
+
+instance IsTrackedEvent Event where
+    eventName (UnknownEvent _) = Nothing
+    eventName e = Just $ head $ words $ show e

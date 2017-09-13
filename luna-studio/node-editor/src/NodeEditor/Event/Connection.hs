@@ -2,8 +2,10 @@
 {-# LANGUAGE StrictData     #-}
 module NodeEditor.Event.Connection where
 
+import           Common.Analytics                  (IsTrackedEvent)
 import           Common.Batch.Connector.Connection (WebMessage)
 import           Common.Prelude
+
 
 data Event = Message { _message :: WebMessage }
            | Opened
@@ -12,3 +14,5 @@ data Event = Message { _message :: WebMessage }
              deriving (Eq, Generic, NFData, Show, Typeable)
 
 makeLenses ''Event
+
+instance IsTrackedEvent Event

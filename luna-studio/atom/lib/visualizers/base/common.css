@@ -3,4 +3,18 @@ body {
   color: #777;
   padding: 10px 12px;
   margin: 0;
+  overflow: scroll;
+}
+html::-webkit-scrollbar {
+  width:  4px;
+  height: 4px;
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0);
+  border-radius: 5px;
+
+}
+html:hover::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.05);
 }
