@@ -22,7 +22,7 @@ default (T.Text)
 stack = "../../tools/stack/stack"
 
 tools = "../../tools"
-supportedNodeVersion = "5.9"
+supportedNodeVersion = "6.9.5"
 supportedPythonVersion = "3.6.2"
 -------------------
 -- === Hosts === --
@@ -60,10 +60,13 @@ sanityCheck command params = Shelly.silently $ do
     exit <- Shelly.lastExitCode
     when (exit /= 0) $ Shelly.errorExit (Shelly.toTextIgnore command)
 
-installPython ::(MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+puthonLibs :: [T.Text]
+pythonLibs = ["requests"]
+
+installPython :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installPython = do
+    Shelly.echo "installing python locally"
     current <- liftIO $ System.getCurrentDirectory
-    liftIO $ print current
     let pythonFolder = tools </> "python"
     Shelly.chdir_p pythonFolder $ do
         Shelly.cmd "git" ["clone", "https://github.com/pyenv/pyenv.git"]
@@ -73,8 +76,18 @@ installPython = do
         Shelly.cmd "pyenv" ["init", "-"]
         Shelly.cmd "pyenv" ["install", supportedPythonVersion]
         Shelly.cmd "pyenv" ["local", supportedPythonVersion]
-        Shelly.cmd "pip" ["install", "requests"]
+        Shelly.cmd "pip" $ "install" : pythonLibs
 
+installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+installNode = do
+    Shelly.echo "installing node locally"
+    current <- liftIO $ System.getCurrentDirectory
+    let nodeFolder = current </> tools </> "node"
+    Shelly.chdir_p nodeFolder $ do
+        Shelly.cmd "wget" ["http://nodejs.org/dist/v6.9.5/node-v6.9.5-linux-x86.tar.gz"]
+        Shelly.mkdir_p supportedNodeVersion
+        Shelly.cmd  "tar" "-xpzf" "./node-v6.9.5-linux-x86.tar.gz" "--strip=1" "-C" supportedNodeVersion
+        Shelly.rm "./node-v6.9.5-linux-x86.tar.gz"
 
 
 haskellBins :: [T.Text]
@@ -92,17 +105,17 @@ installHaskellBins = do
 bashLogin :: MonadSh m => Shelly.FilePath -> [T.Text] -> m T.Text
 bashLogin command params = do
     Shelly.cmd "bash" ["-c", "-l", (Shelly.toTextIgnore command) `T.append` " " `T.append` T.intercalate " " params]
-
-installNVM :: (MonadSh m, Shelly.MonadShControl m) => m ()
-installNVM = Shelly.escaping False $ do
-    Shelly.cmd "curl" "-o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | bash"
-    Shelly.cmd "source" "~/.bashrc"
-    sanityCheck "command" ["-v", "nvm"]
-
-installNode ::( MonadSh m, Shelly.MonadShControl m) => m ()
-installNode = do
-    bashLogin "nvm" ["install", supportedNodeVersion]
-    sanityCheck "node" ["--version"]
+--
+-- installNVM :: (MonadSh m, Shelly.MonadShControl m) => m ()
+-- installNVM = Shelly.escaping False $ do
+--     Shelly.cmd "curl" "-o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | bash"
+--     Shelly.cmd "source" "~/.bashrc"
+--     sanityCheck "command" ["-v", "nvm"]
+--
+-- installNode ::( MonadSh m, Shelly.MonadShControl m) => m ()
+-- installNode = do
+--     bashLogin "nvm" ["install", supportedNodeVersion]
+--     sanityCheck "node" ["--version"]
 
 
 fedoraPackages :: [T.Text]
@@ -145,7 +158,8 @@ main = do
         -- prependLocalBin
         -- echo "Installing dependencies"
         installDistroPackages
-        installPython
+        -- installPython
+        installNode
         --
         -- installNVM
         -- installNode
