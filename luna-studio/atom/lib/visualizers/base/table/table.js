@@ -6,7 +6,7 @@
 
   var isObjectMatrix = function (data) {
     var isList = Array.isArray(data) && data[0];
-    if (!isList) return false;
+    if (!isList || !(typeof data[0] === "object"))  return false;
     var firstKeys = Object.keys(data[0]);
     return data.every(obj => hasExactlyKeys(firstKeys, obj));
   }
