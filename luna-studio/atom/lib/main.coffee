@@ -3,6 +3,7 @@ request  = require 'request'
 SubAtom  = require 'sub-atom'
 yaml     = require 'js-yaml'
 
+stats = require './stats'
 analytics = require './gen/analytics'
 LunaEditorTab  = require './luna-editor-tab'
 LunaStudioTab  = require './luna-studio-tab'
@@ -48,6 +49,7 @@ module.exports = LunaStudio =
         @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
         @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
+        stats.collect()
 
     loadAnalyticsConfig: ->
         try
