@@ -45,7 +45,7 @@ logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
 
 handleSetProject :: Request SetProject.Request -> StateT Env BusT ()
-handleSetProject a = return ()
+handleSetProject a = liftIO $ putStrLn $ "OPEN PROJECT" <> show a
 
 handleOpenFile :: Request OpenFile.Request -> StateT Env BusT ()
 handleOpenFile req@(Request _ _ (OpenFile.Request path)) = timeIt "handleOpenFile" $ do

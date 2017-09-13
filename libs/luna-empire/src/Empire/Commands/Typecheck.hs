@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Empire.Commands.Typecheck where
 
@@ -37,14 +38,17 @@ import           Empire.Empire
 
 import           Luna.Builtin.Data.Class          (Class (..))
 import           Luna.Builtin.Data.LunaEff        (runError, runIO)
-import           Luna.Builtin.Data.Module         (Imports (..), importedClasses, unionImports)
+import           Luna.Builtin.Data.Module         (Imports (..), importedClasses, unionImports, unionsImports)
 import           Luna.Builtin.Prim                (SingleRep (..), ValueRep (..), getReps)
 import qualified Luna.Compilation                 as Compilation
+import           Luna.Compilation                 (CompiledModules (..))
 import qualified Luna.IR                          as IR
 import           Luna.Pass.Data.ExprMapping
 import qualified Luna.Pass.Evaluation.Interpreter as Interpreter
 import qualified Luna.IR.Layer.Errors             as Errors
 
+import           System.Directory                     (canonicalizePath)
+import           System.Environment                   (getEnv)
 
 runTC :: Imports -> Command Graph ()
 runTC imports = do
@@ -120,13 +124,17 @@ flushCache = do
     valuesCache .= def
     nodesCache  .= def
 
-newtype Scope = Scope Imports
+newtype Scope = Scope CompiledModules
+makeWrapped ''Scope
+
+flattenScope :: Scope -> Imports
+flattenScope (Scope (CompiledModules mods prims)) = unionsImports $ prims : Map.elems mods
 
 createStdlib :: String -> IO (IO (), Scope)
-createStdlib = fmap (id *** Scope) . Compilation.createStdlib
+createStdlib = fmap (id *** Scope) . Compilation.prepareStdlib . Map.singleton "Std"
 
 getSymbolMap :: Scope -> SymbolMap
-getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
+getSymbolMap (flattenScope -> Imports clss funcs) = SymbolMap functions classes where
     functions = conses <> (convert <$> Map.keys funcs)
     conses    = getConses =<< Map.elems clss
     getConses (Class conses _) = convert <$> Map.keys conses
@@ -135,9 +143,11 @@ getSymbolMap (Scope (Imports clss funcs)) = SymbolMap functions classes where
 
 recomputeCurrentScope :: Command InterpreterEnv Imports
 recomputeCurrentScope = do
-    imps <- use imports
-    f    <- zoom graph $ runModuleTypecheck imps
+    imps       <- use imports
+    lunaroot   <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
+    (f, nimps) <- zoom graph $ runModuleTypecheck (Map.singleton "Std" $ lunaroot <> "/Std/") imps
     fileScope ?= f
+    imports   .= nimps
     return f
 
 getCurrentScope :: Command InterpreterEnv Imports
@@ -153,7 +163,7 @@ run loc@(GraphLocation file br) = do
     cln        <- use cleanUp
     threads    <- use listeners
     scope      <- getCurrentScope
-    let imps = unionImports std scope
+    let imps = unionImports (flattenScope $ Scope std) scope
     listeners .= []
     case br of
         Breadcrumb [] -> void $ recomputeCurrentScope

@@ -48,6 +48,8 @@ import           Data.Graph.Class     (MonadRefLookup(..), Net)
 import           Data.TypeDesc        (getTypeDesc)
 import           Luna.IR              as IR hiding (Marker, get, put, match)
 import           Luna.IR.Layer.Succs  (Succs)
+import qualified Luna.IR.Term.Unit    as Term
+import           OCI.IR.Layout.Typed  (type (>>))
 import           OCI.Pass.Class       (Inputs, Outputs, Preserves, KnownPass)
 import           OCI.IR.Class         (Import)
 import qualified OCI.Pass.Class       as Pass (SubPass, eval')
@@ -66,11 +68,13 @@ import qualified Luna.Syntax.Text.Parser.CodeSpan             as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker               (MarkedExprMap)
 import           Luna.Syntax.Text.Source                      (Source)
 import qualified Luna.Pass.Typechecking.Typecheck             as Typecheck
+import qualified Luna.Compilation                             as Compilation
+import           Luna.Compilation                             (CompiledModules (..))
 
 import qualified OCI.IR.Repr.Vis                   as Vis
 import qualified Control.Monad.State.Dependent.Old as DepOld
 import           Luna.Pass.Data.ExprMapping
-import           Luna.Builtin.Data.Module          (Imports (..))
+import           Luna.Builtin.Data.Module          (Imports (..), unionsImports)
 import           Luna.Pass.Resolution.Data.CurrentTarget (CurrentTarget (TgtNone))
 import qualified Luna.Pass.UnitCompilation.ModuleProcessing as ModuleTC
 import qualified Luna.Pass.Sourcing.UnitLoader              as UnitLoader
@@ -243,9 +247,9 @@ runTypecheck imports = do
         return (st, passSt)
     put $ newG & Graph.ast .~ AST st passSt
 
-runModuleTypecheck :: Imports -> Command ClsGraph Imports
-runModuleTypecheck imps = do
-    unit <- use Graph.clsClass
+runModuleTypecheck :: Map.Map Name FilePath -> CompiledModules -> Command ClsGraph (Imports, CompiledModules)
+runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
+    unit :: Expr Unit <- uses Graph.clsClass unsafeGeneralize
     g <- get
     AST ir pmState <- use Graph.clsAst
     let evalIR = flip runStateT g
@@ -260,11 +264,21 @@ runModuleTypecheck imps = do
         Pass.setAttr (getTypeDesc @UnitLoader.SourcesManager) $ error "Data not provided: SourcesManager"
         Pass.setAttr (getTypeDesc @UnitSet)                   $ error "Data not provided: UnitSet"
         Pass.setAttr (getTypeDesc @Invalids)                  $ (mempty :: Invalids)
-        Pass.eval' $ do
+        impNames <- Pass.eval' $ do
+            imphub   <- unit @^. Term.imports
+            imps     <- readWrappedSources (unsafeGeneralize imphub :: Expr (UnresolvedImportHub >> UnresolvedImport >> UnresolvedImportSrc))
+            impNames <- for imps $ \imp -> do
+                src <- imp @^. Term.termUnresolvedImport_source
+                Term.Absolute path <- src @. wrapped
+                return path
             cls <- IR.matchExpr unit $ \case
                 IR.Unit _ _ c -> IR.source c
             UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
-        snd <$> ModuleTC.processModule' imps def "<<interactive>>" (IR.unsafeGeneralize unit)
+            return impNames
+        Right (imports, newCmpMods) <- liftIO $ Compilation.requestModules sources impNames cmpMods
+        let imps = unionsImports $ prims : Map.elems imports
+        res <- snd <$> ModuleTC.processModule' imps def "<<interactive>>" (IR.unsafeGeneralize unit)
+        return (res, newCmpMods)
     return res
 
 putNewIR :: IR -> Command Graph ()

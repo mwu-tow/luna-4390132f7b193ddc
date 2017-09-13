@@ -17,6 +17,7 @@ import           LunaStudio.Data.Project       (ProjectId)
 import           LunaStudio.Data.TypeRep       (TypeRep)
 import           Luna.Builtin.Data.Module      (Imports)
 import           Luna.Builtin.Data.Function    (Function)
+import           Luna.Compilation              (CompiledModules)
 import           OCI.IR.Name                   (Name)
 
 import           Control.Concurrent.STM.TChan  (TChan)
@@ -63,7 +64,7 @@ data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _graph       :: ClsGraph
                                      , _cleanUp     :: IO ()
                                      , _listeners   :: [ThreadId]
-                                     , _imports     :: Imports
+                                     , _imports     :: CompiledModules
                                      }
 makeLenses ''InterpreterEnv
 
