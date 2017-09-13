@@ -11,9 +11,10 @@
 
 module Empire.ASTOps.Modify where
 
-import           Control.Lens (folded, ifiltered)
-import           Data.List    (find)
-import qualified Data.Text.IO as Text
+import           Control.Monad (forM)
+import           Control.Lens  (folded, ifiltered)
+import           Data.List     (find)
+import qualified Data.Text.IO  as Text
 import qualified Safe
 
 import           Empire.Prelude
@@ -86,13 +87,25 @@ getArgNames ref = match ref $ \case
 
 replaceWithLam :: GraphOp m => Maybe EdgeRef -> String -> NodeRef -> m ()
 replaceWithLam parent name lam = do
-    tmpBlank <- IR.blank
-    binder   <- IR.var $ stringToName name
-    newLam   <- IR.lam binder tmpBlank
+    tmpBlank    <- IR.blank
+    binder      <- IR.var $ stringToName name
+    newLam      <- IR.lam binder tmpBlank
+    lamIsLambda <- ASTRead.isLambda lam
+    if lamIsLambda then do
+        Just beg <- Code.getAnyBeginningOf lam
+        Code.applyDiff beg beg $ convert $ name <> ": "
+    else do
+        Just beg <- join <$> forM parent (\prevLam -> IR.readTarget prevLam >>= flip IR.matchExpr `id` \case
+            Lam arg _ -> do
+                o   <- IR.getLayer @SpanLength =<< IR.source arg
+                beg <- Code.getAnyBeginningOf =<< IR.readTarget prevLam
+                return $ fmap (\a -> a + o) beg)
+        Code.applyDiff beg beg $ convert $ ": " <> name
     case parent of
         Just e  -> IR.replaceSource (IR.generalize newLam) e
         Nothing -> substitute (IR.generalize newLam) lam
     IR.replace lam tmpBlank
+    Code.gossipLengthsChangedBy (2 + fromIntegral (length name)) lam
     return ()
 
 addLambdaArg' :: GraphOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()
