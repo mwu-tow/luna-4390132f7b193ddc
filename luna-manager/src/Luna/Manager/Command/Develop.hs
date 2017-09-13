@@ -48,7 +48,7 @@ instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
         , _appsPath       = "apps"
         , _toolsPath      = "tools"
         , _stackLocalPath = "stack"
-        , _bootstrapFile  = "bootstrap"
+        , _bootstrapFile  = "bootstrap.hs"
         }
 
 instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
