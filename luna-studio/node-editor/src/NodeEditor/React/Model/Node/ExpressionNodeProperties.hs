@@ -20,6 +20,7 @@ data NodeProperties = NodeProperties
                     , _name                  :: Maybe Text
                     , _execTime              :: Maybe Integer
                     , _visualizationsEnabled :: Bool
+                    , _isExpanded            :: Bool
                     } deriving (Eq)
 
 makeLenses ''NodeProperties
@@ -32,6 +33,7 @@ fromNode node = NodeProperties
     {- name                  -} (node ^. Node.name)
     {- execTime              -} (node ^. Node.execTime)
     {- visualizationsEnabled -} (node ^. Node.visualizationsEnabled)
+    {- isExpanded            -} (Node.isExpanded node)
 
 instance HasNodeLoc NodeProperties where
     nodeLoc = nodeLoc'
