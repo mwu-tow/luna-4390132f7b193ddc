@@ -118,7 +118,7 @@ specifyCodeChange initialCode expectedCode act env = do
 
 
 spec :: Spec
-spec = around withChannels $ parallel $ do
+spec = around withChannels $ id $ do
     describe "text coordinates translation" $ do
         it "translates points to deltas and back" $ \env -> do
             let code = Text.unlines [ "  "
@@ -1326,6 +1326,50 @@ spec = around withChannels $ parallel $ do
                 let loc' = loc |> foo
                 (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.movePort loc' (outPortRef input [Port.Projection 0]) 2
+        it "removes port in a lambda" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa  : bb:
+                        aaaa + bb
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = aaaa:
+                        aaaa + bb
+                    c = foo 3 3
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.removePort loc' (outPortRef input [Port.Projection 1])
+                Graph.setNodeExpression loc c "foo 3 3"
+        it "removes port in a lambda 2" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa  : bb:
+                        aaaa + bb
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = bb:
+                        aaaa + bb
+                    c = foo 3 3
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.removePort loc' (outPortRef input [Port.Projection 0])
+                Graph.setNodeExpression loc c "foo 3 3"
         it "adds port in a lambda" $ let
             initialCode = [r|
                 def main:
