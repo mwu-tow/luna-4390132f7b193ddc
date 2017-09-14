@@ -827,10 +827,9 @@ dumpGraphViz loc = withGraph loc $ return ()
 
 autolayoutNodes :: GraphOp m => [NodeId] -> m ()
 autolayoutNodes nids = timeIt "autolayoutNodes" $ do
-    nodes' <- GraphBuilder.buildNodesForAutolayout <!!> "buildNodesForAutolayout"
+    nodes <- GraphBuilder.buildNodesForAutolayout <!!> "buildNodesForAutolayout"
     conns <- GraphBuilder.buildConnections        <!!> "buildConnections"
-    let nodes = zipWith (\(nid, pos) posInCode -> (nid, posInCode, pos)) nodes' [1..]
-        autolayout = Autolayout.autolayoutNodes nids nodes conns
+    let autolayout = Autolayout.autolayoutNodes nids nodes conns
     traverse_ (uncurry setNodePositionAST) autolayout <!!> "setNodePositionsAST"
 
 openFile :: FilePath -> Empire ()
