@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack --resolver lts-7.7 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath -- -hide-all-packages
+-- stack --resolver lts-7.7 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath --verbose -- -hide-all-packages 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass        #-}
