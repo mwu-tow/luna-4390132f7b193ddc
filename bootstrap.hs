@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack --resolver lts-7.7 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory -- -hide-all-packages
+-- stack --resolver lts-7.7 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath -- -hide-all-packages
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass        #-}
@@ -16,14 +16,17 @@ import Control.Monad.IO.Class ( MonadIO)
 import Control.Exception (Exception)
 import Data.Maybe (fromMaybe)
 import Data.Text as T
+import Filesystem.Path.CurrentOS (parent, encodeString)
 import System.IO (BufferMode(LineBuffering), hSetBuffering, stdout)
 default (T.Text)
 
 stack = "../../tools/stack/stack"
 
 tools = "../../tools"
+libs = "../../libs"
 supportedNodeVersion = "6.11.3"
 supportedPythonVersion = "3.6.2"
+lunaShell = "./luna-shell.sh"
 -------------------
 -- === Hosts === --
 -------------------
@@ -60,7 +63,7 @@ sanityCheck command params = Shelly.silently $ do
     exit <- Shelly.lastExitCode
     when (exit /= 0) $ Shelly.errorExit (Shelly.toTextIgnore command)
 
-puthonLibs :: [T.Text]
+pythonLibs :: [T.Text]
 pythonLibs = ["requests"]
 
 installPython :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
@@ -95,7 +98,16 @@ installNode = do
                 Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-darwin-x64.tar.gz" "--strip=1" "-C" supportedNodeVersion
                 Shelly.rm "./node-v6.11.3-darwin-x64.tar.gz"
 
+nodeModules :: [T.Text]
+nodeModules = ["less"]
 
+installNodeModules :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+installNodeModules = do
+    Shelly.echo "installing node modules"
+    current <- liftIO $ System.getCurrentDirectory
+    let nodeBinPath = current </> tools </> "node" </> supportedNodeVersion </> "bin"
+    Shelly.prependToPath nodeBinPath
+    Shelly.cmd "npm" $ "install" : nodeModules
 
 
 haskellBins :: [T.Text]
@@ -110,9 +122,48 @@ installHaskellBins = do
     Shelly.cmd stack $ "install" : haskellBins
     sanityCheck "happy" ["--version"]
 
+downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+downloadLibs = do
+    Shelly.echo "downloading libraries"
+    current <- liftIO $ System.getCurrentDirectory
+    let libsFolder = current </> libs
+    Shelly.chdir_p (parent libsFolder) $ do
+        case currentHost of
+            Linux  -> do
+                Shelly.cmd "wget" ["https://s3-us-west-2.amazonaws.com/packages-luna/linux/studio/libs/luna-studio-libs.tar.gz"]
+                Shelly.cmd  "tar" "-xpzf" "./luna-studio-libs.tar.gz" "--strip=1"
+                Shelly.rm "./luna-studio-libs.tar.gz"
+            Darwin -> do
+                Shelly.cmd "wget" ["https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/libs/luna-studio-libs.tar.gz"]
+                Shelly.cmd  "tar" "-xpzf" "./luna-studio-libs.tar.gz" "--strip=1"
+                Shelly.rm "./luna-studio-libs.tar.gz"
+
 bashLogin :: MonadSh m => Shelly.FilePath -> [T.Text] -> m T.Text
 bashLogin command params = do
     Shelly.cmd "bash" ["-c", "-l", (Shelly.toTextIgnore command) `T.append` " " `T.append` T.intercalate " " params]
+
+generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+generateLunaShellScript = do
+    current <-  liftIO $ System.getCurrentDirectory
+    let lbsPath = current </> libs
+        pyenvShimsFolder = tools </> "python" </> "pyenv" </> "shims"
+        pyenvBinFolder = tools </> "python" </> "pyenv" </> "bin"
+        stackPath = current </> stack
+        nodeBinPath = current </> tools </> "node" </> supportedNodeVersion </> "bin"
+        addLdLibraryPath = "export LD_LIBRARY_PATH=" ++ encodeString lbsPath ++ "\n"
+        addPath = "export PATH="++ encodeString stackPath ++ ":" ++ encodeString pyenvShimsFolder ++ ":" ++ encodeString pyenvBinFolder ++ ":" ++ encodeString nodeBinPath ++ ":$PATH" ++ "\n"
+        pyenvEnviromentVar = "export PYENV_ROOT=" ++ (encodeString $ current </> tools </> "python" </> "pyenv") ++ "\n"
+        loadPython = "pyenv" ++  " local " ++ encodeString supportedPythonVersion ++ "\n"
+        shellCmd = "bash" ++ "\n"
+    liftIO $ writeFile (encodeString lunaShell) "#!/bin/bash\n"
+    liftIO $ appendFile (encodeString lunaShell) addLdLibraryPath
+    liftIO $ appendFile (encodeString lunaShell) addPath
+    liftIO $ appendFile (encodeString lunaShell) pyenvEnviromentVar
+    liftIO $ appendFile (encodeString lunaShell) loadPython
+    liftIO $ appendFile (encodeString lunaShell) shellCmd
+
+
+
 --
 -- installNVM :: (MonadSh m, Shelly.MonadShControl m) => m ()
 -- installNVM = Shelly.escaping False $ do
@@ -126,60 +177,44 @@ bashLogin command params = do
 --     sanityCheck "node" ["--version"]
 
 
-fedoraPackages :: [T.Text]
-fedoraPackages = [
-    "pkgconfig"
-    , "zeromq-devel"
-    , "ncurses-devel"
-    , "zlib-devel"
-    ]
-
-brewPackages :: [T.Text]
-brewPackages = [
-    "pkg-config"
-    , "zmq"
-    ]
-
-
-installBrew :: MonadSh m => m ()
-installBrew = Shelly.cmd "brew" "install" brewPackages
-
-installDnf :: MonadSh m => m ()
-installDnf = Shelly.cmd "sudo" "dnf" "install" "-y" fedoraPackages
-
-installDistroPackages :: (MonadSh m, MonadThrow m, MonadIO m) => m ()
-installDistroPackages = do
-    case currentHost of
-        Darwin -> installBrew
-        Linux  -> liftIO $ print "fupa" --installDnf
-
-prependLocalBin :: MonadSh m => m ()
-prependLocalBin = do
-    homePath <- fromMaybe (error "$HOME not set") <$> Shelly.get_env "HOME"
-    Shelly.prependToPath $ homePath </> ".local" </> "bin"
+-- fedoraPackages :: [T.Text]
+-- fedoraPackages = [
+--     "pkgconfig"
+--     , "zeromq-devel"
+--     , "ncurses-devel"
+--     , "zlib-devel"
+--     ]
+--
+-- brewPackages :: [T.Text]
+-- brewPackages = [
+--     "pkg-config"
+--     , "zmq"
+--     ]
+--
+--
+-- installBrew :: MonadSh m => m ()
+-- installBrew = Shelly.cmd "brew" "install" brewPackages
+--
+-- installDnf :: MonadSh m => m ()
+-- installDnf = Shelly.cmd "sudo" "dnf" "install" "-y" fedoraPackages
+--
+-- installDistroPackages :: (MonadSh m, MonadThrow m, MonadIO m) => m ()
+-- installDistroPackages = do
+--     case currentHost of
+--         Darwin -> installBrew
+--         Linux  -> liftIO $ print "fupa" --installDnf
+--
+-- prependLocalBin :: MonadSh m => m ()
+-- prependLocalBin = do
+--     homePath <- fromMaybe (error "$HOME not set") <$> Shelly.get_env "HOME"
+--     Shelly.prependToPath $ homePath </> ".local" </> "bin"
 
 main :: IO ()
 main = do
     hSetBuffering stdout LineBuffering
     shelly $ do
-        return ()
-        -- prependLocalBin
-        -- echo "Installing dependencies"
-        installDistroPackages
-        -- installPython
+        installPython
         installNode
-        --
-        -- installNVM
-        -- installNode
-        --
-        -- installBower
-        -- installBrunch
-        --
-        -- installGHC
-        -- installHaskellBins
-        --
-        --
-        -- echo "stack setup"
-        -- repoDir <- pwd
-        -- chdir ("build" </> "backend") $ Shelly.cmd stack "setup"
-        -- chdir "luna-studio" $ Shelly.cmd stack "setup"
+        installNodeModules
+        downloadLibs
+        generateLunaShellScript
