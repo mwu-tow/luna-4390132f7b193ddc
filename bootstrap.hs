@@ -28,7 +28,12 @@ supportedNodeVersion = "6.11.3"
 supportedPythonVersion = "3.6.2"
 lunaShell = "./luna-shell.sh"
 
-current = Shelly.getenv "APP_PATH"
+currentPath :: (MonadSh m, MonadIO m) => m Text
+currentPath = do
+    path <- Shelly.get_env "APP_PATH"
+    currentDirectory <- liftIO $ System.getCurrentDirectory
+    let p = fromMaybe (T.pack currentDirectory) path
+    return p
 
 -------------------
 -- === Hosts === --
@@ -86,6 +91,7 @@ installPython = do
 installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installNode = do
     Shelly.echo "installing node locally"
+    current <- currentPath
     let nodeFolder = current </> tools </> "node"
     Shelly.chdir_p nodeFolder $ do
         Shelly.mkdir_p supportedNodeVersion
@@ -105,6 +111,7 @@ nodeModules = ["less"]
 installNodeModules :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installNodeModules = do
     Shelly.echo "installing node modules"
+    current <- currentPath
     let nodeBinPath = current </> tools </> "node" </> supportedNodeVersion </> "bin"
     Shelly.prependToPath nodeBinPath
     Shelly.cmd "npm" $ "install" : nodeModules
@@ -125,6 +132,7 @@ installHaskellBins = do
 downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 downloadLibs = do
     Shelly.echo "downloading libraries"
+    current <- currentPath
     let libsFolder = current </> libs
     Shelly.chdir_p (parent libsFolder) $ do
         case currentHost of
@@ -143,6 +151,7 @@ bashLogin command params = do
 
 generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 generateLunaShellScript = do
+    current <- currentPath
     let lbsPath = current </> libs
         pyenvShimsFolder = tools </> "python" </> "pyenv" </> "shims"
         pyenvBinFolder = tools </> "python" </> "pyenv" </> "bin"
