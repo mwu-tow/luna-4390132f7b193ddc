@@ -51,11 +51,13 @@ createSymLink ::  MonadIO m => FilePath -> FilePath -> m ()
 createSymLink src dst = liftIO $  (System.createFileLink (encodeString src) (encodeString dst)) `catch` handler src dst where
     --TODO[SB->WD]: Can we do it nicer - to check if it already exist (not the target!)
     handler :: FilePath -> FilePath -> SomeException -> IO ()
-    handler src dst ex = case ex of
-        isAlreadyExistsError -> do
-            System.removeFile $ encodeString dst
-            createSymLink src dst
-        otherwise -> return ()
+    handler src dst ex = do
+        case fromException ex of
+            Just ioExc -> if isAlreadyExistsError ioExc then do
+                    System.removeFile $ encodeString dst
+                    createSymLink src dst
+                else return ()
+            Nothing -> return ()
 
 createSymLinkDirectory ::  MonadIO m => FilePath -> FilePath -> m ()
 createSymLinkDirectory src dst = liftIO $ (System.createDirectoryLink (encodeString src) (encodeString dst)) `catch` handler src dst where

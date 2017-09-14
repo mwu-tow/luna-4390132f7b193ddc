@@ -251,6 +251,7 @@ postInstallation appType installPath binPath appName version = do
     runServices installPath appType appName version
     makeShortcuts packageBin appName
 
+
 copyResources :: MonadInstall m => AppType -> FilePath -> Text -> m ()
 copyResources appType installPath appName = case currentHost of
     Linux   -> return ()
@@ -393,6 +394,7 @@ installApp' guiInstaller binPath package = do
     downloadAndUnpackApp guiInstaller (package ^. desc . path) installPath pkgName appType $ package ^. header . version
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
+    touchApp (convert binPath </> convert pkgName) appType
 
 data VersionException = VersionException Text  deriving (Show)
 instance Exception VersionException where
