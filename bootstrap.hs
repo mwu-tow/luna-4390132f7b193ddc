@@ -33,6 +33,7 @@ currentPath = do
     path <- Shelly.get_env "APP_PATH"
     currentDirectory <- liftIO $ System.getCurrentDirectory
     let p = fromMaybe (T.pack currentDirectory) path
+    liftIO $ print p
     return p
 
 -------------------
