@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack --resolver lts-7.7 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath --verbose -- -hide-all-packages 
+-- stack --resolver lts-7.7 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath --verbose -- -hide-all-packages
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass        #-}
@@ -27,6 +27,9 @@ libs = "../../libs"
 supportedNodeVersion = "6.11.3"
 supportedPythonVersion = "3.6.2"
 lunaShell = "./luna-shell.sh"
+
+current = Shelly.getenv "APP_PATH"
+
 -------------------
 -- === Hosts === --
 -------------------
@@ -69,7 +72,6 @@ pythonLibs = ["requests"]
 installPython :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installPython = do
     Shelly.echo "installing python locally"
-    current <- liftIO $ System.getCurrentDirectory
     let pythonFolder = tools </> "python"
     Shelly.chdir_p pythonFolder $ do
         Shelly.cmd "git" ["clone", "https://github.com/pyenv/pyenv.git"]
@@ -84,7 +86,6 @@ installPython = do
 installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installNode = do
     Shelly.echo "installing node locally"
-    current <- liftIO $ System.getCurrentDirectory
     let nodeFolder = current </> tools </> "node"
     Shelly.chdir_p nodeFolder $ do
         Shelly.mkdir_p supportedNodeVersion
@@ -104,7 +105,6 @@ nodeModules = ["less"]
 installNodeModules :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installNodeModules = do
     Shelly.echo "installing node modules"
-    current <- liftIO $ System.getCurrentDirectory
     let nodeBinPath = current </> tools </> "node" </> supportedNodeVersion </> "bin"
     Shelly.prependToPath nodeBinPath
     Shelly.cmd "npm" $ "install" : nodeModules
@@ -125,7 +125,6 @@ installHaskellBins = do
 downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 downloadLibs = do
     Shelly.echo "downloading libraries"
-    current <- liftIO $ System.getCurrentDirectory
     let libsFolder = current </> libs
     Shelly.chdir_p (parent libsFolder) $ do
         case currentHost of
@@ -144,7 +143,6 @@ bashLogin command params = do
 
 generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 generateLunaShellScript = do
-    current <-  liftIO $ System.getCurrentDirectory
     let lbsPath = current </> libs
         pyenvShimsFolder = tools </> "python" </> "pyenv" </> "shims"
         pyenvBinFolder = tools </> "python" </> "pyenv" </> "bin"
