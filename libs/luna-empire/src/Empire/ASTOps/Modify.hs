@@ -127,16 +127,39 @@ lamAny a b = fmap IR.generalize $ IR.lam a b
 lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
 lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
 
+removeLambdaArg' :: GraphOp m => Int -> NodeRef -> Maybe Delta -> m ()
+removeLambdaArg' 0 ref Nothing = match ref $ \case
+    Lam _ b -> do
+        body <- IR.source b
+        nextIsLam <- ASTRead.isLambda body
+        if nextIsLam then do
+            Just lamBeg  <- Code.getAnyBeginningOf ref
+            Just nextBeg <- Code.getAnyBeginningOf body
+            Code.applyDiff lamBeg nextBeg ""
+            IR.replace body ref
+            Code.gossipLengthsChangedBy (lamBeg - nextBeg) body
+        else throwM CannotRemovePortException
+removeLambdaArg' 0 ref (Just off) = match ref $ \case
+    Lam arg b -> do
+        Just lamBeg  <- Code.getAnyBeginningOf ref
+        body         <- IR.source b
+        argLen       <- length <$> (ASTRead.getVarName =<< IR.source arg)
+        Code.applyDiff (lamBeg - off) (lamBeg + convert argLen) ""
+        IR.replace body ref
+        Code.gossipLengthsChangedBy (negate $ off + convert argLen) body
+    _ -> throwM CannotRemovePortException
+removeLambdaArg' port ref _ = match ref $ \case
+    Lam _ b -> do
+        off  <- IR.getLayer @SpanOffset b
+        body <- IR.source b
+        removeLambdaArg' (port - 1) body (Just off)
+    _ -> throwM CannotRemovePortException
+
 removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m ()
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
     Grouped g      -> IR.source g >>= removeLambdaArg p
-    Lam _arg _body -> do
-        args <- ASTDeconstruct.extractArguments lambda
-        out  <- ASTRead.getFirstNonLambdaRef lambda
-        let newArgs = args ^.. folded . ifiltered (\i _ -> i /= port)
-        newLam <- lams newArgs out
-        when (lambda /= newLam) $ rewireCurrentNode newLam
+    Lam _arg _body -> removeLambdaArg' port lambda Nothing
     ASGFunction _ as _ -> do
         let argsBefore        = take port       as
             argsAfter         = drop (port + 1) as

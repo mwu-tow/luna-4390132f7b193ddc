@@ -156,17 +156,18 @@ aliasPortName = "alias"
 selfPortName :: Text
 selfPortName = "self"
 
-buildNodesForAutolayout :: GraphOp m => m [(NodeId, Position)]
+buildNodesForAutolayout :: GraphOp m => m [(NodeId, Int, Position)]
 buildNodesForAutolayout = do
     allNodeIds <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
     nodes      <- mapM buildNodeForAutolayout allNodeIds
     pure nodes
 
-buildNodeForAutolayout :: GraphOp m => NodeId -> m (NodeId, Position)
+buildNodeForAutolayout :: GraphOp m => NodeId -> m (NodeId, Int, Position)
 buildNodeForAutolayout nid = do
-    marked    <- ASTRead.getASTRef nid
-    meta      <- fromMaybe def <$> AST.readMeta marked
-    pure (nid, meta ^. NodeMeta.position)
+    marked       <- ASTRead.getASTRef nid
+    Just codePos <- Code.getOffsetRelativeToFile marked
+    meta         <- fromMaybe def <$> AST.readMeta marked
+    pure (nid, fromIntegral codePos, meta ^. NodeMeta.position)
 
 buildNode :: GraphOp m => NodeId -> m API.ExpressionNode
 buildNode nid = do
