@@ -163,7 +163,7 @@ generateLunaShellScript = do
     let lbsPath            = current </> libs
         pyenvShimsFolder   = current </> tools </> "python" </> "pyenv" </> "shims"
         pyenvBinFolder     = current </> tools </> "python" </> "pyenv" </> "bin"
-        stackPath          = current </> stack
+        stackPath          = current </> (parent stack)
         nodeBinPath        = current </> tools </> "node" </> supportedNodeVersion </> "bin"
         addLdLibraryPath   = "export LD_LIBRARY_PATH=" <> Shelly.toTextIgnore lbsPath
         paths              = preparePaths [stackPath, pyenvShimsFolder, pyenvBinFolder, nodeBinPath]
