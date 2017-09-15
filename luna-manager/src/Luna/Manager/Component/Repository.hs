@@ -60,10 +60,10 @@ data AppType = BatchApp | GuiApp | Lib deriving (Show, Generic, Eq)
 
 
 -- Core
-data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                          } deriving (Show, Generic, Eq)
-data Package       = Package       { _synopsis :: Text             , _appType :: AppType , _versions :: VersionMap} deriving (Show, Generic, Eq)
-data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: Text                            } deriving (Show, Generic, Eq)
-data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                         } deriving (Show, Generic, Eq)
+data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                            } deriving (Show, Generic, Eq)
+data Package       = Package       { _synopsis :: Text             , _appType  :: AppType , _versions :: VersionMap } deriving (Show, Generic, Eq)
+data PackageDesc   = PackageDesc   { _deps     :: [PackageHeader]  , _path     :: Text                              } deriving (Show, Generic, Eq)
+data PackageHeader = PackageHeader { _name     :: Text             , _version  :: Version                           } deriving (Show, Generic, Eq)
 type VersionMap    = Map Version (Map SysDesc PackageDesc)
 
 -- Helpers
@@ -152,10 +152,13 @@ generateYaml repo resolvedApplication filePath = do
     liftIO $ BS.writeFile (encodeString filePath) $ Yaml.encode $ Repo defpkgs [appName]
     -- return ()
 
-generateConfigYamlWithNewPackage :: (MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> m ()
-generateConfigYamlWithNewPackage repo resolvedApplication s3PackagePath = do
+repoUnion :: Repo -> Repo -> Repo
+repoUnion r1 r2 = r1 & packages .~ Map.unionWith packageUnion (r1 ^. packages) (r2 ^. packages) where
+    packageUnion :: Package -> Package -> Package
+    packageUnion p1 p2 = p1 & versions .~ Map.unionWith Map.union (p1 ^. versions) (p2 ^. versions)
 
-    return ()
+generateConfigYamlWithNewPackage :: (MonadIO m, MonadException SomeException m) => Repo -> Repo -> FilePath-> m ()
+generateConfigYamlWithNewPackage repo packageYaml configFile = liftIO $ BS.writeFile (encodeString configFile) $ Yaml.encode $ repoUnion repo packageYaml
 
 -- === Instances === --
 

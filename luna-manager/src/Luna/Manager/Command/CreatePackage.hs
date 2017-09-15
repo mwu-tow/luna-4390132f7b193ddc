@@ -322,12 +322,32 @@ createPkg verbose cfgFolderPath resolvedApplication = do
         Darwin  -> void $ createTarGzUnix mainAppDir appName
         Windows -> void $ zipFileWindows False mainAppDir appName
 
+updateConfig :: Repo -> ResolvedApplication -> Repo
+updateConfig config resolvedApplication =
+    let app        = resolvedApplication ^. resolvedApp
+        appDesc    = app ^. desc
+        -- appPath    = convert (appDesc ^. path)
+        appHeader  = app ^. header
+        appName    = appHeader ^. name
+        mainPackagePath = "https://s3-us-west-2.amazonaws.com/packages-luna/"
+        applicationPartPackagePath = appName <> "/" <> showPretty (view version appHeader) <> "/" <> appName
+        s3Path = case currentHost of
+            Darwin -> mainPackagePath <> "darwin/" <> applicationPartPackagePath <> ".tar.gz"
+            Linux -> mainPackagePath <> "linux/" <> applicationPartPackagePath <> ".AppImage"
+            Windows -> mainPackagePath <> "windows/" <> applicationPartPackagePath <> ".tar.gz"
+        updatedConfig = config & packages . ix appName . versions . ix (view version appHeader) . ix currentSysDesc . path .~ s3Path
+        filteredConfig = updatedConfig & packages . ix appName . versions . ix (view version appHeader)  %~ Map.filterWithKey (\k _ -> k == currentSysDesc   )
+    in filteredConfig
+
 run :: MonadCreatePackage m => MakePackageOpts -> m ()
 run opts = do
-    repo <- parseConfig $ convert (opts ^. Opts.cfgPath)
+    config <- parseConfig $ convert (opts ^. Opts.cfgPath)
     let cfgFolderPath = parent $ convert (opts ^. Opts.cfgPath)
-        appsToPack = repo ^. apps
+        appsToPack = config ^. apps
 
-    resolved <- mapM (resolvePackageApp repo) appsToPack
+    resolved <- mapM (resolvePackageApp config) appsToPack
 
     mapM_ (createPkg (opts ^. Opts.verbose) cfgFolderPath) resolved
+    repo <- getRepo
+    let updatedConfig = foldl' updateConfig config resolved
+    generateConfigYamlWithNewPackage repo updatedConfig $ cfgFolderPath </> "config.yaml"
