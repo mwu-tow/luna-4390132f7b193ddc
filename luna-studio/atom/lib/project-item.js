@@ -31,6 +31,7 @@ module.exports = ProjectItem = class ProjectItem {
                 // etch.updateSync(this);
                 spinner.setProgress(p);
             };
+            progress(0);
             var self = this;
             finalize = function() {
                 self.update( { logo: self.thumbLogo() } );
