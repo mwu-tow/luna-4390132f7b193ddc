@@ -99,9 +99,9 @@ installNode = do
         Shelly.mkdir_p supportedNodeVersion
         case currentHost of
             Linux  -> do
-                Shelly.cmd "wget" ["https://nodejs.org/download/release/latest-v6.x/node-v6.11.3-linux-x86.tar.gz"]
-                Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-linux-x86.tar.gz" "--strip=1" "-C" supportedNodeVersion
-                Shelly.rm "./node-v6.11.3-linux-x86.tar.gz"
+                Shelly.cmd "wget" ["https://nodejs.org/dist/v6.11.3/node-v6.11.3-linux-x64.tar.xz"]
+                Shelly.cmd  "tar" "-xpJf" "./node-v6.11.3-linux-x64.tar.xz" "--strip=1" "-C" supportedNodeVersion
+                Shelly.rm "./node-v6.11.3-linux-x64.tar.xz"
             Darwin -> do
                 Shelly.cmd "wget" ["https://nodejs.org/download/release/latest-v6.x/node-v6.11.3-darwin-x64.tar.gz"]
                 Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-darwin-x64.tar.gz" "--strip=1" "-C" supportedNodeVersion
