@@ -1,7 +1,6 @@
 #!/usr/bin/env stack
 -- stack --resolver lts-8.2 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath --verbose -- -hide-all-packages
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExtendedDefaultRules  #-}
@@ -32,9 +31,7 @@ currentPath :: (MonadSh m, MonadIO m) => m Text
 currentPath = do
     path <- Shelly.get_env "APP_PATH"
     currentDirectory <- liftIO $ System.getCurrentDirectory
-    let p = fromMaybe (T.pack currentDirectory) path
-    liftIO $ print p
-    return p
+    return $ fromMaybe (T.pack currentDirectory) path
 
 -------------------
 -- === Hosts === --
@@ -45,7 +42,7 @@ currentPath = do
 data System = Linux
             | Darwin
             | Windows
-            deriving (Show, Read, Eq, Ord)
+            deriving (Show)
 
 
 -- === System discovery === --
@@ -54,13 +51,10 @@ currentHost :: System
 
 
 #ifdef linux_HOST_OS
-type CurrentHost = 'Linux
 currentHost      =  Linux
 #elif darwin_HOST_OS
-type CurrentHost = 'Darwin
 currentHost      =  Darwin
 #elif mingw32_HOST_OS
-type CurrentHost = 'Windows
 currentHost      =  Windows
 #else
 Running on unsupported system.
@@ -155,23 +149,20 @@ generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m 
 generateLunaShellScript = do
     Shelly.echo "generate luna shell"
     current <- currentPath
-    let lbsPath = current </> libs
-        pyenvShimsFolder = tools </> "python" </> "pyenv" </> "shims"
-        pyenvBinFolder = tools </> "python" </> "pyenv" </> "bin"
-        stackPath = current </> stack
-        nodeBinPath = current </> tools </> "node" </> supportedNodeVersion </> "bin"
-        addLdLibraryPath = "export LD_LIBRARY_PATH=" ++ encodeString lbsPath ++ "\n"
-        addPath = "export PATH="++ encodeString stackPath ++ ":" ++ encodeString pyenvShimsFolder ++ ":" ++ encodeString pyenvBinFolder ++ ":" ++ encodeString nodeBinPath ++ ":$PATH" ++ "\n"
+    let lbsPath            = current </> libs
+        pyenvShimsFolder   = tools </> "python" </> "pyenv" </> "shims"
+        pyenvBinFolder     = tools </> "python" </> "pyenv" </> "bin"
+        stackPath          = current </> stack
+        nodeBinPath        = current </> tools </> "node" </> supportedNodeVersion </> "bin"
+        addLdLibraryPath   = "export LD_LIBRARY_PATH=" ++ encodeString lbsPath ++ "\n"
+        addPath            = "export PATH="++ encodeString stackPath ++ ":" ++ encodeString pyenvShimsFolder ++ ":" ++ encodeString pyenvBinFolder ++ ":" ++ encodeString nodeBinPath ++ ":$PATH" ++ "\n"
         pyenvEnviromentVar = "export PYENV_ROOT=" ++ (encodeString $ current </> tools </> "python" </> "pyenv") ++ "\n"
-        loadPython = "pyenv" ++  " local " ++ encodeString supportedPythonVersion ++ "\n"
-        shellCmd = "bash" ++ "\n"
-        lunaShellPath = current </> lunaShell
-    liftIO $ writeFile (encodeString lunaShellPath) "#!/bin/bash\n"
-    liftIO $ appendFile (encodeString lunaShellPath) addLdLibraryPath
-    liftIO $ appendFile (encodeString lunaShellPath) addPath
-    liftIO $ appendFile (encodeString lunaShellPath) pyenvEnviromentVar
-    liftIO $ appendFile (encodeString lunaShellPath) loadPython
-    liftIO $ appendFile (encodeString lunaShellPath) shellCmd
+        loadPython         = "pyenv" ++  " local " ++ encodeString supportedPythonVersion ++ "\n"
+        shellCmd           = "bash" ++ "\n"
+        lunaShellPath      = current </> lunaShell
+        fullCode           = T.concat $ T.pack <$> ["#!/bin/bash\n", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
+    liftIO $ writeFile (encodeString lunaShellPath) $ T.unpack fullCode
+
 
 
 
@@ -224,8 +215,8 @@ main :: IO ()
 main = do
     hSetBuffering stdout LineBuffering
     shelly $ do
-        installPython
-        installNode
-        installNodeModules
-        downloadLibs
+        -- installPython
+        -- installNode
+        -- installNodeModules
+        -- downloadLibs
         generateLunaShellScript
