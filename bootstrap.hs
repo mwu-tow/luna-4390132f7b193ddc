@@ -103,7 +103,7 @@ installNode = do
                 Shelly.cmd  "tar" "-xpJf" "./node-v6.11.3-linux-x64.tar.xz" "--strip=1" "-C" supportedNodeVersion
                 Shelly.rm "./node-v6.11.3-linux-x64.tar.xz"
             Darwin -> do
-                Shelly.cmd "wget" ["https://nodejs.org/download/release/latest-v6.x/node-v6.11.3-darwin-x64.tar.gz"]
+                Shelly.cmd "wget" ["https://nodejs.org/dist/v6.11.3/node-v6.11.3-darwin-x64.tar.gz"]
                 Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-darwin-x64.tar.gz" "--strip=1" "-C" supportedNodeVersion
                 Shelly.rm "./node-v6.11.3-darwin-x64.tar.gz"
 
@@ -153,6 +153,7 @@ bashLogin command params = do
 
 generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 generateLunaShellScript = do
+    Shelly.echo "generate luna shell"
     current <- currentPath
     let lbsPath = current </> libs
         pyenvShimsFolder = tools </> "python" </> "pyenv" </> "shims"
