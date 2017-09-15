@@ -89,7 +89,7 @@ handleMove evt portDrag = do
     mayNewPortNum <- case portId of
         (Projection i: _) -> runMaybeT $ do
             node <- MaybeT $ getInputNode nodeLoc
-            let newNum = min (countProjectionPorts node - 1) $ max 0 (round $ newPos ^. y / gridSize)
+            let newNum = min (countProjectionPorts node - 1) $ max 0 (round $ (newPos ^. y - gridSize) / (gridSize * 2))
             if newNum /= i then return newNum else nothing
         _                          -> $notImplemented
     setInputSidebarPortMode portRef $ Port.Moved newPos
