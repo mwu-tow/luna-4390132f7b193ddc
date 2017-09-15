@@ -15,6 +15,7 @@ import Control.Monad.IO.Class ( MonadIO)
 import Control.Exception (Exception)
 import Data.Maybe (fromMaybe)
 import Data.Text as T
+import Data.Text.IO (writeFile)
 import Filesystem.Path.CurrentOS (parent, encodeString)
 import System.IO (BufferMode(LineBuffering), hSetBuffering, stdout)
 default (T.Text)
@@ -145,78 +146,34 @@ bashLogin :: MonadSh m => Shelly.FilePath -> [T.Text] -> m T.Text
 bashLogin command params = do
     Shelly.cmd "bash" ["-c", "-l", (Shelly.toTextIgnore command) `T.append` " " `T.append` T.intercalate " " params]
 
+intercalatePaths :: [Shelly.FilePath] -> Text
+intercalatePaths filepaths = intercalate ":" $ Shelly.toTextIgnore <$> filepaths
+
 generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 generateLunaShellScript = do
     Shelly.echo "generate luna shell"
     current <- currentPath
     let lbsPath            = current </> libs
-        pyenvShimsFolder   = tools </> "python" </> "pyenv" </> "shims"
-        pyenvBinFolder     = tools </> "python" </> "pyenv" </> "bin"
+        pyenvShimsFolder   = current </> tools </> "python" </> "pyenv" </> "shims"
+        pyenvBinFolder     = current </> tools </> "python" </> "pyenv" </> "bin"
         stackPath          = current </> stack
         nodeBinPath        = current </> tools </> "node" </> supportedNodeVersion </> "bin"
-        addLdLibraryPath   = "export LD_LIBRARY_PATH=" ++ encodeString lbsPath ++ "\n"
-        addPath            = "export PATH="++ encodeString stackPath ++ ":" ++ encodeString pyenvShimsFolder ++ ":" ++ encodeString pyenvBinFolder ++ ":" ++ encodeString nodeBinPath ++ ":$PATH" ++ "\n"
-        pyenvEnviromentVar = "export PYENV_ROOT=" ++ (encodeString $ current </> tools </> "python" </> "pyenv") ++ "\n"
-        loadPython         = "pyenv" ++  " local " ++ encodeString supportedPythonVersion ++ "\n"
-        shellCmd           = "bash" ++ "\n"
+        addLdLibraryPath   = "export LD_LIBRARY_PATH=" ++ encodeString lbsPath
+        paths              = T.unpack $ intercalatePaths [stackPath, pyenvShimsFolder, pyenvBinFolder, nodeBinPath]
+        addPath            = "export PATH="++ paths ++ ":$PATH"
+        pyenvEnviromentVar = "export PYENV_ROOT=" ++ (encodeString $ current </> tools </> "python" </> "pyenv")
+        loadPython         = "pyenv" ++  " local " ++ encodeString supportedPythonVersion
+        shellCmd           = "bash"
         lunaShellPath      = current </> lunaShell
-        fullCode           = T.concat $ T.pack <$> ["#!/bin/bash\n", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
-    liftIO $ writeFile (encodeString lunaShellPath) $ T.unpack fullCode
-
-
-
-
---
--- installNVM :: (MonadSh m, Shelly.MonadShControl m) => m ()
--- installNVM = Shelly.escaping False $ do
---     Shelly.cmd "curl" "-o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | bash"
---     Shelly.cmd "source" "~/.bashrc"
---     sanityCheck "command" ["-v", "nvm"]
---
--- installNode ::( MonadSh m, Shelly.MonadShControl m) => m ()
--- installNode = do
---     bashLogin "nvm" ["install", supportedNodeVersion]
---     sanityCheck "node" ["--version"]
-
-
--- fedoraPackages :: [T.Text]
--- fedoraPackages = [
---     "pkgconfig"
---     , "zeromq-devel"
---     , "ncurses-devel"
---     , "zlib-devel"
---     ]
---
--- brewPackages :: [T.Text]
--- brewPackages = [
---     "pkg-config"
---     , "zmq"
---     ]
---
---
--- installBrew :: MonadSh m => m ()
--- installBrew = Shelly.cmd "brew" "install" brewPackages
---
--- installDnf :: MonadSh m => m ()
--- installDnf = Shelly.cmd "sudo" "dnf" "install" "-y" fedoraPackages
---
--- installDistroPackages :: (MonadSh m, MonadThrow m, MonadIO m) => m ()
--- installDistroPackages = do
---     case currentHost of
---         Darwin -> installBrew
---         Linux  -> liftIO $ print "fupa" --installDnf
---
--- prependLocalBin :: MonadSh m => m ()
--- prependLocalBin = do
---     homePath <- fromMaybe (error "$HOME not set") <$> Shelly.get_env "HOME"
---     Shelly.prependToPath $ homePath </> ".local" </> "bin"
+        fullCode           = T.unlines $ T.pack <$> ["#!/bin/bash", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
+    liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
 main :: IO ()
 main = do
     hSetBuffering stdout LineBuffering
     shelly $ do
-        -- installPython
-        -- installNode
-        -- installNodeModules
-        -- downloadLibs
+        installPython
+        installNode
+        installNodeModules
+        downloadLibs
         generateLunaShellScript
