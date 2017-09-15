@@ -27,6 +27,7 @@ TAGS
 
 #generated files
 gen
+luna-shell.sh
 
 # patch artifacts
 *.rej
