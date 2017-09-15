@@ -115,7 +115,7 @@ installNodeModules = do
     Shelly.echo "installing node modules"
     current <- currentPath
     let nodeBinPath = current </> tools </> "node" </> supportedNodeVersion </> "bin"
-    -- Shelly.prependToPath nodeBinPath
+    Shelly.prependToPath nodeBinPath
     Shelly.cmd (nodeBinPath </> "npm") $ "install" : nodeModules
 
 
