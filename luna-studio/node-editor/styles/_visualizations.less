@@ -1,3 +1,5 @@
+@luna-visualization-width: 300;
+
 @visualization-background:        transparent;
 @visualization-background-hover:  #191919;
 @visualization-background-active: #212020;
@@ -49,10 +51,11 @@
 }
 
 .luna-visualization-container {
-    position:   relative;
-    width:      300px;
-    background: @visualization-background;
-    border-radius: @borderRadiusPx;
+    position:      relative;
+    width:         @luna-visualization-width * 1px;
+    background:    @visualization-background;
+    border-radius: @luna-border-radius-S * 1px;
+    overflow:      hidden;
 }
 
 .luna-visualization-cover {

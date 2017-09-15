@@ -412,7 +412,14 @@ updateGraphSeq newOut = do
     oldSeq       <- IR.source outLink
     case newOut of
         Just o  -> IR.replaceSource o outLink
-        Nothing -> return ()
+        Nothing -> do
+            none <- IR.generalize <$> IR.cons_ "None"
+            let noneLen = fromIntegral $ length ("None"::String)
+            IR.putLayer @SpanLength none noneLen
+            IR.replaceSource none outLink
+            blockEnd <- Code.getCurrentBlockEnd
+            Code.insertAt (blockEnd - noneLen) "None"
+            Code.gossipLengthsChanged none
     IR.deepDeleteWithWhitelist oldSeq $ Set.fromList $ maybeToList newOut
     oldRef <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == oldSeq) $ for_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
@@ -720,8 +727,9 @@ instance Exception SelfPortDefaultException where
     toException = astExceptionToException
 
 getPortDefault :: GraphLocation -> InPortRef -> Empire (Maybe PortDefault)
-getPortDefault loc port@(InPortRef  _ (Self : _))              = throwM $ SelfPortDefaultException port
-getPortDefault loc (InPortRef  (NodeLoc _ nodeId) (Arg x : _)) = withGraph loc $ runASTOp $ flip GraphBuilder.getInPortDefault x =<< GraphUtils.getASTTarget nodeId
+getPortDefault loc port@(InPortRef  _ (Self : _))             = throwM $ SelfPortDefaultException port
+getPortDefault loc (InPortRef (NodeLoc _ nodeId) (Arg x : _)) = withGraph loc $ runASTOp $ flip GraphBuilder.getInPortDefault x =<< GraphUtils.getASTTarget nodeId
+getPortDefault loc (InPortRef (NodeLoc _ nodeId) [])          = withGraph loc $ runASTOp $ GraphBuilder.getDefault =<< GraphUtils.getASTTarget nodeId
 
 setPortDefault :: GraphLocation -> InPortRef -> Maybe PortDefault -> Empire ()
 setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = do

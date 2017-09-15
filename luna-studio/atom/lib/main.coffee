@@ -3,6 +3,7 @@ request  = require 'request'
 SubAtom  = require 'sub-atom'
 yaml     = require 'js-yaml'
 
+stats = require './stats'
 analytics = require './gen/analytics'
 LunaEditorTab  = require './luna-editor-tab'
 LunaStudioTab  = require './luna-studio-tab'
@@ -54,6 +55,7 @@ module.exports = LunaStudio =
             request.get analyticsConfigRequest, (err, response, body) =>
                 filters = yaml.safeLoad(body)
                 analytics.setFilters filters
+                stats.collect()
         catch error
             console.error error
 
@@ -77,6 +79,7 @@ module.exports = LunaStudio =
               new LunaEditorTab(uri, codeEditor)
 
     deactivate: ->
+        stats.finalize()
         @subscribe.dispose()
         @statusBarTile?.destroy()
         @statusBarTile = null

@@ -84,7 +84,7 @@ class LunaWelcomeTab extends View
             @privateContainer.append(item.element)
         projects.tutorial.list (tutorials) =>
             for tutorial in tutorials
-                item = new ProjectItem(tutorial, tutorialClasses, => projects.tutorial.open(tutorial))
+                item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) => projects.tutorial.open(tutorial, progress, finalize))
                 @tutorialItems.push(item)
                 @tutorialsContainer.append(item.element)
 

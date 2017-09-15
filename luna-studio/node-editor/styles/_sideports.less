@@ -43,8 +43,10 @@
     }
 }
 
+
 .luna-sidebar__active-area {
     width: @sidebarActiveAreaWidth;
+    pointer-events: all;
 }
 
 .luna-sidebar__body {
@@ -86,6 +88,10 @@
 
 .luna-sidebar__port--dragged {
     position: absolute;
+    padding:  0 @sidebarWidth/2;
+    .luna-port__shape {
+        fill: @highlightIconFillColor;
+    }
 }
 
 /////////////////////////////
@@ -229,7 +235,7 @@
 }
 
 .luna-edit-icon__select {
-    fill: none;
+    opacity: 0;
     r:    @sidebarPortWidth/2 !important;
 }
 

@@ -11,9 +11,10 @@
 
 module Empire.ASTOps.Modify where
 
-import           Control.Lens (folded, ifiltered)
-import           Data.List    (find)
-import qualified Data.Text.IO as Text
+import           Control.Monad (forM)
+import           Control.Lens  (folded, ifiltered)
+import           Data.List     (find)
+import qualified Data.Text.IO  as Text
 import qualified Safe
 
 import           Empire.Prelude
@@ -86,13 +87,32 @@ getArgNames ref = match ref $ \case
 
 replaceWithLam :: GraphOp m => Maybe EdgeRef -> String -> NodeRef -> m ()
 replaceWithLam parent name lam = do
-    tmpBlank <- IR.blank
-    binder   <- IR.var $ stringToName name
-    newLam   <- IR.lam binder tmpBlank
+    tmpBlank    <- IR.blank
+    binder      <- IR.var $ stringToName name
+    let argLen = fromIntegral $ length name
+    IR.putLayer @SpanLength binder argLen
+    newLam      <- IR.lam binder tmpBlank
+    IR.putLayer @SpanLength newLam $ argLen + 2 + 1 -- ": " + "_"
+    IR.matchExpr newLam $ \case
+        Lam _ b -> IR.putLayer @SpanOffset b 2 -- ": "
+    lamIsLambda <- ASTRead.isLambda lam
+    if lamIsLambda then do
+        Just beg <- Code.getAnyBeginningOf lam
+        Code.applyDiff beg beg $ convert $ name <> ": "
+    else do
+        Just beg <- join <$> forM parent (\prevLam -> IR.readTarget prevLam >>= flip IR.matchExpr `id` \case
+            Lam arg _ -> do
+                o   <- IR.getLayer @SpanLength =<< IR.source arg
+                beg <- Code.getAnyBeginningOf =<< IR.readTarget prevLam
+                return $ fmap (+ o) beg)
+        Code.applyDiff beg beg $ convert $ ": " <> name
     case parent of
         Just e  -> IR.replaceSource (IR.generalize newLam) e
         Nothing -> substitute (IR.generalize newLam) lam
     IR.replace lam tmpBlank
+    Code.gossipLengthsChangedBy (2 + argLen) =<< case parent of
+        Just p -> IR.readTarget p
+        _      -> pure lam
     return ()
 
 addLambdaArg' :: GraphOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()
@@ -114,16 +134,40 @@ lamAny a b = fmap IR.generalize $ IR.lam a b
 lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
 lams args output = IR.unsafeRelayout <$> foldM (flip lamAny) (IR.unsafeRelayout output) (IR.unsafeRelayout <$> reverse args)
 
+removeLambdaArg' :: GraphOp m => Int -> NodeRef -> Maybe EdgeRef -> m ()
+removeLambdaArg' 0 ref Nothing = match ref $ \case
+    Lam _ b -> do
+        body <- IR.source b
+        nextIsLam <- ASTRead.isLambda body
+        if nextIsLam then do
+            Just lamBeg  <- Code.getAnyBeginningOf ref
+            Just nextBeg <- Code.getAnyBeginningOf body
+            Code.applyDiff lamBeg nextBeg ""
+            IR.replace body ref
+            Code.gossipLengthsChangedBy (lamBeg - nextBeg) body
+        else throwM CannotRemovePortException
+removeLambdaArg' 0 ref (Just parent) = match ref $ \case
+    Lam arg b -> do
+        Just lamBeg  <- Code.getAnyBeginningOf ref
+        body         <- IR.source b
+        argLen       <- length <$> (ASTRead.getVarName =<< IR.source arg)
+        off          <- IR.getLayer @SpanOffset parent
+        Code.applyDiff (lamBeg - off) (lamBeg + convert argLen) ""
+        IR.replace body ref
+        parent' <- IR.readTarget parent
+        Code.gossipLengthsChangedBy (negate $ off + convert argLen) parent'
+    _ -> throwM CannotRemovePortException
+removeLambdaArg' port ref _ = match ref $ \case
+    Lam _ b -> do
+        body <- IR.source b
+        removeLambdaArg' (port - 1) body (Just b)
+    _ -> throwM CannotRemovePortException
+
 removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m ()
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
     Grouped g      -> IR.source g >>= removeLambdaArg p
-    Lam _arg _body -> do
-        args <- ASTDeconstruct.extractArguments lambda
-        out  <- ASTRead.getFirstNonLambdaRef lambda
-        let newArgs = args ^.. folded . ifiltered (\i _ -> i /= port)
-        newLam <- lams newArgs out
-        when (lambda /= newLam) $ rewireCurrentNode newLam
+    Lam _arg _body -> removeLambdaArg' port lambda Nothing
     ASGFunction _ as _ -> do
         let argsBefore        = take port       as
             argsAfter         = drop (port + 1) as

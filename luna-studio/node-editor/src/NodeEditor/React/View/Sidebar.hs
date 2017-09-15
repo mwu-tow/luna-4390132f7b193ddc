@@ -26,7 +26,7 @@ import qualified NodeEditor.React.Model.Port             as Port
 import           NodeEditor.React.Model.Searcher         (Searcher)
 import qualified NodeEditor.React.Model.Searcher         as Searcher
 import           NodeEditor.React.Store                  (Ref, dispatch)
-import           NodeEditor.React.View.Port              (handleClick, handleMouseDown, handleMouseUp, jsShow2)
+import           NodeEditor.React.View.Port              (handleClick, handleMouseDown, handleMouseUp, jsShow2, handlers, modeClass)
 import           NodeEditor.React.View.Searcher          (searcher_)
 import           NodeEditor.React.View.Style             (plainPath_, plainRect_)
 import qualified NodeEditor.React.View.Style             as Style
@@ -76,7 +76,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         [ "className"   $= Style.prefixFromList classes
         , onDoubleClick $ \e _ -> [stopPropagation e]
         , onMouseDown   $ \e _ -> [stopPropagation e]
-        , onMouseMove   $ \e m -> stopPropagation e : (dispatch ref $ UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc)
+        , onMouseMove   $ \e m -> [stopPropagation e | isInputSidebar node] <> (dispatch ref $ UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc)
         ] $
         div_
             [ "key" $= "activeArea"
@@ -134,9 +134,9 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
 
 
 sidebarPortName_ :: Ref App -> AnyPortRef -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
-sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] <> handlers) nameElement where
-    regularName             = elemString $ convert portName
-    (handlers, nameElement) = case portRef of
+sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] <> handlers') nameElement where
+    regularName              = elemString $ convert portName
+    (handlers', nameElement) = case portRef of
         OutPortRef' outPortRef -> do
             let outPortRefRegularHandler = [ onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.EditPortName outPortRef) ]
                 regularHandlersAndElem   = (outPortRefRegularHandler, regularName)
@@ -152,8 +152,9 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
         color     = convert $ p ^. Port.color
         num       = getPortNumber portId
         highlight = if isHighlighted p || isInNameEditMode p then [ "hover" ] else []
-        classes   = if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
-                                       else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
+        classes   = modeClass (p ^. Port.mode) <> if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
+                                                  else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
+        handlers' = if isOutPort portId then portHandlers ref mode isPortDragged isOnly portRef else handlers ref portRef
     div_
         [ "key"       $= ( jsShow portId <> "-port-" <> jsShow num )
         , "className" $= Style.prefixFromList classes
@@ -176,7 +177,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
                 [ "className" $= Style.prefix "port__select"
                 , "key"       $= (jsShow portId <> jsShow num <> "b")
                 , "r"         $= jsShow2 16
-                ] <> portHandlers ref mode isPortDragged isOnly portRef ) mempty
+                ] <> handlers') mempty
         sidebarPortName_ ref portRef (p ^. Port.name) maySearcher
 
 addButton_ :: Ref App -> AnyPortRef -> ReactElementM ViewEventHandler ()

@@ -49,13 +49,13 @@ module.exports =
         super
         @diffToOmit = new Set()
         @getBuffer().setPath(@uri)
+        @setPlaceholderText 'Please wait'
         @getBuffer().subscribeToFileOverride(@codeEditor)
-        @codeEditor.pushInternalEvent(tag: "OpenFile", _path: @uri)
+        @codeEditor.pushInternalEvent(tag: 'OpenFile', _path: @uri)
 
         @codeEditor.onSetBuffer @setBuffer
         @codeEditor.onSetClipboard @setClipboard
         @codeEditor.onInsertCode @insertCode
-
         @handleEvents()
 
         @subscribe = new SubAtom
@@ -81,7 +81,7 @@ module.exports =
     handleEvents: =>
         atom.commands.add @element,
             'core:copy':  (e) => @handleCopy(e)
-            'core:cut':   (e) => @handleCopy(e)
+            'core:cut':   (e) => @handleCut(e)
             'core:paste': (e) => @handlePaste(e)
             'core:save':  (e) => @handleSave(e)
 
@@ -93,6 +93,9 @@ module.exports =
     handleCopy: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
+        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+
+    handleCut: (e) =>
         @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
     handlePaste: (e) =>
@@ -124,6 +127,8 @@ module.exports =
     setBuffer: (uri_send, text) =>
         console.log(uri_send, @uri)
         if @uri == uri_send
+            if @getPlaceholderText() != ''
+                @setPlaceholderText ''
             @omitDiff(text)
             @getBuffer().setText(text)
             console.log "setBuffer"
