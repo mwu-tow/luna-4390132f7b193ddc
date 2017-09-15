@@ -16,6 +16,7 @@ import Control.Exception (Exception)
 import Data.Maybe (fromMaybe)
 import Data.Text as T
 import Data.Text.IO (writeFile)
+import Data.Monoid ((<>))
 import Filesystem.Path.CurrentOS (parent, encodeString)
 import System.IO (BufferMode(LineBuffering), hSetBuffering, stdout)
 default (T.Text)
@@ -76,12 +77,14 @@ installPython = do
     current <- currentPath
     let pythonFolder = current </> tools </> "python"
     Shelly.chdir_p pythonFolder $ do
-        Shelly.cmd "git" ["clone", "https://github.com/pyenv/pyenv.git"]
+        pyenvPresent <- Shelly.test_d "pyenv"
+        if not pyenvPresent then Shelly.cmd "git" ["clone", "https://github.com/pyenv/pyenv.git"] else return ()
         Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pythonFolder </> "pyenv"
         Shelly.prependToPath $ pythonFolder </> "pyenv" </> "bin"
         Shelly.prependToPath $ pythonFolder </> "pyenv" </> "shims"
         Shelly.cmd "pyenv" ["init", "-"]
-        Shelly.cmd "pyenv" ["install", supportedPythonVersion]
+        pythonSuppertedVersionPresent <- Shelly.test_d $ "pyenv/versions" </> supportedPythonVersion
+        if not pythonSuppertedVersionPresent then Shelly.cmd "pyenv" ["install", supportedPythonVersion] else return ()
         Shelly.cmd "pyenv" ["local", supportedPythonVersion]
         Shelly.cmd "pip" $ "install" : pythonLibs
 
@@ -146,26 +149,29 @@ bashLogin :: MonadSh m => Shelly.FilePath -> [T.Text] -> m T.Text
 bashLogin command params = do
     Shelly.cmd "bash" ["-c", "-l", (Shelly.toTextIgnore command) `T.append` " " `T.append` T.intercalate " " params]
 
-intercalatePaths :: [Shelly.FilePath] -> Text
-intercalatePaths filepaths = intercalate ":" $ Shelly.toTextIgnore <$> filepaths
+checkShell :: MonadSh m => m Text
+checkShell = fromMaybe "bash" <$> Shelly.get_env "SHELL"
+
+preparePaths :: [Shelly.FilePath] -> Text
+preparePaths filepaths = intercalate ":" $ Shelly.toTextIgnore <$> filepaths
 
 generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 generateLunaShellScript = do
     Shelly.echo "generate luna shell"
     current <- currentPath
+    shellCmd <- checkShell
     let lbsPath            = current </> libs
         pyenvShimsFolder   = current </> tools </> "python" </> "pyenv" </> "shims"
         pyenvBinFolder     = current </> tools </> "python" </> "pyenv" </> "bin"
         stackPath          = current </> stack
         nodeBinPath        = current </> tools </> "node" </> supportedNodeVersion </> "bin"
-        addLdLibraryPath   = "export LD_LIBRARY_PATH=" ++ encodeString lbsPath
-        paths              = T.unpack $ intercalatePaths [stackPath, pyenvShimsFolder, pyenvBinFolder, nodeBinPath]
-        addPath            = "export PATH="++ paths ++ ":$PATH"
-        pyenvEnviromentVar = "export PYENV_ROOT=" ++ (encodeString $ current </> tools </> "python" </> "pyenv")
-        loadPython         = "pyenv" ++  " local " ++ encodeString supportedPythonVersion
-        shellCmd           = "bash"
+        addLdLibraryPath   = "export LD_LIBRARY_PATH=" <> Shelly.toTextIgnore lbsPath
+        paths              = preparePaths [stackPath, pyenvShimsFolder, pyenvBinFolder, nodeBinPath]
+        addPath            = "export PATH=" <> paths <> ":$PATH"
+        pyenvEnviromentVar = "export PYENV_ROOT=" <> (Shelly.toTextIgnore $ current </> tools </> "python" </> "pyenv")
+        loadPython         = "pyenv" <>  " local " <> Shelly.toTextIgnore supportedPythonVersion
         lunaShellPath      = current </> lunaShell
-        fullCode           = T.unlines $ T.pack <$> ["#!/bin/bash", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
+        fullCode           = T.unlines ["#!/bin/sh", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
     liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
 main :: IO ()
