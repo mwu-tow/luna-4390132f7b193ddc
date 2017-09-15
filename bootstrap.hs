@@ -78,7 +78,8 @@ pythonLibs = ["requests"]
 installPython :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installPython = do
     Shelly.echo "installing python locally"
-    let pythonFolder = tools </> "python"
+    current <- currentPath
+    let pythonFolder = current </> tools </> "python"
     Shelly.chdir_p pythonFolder $ do
         Shelly.cmd "git" ["clone", "https://github.com/pyenv/pyenv.git"]
         Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pythonFolder </> "pyenv"
