@@ -46,7 +46,7 @@ type MonadNetwork m = (MonadIO m, MonadGetter EnvConfig m, MonadException SomeEx
 downloadFromURL :: MonadNetwork m => Bool -> URIPath -> Text -> m FilePath
 downloadFromURL guiInstaller address info = go `Exception.catchAny` \e -> throwM (DownloadException address e)  where
     go = withJust (takeFileNameFromURL address) $ \name -> do
-        if guiInstaller then putStrLn $ (convert info) <>" (" <> convert address <> ")" else return ()
+        if guiInstaller then return () else putStrLn $ (convert info) <>" (" <> convert address <> ")" 
         dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
         request <- HTTP.parseRequest (convert address)
