@@ -64,11 +64,11 @@ createSymLinkDirectory src dst = liftIO $ (System.createDirectoryLink (encodeStr
     handler :: FilePath -> FilePath -> SomeException -> IO ()
     handler src dst ex = do
         case fromException ex of
-        Just ioExc -> if isAlreadyExistsError ioExc then do
-                System.removeDirectoryLink $ encodeString dst
-                createSymLinkDirectory src dst
-            else return ()
-        Nothing -> return ()
+            Just ioExc -> if isAlreadyExistsError ioExc then do
+                    System.removeDirectoryLink $ encodeString dst
+                    createSymLinkDirectory src dst
+                else return ()
+            Nothing -> return ()
 
 
 copyDir :: Shelly.MonadSh m => FilePath -> FilePath -> m ()-- copy the content of the source directory
