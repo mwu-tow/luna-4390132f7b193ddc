@@ -27,6 +27,8 @@ TAGS
 
 #generated files
 gen
+luna-shell.sh
+.python-version
 
 # patch artifacts
 *.rej
@@ -83,7 +85,6 @@ aws.config
 build_*/**/.stack-work
 .autoenv.zsh
 
-luna-package.yaml
 temp
 stack
 !**/.gitkeep
