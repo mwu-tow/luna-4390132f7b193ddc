@@ -27,5 +27,5 @@ run = Shelly.shelly $ do
 
 handleTopLvlError :: (MonadIO m, MonadMask m, Shelly.MonadSh m) => SomeException -> m ()
 handleTopLvlError e = do
-    liftIO $ hPutStrLn stderr $ "Fatal: " <> displayException e
+    liftIO $ hPutStrLn stderr $ displayException e
     Shelly.quietExit 1
