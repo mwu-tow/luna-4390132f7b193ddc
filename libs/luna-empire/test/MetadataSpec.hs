@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module MetadataSpec (spec) where
 
@@ -128,6 +129,15 @@ crypto = [r|def getCurrentPrices crypto fiat:
 def main:
     «2»node1 = every 500.miliseconds (getCurrentPrices "BTC" "USD")
 |]
+
+metaWithImports = [r|import Std.Base
+
+def bar:
+    «37»resp = Http.get "someurl" . perform
+    «38»t1 = resp . getChunk . toText
+    «39»t1 = resp . getChunk . toText
+
+### META {"metas":[{"marker":37,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":0}}}},{"marker":38,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":176}}}},{"marker":39,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":176,"_vector2_x":176}}}}]}|]
 
 atXPos = ($ def) . (NodeMeta.position . Position.x .~)
 
@@ -493,3 +503,19 @@ def main:
 
 ### META {"metas":[]}
 |]
+        it "removes nodes in a function in a file with imports" $ \env -> do
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc metaWithImports
+                nodes <- Graph.getNodes loc
+                let Just (view Node.nodeId -> bar) = find (\n -> n ^. Node.name == Just "bar") nodes
+                nodesInBar <- map (view Node.nodeId) <$> Graph.getNodes (loc |>= bar)
+                Graph.removeNodes (loc |>= bar) nodesInBar
+                Graph.withUnit loc $ use Graph.code
+            code `shouldBe` [r|import Std.Base
+
+def bar:
+    None
+
+### META {"metas":[{"marker":37,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":0}}}},{"marker":38,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":176}}}},{"marker":39,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":176,"_vector2_x":176}}}}]}|]

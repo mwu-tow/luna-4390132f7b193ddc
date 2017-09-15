@@ -412,7 +412,14 @@ updateGraphSeq newOut = do
     oldSeq       <- IR.source outLink
     case newOut of
         Just o  -> IR.replaceSource o outLink
-        Nothing -> return ()
+        Nothing -> do
+            none <- IR.generalize <$> IR.cons_ "None"
+            let noneLen = fromIntegral $ length ("None"::String)
+            IR.putLayer @SpanLength none noneLen
+            IR.replaceSource none outLink
+            blockEnd <- Code.getCurrentBlockEnd
+            Code.insertAt (blockEnd - noneLen) "None"
+            Code.gossipLengthsChanged none
     IR.deepDeleteWithWhitelist oldSeq $ Set.fromList $ maybeToList newOut
     oldRef <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == oldSeq) $ for_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
