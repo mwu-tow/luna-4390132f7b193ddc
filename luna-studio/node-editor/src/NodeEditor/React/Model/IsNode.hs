@@ -40,10 +40,11 @@ instance LookupPort AnyPortId AnyPort where
     lookupPort node (OutPortId' portId) = OutPortId' `fmap2` lookupPort node portId
 
 class HasNodeLoc node => HasPorts node where
-    inPortsList :: node -> [InPort]
+    inPortsList  :: node -> [InPort]
     outPortsList :: node -> [OutPort]
     inPortAt             :: InPortId  -> Traversal' node InPort
     outPortAt            :: OutPortId -> Traversal' node OutPort
+    portModeAt           :: AnyPortId -> Traversal' node Port.Mode
     portsList :: node -> [AnyPort]
     portsList node = (convert <$> inPortsList node) <> (convert <$> outPortsList node)
     countInPorts         :: node -> Int
@@ -56,6 +57,7 @@ class HasNodeLoc node => HasPorts node where
     countProjectionPorts = length .  filter (Port.isProjection . view Port.portId) . outPortsList
     argumentConstructorRef :: node -> AnyPortRef
     argumentConstructorRef n = InPortRef' (InPortRef (n ^. nodeLoc) [Arg $ countArgPorts n])
+
 
 
 class HasPort portId where
