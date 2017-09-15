@@ -158,11 +158,18 @@ checkShell = fromMaybe "bash" <$> Shelly.get_env "SHELL"
 preparePaths :: [Shelly.FilePath] -> Text
 preparePaths filepaths = intercalate ":" $ Shelly.toTextIgnore <$> filepaths
 
+getStackPaths :: (MonadSh m, MonadIO m) => m Text
+getStackPaths = do
+    current <- currentPath
+    let absStackPath = current </> stack
+    Shelly.run absStackPath ["path", "--bin-path"]
+
 generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 generateLunaShellScript = do
     Shelly.echo "generate luna shell"
     current <- currentPath
     shellCmd <- checkShell
+    stackPaths <- getStackPaths
     let lbsPath            = current </> libs
         pyenvShimsFolder   = current </> tools </> "python" </> "pyenv" </> "shims"
         pyenvBinFolder     = current </> tools </> "python" </> "pyenv" </> "bin"
@@ -174,7 +181,7 @@ generateLunaShellScript = do
         pyenvEnviromentVar = "export PYENV_ROOT=" <> (Shelly.toTextIgnore $ current </> tools </> "python" </> "pyenv")
         loadPython         = "pyenv" <>  " local " <> Shelly.toTextIgnore supportedPythonVersion
         lunaShellPath      = current </> lunaShell
-        fullCode           = T.unlines ["#!/bin/sh", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
+        fullCode           = T.unlines ["#!/bin/sh", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd, stackPaths]
     liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
 stackSetupForLunaStudio :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
@@ -188,10 +195,10 @@ main :: IO ()
 main = do
     hSetBuffering stdout LineBuffering
     shelly $ do
-        -- installPython
-        -- installNode
-        -- installNodeModules
-        -- downloadLibs
-        -- generateLunaShellScript
+        installPython
+        installNode
+        installNodeModules
+        downloadLibs
+        generateLunaShellScript
         stackSetupForLunaStudio
         installHaskellBins
