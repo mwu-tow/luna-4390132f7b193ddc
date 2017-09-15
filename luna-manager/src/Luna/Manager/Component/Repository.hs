@@ -39,8 +39,14 @@ data MissingPackageDescriptionError = MissingPackageDescriptionError Version der
 instance Exception MissingPackageDescriptionError where
     displayException (MissingPackageDescriptionError v) = "No package for version: " <> show v
 
--- missingPackageDescriptionError :: SomeException
--- missingPackageDescriptionError = toException MissingPackageDescriptionError
+data UnresolvedDepError = UnresolvedDepError deriving (Show)
+makeLenses ''UnresolvedDepError
+
+instance Exception UnresolvedDepError where
+    displayException err = "Following dependencies were unable to be resolved: " <> show err
+
+unresolvedDepError :: SomeException
+unresolvedDepError = toException UnresolvedDepError
 
 ------------------------
 -- === Repository === --
@@ -96,12 +102,20 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
     subErrs     = concat $ fst <$> subRes
     subOks      = concat $ snd <$> subRes
 
+getVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m [Version]
+getVersionsList repo appName = do
+    appPkg <- tryJust unresolvedDepError $ Map.lookup appName $ repo ^. packages
+    let vmap   = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
+    return $ reverse . sort . Map.keys $ vmap
+
 resolvePackageApp :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ResolvedApplication
 resolvePackageApp repo appName = do
     appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
-    let version = fst $ last $ toList $ appPkg ^. versions
+    versionsList  <- getVersionsList repo appName
+    let version = head versionsList
         applicationType = appPkg ^. appType
-    appDesc <- tryJust (toException $ MissingPackageDescriptionError version) $ Map.lookup currentSysDesc $ snd $ last $ toList $ appPkg ^. versions
+    desc <- tryJust (toException UnresolvedDepError) $ Map.lookup version $ appPkg ^. versions
+    appDesc <- tryJust (toException $ MissingPackageDescriptionError version) $ Map.lookup currentSysDesc desc
     return $ ResolvedApplication (ResolvedPackage (PackageHeader appName version) appDesc applicationType) (snd $ resolve repo appDesc)
 
 getSynopis :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Text

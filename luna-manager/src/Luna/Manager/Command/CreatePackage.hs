@@ -16,7 +16,6 @@ import           Luna.Manager.System.Host
 import           Luna.Manager.System.Path
 import           Luna.Manager.Component.Version (Version)
 import           Luna.Manager.Component.Pretty
-import           Luna.Manager.Gui.Initialize (getVersionsList)
 import           Prologue hiding (FilePath)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -232,7 +231,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
 isNewestVersion :: MonadCreatePackage m => Version -> Text -> m Bool
 isNewestVersion appVersion appName = do
     repo <- getRepo
-    versionList <- getVersionsList repo appName
+    versionList <- Repo.getVersionsList repo appName
     if (head versionList) >= appVersion then return False else return True
 
 ------------------------------
