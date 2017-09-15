@@ -179,9 +179,9 @@ checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType pkgV
                         stopServices installPath appType
                         Shelly.rm_rf installPath
                         else if ans == "no"
-                            then void . liftIO $ exitSuccess
+                            then liftIO $ exitSuccess
                             else if ans == ""
-                                then void . liftIO $ exitSuccess
+                                then liftIO $ exitSuccess
                                 else do
                                     checkIfAppAlreadyInstalledInCurrentVersion guiInstaller installPath appType pkgVersion
         else return ()
