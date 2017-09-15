@@ -83,7 +83,6 @@ aws.config
 build_*/**/.stack-work
 .autoenv.zsh
 
-luna-package.yaml
 temp
 stack
 !**/.gitkeep
