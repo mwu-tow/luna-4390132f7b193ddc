@@ -193,7 +193,6 @@ getRepo = do
     case cfg ^. cachedRepo of
         Just r  -> return r
         Nothing -> do
-            -- setTmpCwd
             downloadedConfig <- downloadRepo . view repoPath =<< get @RepoConfig
             repo <- parseConfig downloadedConfig
             put @RepoConfig $ cfg & cachedRepo .~ Just repo
