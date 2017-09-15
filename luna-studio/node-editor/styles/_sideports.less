@@ -20,6 +20,7 @@
 
 
 .luna-sidebar {
+    z-index:         @luna-zindex-sidebars;
     display:         flex;
     justify-content: center;
     flex-direction:  column;
@@ -88,7 +89,7 @@
 
 .luna-sidebar__port--dragged {
     position: absolute;
-    padding:  0 @sidebarWidth/2;
+    padding-left: @sidebarWidth/2;
     .luna-port__shape {
         fill: @highlightIconFillColor;
     }

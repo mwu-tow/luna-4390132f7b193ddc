@@ -65,7 +65,7 @@
 }
 
 .luna-visualization:hover {
-    z-index: 999999;
+    z-index: @luna-zindex-visualization-hover;
     .luna-visualization-container {
         .luna-visualization-container-hover;
     }
@@ -93,7 +93,7 @@
     }
 
     .luna-visualization--active {
-        z-index:  1000000;
+        z-index: @luna-zindex-visualization-active;
         .luna-visualization-cover {
             display: none;
         }
@@ -112,7 +112,11 @@
 /////////////////////////////
 
 .luna-studio-window--has-visualization-fullscreen {
+    position: relative;
+    z-index: @luna-zindex-visualization-fullscreen;
     .luna-studio-window__center {
+        position: relative;
+        z-index: @luna-zindex-visualization-fullscreen;
         width:  100%;
         height: 100%;
     }
@@ -125,7 +129,7 @@
     position: absolute;
     width:    100%;
     height:   100%;
-    z-index:  999999;
+    z-index:  @luna-zindex-visualization-fullscreen;
     .luna-node-translate {
         transform:       translate(0,0) !important;
         top:             0 !important;
