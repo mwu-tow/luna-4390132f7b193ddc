@@ -144,7 +144,6 @@ generateAppimage tmpAppPath functions appName = do
         ExitSuccess   -> return ()
         ExitFailure a -> throwM (AppimageException (toException $ Exception.StringException (BSLChar.unpack err) callStack ))
 
--- TODO: refactor
 createAppimage :: MonadCreatePackage m => Text -> FilePath -> m ()
 createAppimage appName repoPath = do
     let appImageFolderName = "appimage"
@@ -153,7 +152,6 @@ createAppimage appName repoPath = do
     let tmpAppDirPath = tmpAppPath </> convert (appName <> ".AppDir")
 
     Shelly.mkdir_p tmpAppDirPath
-    -- Shelly.cd tmpAppPath
 
     putStrLn "Downloading AppImage functions.sh"
     functions <- downloadWithProgressBarTo "https://github.com/probonopd/AppImages/raw/master/functions.sh" tmpAppPath False

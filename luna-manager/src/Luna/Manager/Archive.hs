@@ -113,7 +113,9 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
                     Shelly.log_stderr_with (countingFilesLogger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
                 Left err -> throwM (UnpackingException (Shelly.toTextIgnore file) (toException $ Exception.StringException err callStack ))
             else (Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name) `Exception.catchAny` (\err -> throwM (UnpackingException (Shelly.toTextIgnore file) $ toException err))
-        return $ dir </> name
+        listed <- Shelly.ls $ dir </> name
+        if length listed == 1 then return $ head listed else return $ dir </> name
+        -- return $ dir </> name
 
 -- TODO: download unzipper if missing
 unzipFileWindows :: (MonadIO m, MonadNetwork m)=> Bool -> FilePath -> m FilePath
