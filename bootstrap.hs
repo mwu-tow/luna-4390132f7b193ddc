@@ -165,12 +165,13 @@ generateLunaShellScript = do
         pyenvEnviromentVar = "export PYENV_ROOT=" ++ (encodeString $ current </> tools </> "python" </> "pyenv") ++ "\n"
         loadPython = "pyenv" ++  " local " ++ encodeString supportedPythonVersion ++ "\n"
         shellCmd = "bash" ++ "\n"
-    liftIO $ writeFile (encodeString lunaShell) "#!/bin/bash\n"
-    liftIO $ appendFile (encodeString lunaShell) addLdLibraryPath
-    liftIO $ appendFile (encodeString lunaShell) addPath
-    liftIO $ appendFile (encodeString lunaShell) pyenvEnviromentVar
-    liftIO $ appendFile (encodeString lunaShell) loadPython
-    liftIO $ appendFile (encodeString lunaShell) shellCmd
+        lunaShellPath = current </> lunaShell
+    liftIO $ writeFile (encodeString lunaShellPath) "#!/bin/bash\n"
+    liftIO $ appendFile (encodeString lunaShellPath) addLdLibraryPath
+    liftIO $ appendFile (encodeString lunaShellPath) addPath
+    liftIO $ appendFile (encodeString lunaShellPath) pyenvEnviromentVar
+    liftIO $ appendFile (encodeString lunaShellPath) loadPython
+    liftIO $ appendFile (encodeString lunaShellPath) shellCmd
 
 
 
