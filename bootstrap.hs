@@ -124,10 +124,13 @@ haskellBins = [
     , "hsc2hs"
     ]
 
-installHaskellBins :: (MonadSh m, Shelly.MonadShControl m) => m ()
+installHaskellBins :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => m ()
 installHaskellBins = do
-    Shelly.cmd stack $ "install" : haskellBins
+    current <- currentPath
+    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-7.7" "install" ) haskellBins
     sanityCheck "happy" ["--version"]
+    sanityCheck "hsc2hs" ["--version"]
+    sanityCheck "hprotoc" ["--version"]
 
 downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 downloadLibs = do
@@ -174,12 +177,21 @@ generateLunaShellScript = do
         fullCode           = T.unlines ["#!/bin/sh", addLdLibraryPath, addPath, pyenvEnviromentVar, loadPython, shellCmd]
     liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
+stackSetupForLunaStudio :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+stackSetupForLunaStudio = Shelly.chdir "luna-studio" $ do
+    Shelly.echo "install GHCJS"
+    current <- currentPath
+    Shelly.cmd (current </>stack) "setup"
+
+
 main :: IO ()
 main = do
     hSetBuffering stdout LineBuffering
     shelly $ do
-        installPython
-        installNode
-        installNodeModules
-        downloadLibs
-        generateLunaShellScript
+        -- installPython
+        -- installNode
+        -- installNodeModules
+        -- downloadLibs
+        -- generateLunaShellScript
+        stackSetupForLunaStudio
+        installHaskellBins
