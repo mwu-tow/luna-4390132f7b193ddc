@@ -63,7 +63,7 @@ module.exports =
                     buttons:
                         Ok: ->
 
-        open: (tutorial) ->
+        open: (tutorial, progress, finalize) ->
             dstPath = tutorialsDownloadPath + '/' + tutorial.name
             cloneOpts =
                 fetchOpts:
@@ -71,14 +71,26 @@ module.exports =
                         certificateCheck: => 1
                         credentials: (url, userName, bla) =>
                             Git.Cred.sshKeyFromAgent(userName)
+                        transferProgress: (stats) =>
+                            p = (stats.receivedObjects() + stats.indexedObjects()) / (stats.totalObjects() * 2)
+                            try
+                              progress p
+                            catch error
+                              console.log error
+
             fs.access dstPath, (err) =>
                 if err
                     Git.Clone(tutorial.uri, dstPath, cloneOpts)
-                        .then((repo) => atom.project.setPaths [dstPath])
-                        .catch((error) => atom.confirm
-                            message: "Error while cloning tutorial"
-                            detailedMessage: error.message
-                            buttons:
-                                Ok: -> )
+                        .then((repo) =>
+                            atom.project.setPaths [dstPath]
+                            finalize())
+                        .catch((error) =>
+                            atom.confirm
+                                message: "Error while cloning tutorial"
+                                detailedMessage: error.message
+                                buttons:
+                                    Ok: ->
+                            finalize())
                 else
                     atom.project.setPaths [dstPath]
+                    finalize()
