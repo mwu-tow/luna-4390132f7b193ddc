@@ -103,6 +103,9 @@ run opts = do
             Shelly.mkdir_p $ parent stackFolderPath
             downloadAndUnpackStack stackFolderPath
             cloneRepo appName appPath
+            Shelly.prependToPath stackFolderPath
+            Shelly.setenv "APP_PATH" $ Shelly.toTextIgnore appPath
+            liftIO $ print appPath
             Shelly.cmd $ appPath </> (developCfg ^. bootstrapFile)
             downloadDeps appName appPath
 

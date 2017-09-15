@@ -44,23 +44,6 @@ instance FromJSON Initialize   where parseJSON  = lensJSONParse
 instance FromJSON Applications where parseJSON  = lensJSONParse
 instance FromJSON Apps         where parseJSON  = lensJSONParse
 
-
-
-data UnresolvedDepError = UnresolvedDepError deriving (Show)
-makeLenses ''UnresolvedDepError
-
-instance Exception UnresolvedDepError where
-    displayException err = "Following dependencies were unable to be resolved: " <> show err
-
-unresolvedDepError :: SomeException
-unresolvedDepError = toException UnresolvedDepError
-
-getVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m [Version]
-getVersionsList repo appName = do
-    appPkg <- tryJust unresolvedDepError $ Map.lookup appName $ repo ^. packages
-    let vmap   = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
-    return $ reverse . sort . Map.keys $ vmap
-
 resolveAppToInitialize :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Apps
 resolveAppToInitialize repo name = do
     versions <- getVersionsList repo name
