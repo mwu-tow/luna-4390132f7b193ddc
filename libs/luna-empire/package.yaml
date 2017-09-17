@@ -54,6 +54,7 @@ dependencies:
     - megaparsec
     - mtl
     - open-browser
+    - path
     - prologue
     - safe
     - split

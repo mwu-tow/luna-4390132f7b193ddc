@@ -6,13 +6,14 @@
 
 module Empire.Commands.Typecheck where
 
-import           Control.Arrow                    ((***))
+import           Control.Arrow                    ((***), (&&&))
 import           Control.Concurrent               (forkIO, killThread)
 import           Control.Monad                    (void)
 import           Control.Monad.Except             hiding (when)
 import           Control.Monad.Reader             (ask, runReaderT)
 import           Control.Monad.State              (execStateT)
 import qualified Data.Map                         as Map
+import           Data.Maybe                       (maybeToList)
 import           Empire.Prelude                   hiding (toList)
 import           Prologue                         (catMaybes)
 import           System.Directory                 (withCurrentDirectory)
@@ -41,6 +42,7 @@ import           Luna.Builtin.Data.LunaEff        (runError, runIO)
 import           Luna.Builtin.Data.Module         (Imports (..), importedClasses, unionImports, unionsImports)
 import           Luna.Builtin.Prim                (SingleRep (..), ValueRep (..), getReps)
 import qualified Luna.Compilation                 as Compilation
+import qualified Luna.Project                     as Project
 import           Luna.Compilation                 (CompiledModules (..))
 import qualified Luna.IR                          as IR
 import           Luna.Pass.Data.ExprMapping
@@ -49,6 +51,7 @@ import qualified Luna.IR.Layer.Errors             as Errors
 
 import           System.Directory                     (canonicalizePath)
 import           System.Environment                   (getEnv)
+import qualified Path
 
 runTC :: Imports -> Command Graph ()
 runTC imports = do
@@ -60,12 +63,13 @@ runTC imports = do
 
 runInterpreter :: FilePath -> Imports -> Command Graph (Maybe Interpreter.LocalScope)
 runInterpreter path imports = runASTOp $ do
-    selfRef <- use $ Graph.breadcrumbHierarchy . BH.self
+    rootPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile path
+    selfRef  <- use $ Graph.breadcrumbHierarchy . BH.self
     IR.matchExpr selfRef $ \case
         IR.ASGFunction _ [] b -> do
             bodyRef <- IR.source b
             res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
-            result  <- liftIO $ withCurrentDirectory (takeDirectory path) $ runIO $ runError $ execStateT res def
+            result  <- liftIO $ withCurrentDirectory (maybe (takeDirectory path) Path.toFilePath rootPath) $ runIO $ runError $ execStateT res def
             case result of
                 Left e  -> return Nothing
                 Right r -> return $ Just r
@@ -141,32 +145,34 @@ getSymbolMap (flattenScope -> Imports clss funcs) = SymbolMap functions classes 
     classes   = processClass <$> Map.mapKeys convert clss
     processClass (Class _ methods) = convert <$> Map.keys methods
 
-recomputeCurrentScope :: Command InterpreterEnv Imports
-recomputeCurrentScope = do
-    imps       <- use imports
-    lunaroot   <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
-    (f, nimps) <- zoom graph $ runModuleTypecheck (Map.singleton "Std" $ lunaroot <> "/Std/") imps
+recomputeCurrentScope :: FilePath -> Command InterpreterEnv Imports
+recomputeCurrentScope file = do
+    imps        <- use imports
+    lunaroot    <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
+    currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
+    let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
+    (f, nimps) <- zoom graph $ runModuleTypecheck (Map.fromList importPaths) imps
     fileScope ?= f
     imports   .= nimps
     return f
 
-getCurrentScope :: Command InterpreterEnv Imports
-getCurrentScope = do
+getCurrentScope :: FilePath -> Command InterpreterEnv Imports
+getCurrentScope file = do
     fs   <- use fileScope
     case fs of
         Just f -> return f
-        _      -> recomputeCurrentScope
+        _      -> recomputeCurrentScope file
 
 run :: GraphLocation -> Command InterpreterEnv ()
 run loc@(GraphLocation file br) = do
     std        <- use imports
     cln        <- use cleanUp
     threads    <- use listeners
-    scope      <- getCurrentScope
+    scope      <- getCurrentScope file
     let imps = unionImports (flattenScope $ Scope std) scope
     listeners .= []
     case br of
-        Breadcrumb [] -> void $ recomputeCurrentScope
+        Breadcrumb [] -> void $ recomputeCurrentScope file
         _             -> zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
             runTC imps
             updateNodes  loc
