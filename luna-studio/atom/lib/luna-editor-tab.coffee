@@ -49,13 +49,13 @@ module.exports =
         super
         @diffToOmit = new Set()
         @getBuffer().setPath(@uri)
+        @setPlaceholderText 'Please wait'
         @getBuffer().subscribeToFileOverride(@codeEditor)
-        @codeEditor.pushInternalEvent(tag: "OpenFile", _path: @uri)
+        @codeEditor.pushInternalEvent(tag: 'OpenFile', _path: @uri)
 
         @codeEditor.onSetBuffer @setBuffer
         @codeEditor.onSetClipboard @setClipboard
         @codeEditor.onInsertCode @insertCode
-
         @handleEvents()
 
         @subscribe = new SubAtom
@@ -127,6 +127,8 @@ module.exports =
     setBuffer: (uri_send, text) =>
         console.log(uri_send, @uri)
         if @uri == uri_send
+            if @getPlaceholderText() != ''
+                @setPlaceholderText ''
             @omitDiff(text)
             @getBuffer().setText(text)
             console.log "setBuffer"

@@ -26,7 +26,8 @@ import qualified NodeEditor.React.Model.Port             as Port
 import           NodeEditor.React.Model.Searcher         (Searcher)
 import qualified NodeEditor.React.Model.Searcher         as Searcher
 import           NodeEditor.React.Store                  (Ref, dispatch)
-import           NodeEditor.React.View.Port              (handleClick, handleMouseDown, handleMouseUp, jsShow2, handlers, modeClass)
+import           NodeEditor.React.View.Port              (handleClick, handleMouseDown, handleMouseEnter, handleMouseLeave, handleMouseUp,
+                                                          handlers, jsShow2, modeClass)
 import           NodeEditor.React.View.Searcher          (searcher_)
 import           NodeEditor.React.View.Style             (plainPath_, plainRect_)
 import qualified NodeEditor.React.View.Style             as Style
@@ -43,14 +44,17 @@ portHandlers ref AddRemove _ isOnly portRef =
     [ onMouseDown $ \e _ -> [stopPropagation e] ] <>
     if isOnly then [] else
     [ onClick      $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.RemovePort portRef)
-    , onMouseLeave $ \_ _ -> dispatch ref (UI.SidebarEvent . Sidebar.UnfreezeSidebar $ portRef ^. PortRef.nodeLoc)
+    , onMouseLeave $ \e m -> handleMouseLeave ref portRef e m <> dispatch ref (UI.SidebarEvent . Sidebar.UnfreezeSidebar $ portRef ^. PortRef.nodeLoc)
+    , onMouseEnter $ handleMouseEnter ref portRef
     ]
 
 portHandlers ref MoveConnect False _ portRef =
-    [ onMouseDown $ \e _ -> [stopPropagation e]
-    , onClick     $ handleClick     ref portRef
-    , onMouseDown $ handleMouseDown ref portRef
-    , onMouseUp   $ handleMouseUp   ref portRef
+    [ onMouseDown  $ \e _ -> [stopPropagation e]
+    , onClick      $ handleClick     ref portRef
+    , onMouseDown  $ handleMouseDown ref portRef
+    , onMouseUp    $ handleMouseUp   ref portRef
+    , onMouseEnter $ handleMouseEnter ref portRef
+    , onMouseLeave $ handleMouseLeave ref portRef
     ]
 portHandlers _ _ _ _ _ = []
 
@@ -65,7 +69,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         isPortDragged = any isInMovedMode ports
         classes       = [ "sidebar", if isInputSidebar node then "sidebar--i" else "sidebar--o" ]
                       <> if mode == AddRemove then ["sidebar--editmode"] else []
-                      <> if isPortDragged then ["sidebar--dragmode"] else []
+                      <> ["sidebar--dragmode" | isPortDragged]
         addButtonHandlers = case mode of
                                 AddRemove   -> [ onMouseDown $ \e _ -> [stopPropagation e]
                                                , onClick     $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.AddPort portRef)
@@ -76,7 +80,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         [ "className"   $= Style.prefixFromList classes
         , onDoubleClick $ \e _ -> [stopPropagation e]
         , onMouseDown   $ \e _ -> [stopPropagation e]
-        , onMouseMove   $ \e m -> [stopPropagation e | isInputSidebar node] <> (dispatch ref $ UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc)
+        , onMouseMove   $ \e m -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc)
         ] $
         div_
             [ "key" $= "activeArea"
@@ -151,7 +155,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
         portRef   = toAnyPortRef nl portId
         color     = convert $ p ^. Port.color
         num       = getPortNumber portId
-        highlight = if isHighlighted p || isInNameEditMode p then [ "hover" ] else []
+        highlight = ["hover" | isHighlighted p || isInNameEditMode p]
         classes   = modeClass (p ^. Port.mode) <> if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
                                                   else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
         handlers' = if isOutPort portId then portHandlers ref mode isPortDragged isOnly portRef else handlers ref portRef
@@ -170,7 +174,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
                 , "fill"      $= color
                 , "r"         $= jsShow2 3
                 ] mempty
-            when (not isOnly) $ g_ [ "className" $= Style.prefix "port__plus" ] $ do
+            unless isOnly $ g_ [ "className" $= Style.prefix "port__plus" ] $ do
                   plainRect_ "key1" 2 8 (-1) (-4)
                   plainRect_ "key2" 8 2 (-4) (-1)
             circle_ (

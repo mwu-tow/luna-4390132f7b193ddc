@@ -8,7 +8,7 @@ import           Common.Prelude
 import           Control.Monad.Trans.Maybe               (MaybeT (MaybeT), runMaybeT)
 import qualified LunaStudio.Data.PortRef                 as PortRef
 import           LunaStudio.Data.ScreenPosition          (ScreenPosition, y)
-import           NodeEditor.Action.Basic                 (localMovePort, localRemovePort, setInputSidebarPortMode)
+import           NodeEditor.Action.Basic                 (localMovePort, localRemovePort, removePort, setInputSidebarPortMode)
 import qualified NodeEditor.Action.Basic                 as Basic
 import qualified NodeEditor.Action.Batch                 as Batch
 import qualified NodeEditor.Action.Connect               as Connect
@@ -41,14 +41,6 @@ instance Action (Command State) PortDrag where
             removeActionFromState portDragAction
         else cancelPortDragUnsafe action
 
-addPort :: OutPortRef -> Command State ()
-addPort portRef = Basic.addPort portRef Nothing
-
-removePort :: OutPortRef -> Command State ()
-removePort portRef = do
-    -- freezeSidebar $ portRef ^. PortRef.nodeLoc
-    Basic.removePort portRef
-
 handleMouseUp :: MouseEvent -> PortDrag -> Command State ()
 handleMouseUp evt portDrag = do
     mousePos <- mousePosition evt
@@ -65,14 +57,14 @@ handleSidebarMove evt nodeLoc = do
 
 handleAppMove :: MouseEvent -> Command State ()
 handleAppMove evt = do
-    continue $ restoreConnect
+    continue restoreConnect
     continue $ Connect.handleMove evt
 
 startPortDrag :: ScreenPosition -> OutPortRef -> Bool -> Mode -> Command State ()
 startPortDrag mousePos portRef isArgumentConstructor mode = do
     maySuccess <- runMaybeT $ do
         let portId  = portRef ^. PortRef.srcPortId
-        portPos <- MaybeT $ fmap2 (flip portPositionInInputSidebar portId) getInputSidebarSize
+        portPos <- MaybeT $ fmap2 (`portPositionInInputSidebar` portId) getInputSidebarSize
         lift . setInputSidebarPortMode portRef $ Port.Moved portPos
         lift . begin $ PortDrag mousePos portPos portRef portRef isArgumentConstructor mode
     when (isNothing maySuccess && isArgumentConstructor) $ void $ localRemovePort portRef
@@ -89,7 +81,7 @@ handleMove evt portDrag = do
     mayNewPortNum <- case portId of
         (Projection i: _) -> runMaybeT $ do
             node <- MaybeT $ getInputNode nodeLoc
-            let newNum = min (countProjectionPorts node - 1) $ max 0 (round $ newPos ^. y / gridSize)
+            let newNum = min (countProjectionPorts node - 1) $ max 0 (round $ (newPos ^. y - gridSize) / (gridSize * 2))
             if newNum /= i then return newNum else nothing
         _                          -> $notImplemented
     setInputSidebarPortMode portRef $ Port.Moved newPos
@@ -126,7 +118,7 @@ restoreConnect portDrag = do
     Connect.startConnecting (portDrag ^. portDragStartPos) (OutPortRef' $ portDrag ^. portDragStartPortRef) Nothing (portDrag ^. portDragIsArgumentConstructor) (portDrag ^. portDragMode)
 
 restorePortDrag :: NodeLoc -> Connect -> Command State ()
-restorePortDrag nodeLoc connect = when (connect ^. connectSourcePort . PortRef.nodeLoc == nodeLoc) $ do
+restorePortDrag nodeLoc connect = when (connect ^. connectSourcePort . PortRef.nodeLoc == nodeLoc) $
     case connect ^. connectSourcePort of
         OutPortRef' sourcePort -> do
             Connect.stopConnectingUnsafe connect

@@ -26,13 +26,14 @@ import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta (NodeMeta))
 import qualified LunaStudio.Data.NodeMeta                 as NodeMeta
 import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer)
+import qualified LunaStudio.Data.PortRef                  as PortRef
 import           LunaStudio.Data.Position                 (Position, move)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           LunaStudio.Data.Vector2                  (Vector2 (Vector2))
 import           NodeEditor.React.Model.Constants         (nodeRadius)
 import           NodeEditor.React.Model.IsNode            as X
 import           NodeEditor.React.Model.Node.SidebarNode  (InputNode, OutputNode)
-import           NodeEditor.React.Model.Port              (InPort, InPortTree, OutPort, OutPortTree)
+import           NodeEditor.React.Model.Port              (AnyPortId (InPortId', OutPortId'), InPort, InPortTree, OutPort, OutPortTree)
 import qualified NodeEditor.React.Model.Port              as Port
 import           NodeEditor.State.Collaboration           (ColorId)
 
@@ -132,10 +133,15 @@ instance HasNodeLoc ExpressionNode where
     nodeLoc = nodeLoc'
 
 instance HasPorts ExpressionNode where
-    inPortsList = Port.visibleInPorts . view inPorts
-    outPortsList = Port.visibleOutPorts . view outPorts
-    inPortAt  pid = inPorts . ix pid
-    outPortAt pid = outPorts . ix pid
+    inPortsList    = Port.visibleInPorts . view inPorts
+    outPortsList   = Port.visibleOutPorts . view outPorts
+    inPortAt   pid = inPorts . ix pid
+    outPortAt  pid = outPorts . ix pid
+    portModeAt pid = \f n -> if argumentConstructorRef n ^. PortRef.portId == pid
+        then argConstructorMode f n
+        else case pid of
+            OutPortId' outpid -> (outPortAt outpid . Port.mode) f n
+            InPortId'  inpid  -> (inPortAt  inpid  . Port.mode) f n
 
 --TODO[LJK, JK]: return precise value here
 toNodeTopPosition :: Position -> Position

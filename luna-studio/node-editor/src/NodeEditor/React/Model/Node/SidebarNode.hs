@@ -18,7 +18,8 @@ import           LunaStudio.Data.Node          (NodeId)
 import qualified LunaStudio.Data.Node          as Empire
 import           LunaStudio.Data.NodeLoc       (NodeLoc (NodeLoc), NodePath)
 import           NodeEditor.React.Model.IsNode as X
-import           NodeEditor.React.Model.Port   (InPort, InPortTree, OutPort, OutPortIndex (Projection), OutPortTree)
+import           NodeEditor.React.Model.Port   (AnyPortId (InPortId', OutPortId'), InPort, InPortTree, OutPort, OutPortIndex (Projection),
+                                                OutPortTree)
 import qualified NodeEditor.React.Model.Port   as Port
 
 
@@ -35,15 +36,12 @@ data InputNode = InputNode
         { _inputNodeLoc      :: NodeLoc
         , _inputSidebarPorts :: [OutPortTree OutPort]
         , _inputMode         :: SidebarMode
-        -- TODO[LJK, PM]: We should store OutPortId here but then lenses are invalid
-        -- , _inputFrozenState  :: Maybe (Height, Maybe AnyPortId)
         } deriving (Eq, Generic, NFData, Show)
 
 data OutputNode = OutputNode
         { _outputNodeLoc      :: NodeLoc
         , _outputSidebarPorts :: InPortTree InPort
         , _outputMode         :: SidebarMode
-        -- , _outputFrozenState  :: Maybe (Height, Maybe AnyPortId)
         } deriving (Eq, Generic, NFData, Show)
 
 makeLenses ''InputNode
@@ -57,14 +55,12 @@ instance Convertible (NodePath, Empire.InputSidebar) InputNode where
         {- inputNodeLoc      -} (NodeLoc path (n ^. Empire.inputNodeId))
         {- inputSidebarPorts -} (convert `fmap2` (n ^. Empire.inputEdgePorts))
         {- inputMode         -} def
-        -- {- inputFrozenState  -} def
 
 instance Convertible (NodePath, Empire.OutputSidebar) OutputNode where
     convert (path, n) = OutputNode
         {- outputNodeLoc      -} (NodeLoc path (n ^. Empire.outputNodeId))
         {- outputSideBarPorts -} (convert <$> n ^. Empire.outputEdgePorts)
         {- outputMode         -} def
-        -- {- outputFrozenState  -} def
 
 instance HasNodeLoc InputNode where
     nodeLoc = inputNodeLoc
@@ -77,6 +73,10 @@ instance HasPorts OutputNode where
     outPortsList = const def
     inPortAt pid = outputSidebarPorts . ix pid
     outPortAt    = const ignored
+    portModeAt = \case
+        OutPortId' outpid -> outPortAt outpid . Port.mode
+        InPortId'  inpid  -> inPortAt  inpid  . Port.mode
+
 
 instance HasPorts InputNode where
     inPortsList   = const def
@@ -84,10 +84,12 @@ instance HasPorts InputNode where
     inPortAt      = const ignored
     outPortAt ((Projection i):t) = inputSidebarPorts . ix i . ix t
     outPortAt _                  = ignored
+    portModeAt = \case
+        OutPortId' outpid -> outPortAt outpid . Port.mode
+        InPortId'  inpid  -> inPortAt  inpid  . Port.mode
 
 class (IsNode node, Typeable node, Eq node) => SidebarNode node where
     mode           :: Lens' node SidebarMode
-    -- frozenState    :: Lens' node (Maybe (Height, Maybe AnyPortId))
     isInputSidebar :: node -> Bool
 
     isInMode :: SidebarMode -> node -> Bool
@@ -101,10 +103,8 @@ class (IsNode node, Typeable node, Eq node) => SidebarNode node where
 
 instance SidebarNode InputNode where
     mode           = inputMode
-    -- frozenState    = inputFrozenState
     isInputSidebar = const True
 
 instance SidebarNode OutputNode where
     mode           = outputMode
-    -- frozenState    = outputFrozenState
     isInputSidebar = const False
