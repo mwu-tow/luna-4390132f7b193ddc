@@ -82,13 +82,13 @@
     white-space:    nowrap;
     pointer-events: all;
     .luna-searcher__input { // TODO: Should we use searcher class in that context?
-        transform: none;
+        transform:  none;
         text-align: left;
     }
 }
 
 .luna-sidebar__port--dragged {
-    position: absolute;
+    position:     absolute;
     padding-left: @sidebarWidth/2;
     .luna-port__shape {
         fill: @highlightIconFillColor;
@@ -113,7 +113,7 @@
 .luna-sidebar--o {
     right: 0;
     .luna-sidebar__body {
-        right: 0;
+        right:          0;
         padding-bottom: @sidebarPortHeight * 1.5;
     }
     .luna-sidebar__port__name {
@@ -212,8 +212,8 @@
 }
 
 .luna-edit-icon__shape01 {
-    fill:         @defaultIconFillColor;
-    r:            @sidebarPortRadius;
+    fill: @defaultIconFillColor;
+    r:    @sidebarPortRadius;
 }
 
 .luna-edit-icon__shape02 {
@@ -237,7 +237,7 @@
 
 .luna-edit-icon__select {
     opacity: 0;
-    r:    @sidebarPortWidth/2 !important;
+    r:       @sidebarPortWidth/2 !important;
 }
 
 .luna-sidebar:not(.luna-sidebar--editmode) {
