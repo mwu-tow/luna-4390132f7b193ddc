@@ -31,7 +31,7 @@ import           LunaStudio.Data.Node                  (NodeId)
 import           LunaStudio.Data.NodeLoc               (NodeLoc (..))
 import qualified LunaStudio.Data.NodeMeta              as NodeMeta
 import           LunaStudio.Data.Port                  (InPortId, InPortIndex (..), OutPortId)
-import           LunaStudio.Data.PortDefault           (PortDefault (Constant), PortValue (DoubleValue))
+import           LunaStudio.Data.PortDefault           (PortDefault (Constant), PortValue (RealValue))
 import           LunaStudio.Data.PortRef               (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.Position              as Position
 import           LunaStudio.Data.Project               (ProjectId)
@@ -140,7 +140,7 @@ disconnect :: EP.BusEndPoints -> GraphLocation -> NodeId -> InPortId -> IO ()
 disconnect endPoints graphLocation  dstNodeId inPort = sendToBus endPoints $ RemoveConnection.Request graphLocation (InPortRef (NodeLoc def dstNodeId) inPort)
 
 setPortValue :: EP.BusEndPoints -> GraphLocation -> NodeId -> Int -> Double -> IO ()
-setPortValue endPoints graphLocation nodeId portId value = sendToBus endPoints $ SetPortDefault.Request graphLocation (InPortRef (NodeLoc def nodeId) [Arg portId]) (Just $ Constant $ DoubleValue value)
+setPortValue endPoints graphLocation nodeId portId value = sendToBus endPoints $ SetPortDefault.Request graphLocation (InPortRef (NodeLoc def nodeId) [Arg portId]) (Just $ Constant $ RealValue value)
 
 getProgram :: EP.BusEndPoints -> GraphLocation -> IO ()
 getProgram endPoints graphLocation = sendToBus endPoints $ GetProgram.Request graphLocation def
