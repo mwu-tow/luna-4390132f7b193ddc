@@ -227,7 +227,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
 
 isNewestVersion :: MonadCreatePackage m => Version -> Text -> m Bool
 isNewestVersion appVersion appName = do
-    repo <- getRepo
+    repo <- getRepo True
     versionList <- Repo.getVersionsList repo appName
     if (head versionList) >= appVersion then return False else return True
 
@@ -346,6 +346,6 @@ run opts = do
     resolved <- mapM (resolvePackageApp config) appsToPack
 
     mapM_ (createPkg (opts ^. Opts.verbose) cfgFolderPath) resolved
-    repo <- getRepo
+    repo <- getRepo False
     let updatedConfig = foldl' updateConfig config resolved
     generateConfigYamlWithNewPackage repo updatedConfig $ cfgFolderPath </> "config.yaml"

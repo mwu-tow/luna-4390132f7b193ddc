@@ -80,7 +80,7 @@ cloneRepo appName appPath = Shelly.run "git" ["clone", repoPath, Shelly.toTextIg
 
 downloadDeps :: MonadDevelop m => Text -> FilePath -> m ()
 downloadDeps appName appPath = do
-    repo <- getRepo
+    repo <- getRepo False
     resolvedApplication <- resolvePackageApp repo appName
     mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
 

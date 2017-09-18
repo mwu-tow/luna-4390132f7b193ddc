@@ -416,7 +416,7 @@ isNotNightly v = isNothing $ v ^. nightly
 
 run :: (MonadInstall m) => InstallOpts -> Bool -> m ()
 run opts guiInstaller = do
-    repo <- getRepo
+    repo <- getRepo guiInstaller
     if guiInstaller then do
         Initilize.generateInitialJSON repo
         liftIO $ hFlush stdout

@@ -201,16 +201,16 @@ type MonadRepo m = (MonadStates '[RepoConfig, EnvConfig] m, MonadNetwork m)
 parseConfig :: (MonadIO m, MonadException SomeException m) => FilePath -> m Repo
 parseConfig cfgPath =  tryRight' =<< liftIO (Yaml.decodeFileEither $ encodeString cfgPath)
 
-downloadRepo :: MonadNetwork m => URIPath -> m FilePath
-downloadRepo address = downloadFromURL False address "Downloading repository configuration file"
+downloadRepo :: MonadNetwork m => Bool -> URIPath -> m FilePath
+downloadRepo guiInstaller address = downloadFromURL guiInstaller address "Downloading repository configuration file"
 
-getRepo :: MonadRepo m => m Repo
-getRepo = do
+getRepo :: MonadRepo m => Bool -> m Repo
+getRepo guiInstaller = do
     cfg <- get @RepoConfig
     case cfg ^. cachedRepo of
         Just r  -> return r
         Nothing -> do
-            downloadedConfig <- downloadRepo . view repoPath =<< get @RepoConfig
+            downloadedConfig <- downloadRepo guiInstaller . view repoPath =<< get @RepoConfig
             repo <- parseConfig downloadedConfig
             put @RepoConfig $ cfg & cachedRepo .~ Just repo
             return repo
