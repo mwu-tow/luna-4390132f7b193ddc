@@ -27,7 +27,7 @@ packages:
     appType: GuiApp
     synopsis: studio synopsis
 
-  zmq:
+    zmq:
         versions:
             1.0.0:
                 linux.x64:
