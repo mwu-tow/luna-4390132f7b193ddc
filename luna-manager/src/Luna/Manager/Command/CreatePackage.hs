@@ -205,7 +205,6 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         packageType      = resolvedPackage ^. resolvedAppType
         componentsFolder = pkgConfig ^. componentsToCopy
         guiInstaller     = False
-    print "DUPAAAA"
     thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL guiInstaller (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
