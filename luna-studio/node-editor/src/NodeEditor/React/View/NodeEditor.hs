@@ -89,6 +89,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         isAnyVisActive  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
         isAnyFullscreen = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
         nodesWithVis    = Set.fromList $ map (^. visPropNodeLoc) visualizations
+        (selectedNodeVis, notSelectedNodeVis) = NodeEditor.seperateVisualizationsViaSelectionOfNode visualizations ne
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
             div_ [ "className" $= Style.prefixFromList ( ["studio-window"]
@@ -119,7 +120,8 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                            forM_ visualizations $ nodeVisualization_ ref visLibPath
+                            forM_ selectedNodeVis    $ nodeVisualization_ ref visLibPath
+                            forM_ notSelectedNodeVis $ nodeVisualization_ ref visLibPath
 
                         planeNewConnection_ $ do
                             forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_

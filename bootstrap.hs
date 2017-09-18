@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack --resolver lts-8.2 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath --verbose -- -hide-all-packages
+-- stack --resolver lts-8.2 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath -- -hide-all-packages
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -177,7 +177,7 @@ generateLunaShellScript = do
         nodeBinPath        = current </> tools </> "node" </> supportedNodeVersion </> "bin"
         addLdLibraryPath   = "export LD_LIBRARY_PATH=" <> Shelly.toTextIgnore lbsPath
         paths              = preparePaths [stackPath, pyenvShimsFolder, pyenvBinFolder, nodeBinPath]
-        addPath            = "export PATH=" <> paths <> ":" <> stackPaths <> ":" <> ":$PATH"
+        addPath            = "export PATH=" <> paths <> ":" <> T.strip stackPaths <> ":$PATH"
         pyenvEnviromentVar = "export PYENV_ROOT=" <> (Shelly.toTextIgnore $ current </> tools </> "python" </> "pyenv")
         loadPython         = "pyenv" <>  " local " <> Shelly.toTextIgnore supportedPythonVersion
         lunaShellPath      = current </> lunaShell
@@ -185,10 +185,11 @@ generateLunaShellScript = do
     liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
 stackSetupForLunaStudio :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
-stackSetupForLunaStudio = Shelly.chdir "luna-studio" $ do
-    Shelly.echo "install GHCJS"
+stackSetupForLunaStudio = do
     current <- currentPath
-    Shelly.cmd (current </>stack) "setup"
+    Shelly.chdir (current </>"luna-studio") $ do
+        Shelly.echo "install GHCJS"
+        Shelly.cmd (current </>stack) "setup"
 
 
 main :: IO ()

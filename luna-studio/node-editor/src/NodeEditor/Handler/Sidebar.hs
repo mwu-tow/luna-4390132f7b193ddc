@@ -21,7 +21,7 @@ handle (UI (SidebarEvent (Sidebar.ToggleOutputMode  nl)))                       
 handle (UI (SidebarEvent (Sidebar.RemovePort        (OutPortRef' portRef))))      = Just $ Batch.removePort portRef
 handle (UI (SidebarEvent (Sidebar.AddPort           (OutPortRef' portRef))))      = Just $ Batch.addPort portRef Nothing
 handle (UI (AppEvent     (App.MouseMove             evt _)))                      = Just $ handleAppMove evt
-handle (UI (SidebarEvent (Sidebar.MouseMove         evt nodeLoc)))                = Just $ handleSidebarMove evt nodeLoc
+handle (UI (SidebarEvent (Sidebar.MouseMove         evt nodeLoc _)))                = Just $ handleSidebarMove evt nodeLoc
 handle (UI (AppEvent     (App.MouseUp               evt)))                        = Just $ continue $ handleMouseUp evt
 handle (UI (SidebarEvent (Sidebar.EditPortName      portRef)))                    = Just $ editPortName portRef
 handle _                                                                          = Nothing

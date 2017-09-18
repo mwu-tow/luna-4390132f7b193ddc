@@ -16,6 +16,7 @@ import qualified Data.Text                       as Text
 import qualified Data.Text.IO                    as Text
 import           Data.Text.Span                  (LeftSpacedSpan (..), SpacedSpan (..))
 import           Empire.ASTOp                    (runASTOp)
+import qualified Empire.ASTOps.Modify            as ASTModify
 import qualified Empire.ASTOps.Parse             as ASTParse
 import qualified Empire.ASTOps.Print             as ASTPrint
 import qualified Empire.ASTOps.Read              as ASTRead
@@ -1326,6 +1327,80 @@ spec = around withChannels $ parallel $ do
                 let loc' = loc |> foo
                 (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.movePort loc' (outPortRef input [Port.Projection 0]) 2
+        it "removes last port in top-level def" $ \env -> do
+            let initialCode = Text.pack $ normalizeQQ [r|
+                    def foo aaaa:
+                        «0»c = aaaa + 2
+                        c
+                    |]
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc initialCode
+                [foo] <- Graph.getNodes loc
+                let loc' = loc |>= foo ^. Node.nodeId
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.removePort loc' (outPortRef input [Port.Projection 0])
+                code <- Graph.withUnit loc $ use Graph.code
+                return code
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                def foo:
+                    «0»c = aaaa + 2
+                    c
+                |]
+        it "removes last port in nested def" $ \env -> do
+            let initialCode = Text.pack $ normalizeQQ [r|
+                    def main:
+                        «2»def foo aaaa:
+                            «0»c = aaaa + 2
+                            c
+                        «1»d = foo 3
+                        d
+                    |]
+            code <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc initialCode
+                [main] <- Graph.getNodes loc
+                let loc' = loc |>= main ^. Node.nodeId
+                nodes <- Graph.getNodes loc'
+                let Just foo = find (\node -> node ^. Node.name == Just "foo") nodes
+                    loc'' = loc' |> foo ^. Node.nodeId
+                (input, _) <- Graph.withGraph loc'' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.removePort loc'' (outPortRef input [Port.Projection 0])
+                code <- Graph.withUnit loc $ use Graph.code
+                return code
+            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+                def main:
+                    «2»def foo:
+                        «0»c = aaaa + 2
+                        c
+                    «1»d = foo 3
+                    d
+                |]
+        it "doesn't remove last port in a lambda" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = aaaa:
+                        aaaa + 3
+                    «1»c = foo 2 2
+                    c
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = aaaa:
+                        aaaa + 3
+                    c = foo 3 3
+                    c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.removePort loc' (outPortRef input [Port.Projection 0])
+                    `catch` (\(_e::ASTModify.CannotRemovePortException) -> return ())
+                Graph.setNodeExpression loc c "foo 3 3"
         it "removes port in a lambda" $ let
             initialCode = [r|
                 def main:

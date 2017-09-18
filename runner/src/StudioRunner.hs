@@ -254,7 +254,7 @@ runLocal = do
     atom        <- atomAppPath
     config      <- configPath
     kill        <- killSupervisorBinPath
-    liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString $ atomHome)
     liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
     liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
     liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
@@ -277,7 +277,7 @@ runPackage = case currentHost of
         atom        <- atomAppPath
         config      <- configPath
         kill        <- killSupervisorBinPath
-        liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString $ atomHome </> "atom")
         liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
         liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
         liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
@@ -292,7 +292,7 @@ runPackage = case currentHost of
         atom        <- atomAppPath
         config      <- configPath
         kill        <- killSupervisorBinPath
-        liftIO $ Environment.setEnv "LUNA_STUDIO_CONFIG_GUI_PATH" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString $ atomHome </> "atom")
         liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
         liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
         liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
