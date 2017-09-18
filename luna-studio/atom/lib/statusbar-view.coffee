@@ -18,10 +18,10 @@ class Statusbar extends View
                 @button
                     class: 'btn icon icon-sync luna-interpreter-reload'
                     outlet: 'reloadButton'
-                @div
-                    class: 'luna-interpreter-status inline-block'
-                    outlet: 'statusLabel'
-                    'Interpreter status'
+            @div
+                class: 'luna-interpreter-status inline-block'
+                outlet: 'statusLabel'
+                'Interpreter status'
 
     initialize: =>
         @startPauseButton.on 'click', @startPause
