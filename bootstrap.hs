@@ -127,7 +127,7 @@ haskellBins = [
 installHaskellBins :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => m ()
 installHaskellBins = do
     current <- currentPath
-    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-7.7" "install" ) haskellBins
+    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-7.7" "install" "--install-ghc") haskellBins
     sanityCheck "happy" ["--version"]
     sanityCheck "hsc2hs" ["--version"]
     sanityCheck "hprotoc" ["--version"]
