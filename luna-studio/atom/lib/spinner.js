@@ -9,6 +9,7 @@ module.exports = Spinner = class Spinner {
     constructor() {
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
+        this.lastProgress = 0;
         etch.initialize(this);
     }
 
@@ -36,8 +37,11 @@ module.exports = Spinner = class Spinner {
         $("#spinner").addClass("rotating")
     }
     setProgress(progress) {
-        var dashValue = parseFloat($("#progress-bar").css('stroke-dasharray'));
-        $("#progress-bar").css('stroke-dashoffset', (dashValue - progress * dashValue))
+        if(this.lastProgress < progress) {
+            var dashValue = parseFloat($("#progress-bar").css('stroke-dasharray'));
+            $("#progress-bar").css('stroke-dashoffset', (dashValue - progress * dashValue))
+            this.lastProgress = progress;
+        }
     }
     finish() {
         $("#spinner").removeClass("rotating")
