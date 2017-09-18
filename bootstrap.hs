@@ -185,10 +185,11 @@ generateLunaShellScript = do
     liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
 stackSetupForLunaStudio :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
-stackSetupForLunaStudio = Shelly.chdir "luna-studio" $ do
-    Shelly.echo "install GHCJS"
+stackSetupForLunaStudio = do
     current <- currentPath
-    Shelly.cmd (current </>stack) "setup"
+    Shelly.chdir $ current </>"luna-studio" $ do
+        Shelly.echo "install GHCJS"
+        Shelly.cmd (current </>stack) "setup"
 
 
 main :: IO ()
