@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack --resolver lts-8.2 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath --verbose -- -hide-all-packages
+-- stack --resolver lts-8.2 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath -- -hide-all-packages
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -187,7 +187,7 @@ generateLunaShellScript = do
 stackSetupForLunaStudio :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 stackSetupForLunaStudio = do
     current <- currentPath
-    Shelly.chdir $ current </>"luna-studio" $ do
+    Shelly.chdir (current </>"luna-studio") $ do
         Shelly.echo "install GHCJS"
         Shelly.cmd (current </>stack) "setup"
 
