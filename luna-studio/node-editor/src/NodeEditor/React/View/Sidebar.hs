@@ -7,6 +7,7 @@ module NodeEditor.React.View.Sidebar
 
 import           Common.Prelude
 import qualified Data.Aeson                              as Aeson
+import           Data.Timestamp                          (Timestamp (Timestamp))
 import qualified JS.Config                               as Config
 import           JS.Scene                                (inputSidebarId, outputSidebarId)
 import qualified JS.UI                                   as UI
@@ -80,7 +81,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         [ "className"   $= Style.prefixFromList classes
         , onDoubleClick $ \e _ -> [stopPropagation e]
         , onMouseDown   $ \e _ -> [stopPropagation e]
-        , onMouseMove   $ \e m -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc)
+        , onMouseMove   $ \e m -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.MouseMove m nodeLoc (Timestamp (evtTimestamp e)))
         ] $
         div_
             [ "key" $= "activeArea"
