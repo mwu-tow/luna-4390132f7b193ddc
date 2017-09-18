@@ -97,15 +97,15 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
                                            <*> Opts.switch (long "gui" )
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
-                                           <*> Opts.switch (long "verbose" <> short 'v')
+                                           <*> Opts.switch (long "verbose")
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
     optsDevelop        = Develop           <$> optsDevelop'
     optsDevelop'       = DevelopOpts       <$> (strArgument $ metavar "TARGET" <> help "Config file path")
-                                           <*> (optional . strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Repository path" )
+                                           <*> (optional . strOption $ long "path"      <> metavar "PATH"      <> help "Repository path" )
                                            <*> Opts.switch (long "download-dependencies")
     optsInstall        = Install           <$> optsInstall'
-    optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> short 'c' <> metavar "COMPONENT" <> help "Component to install")
-                                           <*> (optional . strOption $ long "version"   <> short 'v' <> metavar "VERSION"   <> help "Version to install"  )
-                                           <*> (optional . strOption $ long "path"      <> short 'p' <> metavar "PATH"      <> help "Installation path"   )
-                                           <*> Opts.switch (long "nightly" <> short 'n')
+    optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> metavar "COMPONENT" <> help "Component to install")
+                                           <*> (optional . strOption $ long "version"   <> metavar "VERSION"   <> help "Version to install"  )
+                                           <*> (optional . strOption $ long "path"      <> metavar "PATH"      <> help "Installation path"   )
+                                           <*> Opts.switch (long "nightly")
