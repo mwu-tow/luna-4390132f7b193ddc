@@ -60,7 +60,7 @@ type MonadCreatePackage m = (MonadStates '[EnvConfig, PackageConfig, RepoConfig]
 instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
     defaultHostConfig = return $ PackageConfig
         { _defaultPackagePath = "dist-package"
-        , _buildScriptPath    = "build-package"
+        , _buildScriptPath    = "build"
         , _thirdPartyPath     = "third-party"
         , _libPath            = "lib"
         , _componentsToCopy   = "dist"
@@ -79,7 +79,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
 
 instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & buildScriptPath .~ "build-package.bat"
+        reconfig cfg = cfg & buildScriptPath .~ "build.bat"
                            & defaultPackagePath .~ "C:\\tmp\\luna-package"
 
 data AppimageException = AppimageException SomeException deriving (Show)
@@ -185,7 +185,7 @@ runPkgBuildScript verbose repoPath = do
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
     Shelly.chdir (parent buildPath) $ do
-        if verbose then Shelly.cmd buildPath else Shelly.silently $ Shelly.cmd buildPath
+        if verbose then Shelly.cmd buildPath "--release" else Shelly.silently $ Shelly.cmd buildPath "--release"
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
