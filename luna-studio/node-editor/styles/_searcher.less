@@ -1,3 +1,5 @@
+@import '_variables';
+
 /////////////////////////////
 //         searcher        //
 /////////////////////////////
@@ -11,9 +13,15 @@
 }
 
 .luna-searcher {
-    z-index:  100000000;
+    z-index:  @luna-zindex-searcher;
     position: absolute;
 }
+.luna-studio-window--has-searcher {
+    .luna-studio-window__center {
+        z-index: @luna-zindex-searcher;
+    }
+}
+
 
 .luna-searcher__body {
     width: 0;

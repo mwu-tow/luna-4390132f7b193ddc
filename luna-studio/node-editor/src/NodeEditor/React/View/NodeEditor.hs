@@ -83,7 +83,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         lookupNode m    = ( m ^. MonadPath.monadType
                           , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
         monads          = map lookupNode $ ne ^. NodeEditor.monads
-        maySearcher     = ne ^. NodeEditor.searcher
+        maybeSearcher   = ne ^. NodeEditor.searcher
         visLibPath      = ne ^. NodeEditor.visualizersLibPath
         visualizations  = NodeEditor.getVisualizations ne
         isAnyVisActive  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
@@ -91,7 +91,12 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         nodesWithVis    = Set.fromList $ map (^. visPropNodeLoc) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
-            div_ [ "className" $= Style.prefixFromList (["studio-window"] <> if isAnyFullscreen then ["studio-window--has-visualization-fullscreen"] else []), "key" $= "studio-window"] $ do
+            div_ [ "className" $= Style.prefixFromList ( ["studio-window"]
+                                                       <> if isAnyFullscreen          then ["studio-window--has-visualization-fullscreen"] else []
+                                                       <> if maybeSearcher /= Nothing then ["studio-window--has-searcher"]                 else []
+                                                       )
+                 , "key" $= "studio-window"] $ do
+
                 div_ [ "className" $= Style.prefix "studio-window__center", "key" $= "studio-window__center" ] $
                     div_
                         [ "className"   $= Style.prefixFromList (["graph"] <> if isAnyVisActive  then ["graph--has-visualization-active"] else [])
@@ -112,15 +117,16 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                             forM_ nodes $ \n -> node_ ref
                                                       n
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
-                                                      (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
+                                                      (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
                             forM_ visualizations $ nodeVisualization_ ref visLibPath
 
                         planeNewConnection_ $ do
                             forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
 
-                withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher) n
+                withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher) n
                 withJust output $ sidebar_ ref Nothing
+
                 planeCanvas_ mempty --required for cursor lock
 
         GraphLoading   -> noGraph_ True "Loading…"
