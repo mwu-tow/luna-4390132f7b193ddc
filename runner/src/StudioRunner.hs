@@ -32,8 +32,6 @@ import Filesystem.Path.CurrentOS (decodeString, encodeString, fromText)
 import qualified Shelly.Lifted as Shelly
 import System.Host
 
--- import           Luna.Manager.System.Host
-
 import qualified Data.Text as T
 default (T.Text)
 
@@ -222,6 +220,7 @@ runFrontend :: MonadRun m => Maybe T.Text -> m ()
 runFrontend args = do
     atomHome    <- packageStudioAtomHome
     atom        <- atomAppPath
+    liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
     liftIO $ Environment.setEnv "ATOM_HOME" (encodeString $ atomHome )
     case currentHost of
         Darwin -> case args of
@@ -247,13 +246,13 @@ runBackend = do
 
 runLocal :: MonadRun m => m ()
 runLocal = do
-    liftIO $ putStrLn "run local"
     atomHome    <- packageStudioAtomHome
     logs        <- localLogsDirectory
     backendBins <- backendBinsPath
     atom        <- atomAppPath
     config      <- configPath
     kill        <- killSupervisorBinPath
+    liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
     liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString $ atomHome)
     liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
     liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
