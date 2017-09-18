@@ -39,11 +39,11 @@ objNameVis      = "node-vis"
 objNameShortVal = "node-short-value"
 
 
-nodeVisualization_ :: Ref App -> FilePath -> VisualizationProperties -> ReactElementM ViewEventHandler ()
-nodeVisualization_ ref visLibPath visProp = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visLibPath, visProp) mempty
+nodeVisualization_ :: Ref App -> FilePath -> Bool -> VisualizationProperties -> ReactElementM ViewEventHandler ()
+nodeVisualization_ ref visLibPath nodeIsSelected visProp = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visLibPath, nodeIsSelected, visProp) mempty
 
-nodeVisualization :: ReactView (Ref App, FilePath, VisualizationProperties)
-nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, visProp) -> do
+nodeVisualization :: ReactView (Ref App, FilePath, Bool, VisualizationProperties)
+nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, nodeIsSelected, visProp) -> do
     let nl           = visProp ^. visPropNodeLoc
         nid          = nl ^. NodeLoc.nodeId
         visualizers' = visProp ^. visPropVisualizers
@@ -51,12 +51,13 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, visProp) ->
         menuVisible  = elem (vis ^. visualizationMode) [Focused, Default]
         vmode        = vis ^. visualizationMode
         activeClass  = if vmode == Default then [] else [ "visualization--active" ]
+        nSelectedClass = if nodeIsSelected then [ "visualization--node-selected" ] else []
         classes      = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
         visShift     = show $ 4 + lineHeight * if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0
     div_
         [ "key"       $= visKey vis
         , "id"        $= (nodePrefix <> fromString (show nid))
-        , "className" $= Style.prefixFromList (classes <> activeClass )
+        , "className" $= Style.prefixFromList (classes <> activeClass <> nSelectedClass )
         , "style"     @= Aeson.object [ "transform" Aeson..= ("translate(-150px," <> visShift <> "rem)"::String) ]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $
