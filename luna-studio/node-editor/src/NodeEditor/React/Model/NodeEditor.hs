@@ -235,3 +235,7 @@ getVisualizations ne = concatMap getVisualizationsForNode . Map.toList $ ne ^. n
                 argPortsNum = ExpressionNode.countArgPorts n
                 visualizers = nv ^. Visualization.visualizers
             map (VisualizationProperties nl isExpanded argPortsNum visualizers) . Map.elems $ nv ^. Visualization.visualizations
+
+seperateVisualizationsViaSelectionOfNode :: [VisualizationProperties] -> NodeEditor -> ([VisualizationProperties], [VisualizationProperties])
+seperateVisualizationsViaSelectionOfNode visProps ne = partition predicate visProps where
+    predicate = maybe False (view ExpressionNode.isSelected) . flip getExpressionNode ne . view Visualization.visPropNodeLoc
