@@ -205,7 +205,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
         packageType      = resolvedPackage ^. resolvedAppType
         componentsFolder = pkgConfig ^. componentsToCopy
         guiInstaller     = False
-
+    print "DUPAAAA"
     thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL guiInstaller (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
@@ -277,9 +277,10 @@ checkAndChangeExecutablesLibPaths libFolderPath binaryPath = do
 linkLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => FilePath -> FilePath -> m ()
 linkLibs binPath libPath = do
     allBins <- Shelly.ls binPath
-    mapM_ (checkAndChangeExecutablesLibPaths libPath) allBins
+    mapM_ (checkAndChangeExecutablesLibPaths libPath) (filterGitKeepFile allBins)
 
-
+filterGitKeepFile :: [FilePath] -> [FilePath]
+filterGitKeepFile allBins = filter (\x -> filename x /= ".gitkeep") allBins
 
 -------------------------------
 -- === Creating package === ---
