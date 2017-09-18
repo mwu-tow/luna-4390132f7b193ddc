@@ -8,7 +8,7 @@ import Control.Monad.Raise
 import Control.Monad.State.Layered
 import Luna.Manager.Shell.Shelly   (MonadSh, MonadShControl)
 import Filesystem.Path.CurrentOS   (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
-
+import qualified System.Directory as System
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified Luna.Manager.Archive      as Archive
 
@@ -44,7 +44,7 @@ type MonadDevelop m = (MonadStates '[EnvConfig, RepoConfig, PackageConfig, Devel
 instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
     defaultHostConfig = return $ DevelopConfig
         { _stackPath      = "https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64-static.tar.gz"
-        , _devPath        = "luna-workspace"
+        , _devPath        = "luna-develop"
         , _appsPath       = "apps"
         , _toolsPath      = "tools"
         , _stackLocalPath = "stack"
@@ -69,6 +69,7 @@ downloadAndUnpackStack path = do
         guiInstaller = False
         totalProgress = 1.0
         progressFielsdName = ""
+    putStrLn "Downloading stack"
     stackArch <- downloadWithProgressBar stackURL guiInstaller
     stackArch' <- Archive.unpack guiInstaller totalProgress progressFielsdName stackArch
     Shelly.mv stackArch' path
@@ -96,8 +97,8 @@ run opts = do
             workingPath <- case path of
                 Just workingPath -> return workingPath
                 Nothing -> do
-                    current <- getCurrentPath
-                    return $ Shelly.toTextIgnore current
+                    home <- liftIO $ System.getHomeDirectory
+                    return $ convert home
             appPath         <- expand $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. appsPath) </> convert appName
             stackFolderPath <- expand  $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. toolsPath) </> (developCfg ^. stackLocalPath)
             Shelly.mkdir_p $ parent stackFolderPath
@@ -105,7 +106,6 @@ run opts = do
             cloneRepo appName appPath
             Shelly.prependToPath stackFolderPath
             Shelly.setenv "APP_PATH" $ Shelly.toTextIgnore appPath
-            liftIO $ print appPath
             Shelly.cmd $ appPath </> (developCfg ^. bootstrapFile)
             downloadDeps appName appPath
 
