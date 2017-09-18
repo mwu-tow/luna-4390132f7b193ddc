@@ -19,6 +19,7 @@ import Data.Text.IO (writeFile)
 import Data.Monoid ((<>))
 import Filesystem.Path.CurrentOS (parent, encodeString)
 import System.IO (BufferMode(LineBuffering), hSetBuffering, stdout)
+import qualified System.Directory as System
 default (T.Text)
 
 stack = "../../tools/stack/stack"
@@ -127,7 +128,8 @@ haskellBins = [
 installHaskellBins :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => m ()
 installHaskellBins = do
     current <- currentPath
-    Shelly.appendToPath "~/.local/bin"
+    home <- liftIO $ System.getHomeDirectory
+    Shelly.appendToPath $ home </> ".local/bin"
     mapM (Shelly.cmd (current </> stack) "--resolver" "lts-7.7" "install" "--install-ghc") haskellBins
     sanityCheck "happy" ["--version"]
     sanityCheck "hsc2hs" ["--version"]
