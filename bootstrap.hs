@@ -177,7 +177,7 @@ generateLunaShellScript = do
         nodeBinPath        = current </> tools </> "node" </> supportedNodeVersion </> "bin"
         addLdLibraryPath   = "export LD_LIBRARY_PATH=" <> Shelly.toTextIgnore lbsPath
         paths              = preparePaths [stackPath, pyenvShimsFolder, pyenvBinFolder, nodeBinPath]
-        addPath            = "export PATH=" <> paths <> ":" <> stackPaths <> ":" <> ":$PATH"
+        addPath            = "export PATH=" <> paths <> ":" <> T.strip stackPaths <> ":$PATH"
         pyenvEnviromentVar = "export PYENV_ROOT=" <> (Shelly.toTextIgnore $ current </> tools </> "python" </> "pyenv")
         loadPython         = "pyenv" <>  " local " <> Shelly.toTextIgnore supportedPythonVersion
         lunaShellPath      = current </> lunaShell
