@@ -107,8 +107,8 @@ addPort portRef connDst workspace uuid guiID = sendRequest $ Message uuid guiID 
 addSubgraph :: [ExpressionNode] -> [Connection] -> Workspace -> UUID -> Maybe UUID -> IO ()
 addSubgraph nodes connections workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace AddSubgraph.Request) nodes connections
 
-autolayoutNodes :: [NodeLoc] -> Workspace -> UUID -> Maybe UUID -> IO ()
-autolayoutNodes nls workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace AutolayoutNodes.Request) nls
+autolayoutNodes :: [NodeLoc] -> Bool ->  Workspace -> UUID -> Maybe UUID -> IO ()
+autolayoutNodes nls shouldCenter workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace AutolayoutNodes.Request) nls shouldCenter
 
 collapseToFunction :: [NodeLoc] -> Workspace -> UUID -> Maybe UUID ->  IO ()
 collapseToFunction nodeLocs workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace' CollapseToFunction.Request nodeLocs' where

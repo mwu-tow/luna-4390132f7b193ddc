@@ -72,9 +72,9 @@ addSubgraph :: [ExpressionNode] -> [(OutPortRef, InPortRef)] -> Command State ()
 addSubgraph [] []       = return ()
 addSubgraph nodes conns = withWorkspace $ BatchCmd.addSubgraph (convert <$> nodes) (convert <$> conns)
 
-autolayoutNodes :: [NodeLoc] -> Command State ()
-autolayoutNodes []  = return ()
-autolayoutNodes nls = withWorkspace $ BatchCmd.autolayoutNodes nls
+autolayoutNodes :: [NodeLoc] -> Bool -> Command State ()
+autolayoutNodes []  _            = return ()
+autolayoutNodes nls shouldCenter = withWorkspace $ BatchCmd.autolayoutNodes nls shouldCenter
 
 collapseToFunction :: [NodeLoc] -> Command State ()
 collapseToFunction []  = return ()
