@@ -16,7 +16,7 @@ dependencies:
         - sudo mv /tmp/luna-package.yaml /home/ubuntu/luna-package.yaml
         - pip install requests
     override:
-        - stack build --stack-yaml=build/backend/stack.yaml --only-dependencies --install-ghc --test --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+        - stack build --stack-yaml=build-config/backend/stack.yaml --only-dependencies --install-ghc --test --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
         - stack build --stack-yaml=luna-studio/stack.yaml --only-dependencies --install-ghc --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
         - stack build --stack-yaml=runner/stack.yaml --only-dependencies --install-ghc --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
 
@@ -28,10 +28,10 @@ dependencies:
 
 compile:
     override:
-        - stack build --stack-yaml build/backend/stack.yaml --copy-bins --no-run-tests --no-run-benchmarks -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+        - stack build --stack-yaml build-config/backend/stack.yaml --copy-bins --no-run-tests --no-run-benchmarks -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
         - stack build --stack-yaml luna-studio/stack.yaml --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
         - stack build --stack-yaml runner/stack.yaml --copy-bins --fast -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
 
 test:
     override:
-        - stack build --stack-yaml build/backend/stack.yaml --fast --test -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS
+        - stack build --stack-yaml build-config/backend/stack.yaml --fast --test -j1 --ghc-options=-j1 --ghc-options="+RTS -M3G -RTS" +RTS -N1 -RTS

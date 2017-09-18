@@ -8,7 +8,7 @@ from . import system as system
 
 
 app_dir      = ap.prep_path('..')
-backend_dir  = ap.prep_path('../build/backend')
+backend_dir  = ap.prep_path('../build-config/backend')
 frontend_dir = ap.prep_path('../luna-studio')
 runner_dir   = ap.prep_path('../runner')
 
@@ -76,7 +76,10 @@ def link_main_bin ():
 
 
     # os.symlink('./public/luna-studio', 'main', target_is_directory=True)
-
+def copy_std_lib ():
+    std_lib_path = ap.prep_path ( '../build-config/backend/.stack-work') + '/**/stdlib'
+    std_lib_folder = glob(std_lib_path,recursive=True)
+    print (std_lib_folder)
 
 
 def run(backend_args, frontend_args, runner_args):

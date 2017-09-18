@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 app_dir      = scripts_build.atom_prepare.prep_path('..')
-backend_dir  = scripts_build.atom_prepare.prep_path('../build/backend')
+backend_dir  = scripts_build.atom_prepare.prep_path('../build-config/backend')
 frontend_dir = scripts_build.atom_prepare.prep_path('../luna-studio')
 
 
@@ -31,6 +31,7 @@ def build_backend (backend_args):
         scripts_build.stack_build.create_bin_dirs()
         scripts_build.stack_build.build_backend(backend_args)
         scripts_build.stack_build.link_main_bin ()
+        scripts_build.stack_build.copy_std_lib ()
 
     except subprocess.CalledProcessError:
         print("Status : FAIL")
@@ -49,18 +50,18 @@ def build_frontend (frontend_args, link):
 
 def main ():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", help="build just backend", action="store_true")
-    parser.add_argument("--frontend", help="build just frontend", action="store_true")
-    parser.add_argument("--link", help="link luna-studio package to atom_home", action="store_true")
-    parser.add_argument("--backend-stack", help="options for stack build backend", action="append", dest="stack_backend_args", default=['--copy-bins'])
-    parser.add_argument("--frontend-stack", help="options for stack build frontend", action="append", dest="stack_frontend_args", default=[])
-    parser.add_argument("--runner-stack", help="options for stack build runner", action="append", dest="stack_runner_args", default=['--copy-bins'])
+    parser.add_argument("--backend", help="Build backend only", action="store_true")
+    parser.add_argument("--frontend", help="Build frontend only", action="store_true")
+    parser.add_argument("--release", help="Build package in release mode", action="store_true")
+    parser.add_argument("--backend-stack", help="Additional options passed to stack while building backend", action="append", dest="stack_backend_args", default=['--copy-bins'])
+    parser.add_argument("--frontend-stack", help="Additional options passed to stack while building frontend", action="append", dest="stack_frontend_args", default=[])
+    parser.add_argument("--runner-stack", help="Additional options passed to stack while building runner", action="append", dest="stack_runner_args", default=['--copy-bins'])
     args = parser.parse_args()
 
     if args.backend:
         build_backend (args.stack_backend_args)
     elif args.frontend:
-        build_frontend (args.stack_frontend_args, args.link)
-    else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args, args.link)
+        build_frontend (args.stack_frontend_args, not args.release) # FIXME: "not ..." is not a proper way to handle this flag
+    else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args, not args.release)
 
 main()
