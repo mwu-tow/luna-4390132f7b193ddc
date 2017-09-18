@@ -12,8 +12,9 @@ import           LunaStudio.Data.Position      (Position)
 import           Prologue
 
 
-data Request = Request { _location :: GraphLocation
-                       , _nodeLocs :: [NodeLoc]
+data Request = Request { _location    :: GraphLocation
+                       , _nodeLocs    :: [NodeLoc]
+                       , _centerGraph :: Bool
                        } deriving (Eq, Generic, Show)
 
 data Inverse = Inverse { _prevPositions :: [(NodeLoc, Position)]

@@ -50,8 +50,8 @@ handle _ = Nothing
 
 handleCommand :: Shortcut.Command -> Command State ()
 handleCommand = \case
-    Shortcut.AutolayoutAllNodes      -> map (view Node.nodeLoc) <$> getExpressionNodes >>= autolayoutNodes
-    Shortcut.AutolayoutSelectedNodes -> map (view Node.nodeLoc) <$> getSelectedNodes   >>= autolayoutNodes
+    Shortcut.AutolayoutAllNodes      -> map (view Node.nodeLoc) <$> getExpressionNodes >>= flip autolayoutNodes True
+    Shortcut.AutolayoutSelectedNodes -> map (view Node.nodeLoc) <$> getSelectedNodes   >>= flip autolayoutNodes False
     Shortcut.CollapseToFunction      -> collapseToFunction
     -- Shortcut.EditSelectedNodes       -> toggleSelectedNodesMode $ Node.Expanded Node.Editor --TEMPORARILY DISABLED
     Shortcut.ExpandSelectedNodes     -> toggleSelectedNodesMode $ Node.Expanded Node.Controls

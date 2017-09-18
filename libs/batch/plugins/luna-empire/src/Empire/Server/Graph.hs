@@ -42,8 +42,8 @@ import           Empire.Empire                           (Empire)
 import qualified Empire.Empire                           as Empire
 import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
-import           Empire.Server.Server                    (errorMessage, defInverse, modifyGraph, modifyGraphOk, prettyException,
-                                                          replyFail, replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC)
+import           Empire.Server.Server                    (defInverse, errorMessage, modifyGraph, modifyGraphOk, prettyException, replyFail,
+                                                          replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
@@ -228,13 +228,13 @@ handleAddSubgraph = modifyGraph defInverse action replyResult where
 
 handleAutolayoutNodes :: Request AutolayoutNodes.Request -> StateT Env BusT ()
 handleAutolayoutNodes = modifyGraph inverse action replyResult where
-    inverse (AutolayoutNodes.Request location nodeLocs) = do
+    inverse (AutolayoutNodes.Request location nodeLocs _) = do
         let getNlAndPos :: NodeLoc -> Empire (Maybe (NodeLoc, Position))
             getNlAndPos nl = do
                 mayMeta <- Graph.getNodeMeta location $ convert nl --TODO[PM -> MM] Use NodeLoc instead of NodeId
                 return $ (nl,) . view NodeMeta.position <$> mayMeta
         AutolayoutNodes.Inverse . catMaybes <$> mapM getNlAndPos nodeLocs
-    action (AutolayoutNodes.Request location nodeLocs) = withDefaultResult location $
+    action (AutolayoutNodes.Request location nodeLocs _) = withDefaultResult location $
         Graph.withGraph location $ runASTOp $ Graph.autolayoutNodes (convert <$> nodeLocs) --TODO[PM -> MM] Use NodeLoc instead of NodeId
 
 handleCollapseToFunction :: Request CollapseToFunction.Request -> StateT Env BusT ()

@@ -43,11 +43,12 @@ import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
 import           LunaStudio.Data.NodeSearcher                (prepareNSData)
-import           NodeEditor.Action.Basic                     (exitBreadcrumb, localAddConnections, localMerge, localRemoveConnections,
-                                                              localRemoveNodes, localSetSearcherHints, localUpdateNodeTypecheck,
-                                                              localUpdateOrAddExpressionNode, localUpdateOrAddExpressionNodePreventingPorts,
-                                                              localUpdateOrAddInputNode, localUpdateOrAddOutputNode, setNodeProfilingData,
-                                                              updateGraph, updateNodeValueAndVisualization, updateScene)
+import           NodeEditor.Action.Basic                     (centerGraph, exitBreadcrumb, localAddConnections, localMerge,
+                                                              localRemoveConnections, localRemoveNodes, localSetSearcherHints,
+                                                              localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
+                                                              localUpdateOrAddExpressionNodePreventingPorts, localUpdateOrAddInputNode,
+                                                              localUpdateOrAddOutputNode, setNodeProfilingData, updateGraph,
+                                                              updateNodeValueAndVisualization, updateScene)
 import           NodeEditor.Action.Basic.Revert              (revertAddConnection, revertAddNode, revertAddPort, revertAddSubgraph,
                                                               revertMovePort, revertRemoveConnection, revertRemoveNodes, revertRemovePort,
                                                               revertRenameNode, revertSetNodeExpression, revertSetNodesMeta,
@@ -173,8 +174,9 @@ handle (Event.Batch ev) = Just $ case ev of
         success   = applyResult location
 
     AutolayoutNodesResponse response -> handleResponse response success doNothing where
-        location = response ^. Response.request . AutolayoutNodes.location
-        success  = applyResult location
+        location     = response ^. Response.request . AutolayoutNodes.location
+        shouldCenter = response ^. Response.request . AutolayoutNodes.centerGraph
+        success res  = applyResult location res >> when shouldCenter centerGraph
 
     CollaborationUpdate update -> inCurrentLocation (update ^. CollaborationUpdate.location) $ \path -> do
         let clientId = update ^. CollaborationUpdate.clientId
