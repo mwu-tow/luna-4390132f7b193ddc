@@ -9,18 +9,20 @@ import           NodeEditor.Action.ConnectionPen (connectMove, disconnectMove, s
                                                   stopDisconnecting)
 import           NodeEditor.Event.Event          (Event, Event (UI))
 import qualified NodeEditor.Event.Mouse          as Mouse
-import           NodeEditor.Event.UI             (UIEvent (AppEvent))
+import           NodeEditor.Event.UI             (UIEvent (AppEvent, SidebarEvent))
 import qualified NodeEditor.React.Event.App      as App
+import qualified NodeEditor.React.Event.Sidebar  as Sidebar
 import           NodeEditor.State.Action         (Action (continue))
 import           NodeEditor.State.Global         (State)
 import           React.Flux                      (MouseEvent)
 
 
 handle :: Event -> Maybe (Command State ())
-handle (UI (AppEvent (App.MouseDown evt timestamp))) = Just $ handleMouseDown evt timestamp
-handle (UI (AppEvent (App.MouseMove evt timestamp))) = Just $ continue (connectMove evt timestamp) >> continue (disconnectMove evt timestamp)
-handle (UI (AppEvent (App.MouseUp   _)))             = Just $ continue stopConnecting >> continue stopDisconnecting
-handle _                                             = Nothing
+handle (UI (AppEvent (App.MouseDown evt timestamp)))           = Just $ handleMouseDown evt timestamp
+handle (UI (AppEvent (App.MouseMove evt timestamp)))           = Just $ continue (connectMove evt timestamp) >> continue (disconnectMove evt timestamp)
+handle (UI (SidebarEvent (Sidebar.MouseMove evt _ timestamp))) = Just $ continue (connectMove evt timestamp) >> continue (disconnectMove evt timestamp)
+handle (UI (AppEvent (App.MouseUp   _)))                       = Just $ continue stopConnecting >> continue stopDisconnecting
+handle _                                                       = Nothing
 
 handleMouseDown :: MouseEvent -> Timestamp -> Command State ()
 handleMouseDown evt timestamp
