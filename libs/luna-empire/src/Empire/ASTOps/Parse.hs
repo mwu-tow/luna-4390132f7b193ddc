@@ -209,8 +209,8 @@ parsePortDefault (Expression expr)          = do
     ref <- parseExpr expr
     Code.propagateLengths ref
     return ref
-parsePortDefault (Constant (IntValue    i)) = IR.generalize <$> IR.number (fromIntegral i)   `withLength` (length $ show i)
-parsePortDefault (Constant (StringValue s)) = IR.generalize <$> IR.string s                  `withLength` (length s)
-parsePortDefault (Constant (DoubleValue d)) = IR.generalize <$> IR.number (Lit.fromDouble d) `withLength` (length $ show d)
-parsePortDefault (Constant (BoolValue   b)) = IR.generalize <$> IR.cons_ (convert $ show b)  `withLength` (length $ show b)
+parsePortDefault (Constant (IntValue  i)) = IR.generalize <$> IR.number (fromIntegral i)   `withLength` (length $ show i)
+parsePortDefault (Constant (TextValue s)) = IR.generalize <$> IR.string s                  `withLength` (length s)
+parsePortDefault (Constant (RealValue d)) = IR.generalize <$> IR.number (Lit.fromDouble d) `withLength` (length $ show d)
+parsePortDefault (Constant (BoolValue b)) = IR.generalize <$> IR.cons_ (convert $ show b)  `withLength` (length $ show b)
 parsePortDefault d = throwM $ PortDefaultNotConstructibleException d

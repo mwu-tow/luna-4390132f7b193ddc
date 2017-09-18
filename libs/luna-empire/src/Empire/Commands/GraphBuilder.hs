@@ -209,8 +209,8 @@ getNodeCode nid = do
 
 getDefault :: GraphOp m => NodeRef -> m (Maybe PortDefault)
 getDefault arg = match arg $ \case
-        IR.String s       -> pure $ Just $ Constant $ StringValue $ s
-        IR.Number i       -> pure $ Just $ Constant $ if Lit.isInteger i then IntValue $ Lit.toInt i else DoubleValue $ Lit.toDouble i
+        IR.String s       -> pure $ Just $ Constant $ TextValue $ s
+        IR.Number i       -> pure $ Just $ Constant $ if Lit.isInteger i then IntValue $ Lit.toInt i else RealValue $ Lit.toDouble i
         IR.Cons "True"  _ -> pure $ Just $ Constant $ BoolValue True
         IR.Cons "False" _ -> pure $ Just $ Constant $ BoolValue False
         IR.Blank          -> pure $ Nothing
@@ -227,8 +227,8 @@ getPortState :: GraphOp m => NodeRef -> m PortState
 getPortState node = do
     isConnected <- ASTRead.isGraphNode node
     if isConnected then pure Connected else match node $ \case
-        IR.String s     -> pure . WithDefault . Constant . StringValue $ s
-        IR.Number i     -> pure . WithDefault . Constant $ if Lit.isInteger i then IntValue $ Lit.toInt i else DoubleValue $ Lit.toDouble i
+        IR.String s     -> pure . WithDefault . Constant . TextValue $ s
+        IR.Number i     -> pure . WithDefault . Constant $ if Lit.isInteger i then IntValue $ Lit.toInt i else RealValue $ Lit.toDouble i
         Cons n _ -> do
             name <- pure $ nameToString n
             case name of

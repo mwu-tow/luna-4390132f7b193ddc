@@ -73,7 +73,6 @@ import           LunaStudio.Data.Position                   as Position
 import           LunaStudio.Data.Project                    as Project
 import           LunaStudio.Data.Range                      as Range
 import           LunaStudio.Data.Size                       as Size
-import           LunaStudio.Data.ValueType                  as ValueType
 import           LunaStudio.Data.Vector2                    as Vector2
 
 
@@ -229,7 +228,6 @@ instance ToJSON Substitute.Update
 instance ToJSON TypeCheck.Request
 instance ToJSON Undo.Request
 instance ToJSON Undo.UndoRequest
-instance ToJSON ValueType.ValueTypeEnum
 
 instance ToJSONKey AnyPortRef
 instance ToJSONKey InPortRef
