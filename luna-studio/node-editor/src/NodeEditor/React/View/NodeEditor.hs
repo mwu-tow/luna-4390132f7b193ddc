@@ -120,11 +120,14 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                            forM_ selectedNodeVis    $ nodeVisualization_ ref visLibPath
-                            forM_ notSelectedNodeVis $ nodeVisualization_ ref visLibPath
+                            forM_ notSelectedNodeVis $ nodeVisualization_ ref visLibPath False
+                            forM_ selectedNodeVis    $ nodeVisualization_ ref visLibPath True
+
 
                         planeNewConnection_ $ do
                             forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
+
+                        --planeSelectedNode_ $ do
 
                 withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher) n
                 withJust output $ sidebar_ ref Nothing

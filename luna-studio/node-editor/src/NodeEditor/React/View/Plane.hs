@@ -38,8 +38,6 @@ planeNewConnection_ =
             , "key"       $= "newConnection"
             ]
 
-
-
 planeNodes_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
 planeNodes_ =
     div_

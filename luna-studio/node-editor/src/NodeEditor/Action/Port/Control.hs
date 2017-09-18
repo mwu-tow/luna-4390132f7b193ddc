@@ -11,7 +11,7 @@ import           Common.Prelude
 import           Data.Time.Clock                    (UTCTime)
 import qualified Data.Time.Clock                    as Clock
 import qualified JS.UI                              as JS
-import           LunaStudio.Data.PortDefault        (PortDefault (Constant), PortValue (DoubleValue, IntValue))
+import           LunaStudio.Data.PortDefault        (PortDefault (Constant), PortValue (IntValue, RealValue))
 import           LunaStudio.Data.PortRef            (InPortRef)
 import           LunaStudio.Data.ScreenPosition     (ScreenPosition, x)
 import           NodeEditor.Action.Basic            (localSetPortDefault)
@@ -90,5 +90,5 @@ newSliderValue currentPostion currentTime slider =
 
 toPortValue :: InitValue -> PortDefault
 toPortValue = Constant . \case
-    Continous val -> DoubleValue val
-    Discrete  val -> IntValue    val
+    Continous val -> RealValue val
+    Discrete  val -> IntValue  val

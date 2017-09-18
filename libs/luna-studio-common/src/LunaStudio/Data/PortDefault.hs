@@ -7,10 +7,10 @@ import           Prologue        hiding (Text)
 
 
 
-data PortValue = IntValue    Integer
-               | DoubleValue Double
-               | BoolValue   Bool
-               | StringValue String
+data PortValue = IntValue  Integer
+               | RealValue Double
+               | BoolValue Bool
+               | TextValue String
                deriving (Eq, Generic, Show)
 
 data PortDefault = Expression String
