@@ -415,16 +415,17 @@ buildConnections = do
 
 buildInputSidebarTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildInputSidebarTypecheckUpdate nid = do
-    API.InputSidebar nid ps <- buildInputSidebar nid
+    API.InputSidebar nid ps _ <- buildInputSidebar nid
     pure $ API.InputSidebarUpdate nid ps
 
 
 buildInputSidebar :: GraphOp m => NodeId -> m API.InputSidebar
 buildInputSidebar nid = do
     ref      <- ASTRead.getCurrentASTTarget
+    isDef    <- ASTRead.isASGFunction ref
     args     <- ASTDeconstruct.extractFunctionPorts ref
     argTrees <- zipWithM buildOutPortTree (pure . Projection <$> [0..]) args
-    pure $ API.InputSidebar nid argTrees
+    pure $ API.InputSidebar nid argTrees isDef
 
 buildOutputSidebarTypecheckUpdate :: GraphOp m => NodeId -> m API.NodeTypecheckerUpdate
 buildOutputSidebarTypecheckUpdate nid = do
