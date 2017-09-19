@@ -3,6 +3,8 @@
 {CompositeDisposable} = require 'event-kit'
 path = require 'path'
 SubAtom = require 'sub-atom'
+Spinner = require './spinner'
+
 
 TextBuffer::subscribeToFileOverride = (codeEditor) ->
     @fileSubscriptions?.dispose()
@@ -71,6 +73,10 @@ module.exports =
                         cursor: @.getCursorBufferPosition()
                       #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
                     @codeEditor.pushDiff(diff)
+        @spinner = new Spinner(true)
+        @spinner.start()
+        @spinner.setProgress(0)
+        @spinnerElement = @element.appendChild(@spinner.element)
 
     serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
 
@@ -129,6 +135,10 @@ module.exports =
         if @uri == uri_send
             if @getPlaceholderText() != ''
                 @setPlaceholderText ''
+            for child in @element.childNodes
+                if child.id == 'luna_logo-spinner'
+                    @element.removeChild child
+                    break
             @omitDiff(text)
             @getBuffer().setText(text)
             console.log "setBuffer"

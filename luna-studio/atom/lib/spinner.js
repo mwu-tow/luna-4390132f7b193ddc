@@ -6,7 +6,8 @@ var Spinner;
 etch = require('etch');
 
 module.exports = Spinner = class Spinner {
-    constructor() {
+    constructor(overlap = false) {
+        this.overlap = overlap;
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
         this.lastProgress = null;
@@ -17,7 +18,18 @@ module.exports = Spinner = class Spinner {
         return etch.update(this);
     }
 
-    render () {
+    render() {
+        if(this.overlap)
+            return  <div id="luna_logo-spinner" class="luna_logo-overlap">
+                      { this.renderSpinner() }
+                    </div>
+        else
+            return  <div id="luna_logo-spinner">
+                      { this.renderSpinner() }
+                    </div>
+
+    }
+    renderSpinner () {
         return <div id="logo-area">
                   <div id="spinner">
                       <svg id="install-spinner" height="180" width="180" class="spinner__circle" shape-rendering="geometricPrecision" viewBox="0 0 180 180">
