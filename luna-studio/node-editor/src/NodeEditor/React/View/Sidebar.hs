@@ -19,7 +19,7 @@ import qualified NodeEditor.React.Event.Sidebar          as Sidebar
 import           NodeEditor.React.Model.App              (App)
 import           NodeEditor.React.Model.Constants        (lineHeight)
 import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, SidebarMode (AddRemove, MoveConnect), SidebarNode, countProjectionPorts,
-                                                          isInputSidebar)
+                                                          isInputSidebar, minimalNumberOfPorts)
 import qualified NodeEditor.React.Model.Node.SidebarNode as SidebarNode
 import           NodeEditor.React.Model.Port             (AnyPort, OutPortIndex (Projection), getPortNumber, getPositionInSidebar,
                                                           isHighlighted, isInMovedMode, isInNameEditMode, isInPort, isOutPort)
@@ -41,9 +41,9 @@ portViewBox :: JSString
 portViewBox = "-16 -16 32 32"
 
 portHandlers :: Ref App -> SidebarMode -> Bool -> Bool -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
-portHandlers ref AddRemove _ isOnly portRef =
+portHandlers ref AddRemove _ canBeRemoved portRef =
     [ onMouseDown $ \e _ -> [stopPropagation e] ] <>
-    if isOnly then [] else
+    if not canBeRemoved then [] else
     [ onClick      $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.RemovePort portRef)
     , onMouseLeave $ \e m -> handleMouseLeave ref portRef e m <> dispatch ref (UI.SidebarEvent . Sidebar.UnfreezeSidebar $ portRef ^. PortRef.nodeLoc)
     , onMouseEnter $ handleMouseEnter ref portRef
@@ -64,13 +64,14 @@ sidebar_ ref maySearcher node = React.viewWithSKey sidebar (name node) (ref, may
 
 sidebar :: SidebarNode node => ReactView (Ref App, Maybe Searcher, node)
 sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
-    let ports         = SidebarNode.portsList node
-        nodeLoc       = node ^. SidebarNode.nodeLoc
-        mode          = node ^. SidebarNode.mode
-        isPortDragged = any isInMovedMode ports
-        classes       = [ "sidebar", if isInputSidebar node then "sidebar--i" else "sidebar--o" ]
-                      <> if mode == AddRemove then ["sidebar--editmode"] else []
-                      <> ["sidebar--dragmode" | isPortDragged]
+    let ports          = SidebarNode.portsList node
+        nodeLoc        = node ^. SidebarNode.nodeLoc
+        mode           = node ^. SidebarNode.mode
+        isPortDragged  = any isInMovedMode ports
+        removablePorts = isInputSidebar node && countProjectionPorts node > minimalNumberOfPorts node
+        classes        = [ "sidebar", if isInputSidebar node then "sidebar--i" else "sidebar--o" ]
+                       <> if mode == AddRemove then ["sidebar--editmode"] else []
+                       <> ["sidebar--dragmode" | isPortDragged]
         addButtonHandlers = case mode of
                                 AddRemove   -> [ onMouseDown $ \e _ -> [stopPropagation e]
                                                , onClick     $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.AddPort portRef)
@@ -94,7 +95,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                 ] $ do
                 forM_ ports $ \p -> if isInMovedMode p
                     then sidebarPlaceholderForPort_ >> sidebarDraggedPort_ ref p
-                    else sidebarPort_ ref nodeLoc p mode isPortDragged (countProjectionPorts node == 1) (filterOutSearcherIfNotRelated (toAnyPortRef nodeLoc $ p ^. Port.portId) maySearcher)
+                    else sidebarPort_ ref nodeLoc p mode isPortDragged removablePorts (filterOutSearcherIfNotRelated (toAnyPortRef nodeLoc $ p ^. Port.portId) maySearcher)
                 when (isInputSidebar node) $ do
 
                     svg_ (
@@ -151,7 +152,7 @@ sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefix
         _ -> ([], regularName)
 
 sidebarPort_ :: Ref App -> NodeLoc -> AnyPort -> SidebarMode -> Bool -> Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
-sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
+sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
         color     = convert $ p ^. Port.color
@@ -159,7 +160,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
         highlight = ["hover" | isHighlighted p || isInNameEditMode p]
         classes   = modeClass (p ^. Port.mode) <> if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
                                                   else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
-        handlers' = if isOutPort portId then portHandlers ref mode isPortDragged isOnly portRef else handlers ref portRef
+        handlers' = if isOutPort portId then portHandlers ref mode isPortDragged canBeRemoved portRef else handlers ref portRef
     div_
         [ "key"       $= ( jsShow portId <> "-port-" <> jsShow num )
         , "className" $= Style.prefixFromList classes
@@ -175,7 +176,7 @@ sidebarPort_ ref nl p mode isPortDragged isOnly maySearcher = do
                 , "fill"      $= color
                 , "r"         $= jsShow2 3
                 ] mempty
-            unless isOnly $ g_ [ "className" $= Style.prefix "port__plus" ] $ do
+            when canBeRemoved $ g_ [ "className" $= Style.prefix "port__plus" ] $ do
                   plainRect_ "key1" 2 8 (-1) (-4)
                   plainRect_ "key2" 8 2 (-4) (-1)
             circle_ (

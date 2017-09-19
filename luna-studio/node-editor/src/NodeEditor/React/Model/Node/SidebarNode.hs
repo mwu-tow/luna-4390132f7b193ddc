@@ -35,6 +35,7 @@ type Height = Double
 data InputNode = InputNode
         { _inputNodeLoc      :: NodeLoc
         , _inputSidebarPorts :: [OutPortTree OutPort]
+        , _inputIsDef        :: Bool
         , _inputMode         :: SidebarMode
         } deriving (Eq, Generic, NFData, Show)
 
@@ -54,6 +55,7 @@ instance Convertible (NodePath, Empire.InputSidebar) InputNode where
     convert (path, n) = InputNode
         {- inputNodeLoc      -} (NodeLoc path (n ^. Empire.inputNodeId))
         {- inputSidebarPorts -} (convert `fmap2` (n ^. Empire.inputEdgePorts))
+        {- inputIsDef        -} (n ^. Empire.isDef)
         {- inputMode         -} def
 
 instance Convertible (NodePath, Empire.OutputSidebar) OutputNode where
@@ -82,15 +84,16 @@ instance HasPorts InputNode where
     inPortsList   = const def
     outPortsList  = concatMap Port.visibleOutPorts . view inputSidebarPorts
     inPortAt      = const ignored
-    outPortAt ((Projection i):t) = inputSidebarPorts . ix i . ix t
+    outPortAt (Projection i : t) = inputSidebarPorts . ix i . ix t
     outPortAt _                  = ignored
     portModeAt = \case
         OutPortId' outpid -> outPortAt outpid . Port.mode
         InPortId'  inpid  -> inPortAt  inpid  . Port.mode
 
 class (IsNode node, Typeable node, Eq node) => SidebarNode node where
-    mode           :: Lens' node SidebarMode
-    isInputSidebar :: node -> Bool
+    mode                 :: Lens' node SidebarMode
+    minimalNumberOfPorts :: node -> Int 
+    isInputSidebar       :: node -> Bool
 
     isInMode :: SidebarMode -> node -> Bool
     isInMode mode' n = n ^. mode == mode'
@@ -102,9 +105,11 @@ class (IsNode node, Typeable node, Eq node) => SidebarNode node where
     isInMoveConnectMode = isInMode MoveConnect
 
 instance SidebarNode InputNode where
-    mode           = inputMode
-    isInputSidebar = const True
+    mode                   = inputMode
+    minimalNumberOfPorts n = if n ^. inputIsDef then 0 else 1
+    isInputSidebar         = const True
 
 instance SidebarNode OutputNode where
-    mode           = outputMode
-    isInputSidebar = const False
+    mode                 = outputMode
+    minimalNumberOfPorts = const 1
+    isInputSidebar       = const False
