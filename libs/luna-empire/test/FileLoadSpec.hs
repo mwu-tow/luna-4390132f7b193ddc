@@ -2,13 +2,14 @@
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TupleSections       #-}
 
 module FileLoadSpec (spec) where
 
 import           Control.Monad                   (forM)
 import           Data.Coerce
-import           Data.List                       (find)
+import           Data.List                       (find, maximum)
 import qualified Data.Map                        as Map
 import           Data.Reflection                 (Given (..), give)
 import qualified Data.Set                        as Set
@@ -45,7 +46,7 @@ import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 import           LunaStudio.Data.Vector2         (Vector2 (..))
 
-import           Empire.Prelude
+import           Empire.Prelude                  hiding (maximum)
 import           Luna.Prelude                    (normalizeQQ)
 
 import           Test.Hspec                      (Expectation, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
@@ -735,6 +736,50 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
                 Graph.renameNode loc c "ddd"
+        it "renames used node in code to pattern" $ let
+            mainCondensed = [r|
+                def main:
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    Just a = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                Graph.renameNode loc c "Just a"
+        it "renames used node in code to pattern with already used var name" $ let
+            mainCondensed = [r|
+                def main:
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+                def main:
+                    (b,c) = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                Graph.renameNode loc c "(b,c)"
+                succs <- Graph.withGraph loc $ runASTOp $ do
+                    var   <- ASTRead.getASTVar c
+                    vars  <- ASTRead.dumpPatternVars var
+                    mapM (IR.getLayer @IR.Succs) vars
+                liftIO (maximum (map Set.size succs) `shouldBe` 2) -- two uses of c
+        it "renames used node in code to number" $ let
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: a + b
+                    5 = 4
+                    bar = foo 8 c
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                Graph.renameNode loc c "5"
         it "adds one node to existing file and updates it" $ let
             expectedCode = [r|
                 def main:

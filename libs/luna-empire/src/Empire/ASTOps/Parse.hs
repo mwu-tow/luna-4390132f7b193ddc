@@ -9,12 +9,14 @@ module Empire.ASTOps.Parse (
     SomeParserException
   , FunctionParsing(..)
   , parseExpr
+  , parsePattern
   , parsePortDefault
   , runParser
   , runFunHackParser
   , runReparser
   , runProperParser
   , runProperVarParser
+  , runProperPatternParser
   ) where
 
 import           Data.Convert
@@ -71,6 +73,14 @@ parseExpr s = do
     exprMap <- IR.getAttr @Parser.MarkedExprMap
     return $ unwrap' res
 
+parsePattern :: GraphOp m => Text.Text -> m NodeRef
+parsePattern s = do
+    IR.putAttr @Source.Source $ convert s
+    Parsing.parsingPassM Parsing.pattern
+    res     <- IR.getAttr @Parser.ParsedExpr
+    exprMap <- IR.getAttr @Parser.MarkedExprMap
+    return $ unwrap' res
+
 parserBoilerplate :: PMStack IO ()
 parserBoilerplate = do
     IR.runRegs
@@ -111,6 +121,18 @@ runProperVarParser code = do
             res  <- IR.getAttr @Parser.ParsedExpr
             return (unwrap' res)
         return var
+
+runProperPatternParser :: Text.Text -> IO NodeRef
+runProperPatternParser code = do
+    runPM $ do
+        parserBoilerplate
+        attachEmpireLayers
+        IR.setAttr (getTypeDesc @Source.Source) $ (convert code :: Source.Source)
+        pattern <- Pass.eval' @ParserPass $ do
+            Parsing.parsingPassM Parsing.pattern `catchAll` (\e -> throwM $ SomeParserException e)
+            res  <- IR.getAttr @Parser.ParsedExpr
+            return (unwrap' res)
+        return pattern
 
 runParser :: Text.Text -> Command Graph (NodeRef, Parser.MarkedExprMap)
 runParser expr = do

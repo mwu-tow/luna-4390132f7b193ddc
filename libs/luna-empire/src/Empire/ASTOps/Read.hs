@@ -182,6 +182,17 @@ getTargetFromMarked marked = match marked $ \case
     _ -> return marked
 
 
+getVarEdge :: GraphOp m => NodeId -> m EdgeRef
+getVarEdge nid = do
+    ref <- getASTRef nid
+    match ref $ \case
+        IR.Marked _m expr -> do
+            expr' <- IR.source expr
+            match expr' $ \case
+                IR.Unify l r -> return l
+                _            -> throwM $ NotUnifyException expr'
+        _ -> throwM $ MalformedASTRef ref
+
 getTargetEdge :: GraphOp m => NodeId -> m EdgeRef
 getTargetEdge nid = do
     ref <- getASTRef nid
@@ -309,11 +320,15 @@ isMatch expr = isJust <$> IRExpr.narrowTerm @IR.Unify expr
 isCons :: GraphOp m => NodeRef -> m Bool
 isCons expr = isJust <$> IRExpr.narrowTerm @IR.Cons expr
 
+isVar :: GraphOp m => NodeRef -> m Bool
+isVar expr = isJust <$> IRExpr.narrowTerm @IR.Var expr
+
 dumpPatternVars :: GraphOp m => NodeRef -> m [NodeRef]
 dumpPatternVars ref = match ref $ \case
     Var _     -> return [ref]
     Cons _ as -> fmap concat $ mapM (dumpPatternVars <=< IR.source) as
     Grouped g -> dumpPatternVars =<< IR.source g
+    Tuple a   -> fmap concat $ mapM (dumpPatternVars <=< IR.source) a
     _         -> return []
 
 nodeIsPatternMatch :: GraphOp m => NodeId -> m Bool

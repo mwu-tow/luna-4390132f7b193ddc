@@ -822,11 +822,27 @@ renameNode loc nid name
             Code.replaceAllUses v stripped
         resendCode loc
     | otherwise = do
-        withTC loc False $ runASTOp $ do
-            _ <- liftIO $ ASTParse.runProperVarParser name
-            v <- ASTRead.getASTVar nid
-            ASTModify.renameVar v $ convert name
-            Code.replaceAllUses v name
+        withTC loc False $ do
+            runASTOp $ do
+                _        <- liftIO $ ASTParse.runProperPatternParser name
+                pat      <- ASTParse.parsePattern name
+                Code.propagateLengths pat
+                v        <- ASTRead.getASTVar nid
+                patIsVar <- ASTRead.isVar pat
+                varIsVar <- ASTRead.isVar v
+                if patIsVar && varIsVar then do
+                    ASTModify.renameVar v $ convert name
+                    Code.replaceAllUses v name
+                    IR.deleteSubtree pat
+                else do
+                    ref      <- ASTRead.getASTPointer nid
+                    Just beg <- Code.getOffsetRelativeToFile ref
+                    varLen   <- IR.getLayer @SpanLength v
+                    vEdge    <- ASTRead.getVarEdge nid
+                    IR.replaceSource pat vEdge
+                    Code.gossipLengthsChanged pat
+                    void $ Code.applyDiff beg (beg + varLen) name
+            runAliasAnalysis
         resendCode loc
 
 dumpGraphViz :: GraphLocation -> Empire ()
