@@ -323,6 +323,9 @@ isCons expr = isJust <$> IRExpr.narrowTerm @IR.Cons expr
 isVar :: GraphOp m => NodeRef -> m Bool
 isVar expr = isJust <$> IRExpr.narrowTerm @IR.Var expr
 
+isASGFunction :: GraphOp m => NodeRef -> m Bool
+isASGFunction expr = isJust <$> IRExpr.narrowTerm @IR.ASGFunction expr
+
 dumpPatternVars :: GraphOp m => NodeRef -> m [NodeRef]
 dumpPatternVars ref = match ref $ \case
     Var _     -> return [ref]

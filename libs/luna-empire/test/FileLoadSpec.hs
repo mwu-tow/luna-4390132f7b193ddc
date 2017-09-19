@@ -173,7 +173,7 @@ spec = around withChannels $ parallel $ do
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 graph <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildGraph
                 return graph
-            withResult res $ \(Graph.Graph nodes connections _ _ _) -> do
+            withResult res $ \(Graph.Graph nodes connections i _ _) -> do
                 let Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
                 pi ^. Node.code `shouldBe` "3.14"
                 pi ^. Node.canEnter `shouldBe` False
@@ -189,6 +189,7 @@ spec = around withChannels $ parallel $ do
                 let Just c = find (\node -> node ^. Node.name == Just "c") nodes
                 c ^. Node.code `shouldBe` "3"
                 c ^. Node.canEnter `shouldBe` False
+                i ^? _Just . Node.isDef `shouldBe` Just True
                 connections `shouldMatchList` [
                       (outPortRef (pi ^. Node.nodeId)  [], inPortRef (anon ^. Node.nodeId) [Port.Arg 0])
                     , (outPortRef (foo ^. Node.nodeId) [], inPortRef (bar  ^. Node.nodeId) [Port.Head])
@@ -1402,7 +1403,7 @@ spec = around withChannels $ parallel $ do
                         «1»d = foo 3
                         d
                     |]
-            code <- evalEmp env $ do
+            (inputSidebar, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc initialCode
@@ -1414,7 +1415,9 @@ spec = around withChannels $ parallel $ do
                 (input, _) <- Graph.withGraph loc'' $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.removePort loc'' (outPortRef input [Port.Projection 0])
                 code <- Graph.withUnit loc $ use Graph.code
-                return code
+                inputSidebar <- Graph.withGraph loc'' $ runASTOp $ GraphBuilder.buildInputSidebar input
+                return (inputSidebar, code)
+            inputSidebar ^. Node.isDef `shouldBe` True
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 def main:
                     «2»def foo:

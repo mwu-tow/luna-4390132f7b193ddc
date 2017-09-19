@@ -76,6 +76,7 @@ spec = around withChannels $ parallel $ do
                 length topLevel `shouldBe` 1
                 topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
+                i ^? _Just . Node.isDef `shouldBe` Just False
                 o            `shouldSatisfy` isJust
                 n1LevelNodes `shouldSatisfy` null
         it "asserts things about `foo = a: a`" $ \env -> do

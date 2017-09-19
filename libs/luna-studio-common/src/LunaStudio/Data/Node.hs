@@ -32,6 +32,7 @@ data ExpressionNode = ExpressionNode { _exprNodeId       :: NodeId
 
 data InputSidebar = InputSidebar { _inputNodeId    :: NodeId
                                  , _inputEdgePorts :: [OutPortTree OutPort]
+                                 , _isDef          :: Bool
                                  } deriving (Eq, Generic, Show, Typeable)
 
 data OutputSidebar = OutputSidebar { _outputNodeId    :: NodeId
