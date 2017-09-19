@@ -4,7 +4,9 @@ mixpanel = Mixpanel.init("0d906436719b047c86b7fee8ae550601", {
     protocol: 'https'
 });
 
-filters = []
+var devMode = process.env.LUNA_STUDIO_DEVELOP != null;
+
+var filters = []
 
 function test(title) {
     for (var i = 0, len = filters.length; i < len; i++)
@@ -21,10 +23,15 @@ module.exports = {
     },
     track: function (title, data) {
         if (atom.config.get('luna-studio.analyticsEnabled') && test(title)) {
-            console.log("track: " + title, data);
-            mixpanel.track(title, data);
+            if(devMode) {
+                console.log("track.accept: " + title, data);
+            } else {
+                mixpanel.track(title, data);
+            }
         } else {
-            console.log("discard: " + title, data);
+            if(devMode) {
+                console.log("track.discard: " + title, data);
+            }
         }
     }
 }
