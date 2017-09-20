@@ -75,21 +75,21 @@ nodeEditor_ ref ne = React.viewWithSKey nodeEditor name (ref, ne) mempty
 
 nodeEditor :: ReactView (Ref App, NodeEditor)
 nodeEditor = React.defineView name $ \(ref, ne') -> do
-    let ne              = applySearcherHints ne'
-        camera          = ne ^. NodeEditor.screenTransform . CameraTransformation.logicalToScreen
-        nodes           = ne ^. NodeEditor.expressionNodes . to HashMap.elems
-        input           = ne ^. NodeEditor.inputNode
-        output          = ne ^. NodeEditor.outputNode
-        lookupNode m    = ( m ^. MonadPath.monadType
-                          , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
-        monads          = map lookupNode $ ne ^. NodeEditor.monads
-        maybeSearcher   = ne ^. NodeEditor.searcher
-        visLibPath      = ne ^. NodeEditor.visualizersLibPath
-        visualizations  = NodeEditor.getVisualizations ne
-        isAnyVisActive  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
-        isAnyFullscreen = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
-        nodesWithVis    = Set.fromList $ map (^. visPropNodeLoc) visualizations
-        (selectedNodeVis, notSelectedNodeVis) = NodeEditor.seperateVisualizationsViaSelectionOfNode visualizations ne
+    let ne               = applySearcherHints ne'
+        camera           = ne ^. NodeEditor.screenTransform . CameraTransformation.logicalToScreen
+        nodes            = ne ^. NodeEditor.expressionNodes . to HashMap.elems
+        input            = ne ^. NodeEditor.inputNode
+        output           = ne ^. NodeEditor.outputNode
+        lookupNode m     = ( m ^. MonadPath.monadType
+                           , m ^. MonadPath.path . to (mapMaybe $ flip HashMap.lookup $ ne ^. NodeEditor.expressionNodes))
+        monads           = map lookupNode $ ne ^. NodeEditor.monads
+        maybeSearcher    = ne ^. NodeEditor.searcher
+        visLibPath       = ne ^. NodeEditor.visualizersLibPath
+        visualizations   = NodeEditor.getVisualizations ne
+        isAnyVisActive   = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
+        isAnyFullscreen  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
+        nodesWithVis     = Set.fromList $ map (^. visPropNodeLoc) visualizations
+        visWithSelection = map (\vis -> (vis, NodeEditor.isVisualizationNodeSelected vis ne)) visualizations 
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
             div_ [ "className" $= Style.prefixFromList ( ["studio-window"]
@@ -120,14 +120,11 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-                            forM_ notSelectedNodeVis $ nodeVisualization_ ref visLibPath False
-                            forM_ selectedNodeVis    $ nodeVisualization_ ref visLibPath True
+                            forM_ visWithSelection . uncurry $ nodeVisualization_ ref visLibPath
 
 
                         planeNewConnection_ $ do
                             forKeyed_ (ne ^. NodeEditor.posHalfConnections) $ uncurry halfConnection_
-
-                        --planeSelectedNode_ $ do
 
                 withJust input  $ \n -> sidebar_ ref (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher) n
                 withJust output $ sidebar_ ref Nothing

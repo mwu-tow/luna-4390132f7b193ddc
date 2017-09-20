@@ -39,11 +39,11 @@ objNameVis      = "node-vis"
 objNameShortVal = "node-short-value"
 
 
-nodeVisualization_ :: Ref App -> FilePath -> Bool -> VisualizationProperties -> ReactElementM ViewEventHandler ()
-nodeVisualization_ ref visLibPath nodeIsSelected visProp = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visLibPath, nodeIsSelected, visProp) mempty
+nodeVisualization_ :: Ref App -> FilePath -> VisualizationProperties -> Bool -> ReactElementM ViewEventHandler ()
+nodeVisualization_ ref visLibPath visProp isNodeSelected = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visLibPath, visProp, isNodeSelected) mempty
 
-nodeVisualization :: ReactView (Ref App, FilePath, Bool, VisualizationProperties)
-nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, nodeIsSelected, visProp) -> do
+nodeVisualization :: ReactView (Ref App, FilePath, VisualizationProperties, Bool)
+nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, visProp, isNodeSelected) -> do
     let nl           = visProp ^. visPropNodeLoc
         nid          = nl ^. NodeLoc.nodeId
         visualizers' = visProp ^. visPropVisualizers
@@ -51,7 +51,7 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, nodeIsSelec
         menuVisible  = elem (vis ^. visualizationMode) [Focused, Default]
         vmode        = vis ^. visualizationMode
         activeClass  = if vmode == Default then [] else [ "visualization--active" ]
-        nSelectedClass = if nodeIsSelected then [ "visualization--node-selected" ] else []
+        nSelectedClass = if isNodeSelected then [ "visualization--node-selected" ] else []
         classes      = if vmode == Preview || vmode == FullScreen then [ "visualization", "visualization--fullscreen", "noselect" ] else [ "visualization", "noselect" ]
         visShift     = show $ 4 + lineHeight * if visProp ^. visPropIsNodeExpanded then fromIntegral $ visProp ^. visPropArgPortsNumber else 0
     div_
