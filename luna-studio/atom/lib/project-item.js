@@ -22,20 +22,19 @@ module.exports = ProjectItem = class ProjectItem {
         this.uri = project.uri != undefined ? project.uri : project.name;
         this.classes = classes;
         this.onOpen = function() {
-            spinner = new Spinner()
-            this.update( { logo: spinner.render() } );
-            etch.updateSync(this);
-            spinner.start();
-            etch.updateSync(this);
-            progress = function(p) {
-                // etch.updateSync(this);
-                spinner.setProgress(p);
-            };
-            progress(0);
+            spinner = new Spinner(progress = 0)
             var self = this;
+            update = function() {
+                self.update( { logo: spinner.render() } );
+            }
+            progress = function(p) {
+                spinner.setProgress(p);
+                update();
+            };
             finalize = function() {
                 self.update( { logo: self.thumbLogo() } );
             }
+            update();
             onOpen(progress, finalize);
         };
         this.thumb = project.thumb != undefined ? project.thumb : "atom://luna-studio/rsc/logo.png";

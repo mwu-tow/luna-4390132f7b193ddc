@@ -73,10 +73,8 @@ module.exports =
                         cursor: @.getCursorBufferPosition()
                       #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
                     @codeEditor.pushDiff(diff)
-        @spinner = new Spinner(true)
-        @spinner.start()
-        @spinner.setProgress(0)
-        @spinnerElement = @element.appendChild(@spinner.element)
+        spinner = new Spinner(progress = 0, overlap = true)
+        @spinnerElement = @element.appendChild(spinner.element)
 
     serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
 
