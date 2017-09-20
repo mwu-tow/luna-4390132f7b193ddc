@@ -89,10 +89,11 @@
     .graphBackground;
     .roundCorners;
     line-height: calc(@ui ~'*' 14px);
-    padding: 0 calc(@ui ~'*' 7px)
-               calc(@ui ~'*' 2px)
-               calc(@ui ~'*' 6px);
-    margin-top: calc(@ui ~'*' 3px);
+    padding:     0 
+                 calc(@ui ~'*' 7px)
+                 calc(@ui ~'*' 2px)
+                 calc(@ui ~'*' 6px);
+    margin-top:  calc(@ui ~'*' 3px);
 }
 
 .luna-node__expression {
@@ -167,8 +168,8 @@ svg.luna-node__ports {
     }
 }
 
-.luna-port--self .luna-port__select {
-    r: 10;
+.luna-port--alias .luna-port__shape {
+    fill: none;
 }
 
 .luna-port__select {
@@ -374,21 +375,21 @@ svg.luna-node__ports {
 
 .luna-ctrl--bool--True,
 .luna-ctrl--bool--False {
-    float:         right;
-    top:           4rem;
-    cursor:        pointer;
-    height:        8rem;
-    width:         23rem;
+    float:    right;
+    top:      4rem;
+    cursor:   pointer;
+    height:   8rem;
+    width:    23rem;
     .roundCorners;
-    position:      relative;
-    display:       flex;
+    position: relative;
+    display:  flex;
     &::after {
-        top:          -2rem;
-        position:      relative;
-        display:       block;
-        content:       " ";
-        width:         12rem;
-        height:        12rem;
+        top:     -2rem;
+        position: relative;
+        display:  block;
+        content:  " ";
+        width:    12rem;
+        height:   12rem;
         .roundCorners;
     }
 }

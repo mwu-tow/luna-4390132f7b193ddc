@@ -169,7 +169,7 @@ dynamicScale = React.defineView objDynStyle $ \cameraScale -> do
           --elemString $ ".luna-camera-scale { transform: " <> showCameraScale cameraScale <> " }"
 
           --connections
-          elemString $ ".luna-connection__line { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
+          elemString $ ".luna-connection__line, .luna-port--alias .luna-port__shape { stroke-width: "   <> show (1.2 + (1 / scale)) <> " }"
           elemString $ ".luna-connection__select { stroke-width: " <> show (10/scale)          <> " }"
 
           --collapsed nodes

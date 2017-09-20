@@ -3,23 +3,24 @@
 module NodeEditor.React.View.Port where
 
 import           Common.Prelude
-import qualified Data.Aeson                       as Aeson
-import           LunaStudio.Data.Constants        (nodePropertiesWidth)
-import           LunaStudio.Data.PortRef          (AnyPortRef, toAnyPortRef)
-import qualified NodeEditor.Event.Mouse           as Mouse
-import qualified NodeEditor.Event.UI              as UI
-import qualified NodeEditor.React.Event.Port      as Port
-import           NodeEditor.React.Model.App       (App)
-import           NodeEditor.React.Model.Constants (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius')
-import           NodeEditor.React.Model.Node      (NodeLoc)
-import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsOnly, Mode (..),
-                                                   getPortNumber, isInPort, isInvisible, isSelf, portAngleStart, portAngleStop)
-import qualified NodeEditor.React.Model.Port      as Port
-import           NodeEditor.React.Store           (Ref, dispatch)
-import qualified NodeEditor.React.View.Style      as Style
-import           Numeric                          (showFFloat)
-import           React.Flux                       hiding (view)
-import qualified React.Flux                       as React
+import qualified Data.Aeson                         as Aeson
+import           LunaStudio.Data.Constants          (nodePropertiesWidth)
+import           LunaStudio.Data.PortRef            (AnyPortRef, toAnyPortRef)
+import qualified NodeEditor.Event.Mouse             as Mouse
+import qualified NodeEditor.Event.UI                as UI
+import qualified NodeEditor.React.Event.Port        as Port
+import           NodeEditor.React.Model.App         (App)
+import           NodeEditor.React.Model.Constants   (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius', portRadius, portAliasRadius, connectionWidth)
+import           NodeEditor.React.Model.Node        (NodeLoc)
+import           NodeEditor.React.Model.Port        (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), 
+                                                    IsOnly, Mode (..), getPortNumber, isInPort, isInvisible, isSelf, 
+                                                    portAngleStart, portAngleStop)
+import qualified NodeEditor.React.Model.Port        as Port
+import           NodeEditor.React.Store             (Ref, dispatch)
+import qualified NodeEditor.React.View.Style        as Style
+import           Numeric                            (showFFloat)
+import           React.Flux                         hiding (view)                 
+import qualified React.Flux                         as React
 
 
 name :: JSString
@@ -112,7 +113,15 @@ portAlias = React.defineView "port-alias" $ \p -> do
         circle_
             [ "className" $= Style.prefix "port__shape"
             , "key"       $= (jsShow portId <> "a")
-            , "fill"      $= color
+            , "r"         $= jsShow2 portAliasRadius
+            , "stroke"    $= color
+            ] mempty
+        circle_
+            [ "className"      $= Style.prefix "port__select"
+            , "key"            $= (jsShow portId <> "b")
+            , "r"              $= jsShow2 portAliasRadius
+            , "strokeWidth"    $= jsShow2 (portRadius - portAliasRadius - connectionWidth)
+            , "strokeLocation" $= "outside"
             ] mempty
 
 portSelf_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
@@ -120,9 +129,9 @@ portSelf_ ref nl p = React.viewWithSKey portSelf "port-self" (ref, nl, p) mempty
 
 portSelf :: ReactView (Ref App, NodeLoc, AnyPort)
 portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
-    let portId    = p ^. Port.portId
-        portRef   = toAnyPortRef nl portId
-        color     = convert $ p ^. Port.color
+    let portId       = p ^. Port.portId
+        portRef      = toAnyPortRef nl portId
+        color        = convert $ p ^. Port.color
         className    = Style.prefixFromList $ ["port", "port--self"] <> modeClass (p ^. Port.mode)
         portHandlers = if isInvisible p then [] else handlers ref portRef
     g_
@@ -136,7 +145,7 @@ portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
             ( portHandlers <>
             [ "className" $= Style.prefix "port__select"
             , "key"       $= (jsShow portId <> "b")
-            , "r"         $= jsShow2 (lineHeight/1.5)
+            , "r"         $= jsShow2 (portAliasRadius - connectionWidth/2)
             ]) mempty
 
 portSingle_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
@@ -144,12 +153,12 @@ portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) 
 
 portSingle :: ReactView (Ref App, NodeLoc, AnyPort)
 portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
-    let portId    = p ^. Port.portId
-        portRef   = toAnyPortRef nl portId
-        portType  = toString $ p ^. Port.valueType
-        isInput   = isInPort portId
-        color     = convert $ p ^. Port.color
-        classes   = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] <> modeClass (p ^. Port.mode)
+    let portId   = p ^. Port.portId
+        portRef  = toAnyPortRef nl portId
+        portType = toString $ p ^. Port.valueType
+        isInput  = isInPort portId
+        color    = convert $ p ^. Port.color
+        classes  = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] <> modeClass (p ^. Port.mode)
         r1 :: Double -> JSString
         r1 = jsShow2 . (+) nodeRadius
         r2 = jsShow2 nodeRadius'
@@ -193,7 +202,6 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
         svgFlag1  = if isInput then "1"  else "0"
         svgFlag2  = if isInput then "0"  else "1"
         mode      = if isInput then -1.0 else 1.0
---      n         = if isInput then 1 else 0
         adjust
             | numOfPorts == 1 = typeOffsetY1
             | numOfPorts == 2 = typeOffsetY2
