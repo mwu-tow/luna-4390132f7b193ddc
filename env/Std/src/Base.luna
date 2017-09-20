@@ -561,7 +561,7 @@ class JSON:
     JSONObject (Map Text JSON)
     JSONNull
 
-    def safeParse data: primParseJSON (data.toText)
+    def safeParse data: parseJSON (data.toText)
 
     def parse data: case JSON.safeParse data of
        Right json: json
