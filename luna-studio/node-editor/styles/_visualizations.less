@@ -65,7 +65,6 @@
     width:    100%;
 }
 
-.luna-visualization:hover,
 .luna-visualization--node-selected {
     z-index: @luna-zindex-visualization-hover;
     .luna-visualization-container {
@@ -82,18 +81,6 @@
 
 .luna-graph--has-visualization-active {
 
-    .luna-visualization:not(.luna-visualization--active) {
-        .luna-visualization-container {
-            background: none;
-        }
-        .luna-dropdown { display: none; }
-        &:hover {
-            .luna-visualization-container {
-                .luna-visualization-container-hover;
-            }
-        }
-    }
-
     .luna-visualization--active {
         z-index: @luna-zindex-visualization-active;
         .luna-visualization-cover {
@@ -107,7 +94,14 @@
 
 }
 
+.luna-visualization:not(.luna-visualization--active) {
 
+    &:hover {
+        .luna-visualization-container {
+            .luna-visualization-container-hover;
+        }
+    }
+}
 
 /////////////////////////////
 //     fullscreen mode     //
