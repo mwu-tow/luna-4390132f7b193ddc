@@ -1261,11 +1261,17 @@ spec = around withChannels $ parallel $ do
                 Graph.renamePort loc (outPortRef input [Port.Projection 1]) "newName"
         it "reorders function ports" $ let
             initialCode = [r|
+                import Std.Geo
+                import Std.Base
+
                 def main baz a:
                     foo a
                     baz
                 |]
             expectedCode = [r|
+                import Std.Geo
+                import Std.Base
+
                 def main a baz:
                     foo a
                     baz

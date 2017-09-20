@@ -235,11 +235,11 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
     ASGFunction _ as _ -> do
         for_ (as ^? ix port) $ \alink -> do
             Just funBeg   <- Code.getOffsetRelativeToFile   lambda
-            initialOffset <- Code.getOffsetRelativeToTarget alink
+            initialOffset <- (+funBeg) <$> Code.getOffsetRelativeToTarget alink
             let newArgs = shiftPosition port newPosition as
             Just (lam' :: IR.Expr (IR.ASGFunction)) <- IR.narrow lambda
             IR.modifyExprTerm lam' $ wrapped . IR.termASGFunction_args .~ fmap IR.unsafeGeneralize newArgs
-            newOffset <- Code.getOffsetRelativeToTarget alink
+            newOffset <- (+funBeg) <$> Code.getOffsetRelativeToTarget alink
             ownOff    <- IR.getLayer @SpanOffset alink
             ownLen    <- IR.getLayer @SpanLength =<< IR.source alink
             code      <- Code.getAt (initialOffset - ownOff) (initialOffset + ownLen)
