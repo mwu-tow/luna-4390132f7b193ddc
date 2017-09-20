@@ -140,8 +140,14 @@ toValidEmpireConnection (OutPortRef' src') (InPortRef' dst')     = Just $ Empire
 toValidEmpireConnection dst'@(InPortRef' _) src'@(OutPortRef' _) = toValidEmpireConnection src' dst'
 toValidEmpireConnection _ _                                      = Nothing
 
+-- This function should be removed once we redesign connections to the same node
+toValidConnection :: AnyPortRef -> AnyPortRef -> Maybe Empire.Connection
+toValidConnection pr1 pr2 = if pr1 ^. PortRef.nodeLoc == pr2 ^. PortRef.nodeLoc
+    then Nothing
+    else toValidEmpireConnection pr1 pr2
+
 canConnect :: AnyPortRef -> AnyPortRef -> Bool
-canConnect = isJust .: toValidEmpireConnection
+canConnect = isJust .: toValidConnection
 
 instance Convertible PosConnection HalfConnection where
     convert = HalfConnection <$> OutPortRef' . view src <*> view dstPos <*> view sidebarConn <*> view mode

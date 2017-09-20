@@ -30,7 +30,7 @@ import           NodeEditor.Action.State.NodeEditor         (getConnection, getN
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
 import           NodeEditor.Event.Mouse                     (mousePosition, workspacePosition)
 import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destination, Source))
-import           NodeEditor.React.Model.Connection          (ConnectionId, toValidEmpireConnection)
+import           NodeEditor.React.Model.Connection          (ConnectionId, toValidConnection)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node                (Node (Expression))
 import           NodeEditor.React.Model.Node.ExpressionNode (isCollapsed)
@@ -106,7 +106,7 @@ handlePortMouseUp portRef action = when (action ^. connectMode == Drag) $
 
 snapToPort :: AnyPortRef -> Connect -> Command State ()
 snapToPort portRef action =
-    withJust (toValidEmpireConnection (action ^. connectSourcePort) portRef) $ \conn -> do
+    withJust (toValidConnection (action ^. connectSourcePort) portRef) $ \conn -> do
         mayConnModel <- createHalfConnectionModel' (conn ^. ConnectionAPI.src) (conn ^. ConnectionAPI.dst)
         withJust mayConnModel $ \connModel -> do
             update $ action & connectSnappedPort ?~ portRef
@@ -132,7 +132,7 @@ stopConnectingUnsafe _ = do
 
 connectToPort :: AnyPortRef -> Connect -> Command State ()
 connectToPort dst action = do
-    withJust (toValidEmpireConnection dst $ action ^. connectSourcePort) $ \newConn -> do
+    withJust (toValidConnection dst $ action ^. connectSourcePort) $ \newConn -> do
         case (action ^. connectIsArgumentConstructor, action ^. connectSourcePort) of
             (True, OutPortRef' outPortRef) -> do
                 void . localAddConnection outPortRef $ newConn ^. ConnectionAPI.dst
