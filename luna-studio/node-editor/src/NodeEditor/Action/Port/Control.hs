@@ -72,7 +72,7 @@ newSliderValue currentPostion currentTime slider =
         nv   = v / max' :: Double
         f :: Double -> Double
         f x' = x' + x'' * nv where
-          x'' = sign x' + (x' ** 0.5)
+          x'' = sign x' + (abs x' ** 0.5)
         -- f x = x + nv * x' * a where
         -- a = 1 :: Double
         -- b = 0.9  :: Double
