@@ -91,7 +91,7 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
                     , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.ToggleVisualizations nl
                     ] $ if isVisualization
                         then path_ [ "d" $= Style.iconEyeDisabled ] mempty
-                        else path_ [ "d" $= Style.iconEyeEye      ] mempty
+                        else path_ [ "d" $= Style.iconEye         ] mempty
 
 
 nodeExpression_ :: Ref App -> NodeLoc -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
