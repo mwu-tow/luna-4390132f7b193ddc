@@ -40,6 +40,7 @@ import           LunaStudio.Data.NodeMeta        (NodeMeta (..))
 import qualified LunaStudio.Data.NodeMeta        as NodeMeta
 import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
+import qualified LunaStudio.Data.PortDefault     as PortDefault
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.Range           (Range (..))
@@ -1116,6 +1117,19 @@ spec = around withChannels $ parallel $ do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.disconnect (loc |> foo) (inPortRef output [])
+        it "updates literal node " $ let
+            expectedCode = [r|
+                def main:
+                    pi = 3.14
+                    foo = a: b: a + b
+                    c = 100000000
+                    baz = foo 8 c
+                |]
+            in specifyCodeChange mainCondensed expectedCode $ \loc -> do
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                Graph.setPortDefault loc (inPortRef c []) (Just $ PortDefault.Constant (PortDefault.IntValue 100000000))
+                Just bar <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 3
+                Graph.renameNode loc bar "baz"
         it "preserves code after connecting & disconnecting lambda output" $ let
             code = [r|
                 def main a:

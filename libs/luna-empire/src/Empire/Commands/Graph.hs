@@ -1507,4 +1507,12 @@ makeWhole :: GraphOp m => NodeRef -> NodeId -> m ()
 makeWhole srcAst dst = do
     (_, out) <- GraphBuilder.getEdgePortMapping
     let connectToOutputEdge = out == dst
-    if connectToOutputEdge then setOutputTo srcAst else GraphUtils.rewireNode dst srcAst
+    if connectToOutputEdge then setOutputTo srcAst else do
+        dstTarget <- ASTRead.getASTTarget dst
+        dstBeg    <- Code.getASTTargetBeginning dst
+        oldLen    <- IR.getLayer @SpanLength dstTarget
+        newExpr   <- ASTPrint.printFullExpression srcAst
+        Code.applyDiff dstBeg (dstBeg + oldLen) newExpr
+        GraphUtils.rewireNode dst srcAst
+        dstTarget <- ASTRead.getASTTarget dst
+        Code.gossipLengthsChanged dstTarget
