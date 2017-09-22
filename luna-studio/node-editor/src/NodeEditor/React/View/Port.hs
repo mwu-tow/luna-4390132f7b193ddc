@@ -29,7 +29,7 @@ name = "port"
 typeOffsetX :: Double
 typeOffsetX = 36
 
-typeOffsetY1,typeOffsetY2,typeOffsetY3,typeOffsetY :: Double
+typeOffsetY1, typeOffsetY2, typeOffsetY3, typeOffsetY :: Double
 typeOffsetY1 = (-3.5)
 typeOffsetY2 = 4.5
 typeOffsetY3 = 12.5

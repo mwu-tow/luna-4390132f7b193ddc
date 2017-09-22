@@ -49,12 +49,12 @@ data Mode = Command                       [QueryResult ()]
           deriving (Eq, Generic, Show)
 
 data Searcher = Searcher
-      { _selected      :: Int
-      , _mode          :: Mode
-      , _input         :: Input
-      , _replaceInput  :: Bool
-      , _rollbackReady :: Bool
-      } deriving (Eq, Generic, Show)
+              { _selected      :: Int
+              , _mode          :: Mode
+              , _input         :: Input
+              , _replaceInput  :: Bool
+              , _rollbackReady :: Bool
+              } deriving (Eq, Generic, Show)
 
 makeLenses ''Searcher
 makeLenses ''DividedInput
@@ -156,10 +156,10 @@ applyExpressionHint n exprN = exprN & Model.expression .~ n ^. Node.expression
 resultsLength :: Getter Searcher Int
 resultsLength = to getLength where
     getLength searcher = case searcher ^. mode of
-      Command    results -> length results
-      Node   _ _ results -> length results
-      NodeName _ results -> length results
-      PortName _ results -> length results
+        Command    results -> length results
+        Node   _ _ results -> length results
+        NodeName _ results -> length results
+        PortName _ results -> length results
 
 updateNodeResult :: [QueryResult ExpressionNode] -> Mode -> Mode
 updateNodeResult r (Node nl nmi _) = Node nl nmi r
@@ -176,8 +176,8 @@ updateCommandsResult _ m           = m
 isCommand :: Getter Searcher Bool
 isCommand = to matchCommand where
   matchCommand searcher = case searcher ^. mode of
-      Command {} -> True
-      _          -> False
+        Command {} -> True
+        _          -> False
 
 isNode :: Getter Searcher Bool
 isNode = to matchNode where

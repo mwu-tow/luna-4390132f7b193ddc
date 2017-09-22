@@ -21,15 +21,15 @@ import           NodeEditor.React.Model.NodeEditor          (GraphStatus (..), N
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import           NodeEditor.React.Model.Port                (InPortIndex (Self))
 import qualified NodeEditor.React.Model.Searcher            as Searcher
-import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview), visPropNodeLoc,
-                                                             visPropVisualization, visualizationMode)
+import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview), 
+                                                            visPropNodeLoc, visPropVisualization, visualizationMode)
 import           NodeEditor.React.Store                     (Ref)
 import           NodeEditor.React.View.Connection           (connection_, halfConnection_)
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
 import           NodeEditor.React.View.ExpressionNode       (filterOutSearcherIfNotRelated, nodeDynamicStyles_, node_)
 import           NodeEditor.React.View.Monad                (monads_)
-import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, planeNewConnection_,
-                                                             planeNodes_, svgPlane_)
+import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, 
+                                                            planeNewConnection_, planeNodes_)
 import           NodeEditor.React.View.SelectionBox         (selectionBox_)
 import           NodeEditor.React.View.Sidebar              (sidebar_)
 import qualified NodeEditor.React.View.Style                as Style
@@ -59,12 +59,12 @@ show4 a = showFFloat (Just 4) a "" -- limit Double to two decimal numbers TODO: 
 applySearcherHints :: NodeEditor -> NodeEditor
 applySearcherHints ne = maybe ne replaceNode $ ne ^. NodeEditor.searcher where
     connect srcPortRef dstPortRef ne' = ne' & NodeEditor.connections . at dstPortRef ?~ Connection.Connection srcPortRef dstPortRef False Connection.Normal
-    tryConnect nl nn ne'              = maybe ne' (\srcPortRef -> connect srcPortRef (InPortRef nl [Self]) ne') $ nn ^. Searcher.predPortRef
-    toModel n nl pos                  = moveNodeToTop $ (convert (def :: NodePath, n)) & ExpressionNode.nodeLoc  .~ nl
+    tryConnect    nl nn ne'           = maybe ne' (\srcPortRef -> connect srcPortRef (InPortRef nl [Self]) ne') $ nn ^. Searcher.predPortRef
+    toModel       n  nl pos           = moveNodeToTop $ (convert (def :: NodePath, n)) & ExpressionNode.nodeLoc  .~ nl
                                                                                        & ExpressionNode.position .~ pos
-    updateNode nl n ne'               = maybe ne' (flip NodeEditor.updateExpressionNode ne . Searcher.applyExpressionHint n) $ NodeEditor.getExpressionNode nl ne'
+    updateNode    nl n ne'            = maybe ne' (flip NodeEditor.updateExpressionNode ne . Searcher.applyExpressionHint n) $ NodeEditor.getExpressionNode nl ne'
     moveNodeToTop n                   = n & ExpressionNode.zPos .~ (ne ^. NodeEditor.topZIndex) + 1
-    replaceNode s                     = case (s ^. Searcher.mode, s ^. Searcher.selectedNode) of
+    replaceNode   s                   = case (s ^. Searcher.mode, s ^. Searcher.selectedNode) of
         (Searcher.Node nl (Searcher.NodeModeInfo _ Nothing   _) _, Just n) -> updateNode nl n ne
         (Searcher.Node nl (Searcher.NodeModeInfo _ (Just nn) _) _, Just n) -> tryConnect nl nn $ NodeEditor.updateExpressionNode (toModel n nl (nn ^. Searcher.position)) ne
         (Searcher.Node nl (Searcher.NodeModeInfo _ (Just nn) _) _, _)      -> tryConnect nl nn $ NodeEditor.updateExpressionNode (moveNodeToTop $ ExpressionNode.mkExprNode nl (s ^. Searcher.inputText) (nn ^. Searcher.position)) ne
@@ -100,19 +100,14 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
 
                 div_ [ "className" $= Style.prefix "studio-window__center", "key" $= "studio-window__center" ] $
                     div_
-                        [ "className"   $= Style.prefixFromList (["graph"] <> if isAnyVisActive  then ["graph--has-visualization-active"] else [])
-                        , "key"         $= "graph"
+                        [ "className" $= Style.prefixFromList (["graph"] <> if isAnyVisActive  then ["graph--has-visualization-active"] else [])
+                        , "key"       $= "graph"
                         ] $ do
 
                         dynamicStyles_ camera $ ne ^. NodeEditor.expressionNodesRecursive
 
-                        svgPlane_ $ do
-                            planeMonads_ $
-                                monads_ monads
-                            planeConnections_ $ do
-                                forM_ (ne ^. NodeEditor.posConnections ) $ connection_ ref
-                                forM_ (ne ^. NodeEditor.selectionBox   ) selectionBox_
-                                forM_ (ne ^. NodeEditor.connectionPen  ) connectionPen_
+                        planeMonads_ $
+                            monads_ monads
 
                         planeNodes_ $ do
                             forM_ nodes $ \n -> node_ ref
@@ -120,6 +115,11 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
+                            planeConnections_ $ do
+                                forM_ (ne ^. NodeEditor.posConnections ) $ connection_ ref
+                                forM_ (ne ^. NodeEditor.selectionBox   ) selectionBox_
+                                forM_ (ne ^. NodeEditor.connectionPen  ) connectionPen_
+
                             forM_ visWithSelection . uncurry $ nodeVisualization_ ref visLibPath
 
 
@@ -131,9 +131,9 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
 
                 planeCanvas_ mempty --required for cursor lock
 
-        GraphLoading   -> noGraph_ True "Loading…"
+        GraphLoading   -> noGraph_ True  "Loading…"
         NoGraph        -> noGraph_ False ""
-        GraphError msg -> noGraph_ True msg
+        GraphError msg -> noGraph_ True  msg
 
 noGraph_ :: Bool -> String -> ReactElementM ViewEventHandler ()
 noGraph_ hideLogo msg =

@@ -16,19 +16,31 @@
 //        z-indexes        //
 /////////////////////////////
 
+@lvl-1:                                   0;
 
+@luna-zindex-graph:                       @lvl-1 + 1;
+@luna-zindex-monads:                      @lvl-1 + 2;
+@luna-zindex-visualization-inactive:      @lvl-1 + 3;
+@luna-zindex-visualization-hover:         @lvl-1 + 4;
 
-@luna-zindex-visualization-hover:         100001;
-@luna-zindex-visualization-selected-node: 100002;
-@luna-zindex-visualization-active:        100003;
+@lvl-2:                                   10;
 
-@above-graph:                             1000000;
+@luna-zindex-connections:                 @lvl-2 + 1;
+@luna-zindex-nodes:                       @lvl-2 + 2;
 
-@luna-zindex-canvas:                    @above-graph + 1;
-@luna-zindex-sidebars:                  @above-graph + 2;
-@luna-zindex-breadcrumbs:               @above-graph + 3;
-@luna-zindex-searcher:                  @above-graph + 4;
-@luna-zindex-visualization-fullscreen:  @above-graph + 5;
+@lvl-3:                                   10000;
+
+@luna-zindex-visualization-selected-node: @lvl-3 + 1;
+@luna-zindex-visualization-active:        @lvl-3 + 2;
+
+@lvl-4:                                   100000000;
+
+@luna-zindex-new-connection:              @lvl-4 + 1;
+@luna-zindex-canvas:                      @lvl-4 + 2;
+@luna-zindex-sidebars:                    @lvl-4 + 3;
+@luna-zindex-breadcrumbs:                 @lvl-4 + 4;
+@luna-zindex-searcher:                    @lvl-4 + 5;
+@luna-zindex-visualization-fullscreen:    @lvl-4 + 6;
 
 
 /////////////////////////////

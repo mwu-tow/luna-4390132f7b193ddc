@@ -131,7 +131,7 @@ atom-workspace .luna-studio {
     flex:     none;
     overflow: inherit;
     .fillSpace;
-    z-index:  0;    // puts graph under breadcrumbs
+    z-index:  @luna-zindex-graph;
 }
 
 .luna-svg-plane {
@@ -139,6 +139,18 @@ atom-workspace .luna-studio {
     width:    100px; // FIXME
     height:   100px; // FIXME
     overflow: inherit;
+}
+
+.luna-plane--monads {
+    z-index: @luna-zindex-monads;
+}
+
+.luna-plane--connections {
+    z-index: @luna-zindex-connections;
+}
+
+.luna-plane--new-connection {
+    z-index: @luna-zindex-new-connection;
 }
 
 .luna-plane--canvas {
@@ -149,18 +161,3 @@ atom-workspace .luna-studio {
 .luna-plane--selected-node {
     z-index: @luna-zindex-visualization-selected-node;
 }
-
-// common elements
-
-// ::-webkit-scrollbar {
-//     width: 4px;
-//     height: 4px;
-// }
-//
-// ::-webkit-scrollbar-thumb {
-//     background: #282828;
-//     border-radius: 4px;
-//     &:hover {
-//         background: #888;
-//     }
-// }

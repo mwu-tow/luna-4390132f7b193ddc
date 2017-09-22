@@ -4,13 +4,14 @@
 //       connections       //
 /////////////////////////////
 
-.luna-svg-plane--new-connection {
-    z-index: 1000000;
+.luna-plane--new-connection {
+    z-index: @luna-zindex-new-connection;
     .luna-connection__line {
         pointer-events: none;
         stroke: #fff !important;
     }
 }
+
 .luna-connections {
     stroke-linecap:  round;
     stroke-linejoin: round;

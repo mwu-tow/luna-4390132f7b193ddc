@@ -6,27 +6,25 @@ import           JS.Scene                    (planeCanvasId)
 import qualified NodeEditor.React.View.Style as Style
 import           React.Flux
 
-
-svgPlane_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
-svgPlane_ =
-    svg_
-        [ "className" $= Style.prefix "svg-plane"
-        , "key"       $= "svgPlane"
-        ]
-
 planeMonads_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
 planeMonads_ =
-    g_
-        [ "className" $= Style.prefixFromList [ "plane", "plane--monads", "camera-transform" ]
-        , "key"       $= "monads"
-        ]
+    svg_
+        [ "className" $= Style.prefixFromList [ "svg-plane", "svg-plane--monads" ]
+        , "key"       $= "svgPlaneMonads"
+        ] . g_
+            [ "className" $= Style.prefixFromList [ "plane", "plane--monads", "camera-transform" ]
+            , "key"       $= "monads"
+            ]
 
 planeConnections_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
 planeConnections_ =
-    g_
-        [ "className" $= Style.prefixFromList [ "plane", "plane--connections", "camera-transform" ]
-        , "key"       $= "connections"
-        ]
+    svg_
+        [ "className" $= Style.prefixFromList [ "svg-plane", "svg-plane--connections" ]
+        , "key"       $= "svgPlaneConnections"
+        ] . g_
+            [ "className" $= Style.prefixFromList [ "plane", "plane--connections", "camera-transform" ]
+            , "key"       $= "connections"
+            ]
 
 planeNewConnection_ :: ReactElementM ViewEventHandler () -> ReactElementM ViewEventHandler ()
 planeNewConnection_ =
