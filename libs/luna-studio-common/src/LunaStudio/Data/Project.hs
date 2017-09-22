@@ -79,9 +79,7 @@ instance (Hashable k, Eq k, Binary k, Binary v) => Binary (HashMap k v) where
 
 
 getModuleSettings :: FilePath -> FilePath -> IO (Maybe ModuleSettings)
-getModuleSettings configPath modulePath = decodeFileEither configPath >>= \ps -> case ps of
-    Left  e               -> return def
-    Right projectSettings -> return $ Map.lookup modulePath projectSettings
+getModuleSettings configPath modulePath = either def (Map.lookup modulePath . view modulesSettings) <$> decodeFileEither configPath
 
 updateLocationSettings :: FilePath -> FilePath -> Breadcrumb Text -> LocationSettings -> IO ()
 updateLocationSettings configPath filePath bc settings = decodeFileEither configPath >>= encodeFile configPath . updateProjectSettings where
