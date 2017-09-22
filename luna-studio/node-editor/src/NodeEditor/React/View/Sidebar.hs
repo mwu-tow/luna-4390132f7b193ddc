@@ -17,7 +17,6 @@ import           LunaStudio.Data.Position                (y)
 import qualified NodeEditor.Event.UI                     as UI
 import qualified NodeEditor.React.Event.Sidebar          as Sidebar
 import           NodeEditor.React.Model.App              (App)
-import           NodeEditor.React.Model.Constants        (lineHeight)
 import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, SidebarMode (AddRemove, MoveConnect), SidebarNode, countProjectionPorts,
                                                           isInputSidebar, minimalNumberOfPorts)
 import qualified NodeEditor.React.Model.Node.SidebarNode as SidebarNode

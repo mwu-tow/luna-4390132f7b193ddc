@@ -1,12 +1,13 @@
-Mixpanel = require("mixpanel")
+"use strict";
+var Mixpanel = require("mixpanel");
 
-mixpanel = Mixpanel.init("0d906436719b047c86b7fee8ae550601", {
+var mixpanel = Mixpanel.init("0d906436719b047c86b7fee8ae550601", {
     protocol: 'https'
 });
 
-var devMode = process.env.LUNA_STUDIO_DEVELOP != null;
+var devMode = process.env.LUNA_STUDIO_DEVELOP !== null;
 
-var filters = []
+var filters = [];
 
 function test(title) {
     for (var i = 0, len = filters.length; i < len; i++)
@@ -17,9 +18,9 @@ function test(title) {
 
 module.exports = {
     setFilters: function(strings) {
-        fliters = [];
+        filters = [];
         for (var i = 0, len = strings.length; i < len; i++)
-            filters.push(new RegExp(strings[i]))
+            filters.push(new RegExp(strings[i]));
     },
     track: function (title, data) {
         if (atom.config.get('luna-studio.analyticsEnabled') && test(title)) {
@@ -34,4 +35,4 @@ module.exports = {
             }
         }
     }
-}
+};

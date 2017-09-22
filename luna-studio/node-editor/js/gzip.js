@@ -1,3 +1,4 @@
+"use strict";
 var pako = require('pako');
 
 var compressBytes = function (bytes) {
