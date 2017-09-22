@@ -20,7 +20,7 @@ import qualified NodeEditor.React.Event.Visualization                 as Visuali
 import           NodeEditor.React.Model.App                           (App)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countArgPorts, countOutPorts,
-                                                                       isAnyPortHighlighted, isCollapsed, returnsError)
+                                                                      isAnyPortHighlighted, isCollapsed, returnsError)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
@@ -33,7 +33,7 @@ import           NodeEditor.React.View.ExpressionNode.NodeValue       (nodeValue
 import           NodeEditor.React.View.ExpressionNode.Properties      (nodeProperties_)
 import           NodeEditor.React.View.Field                          (multilineField_)
 import           NodeEditor.React.View.Monad                          (monads_)
-import           NodeEditor.React.View.Plane                          (planeMonads_, svgPlane_)
+import           NodeEditor.React.View.Plane                          (planeMonads_)
 import           NodeEditor.React.View.Port                           (argumentConstructor_, portExpanded_, port_)
 import           NodeEditor.React.View.Searcher                       (searcher_)
 import           NodeEditor.React.View.Style                          (errorMark_, selectionMark_)
@@ -90,8 +90,8 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
                     , onDoubleClick $ \e _ -> [stopPropagation e]
                     , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.ToggleVisualizations nl
                     ] $ if isVisualization
-                        then path_ [ "d" $= Style.iconEye         ] mempty
-                        else path_ [ "d" $= Style.iconEyeDisabled ] mempty
+                        then path_ [ "d" $= Style.iconEyeDisabled ] mempty
+                        else path_ [ "d" $= Style.iconEyeEye      ] mempty
 
 
 nodeExpression_ :: Ref App -> NodeLoc -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
@@ -260,7 +260,7 @@ nodeContainer = React.defineView name $ \(ref, performingConnect, maySearcher, n
                                       performingConnect
                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                       (Set.filter (Node.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
-            svgPlane_ $ planeMonads_ $ monads_ monads
+            planeMonads_ $ monads_ monads
 
 filterOutSearcherIfNotRelated :: NodeLoc -> Maybe Searcher -> Maybe Searcher
 filterOutSearcherIfNotRelated _  Nothing  = Nothing
