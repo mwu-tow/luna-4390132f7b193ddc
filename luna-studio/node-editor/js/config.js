@@ -3,11 +3,6 @@
 var release = require('./config.release');
 var config;
 
-try {
-  var u = require('underscore');
-} catch (e) {
-  var u = _;
-}
 function defaultBackend() {
   // var l = window.location;
   // if(typeof(l) != 'undefined')

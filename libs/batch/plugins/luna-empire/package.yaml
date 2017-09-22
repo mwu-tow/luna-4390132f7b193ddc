@@ -18,6 +18,7 @@ dependencies:
   - groom
   - luna-core
   - luna-empire
+  - luna-project
   - luna-studio-common
   - m-logger
   - mtl

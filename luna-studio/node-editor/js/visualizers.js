@@ -1,3 +1,4 @@
+"use strict";
 var knownFrames = {};
 
 var sendToFrame = function (id, data) {
@@ -16,8 +17,8 @@ var queueMsg = function (id, data) {
 };
 
 var loaded = function (id) {
-  var frame = document.getElementsByName(id)[0]
-  return (frame && frame.contentWindow.document.readyState == "complete");
+  var frame = document.getElementsByName(id)[0];
+  return (frame && frame.contentWindow.document.readyState === "complete");
 };
 
 var register = function (id) {

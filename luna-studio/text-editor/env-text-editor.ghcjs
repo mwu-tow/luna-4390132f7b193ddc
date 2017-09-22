@@ -9,7 +9,7 @@ var analytics        = require('./analytics')
 
 var run = function() {
 
-<GHCJS_CODE>
+GHCJS_CODE_BE_THERE
 
 };
 

@@ -44,6 +44,7 @@ import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
 import           Empire.Server.Server                    (defInverse, errorMessage, modifyGraph, modifyGraphOk, prettyException, replyFail,
                                                           replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC)
+import           Luna.Project                            (findProjectFileForFile, getRelativePathForModule)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
@@ -103,6 +104,8 @@ import qualified LunaStudio.Data.Position                as Position
 import           LunaStudio.Data.Project                 (LocationSettings)
 import qualified LunaStudio.Data.Project                 as Project
 import           LunaStudio.Data.TypeRep                 (TypeRep (TStar))
+import           Path                                    (fromAbsFile, fromRelFile, parseAbsFile)
+import qualified Path                                    as Path
 import           Prologue                                hiding (Item, when)
 import           System.Environment                      (getEnv)
 import           System.FilePath                         (replaceFileName, (</>))
@@ -154,14 +157,24 @@ getSrcPortByNodeId nid = OutPortRef (NodeLoc def nid) []
 getDstPortByNodeLoc :: NodeLoc -> AnyPortRef
 getDstPortByNodeLoc nl = InPortRef' $ InPortRef nl [Self]
 
-projectConfigPath :: FilePath -> FilePath
-projectConfigPath = flip replaceFileName ".config-luna.yaml"
+getProjectPathAndRelativeModulePath :: FilePath -> IO (Maybe (FilePath, FilePath))
+getProjectPathAndRelativeModulePath modulePath = do
+    let eitherToMaybe :: Either Path.PathException (Path.Path Path.Abs Path.File) -> Maybe (Path.Path Path.Abs Path.File)
+        eitherToMaybe (Left  e) = Nothing
+        eitherToMaybe (Right a) = Just a
+    runMaybeT $ do
+        absModulePath  <- MaybeT . fmap eitherToMaybe . try $ parseAbsFile modulePath
+        absProjectPath <- MaybeT $ findProjectFileForFile absModulePath
+        relModulePath  <- MaybeT $ getRelativePathForModule absProjectPath absModulePath
+        return (fromAbsFile absProjectPath, fromRelFile relModulePath)
 
 saveSettings :: GraphLocation -> LocationSettings -> Empire ()
 saveSettings gl settings = do
     bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
     let filePath = gl ^. GraphLocation.filePath
-    liftIO $ Project.updateLocationSettings (projectConfigPath filePath) filePath bc settings
+    mayProjectPathAndRelModulePath <- liftIO $ getProjectPathAndRelativeModulePath filePath
+    withJust mayProjectPathAndRelModulePath $ \(pf, mf) -> 
+        liftIO $ Project.updateLocationSettings pf mf bc settings
 
 
 -- Handlers
@@ -179,7 +192,8 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 graph <- Graph.getGraph location
                 crumb <- Graph.decodeLocation location
                 let filePath = location ^. GraphLocation.filePath
-                mayModuleSettings <- liftIO $ Project.getModuleSettings (projectConfigPath filePath) filePath
+                mayProjectPathAndRelModulePath <- liftIO $ getProjectPathAndRelativeModulePath filePath
+                mayModuleSettings              <- liftIO $ maybe (return def) (uncurry Project.getModuleSettings) mayProjectPathAndRelModulePath
                 let defaultCamera = maybe def (flip Camera.getCameraForRectangle def) . Position.minimumRectangle . map (view Node.position) $ graph ^. GraphAPI.nodes
                     (typeRepToVisMap, camera) = case mayModuleSettings of
                         Nothing -> (mempty, defaultCamera)

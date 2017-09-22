@@ -21,10 +21,8 @@ def build_ghcjs(frontend_args):
     os.chdir(frontend_dir)
     if system.system == system.systems.WINDOWS:
         return ()
-    elif system.system == system.systems.LINUX:
-        subprocess.check_output(['stack', 'build'] + frontend_args)
-    elif system.system == system.systems.DARWIN:
-        subprocess.check_output(['stack', 'build'] + frontend_args)
+    elif system.system == system.systems.LINUX or system.system == system.systems.DARWIN:
+        subprocess.check_output(['stack', 'build', '--install-ghc'] + frontend_args)
     else: print("unknown system")
 
 def build_runner(runner, runner_args):
