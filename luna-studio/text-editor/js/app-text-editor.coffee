@@ -1,7 +1,6 @@
 $$              = require('./common')
 config          = require('./config')
 atomCallbackTextEditor    = require('./atom-callback-text-editor')
-GoogleAnalytics = require('./GoogleAnalytics')
 
 
 
@@ -11,7 +10,6 @@ start = ->
       console.error 'app already started'
     else
       window.already_initialized = true
-      GoogleAnalytics.startGA()
       require('env')().start()
 
 module.exports =
