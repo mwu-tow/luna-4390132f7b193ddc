@@ -8,8 +8,7 @@ import           Common.Prelude
 import           Control.Monad.Trans.Maybe               (MaybeT (MaybeT), runMaybeT)
 import qualified LunaStudio.Data.PortRef                 as PortRef
 import           LunaStudio.Data.ScreenPosition          (ScreenPosition, y)
-import           NodeEditor.Action.Basic                 (localMovePort, localRemovePort, removePort, setInputSidebarPortMode)
-import qualified NodeEditor.Action.Basic                 as Basic
+import           NodeEditor.Action.Basic                 (localMovePort, localRemovePort, setInputSidebarPortMode)
 import qualified NodeEditor.Action.Batch                 as Batch
 import qualified NodeEditor.Action.Connect               as Connect
 import           NodeEditor.Action.State.Action          (beginActionWithKey, continueActionWithKey, removeActionFromState,

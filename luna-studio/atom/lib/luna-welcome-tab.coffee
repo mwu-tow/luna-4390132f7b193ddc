@@ -69,7 +69,8 @@ class LunaWelcomeTab extends View
         @privateItems = []
         @privateNew = new ProjectItem({name: 'new project', uri: null}, privateNewClasses, (progress, finalize) =>
             finalize()
-            atom.pickFolder (paths) => if paths? then atom.project.setPaths paths)
+            atom.pickFolder (paths) => if paths? then atom.project.setPaths paths
+            @detach())
         @communityItems = []
         @comunnityNew = new ProjectItem({name: 'new project', uri: null}, comunnityNewClasses, (progress, finalize) =>
             finalize()
@@ -83,17 +84,38 @@ class LunaWelcomeTab extends View
 
         @hideSearchResults()
         projects.recent.load (recentProjectPath) =>
-            item = new ProjectItem({name: recentProjectPath}, recentClasses)
+            item = new ProjectItem {name: recentProjectPath}, recentClasses, (progress, finalize) =>
+                progress 0.5
+                atom.project.setPaths [recentProjectPath]
+                finalize()
+                @detach()
             @privateItems.push(item)
             @privateContainer.append(item.element)
         projects.tutorial.list (tutorials) =>
             for tutorial in tutorials
-                item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) => projects.tutorial.open(tutorial, progress, finalize))
+                item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
+                    projects.tutorial.open(tutorial, progress, =>
+                        finalize()
+                        @detach()))
                 @tutorialItems.push(item)
                 @tutorialsContainer.append(item.element)
 
     getFilterKey: ->
         return 'name'
+
+    attach: (@mode) ->
+        console.log 'attach'
+        @panel ?= atom.workspace.addModalPanel({item: this, visible: false})
+        console.log @panel
+        @previouslyFocusedElement = document.activeElement
+        @panel.show()
+        console.log @panel
+        @panel.show()
+
+    detach: ->
+        return unless @panel.isVisible()
+        @panel.hide()
+        @previouslyFocusedElement?.focus()
 
     search: =>
         filterQuery = @searchInput[0].value

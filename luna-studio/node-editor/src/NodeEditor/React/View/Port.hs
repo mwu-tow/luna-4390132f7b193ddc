@@ -10,16 +10,16 @@ import qualified NodeEditor.Event.UI                as UI
 import           LunaStudio.Data.PortRef            (AnyPortRef, toAnyPortRef)
 import qualified NodeEditor.React.Event.Port        as Port
 import           NodeEditor.React.Model.App         (App)
-import           NodeEditor.React.Model.Constants   (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius', portRadius, portAliasRadius, connectionWidth)
+import           NodeEditor.React.Model.Constants   (lineHeight, nodeRadius, nodeRadius', portRadius, portAliasRadius, connectionWidth)
 import           NodeEditor.React.Model.Node        (NodeLoc)
-import           NodeEditor.React.Model.Port        (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), 
-                                                    IsOnly, Mode (..), getPortNumber, isInPort, isInvisible, isSelf, 
+import           NodeEditor.React.Model.Port        (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self),
+                                                    IsOnly, Mode (..), getPortNumber, isInPort, isInvisible, isSelf,
                                                     portAngleStart, portAngleStop, argumentConstructorOffsetY)
 import qualified NodeEditor.React.Model.Port        as Port
 import           NodeEditor.React.Store             (Ref, dispatch)
 import qualified NodeEditor.React.View.Style        as Style
 import           Numeric                            (showFFloat)
-import           React.Flux                         hiding (view)                 
+import           React.Flux                         hiding (view)
 import qualified React.Flux                         as React
 
 
