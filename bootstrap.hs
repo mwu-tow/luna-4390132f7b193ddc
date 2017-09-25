@@ -118,7 +118,6 @@ installNodeModules = do
 
 haskellBins :: [T.Text]
 haskellBins = [
-      "hprotoc"
     , "happy"
     , "hsc2hs"
     ]
@@ -128,10 +127,9 @@ installHaskellBins = do
     current <- currentPath
     home <- liftIO $ System.getHomeDirectory
     Shelly.appendToPath $ home </> ".local/bin"
-    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-7.7" "install" "--install-ghc") haskellBins
+    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-8.2" "install" "--install-ghc") haskellBins
     sanityCheck "happy" ["--version"]
     sanityCheck "hsc2hs" ["--version"]
-    sanityCheck "hprotoc" ["--version"]
 
 downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 downloadLibs = do
