@@ -64,7 +64,7 @@ handleMouseDown ref nodeLoc e m =
     else []
 
 nodeName_ :: Ref App -> NodeLoc -> Maybe Text -> Maybe Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
-nodeName_ ref nl name' mayVisualizationVisible mayS = React.viewWithSKey nodeName "node-name" (ref, nl, name', mayVisualizationVisible, mayS) mempty
+nodeName_ ref nl name' visualizationVisible mayS = React.viewWithSKey nodeName  "node-name" (ref, nl, name', visualizationVisible, mayS) mempty
 
 nodeName :: ReactView (Ref App, NodeLoc, Maybe Text, Maybe Bool, Maybe Searcher)
 nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisible, mayS) -> do
@@ -113,7 +113,8 @@ nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> 
         ) nameElement
 
 node_ :: Ref App -> ExpressionNode -> Bool -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
-node_ ref model performingConnect s relatedNodesWithVis = React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, performingConnect, s, relatedNodesWithVis) mempty
+node_ ref model performingConnect s relatedNodesWithVis = 
+    React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, performingConnect, s, relatedNodesWithVis) mempty
 
 node :: ReactView (Ref App, ExpressionNode, Bool, Maybe Searcher, Set NodeLoc)
 node = React.defineView name $ \(ref, n, performingConnect, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
@@ -237,11 +238,13 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                 ports $ filter       (isSelf . (^. Port.portId)) nodePorts'
             else do
                 ports $ filter (      isSelf . (^. Port.portId)) nodePorts'
+
                 forM_  (filter (not . isSelf . (^. Port.portId)) nodePorts') $ portExpanded_ ref nodeLoc
             argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted)
 
 nodeContainer_ :: Ref App -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
-nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs = React.viewWithSKey nodeContainer "node-container" (ref, performingConnect, maySearcher, nodesWithVis, subgraphs) mempty
+nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs = 
+    React.viewWithSKey nodeContainer "node-container" (ref, performingConnect, maySearcher, nodesWithVis, subgraphs) mempty
 
 nodeContainer :: ReactView (Ref App, Bool, Maybe Searcher, Set NodeLoc, [Subgraph])
 nodeContainer = React.defineView name $ \(ref, performingConnect, maySearcher, nodesWithVis, subgraphs) -> do

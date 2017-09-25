@@ -15,7 +15,7 @@ import           LunaStudio.Data.Port             as X hiding (InPort, OutPort, 
 import qualified LunaStudio.Data.Port             as Empire
 import           LunaStudio.Data.PortDefault      as X (PortDefault (..))
 import           LunaStudio.Data.PortRef          as X (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef),
-                                                        OutPortRef (OutPortRef))
+                                                       OutPortRef (OutPortRef))
 import           LunaStudio.Data.Position         (Position)
 import           LunaStudio.Data.TypeRep          (TypeRep (..))
 import           NodeEditor.Data.Color            (Color)

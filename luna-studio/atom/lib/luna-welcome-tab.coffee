@@ -30,9 +30,9 @@ class LunaWelcomeTab extends View
                         href: "http://luna-lang.org"
                         'chat'
             @div class: 'luna-body', =>
-                @div class: 'luna-search-input block', =>
+                @div class: 'luna-search block', =>
                     @input
-                        class: 'input-search native-key-bindings'
+                        class: 'luna-input luna-input--search native-key-bindings'
                         type: 'search'
                         placeholder: 'Search'
                         outlet: 'searchInput'
