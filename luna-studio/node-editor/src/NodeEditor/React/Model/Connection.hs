@@ -25,7 +25,7 @@ import qualified NodeEditor.React.Model.Node                as Node
 import           NodeEditor.React.Model.Node.ExpressionNode (countArgPorts, countOutPorts, inPorts, isCollapsed, position)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import           NodeEditor.React.Model.Port                (EitherPort, InPort, InPortId, IsAlias, IsOnly, IsSelf, OutPort, OutPortId,
-                                                             getPortNumber, isSelf, portAngleStart, portAngleStop, portGap, portId)
+                                                             getPortNumber, isSelf, portAngleStart, portAngleStop, portGap, portId, argumentConstructorOffsetY)
 import qualified NodeEditor.React.Model.Port                as Port
 
 
@@ -161,8 +161,8 @@ instance Convertible Connection Empire.Connection where
 -- TODO[JK]: Please review this function for expranded node case. It is somehow connected to View/Port.hs typeOffsetY values
 argumentConstructorPosition :: ExpressionNode -> Position
 argumentConstructorPosition n = if n ^. ExpressionNode.mode == ExpressionNode.Collapsed
-    then n ^. position & y %~ (+ argumentConstructorShift)
-    else move (Vector2 (-nodeExpandedWidth/2) (3.0 + lineHeight * (fromIntegral $ countArgPorts n + 1))) $ n ^. position
+    then n ^. position & y %~ (+ portRadius)
+    else move (Vector2 (-nodeExpandedWidth/2) (argumentConstructorOffsetY $ countArgPorts n)) $ n ^. position
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of

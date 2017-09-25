@@ -18,12 +18,10 @@ nodeRadius'     = nodeRadius - connectionWidth
 portRadius      = nodeRadius - connectionWidth/2
 portAliasRadius = 8
 
-argumentConstructorShift, nodeExpandedWidth :: Double 
-argumentConstructorShift = portRadius
+argumentConstructorShift, nodeExpandedWidth :: Double
+argumentConstructorShift = lineHeight
 nodeExpandedWidth        = X.nodePropertiesWidth
 
 searcherWidth, searcherHeight :: Double
 searcherWidth  = 460
 searcherHeight = 24
-
-

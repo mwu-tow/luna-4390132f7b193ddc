@@ -5,16 +5,16 @@ module NodeEditor.React.View.Port where
 import           Common.Prelude
 import qualified Data.Aeson                         as Aeson
 import           LunaStudio.Data.Constants          (nodePropertiesWidth)
-import           LunaStudio.Data.PortRef            (AnyPortRef, toAnyPortRef)
 import qualified NodeEditor.Event.Mouse             as Mouse
 import qualified NodeEditor.Event.UI                as UI
+import           LunaStudio.Data.PortRef            (AnyPortRef, toAnyPortRef)
 import qualified NodeEditor.React.Event.Port        as Port
 import           NodeEditor.React.Model.App         (App)
 import           NodeEditor.React.Model.Constants   (argumentConstructorShift, gridSize, lineHeight, nodeRadius, nodeRadius', portRadius, portAliasRadius, connectionWidth)
 import           NodeEditor.React.Model.Node        (NodeLoc)
 import           NodeEditor.React.Model.Port        (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), 
                                                     IsOnly, Mode (..), getPortNumber, isInPort, isInvisible, isSelf, 
-                                                    portAngleStart, portAngleStop)
+                                                    portAngleStart, portAngleStop, argumentConstructorOffsetY)
 import qualified NodeEditor.React.Model.Port        as Port
 import           NodeEditor.React.Store             (Ref, dispatch)
 import qualified NodeEditor.React.View.Style        as Style
@@ -293,7 +293,7 @@ portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p 
 argumentConstructor_ :: Ref App -> NodeLoc -> Int -> Bool -> ReactElementM ViewEventHandler ()
 argumentConstructor_ ref nl numOfPorts isConnectionSource = do
     let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
-        offsetY   = fromIntegral numOfPorts * gridSize + argumentConstructorShift
+        offsetY   = argumentConstructorOffsetY numOfPorts
         highlight = if isConnectionSource then ["port--highlighted"] else []
     g_
         [ "key"       $= "argument-constructor"

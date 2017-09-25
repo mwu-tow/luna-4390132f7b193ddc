@@ -20,7 +20,7 @@ import           LunaStudio.Data.Position         (Position)
 import           LunaStudio.Data.TypeRep          (TypeRep (..))
 import           NodeEditor.Data.Color            (Color)
 import qualified NodeEditor.Data.Color            as Color
-import           NodeEditor.React.Model.Constants (nodeRadius)
+import           NodeEditor.React.Model.Constants (nodeRadius, lineHeight)
 
 type IsAlias = Bool
 type IsSelf  = Bool
@@ -144,3 +144,8 @@ portAngleStop isShape num numOfPorts r =
         gap    = if isShape then (portGap r)/2 else 0
         t      = portAngle numOfPorts
     in  pi - number * t + t - gap
+
+argumentConstructorOffsetY :: Int -> Double
+argumentConstructorOffsetY numOfPorts = (fromIntegral numOfPorts + 1) * lineHeight
+
+

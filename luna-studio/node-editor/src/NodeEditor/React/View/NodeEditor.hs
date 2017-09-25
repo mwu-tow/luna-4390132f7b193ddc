@@ -110,6 +110,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                             monads_ monads
 
                         planeNodes_ $ do
+                            
                             forM_ nodes $ \n -> node_ ref
                                                       n
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
