@@ -28,7 +28,6 @@ module.exports = LunaStudio =
         atom.grammars.addGrammar(new LunaSemanticGrammar(atom.grammars, codeEditor.lex))
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
-        codeEditor.start()
         @welcome = new LunaWelcomeTab(codeEditor)
 
         actStatus = (act, uri, status) ->
@@ -51,6 +50,7 @@ module.exports = LunaStudio =
         atom.commands.add 'body',
             'luna-studio:welcome': => @welcome.attach()
             'core:cancel': => @welcome.detach()
+        codeEditor.start()
 
     loadAnalyticsConfig: ->
         try
