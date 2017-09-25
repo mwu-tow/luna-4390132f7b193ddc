@@ -2,14 +2,15 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Luna.Manager.Archive where
 
-
-
 import           Luna.Manager.Shell.Shelly (MonadSh)
 import           Control.Monad.Raise
 import qualified Control.Exception.Safe as Exception
+import           Control.Error.Util (hush)
 import           Data.Aeson (encode)
+import           Data.Either (either)
 import           Data.IORef
 import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
+import qualified Filesystem.Path.CurrentOS as FP
 import           Luna.Manager.Gui.InstallationProgress
 import           Luna.Manager.Network
 import           Luna.Manager.Shell.Commands
@@ -17,20 +18,26 @@ import           Luna.Manager.System.Host
 import           Prologue hiding (FilePath)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLChar
-import qualified Data.Text as Text
+import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text
-import qualified Data.Text.Read as Text
+import qualified Data.Text.Read     as Text
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import qualified System.Process.Typed as Process
 import           System.Exit
 import           System.IO (hFlush, stdout, hGetContents)
 default (Text.Text)
 
-data ExtensionError = ExtensionError deriving (Show)
-instance Exception ExtensionError
+type UnpackContext m = (MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m, MonadThrow m, MonadCatch m)
 
-extensionError :: SomeException
-extensionError = toException ExtensionError
+plainTextPath :: FilePath -> Text
+plainTextPath = either id id . FP.toText
+
+data ExtensionError = ExtensionError { exPath :: FilePath } deriving (Show)
+instance Exception ExtensionError where
+    displayException (ExtensionError p) = "ExtensionError: cannot get extension from path " <> (Text.unpack $ plainTextPath p)
+
+extensionError :: FilePath -> SomeException
+extensionError = toException . ExtensionError
 
 data ProgressException = ProgressException deriving (Show)
 instance Exception ProgressException where
@@ -40,36 +47,35 @@ data UnpackingException = UnpackingException Text SomeException deriving (Show)
 instance Exception UnpackingException where
     displayException (UnpackingException file exception ) = "Archive cannot be unpacked: " <> convert file <> " because of: " <> displayException exception
 
+unpackingException :: Text -> SomeException -> SomeException
+unpackingException t e = toException $ UnpackingException t e
+
 unpack :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpack guiInstaller totalProgress progressFieldName file = do
-    if guiInstaller then return () else putStrLn "Unpacking archive"
+    unless guiInstaller $ liftIO $ putStrLn $ "Unpacking archive: " <> (Text.unpack $ plainTextPath file)
+    ext <- tryJust (extensionError file) $ extension file
     case currentHost of
-        Windows ->  do
-            ext <- tryJust extensionError $ extension file
-            case ext of
-                "zip" -> unzipFileWindows guiInstaller file
-                "gz"  -> untarWin guiInstaller totalProgress progressFieldName file
+        Windows -> case ext of
+            "zip" -> unzipFileWindows guiInstaller file
+            "gz"  -> untarWin guiInstaller totalProgress progressFieldName file
         Darwin  -> do
-            ext <- tryJust extensionError $ extension file
-            case ext of
-                "gz"  -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
-                "zip" -> unzipUnix file
-        Linux   -> do
-            ext <- tryJust extensionError $ extension file
-            case ext of
-                "AppImage" -> return file
-                "gz"       -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
-                "rpm"      -> do
-                    let name = basename file
-                        dir = directory file
-                        fullFilename = filename file
-                    Shelly.mkdir_p $ dir </> name
-                    Shelly.cp_r file $ dir </> name
-                    unpackRPM (dir </> name </> fullFilename) (dir </> name)
-                    Shelly.rm $ dir </> name </> (filename file)
-                    return $ dir </> name
+            res1 <- hush <$> (Exception.try $ unpackTarGzUnix guiInstaller totalProgress progressFieldName file :: (UnpackContext m) => m (Either UnpackingException FilePath))
+            res2 <- hush <$> (Exception.try $ unzipUnix file                                                    :: (UnpackContext m) => m (Either UnpackingException FilePath))
+            return $ fromJust $ res1 <|> res2
+        Linux   -> case ext of
+            "AppImage" -> return file
+            "gz"       -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
+            "rpm"      -> do
+                let name = basename file
+                    dir = directory file
+                    fullFilename = filename file
+                Shelly.mkdir_p $ dir </> name
+                Shelly.cp_r file $ dir </> name
+                unpackRPM (dir </> name </> fullFilename) (dir </> name)
+                Shelly.rm $ dir </> name </> (filename file)
+                return $ dir </> name
 
-unzipUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath -> m FilePath
+unzipUnix :: UnpackContext m => FilePath -> m FilePath
 unzipUnix file = do
     let dir = directory file
         name = basename file
@@ -98,7 +104,7 @@ directProgressLogger progressFieldName totalProgress actualProgress = do
             print $ "{\"" <> (convert progressFieldName) <> "\":\"" <> (show progress) <> "\"}"
         Left err -> raise' ProgressException --TODO czy nie powinien tu być jednak unpacking exception??
 
-unpackTarGzUnix :: (MonadSh m, Shelly.MonadShControl m, MonadIO m, MonadException SomeException m, MonadThrow m, MonadCatch m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+unpackTarGzUnix :: UnpackContext m => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
     let dir = directory file
         name = basename file
@@ -118,7 +124,7 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
         -- return $ dir </> name
 
 -- TODO: download unzipper if missing
-unzipFileWindows :: (MonadIO m, MonadNetwork m)=> Bool -> FilePath -> m FilePath
+unzipFileWindows :: UnpackContext m => Bool -> FilePath -> m FilePath
 unzipFileWindows guiInstaller zipFile = do
     let scriptPath = "http://packages.luna-lang.org/windows/j_unzip.vbs"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
@@ -144,7 +150,7 @@ unzipFileWindows guiInstaller zipFile = do
                     --   liftIO $ print $ Shelly.toTextIgnore $ dir </> name
                       return $ dir </> name
 
-untarWin :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadException SomeException m) => Bool -> Double -> Text.Text -> FilePath -> m FilePath
+untarWin :: UnpackContext m => Bool -> Double -> Text.Text -> FilePath -> m FilePath
 untarWin guiInstaller totalProgress progressFieldName zipFile = do
     let scriptPath = "http://packages.luna-lang.org/windows/tar2.exe"
     --sprawdź czy jest na dysku, shelly.find, skrypt i plik musza byc w tym samym directory
@@ -170,7 +176,7 @@ untarWin guiInstaller totalProgress progressFieldName zipFile = do
                 else do
                     return $ dir </> name
 
-zipFileWindows :: (MonadIO m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m)=> Bool -> FilePath -> Text -> m FilePath
+zipFileWindows :: UnpackContext m => Bool -> FilePath -> Text -> m FilePath
 zipFileWindows guiInstaller folder appName = do
     let name = parent folder </> Shelly.fromText (appName <> ".tar.gz")
     let scriptPath = "http://packages.luna-lang.org/windows/tar.exe"
@@ -180,14 +186,14 @@ zipFileWindows guiInstaller folder appName = do
         Shelly.cmd (parent folder </> filename script) "tar" name folder
         return name
 
-unpackRPM :: MonadIO m => FilePath -> FilePath -> m ()
+unpackRPM :: UnpackContext m => FilePath -> FilePath -> m ()
 unpackRPM file filepath = liftIO $ do
     (exitCode, out, err) <- Process.readProcess $ Process.setWorkingDir (encodeString filepath) $ Process.shell $ "rpm2cpio " <> encodeString file <> " | cpio -idmv"
     case exitCode of
         ExitSuccess   -> return ()
         ExitFailure e -> throwM (UnpackingException (Shelly.toTextIgnore file) (toException $ Exception.StringException (BSLChar.unpack err) callStack )) -- print $ "Fatal: rpm not unpacked. " <> err
 
-createTarGzUnix :: (MonadSh m, Shelly.MonadShControl m) => FilePath  -> Text -> m FilePath
+createTarGzUnix :: UnpackContext m => FilePath  -> Text -> m FilePath
 createTarGzUnix folder appName = do
     let name =  parent folder </> Shelly.fromText (appName <> ".tar.gz")
     Shelly.chdir (parent folder) $ do
