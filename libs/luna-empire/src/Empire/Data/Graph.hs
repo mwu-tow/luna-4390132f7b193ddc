@@ -1,6 +1,7 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -13,6 +14,7 @@ import           Empire.Prelude
 
 import           Control.Monad.State               (MonadState(..), StateT, evalStateT, lift)
 import           Data.Map                          (Map)
+import qualified Data.Map                          as Map
 import           Empire.Data.AST                   (NodeRef, SomeASTException)
 import           Empire.Data.Layers                (attachEmpireLayers)
 import           LunaStudio.Data.Node              (NodeId)
@@ -106,12 +108,17 @@ instance MonadState s m => MonadState s (Logger DropLogger m) where
 instance Exception e => MonadException e IO where
     raise = throwM
 
+unescapeUnaryMinus :: Vis.Node -> Vis.Node
+unescapeUnaryMinus n = if n ^. Vis.name == "Var \"#uminus#\""
+                       then n & Vis.name .~ "Var uminus"
+                       else n
 
 withVis :: MonadIO m => Vis.VisStateT m a -> m a
 withVis m = do
     (p, vis) <- Vis.newRunDiffT m
     when (not . null $ vis ^. Vis.steps) $ do
-        let cfg = ByteString.unpack $ encode vis
+        let unescaped = vis & Vis.nodes %~ Map.map unescapeUnaryMinus
+            cfg = ByteString.unpack $ encode unescaped
         showVis <- liftIO $ lookupEnv "DEBUGVIS"
         if isJust showVis then void $ liftIO $ openBrowser $ "http://localhost:8000?cfg=" <> cfg else return ()
     return p

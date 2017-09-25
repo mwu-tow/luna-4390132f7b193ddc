@@ -1117,7 +1117,7 @@ spec = around withChannels $ parallel $ do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 (_, output) <- Graph.withGraph (loc |> foo) $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.disconnect (loc |> foo) (inPortRef output [])
-        it "updates literal node " $ let
+        it "updates literal node" $ let
             expectedCode = [r|
                 def main:
                     pi = 3.14
@@ -1795,3 +1795,20 @@ spec = around withChannels $ parallel $ do
     «3»bar = foo 8.0 c
 ### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-128,"_vector2_x":0}}}},{"marker":3,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-96,"_vector2_x":176}}}}]}|]
                 Graph.pasteText loc [Range 56 56] [paste]
+        it "handles unary minus" $ let
+            initialCode = [r|
+                def main:
+                    «0»k = -1
+                |]
+            expectedCode = [r|
+                def main:
+                    k = -3
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just k <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Graph.setPortDefault loc (inPortRef k []) (Just $ PortDefault.Constant (PortDefault.IntValue (-2)))
+                Graph.setPortDefault loc (inPortRef k []) (Just $ PortDefault.Constant (PortDefault.IntValue (-3)))
+                negativeIsApp <- Graph.withGraph loc $ runASTOp $ do
+                    target <- ASTRead.getASTTarget k
+                    ASTRead.isApp target
+                liftIO $ negativeIsApp `shouldBe` True

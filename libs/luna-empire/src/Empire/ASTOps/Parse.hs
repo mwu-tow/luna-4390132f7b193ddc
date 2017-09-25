@@ -49,6 +49,7 @@ import qualified Luna.IR                         as IR
 import qualified Luna.Syntax.Text.Layer.Loc      as Loc
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Errors  (Invalids)
+import qualified Luna.Syntax.Text.Parser.Hardcoded as Parser (uminusName)
 import qualified Luna.Syntax.Text.Parser.Marker  as Parser (MarkedExprMap(..))
 import qualified Luna.Syntax.Text.Parser.Parser  as Parser
 import qualified Luna.Syntax.Text.Parser.Parsing as Parsing
@@ -231,7 +232,13 @@ parsePortDefault (Expression expr)          = do
     ref <- parseExpr expr
     Code.propagateLengths ref
     return ref
-parsePortDefault (Constant (IntValue  i)) = IR.generalize <$> IR.number (fromIntegral i)   `withLength` (length $ show i)
+parsePortDefault (Constant (IntValue  i))
+    | i >= 0     = IR.generalize <$> IR.number (fromIntegral i) `withLength` (length $ show i)
+    | otherwise = do
+        number <- IR.generalize <$> IR.number (fromIntegral (abs i)) `withLength` (length $ show $ abs i)
+        minus  <- IR.generalize <$> IR.var Parser.uminusName `withLength` 1
+        app    <- IR.generalize <$> IR.app minus number
+        return app
 parsePortDefault (Constant (TextValue s)) = IR.generalize <$> IR.string s                  `withLength` (length s)
 parsePortDefault (Constant (RealValue d)) = IR.generalize <$> IR.number (Lit.fromDouble d) `withLength` (length $ show d)
 parsePortDefault (Constant (BoolValue b)) = IR.generalize <$> IR.cons_ (convert $ show b)  `withLength` (length $ show b)
