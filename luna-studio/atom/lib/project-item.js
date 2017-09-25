@@ -7,14 +7,7 @@ var ProjectItem;
 etch = require('etch');
 
 module.exports = ProjectItem = class ProjectItem {
-    constructor(
-            project,
-            classes = "",
-            onOpen = ((progress, finalize) => {
-                progress(0.5);
-                atom.project.setPaths([this.uri]);
-                finalize();
-            })) {
+    constructor(project, classes = "", onOpen) {
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
         this.thumbLogo = this.thumbLogo.bind(this);

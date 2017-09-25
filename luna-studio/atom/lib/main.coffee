@@ -1,6 +1,5 @@
 path     = require 'path'
 request  = require 'request'
-SubAtom  = require 'sub-atom'
 yaml     = require 'js-yaml'
 
 stats = require './stats'
@@ -17,7 +16,6 @@ nodeEditor = (require './gen/node-editor-ghcjs.js')()
 
 
 LUNA_STUDIO_URI  = 'atom://luna/studio'
-LUNA_WELCOME_URI = 'atom://luna/welcome'
 
 analyticsConfigRequest =
     url: 'https://raw.githubusercontent.com/luna/luna-studio-config/master/analytics.yml'
@@ -31,8 +29,8 @@ module.exports = LunaStudio =
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
         codeEditor.start()
-        if atom.config.get('luna-studio.showWelcomeScreen')
-            atom.workspace.open(LUNA_WELCOME_URI, {split: "left"})
+        @welcome = new LunaWelcomeTab(codeEditor)
+
         actStatus = (act, uri, status) ->
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
@@ -43,12 +41,16 @@ module.exports = LunaStudio =
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
         codeEditor.statusListener actStatus
-        @subscribe = new SubAtom()
-        @subscribe.add atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)
-        @subscribe.add atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
-        @subscribe.add atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
-        @subscribe.add atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
-        @subscribe.add atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
+        atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)
+        atom.workspace.onDidDestroyPaneItem (event) => @handleItemDestroy(event)
+        atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
+        atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
+        atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
+        atom.packages.onDidActivateInitialPackages => if atom.config.get('luna-studio.showWelcomeScreen')
+            @welcome.attach()
+        atom.commands.add 'body',
+            'luna-studio:welcome': => @welcome.attach()
+            'core:cancel': => @welcome.detach()
 
     loadAnalyticsConfig: ->
         try
@@ -73,14 +75,11 @@ module.exports = LunaStudio =
     lunaOpener: (uri) ->
         if uri is LUNA_STUDIO_URI
               new LunaStudioTab(null, nodeEditor, codeEditor)
-        else if uri is LUNA_WELCOME_URI
-              new LunaWelcomeTab(codeEditor)
         else if path.extname(uri) is '.luna'
               new LunaEditorTab(uri, codeEditor)
 
     deactivate: ->
         stats.finalize()
-        @subscribe.dispose()
         @statusBarTile?.destroy()
         @statusBarTile = null
 
