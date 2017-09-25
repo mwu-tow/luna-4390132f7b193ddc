@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Luna.Manager.Command.Develop where
 
 import Prologue hiding (FilePath)
@@ -6,6 +7,7 @@ import Luna.Manager.Network
 import Luna.Manager.System.Env
 import Control.Monad.Raise
 import Control.Monad.State.Layered
+import Data.Text                   (Text)
 import Luna.Manager.Shell.Shelly   (MonadSh, MonadShControl)
 import Filesystem.Path.CurrentOS   (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
 import qualified System.Directory as System
@@ -53,7 +55,7 @@ instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
 
 instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & stackPath .~ "https://www.stackage.org/stack/osx-x86_64"
+        reconfig cfg = cfg & stackPath .~ "https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-osx-x86_64.tar.gz"
 
 instance Monad m => MonadHostConfig DevelopConfig 'Windows arch m where
     defaultHostConfig = defaultHostConfigFor @Linux
@@ -92,22 +94,27 @@ run opts = do
     if (opts ^. downloadDependencies) then do
         path <- tryJust (toException PathException) (opts ^. repositoryPath)
         downloadDeps appName $ convert path
-        else do
-            let path = opts ^. repositoryPath
-            workingPath <- case path of
-                Just workingPath -> return workingPath
-                Nothing -> do
-                    home <- liftIO $ System.getHomeDirectory
-                    return $ convert home
-            appPath         <- expand $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. appsPath) </> convert appName
-            stackFolderPath <- expand  $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. toolsPath) </> (developCfg ^. stackLocalPath)
-            Shelly.mkdir_p $ parent stackFolderPath
-            downloadAndUnpackStack stackFolderPath
-            cloneRepo appName appPath
-            Shelly.prependToPath stackFolderPath
-            Shelly.setenv "APP_PATH" $ Shelly.toTextIgnore appPath
-            Shelly.cmd $ appPath </> (developCfg ^. bootstrapFile)
-            downloadDeps appName appPath
+    else do
+        let path = opts ^. repositoryPath
+        workingPath <- case path of
+            Just workingPath -> return workingPath
+            Nothing -> do
+                home <- liftIO $ System.getHomeDirectory
+                return $ convert home
+        appPath         <- expand $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. appsPath) </> convert appName
+        stackFolderPath <- expand  $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. toolsPath) </> (developCfg ^. stackLocalPath)
+        Shelly.mkdir_p $ parent stackFolderPath
+        downloadAndUnpackStack stackFolderPath
+        cloneRepo appName appPath
+        Shelly.prependToPath stackFolderPath
+        Shelly.setenv "APP_PATH" $ Shelly.toTextIgnore appPath
+        let bootstrapPath      = Shelly.toTextIgnore $ appPath </> (developCfg ^. bootstrapFile)
+            bootstrapPackages  = ["base", "exceptions", "shelly", "text", "directory", "system-filepath"]
+            bootstrapStackArgs = ["--resolver", "lts-8.2", "--install-ghc" , "runghc"]
+                                 <> (bootstrapPackages >>= (\p -> ["--package", p]))
+                                 <> [bootstrapPath]
+        Shelly.run "stack" bootstrapStackArgs
+        downloadDeps appName appPath
 
 
 

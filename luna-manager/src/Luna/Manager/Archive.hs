@@ -58,10 +58,9 @@ unpack guiInstaller totalProgress progressFieldName file = do
         Windows -> case ext of
             "zip" -> unzipFileWindows guiInstaller file
             "gz"  -> untarWin guiInstaller totalProgress progressFieldName file
-        Darwin  -> do
-            res1 <- hush <$> (Exception.try $ unpackTarGzUnix guiInstaller totalProgress progressFieldName file :: (UnpackContext m) => m (Either UnpackingException FilePath))
-            res2 <- hush <$> (Exception.try $ unzipUnix file                                                    :: (UnpackContext m) => m (Either UnpackingException FilePath))
-            return $ fromJust $ res1 <|> res2
+        Darwin  -> case ext of
+            "gz"  -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
+            "zip" -> unzipUnix file
         Linux   -> case ext of
             "AppImage" -> return file
             "gz"       -> unpackTarGzUnix guiInstaller totalProgress progressFieldName file
@@ -118,7 +117,7 @@ unpackTarGzUnix guiInstaller totalProgress progressFieldName file = do
                     currentUnpackingFileNumber <- liftIO $ newIORef 0
                     Shelly.log_stderr_with (countingFilesLogger progressFieldName totalProgress currentUnpackingFileNumber $ fst x) $ Shelly.cmd "tar" "-xvpzf" (Shelly.toTextIgnore file) "--strip=1" "-C" (Shelly.toTextIgnore name)-- (\stdout -> liftIO $ hGetContents stdout >> print "33")
                 Left err -> throwM (UnpackingException (Shelly.toTextIgnore file) (toException $ Exception.StringException err callStack ))
-            else (Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name) `Exception.catchAny` (\err -> throwM (UnpackingException (Shelly.toTextIgnore file) $ toException err))
+        else (Shelly.cmd  "tar" "-xpzf" file "--strip=1" "-C" name) `Exception.catchAny` (\err -> throwM (UnpackingException (Shelly.toTextIgnore file) $ toException err))
         listed <- Shelly.ls $ dir </> name
         if length listed == 1 then return $ head listed else return $ dir </> name
         -- return $ dir </> name
