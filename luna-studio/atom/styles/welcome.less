@@ -1,3 +1,54 @@
+@tile-size: 187px;
+@caption-height: 30px;
+
 .luna-welcome {
 	
+}
+
+.luna-welcome__section {
+}
+
+.luna-welcome__title {
+	font-weight: 100 !important;
+	font-size: 24px !important;
+}
+
+.luna-welcome__section__container {
+	width:   100%;
+	display: grid;
+	grid-template-columns: @tile-size @tile-size @tile-size;
+	grid-column-gap:       10px;
+    grid-row-gap:          10px;
+    justify-items: stretch;
+}
+
+.luna-welcome__tile {
+	width:  @tile-size !important;
+	height: @tile-size + @caption-height;
+	position: relative;
+}
+
+.luna-welcome__section__title {
+	font-weight: 100;
+	opacity: 1;
+	&::before {
+		opacity: 0.8;
+	}
+}
+
+.luna-project-logo {
+	border-radius: 10px;
+	background: rgba(255,255,255,0.05);
+	overflow: hidden;
+	width: @tile-size;
+	height: @tile-size;
+}
+.luna-project-caption {
+	width:       94%;
+	padding:     0 1% 0 5%;
+	height:      @caption-height;
+	line-height: @caption-height; 
+	text-align:  center;
+	text-overflow: ellipsis;
+	overflow: hidden;
 }

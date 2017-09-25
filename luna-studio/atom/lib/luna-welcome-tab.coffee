@@ -4,11 +4,11 @@ fuzzyFilter = null # defer until used
 ProjectItem = require './project-item'
 projects = require './projects'
 
-projectClasses = "inline-block btn luna-project "
-tutorialClasses = projectClasses + "luna-project-tutorial"
-recentClasses = projectClasses + "luna-project-recent"
-privateNewClasses = projectClasses + 'luna-project-private-new'
-comunnityNewClasses = projectClasses + 'luna-project-community-new'
+projectClasses = "luna-welcome__tile "
+tutorialClasses = projectClasses + "luna-welcome__tile--tutorial"
+recentClasses = projectClasses + "luna-welcome__tile--recent"
+privateNewClasses = projectClasses + 'luna-welcome__tile--add-new'
+comunnityNewClasses = projectClasses + 'luna-welcome__tile--add-new'
 
 module.exports =
 class LunaWelcomeTab extends View
@@ -18,22 +18,22 @@ class LunaWelcomeTab extends View
     @content: ->
         @div class: 'luna-welcome', =>
 
-            @div class: 'luna-welcome__block luna-welcome__block--header', =>
+            @div class: 'luna-welcome__header', =>
 
-                @div class: 'luna-welcome__block__title', 'Luna Studio'
+                @h1 class: 'luna-welcome__title', 'Welcome to Luna Studio'
 
-                @div class: 'luna-link luna-link-forum inline-block-tight', =>
+                @div class: 'luna-welcome-link luna-welcome-link--forum', =>
                     @a
-                        class: 'btn'
+                        class: 'luna-btn'
                         href: "http://luna-lang.org"
                         'forum'
-                @div class: 'luna-link luna-link-chat inline-block-tight', =>
+                @div class: 'luna-welcome-link luna-welcome-link--chat', =>
                     @a
-                        class: 'btn'
+                        class: 'luna-btn'
                         href: "http://luna-lang.org"
                         'chat'
 
-            @div class: 'luna-welcome__block luna-welcome__block--body', =>
+            @div class: 'luna-welcome__body', =>
 
                 @div class: 'luna-welcome__block luna-welcome__block--search', =>
                     @input
@@ -43,42 +43,43 @@ class LunaWelcomeTab extends View
                         outlet: 'searchInput'
 
                 @div class: 'luna-welcome__block luna-welcome__block--projects', =>
-                    @ul class: 'list-group', =>
-                        @li
-                            class: 'luna-search-results list-item'
-                            outlet: 'searchResultsSection'
-                            =>
-                                @span class: 'luna-search-results-title icon icon-search', 'Search results'
-                                @div class: 'luna-search-results-container block', outlet: 'searchResultsContainer', =>
-                        @li
-                            class: 'luna-tutorials-section list-item'
-                            outlet: 'tutorialsSection'
-                            =>
-                                @span class: 'luna-tutorials-section-title icon icon-book', 'Tutorials'
-                                @div class: 'luna-tutorials-section-container block', outlet: 'tutorialsContainer', =>
+                    @div
+                        class: 'luna-welcome__section luna-welcome__section--search-results'
+                        outlet: 'searchResultsSection'
+                        =>
+                            @h2 class: 'luna-welcome__section__title icon icon-search', 'Search results'
+                            @div class: 'luna-welcome__section__container', outlet: 'searchResultsContainer', =>
+                    
+                    @div
+                        class: 'luna-welcome__section luna-welcome__section--tutorials'
+                        outlet: 'tutorialsSection'
+                        =>
+                            @h2 class: 'luna-welcome__section__title icon icon-book', 'Tutorials'
+                            @div class: 'luna-welcome__section__container', outlet: 'tutorialsContainer', =>
 
-                        @li
-                            class: 'luna-private-section list-item',
-                            outlet: 'privateSection'
-                            =>
-                                @span class: 'luna-private-section-title icon icon-person', 'Private'
-                                @div class: 'luna-private-section-container block', outlet: 'privateContainer', =>
-                        @li
-                            class: 'luna-community-section list-item'
-                            outlet: 'communitySection'
-                            =>
-                                @span class: 'luna-community-section-title icon icon-organization',  'Community'
-                                @div class: 'luna-community-section-container block', outlet: 'communityContainer', =>
+                    @div
+                        class: 'luna-welcome__section luna-welcome__section--private',
+                        outlet: 'privateSection'
+                        =>
+                            @h2 class: 'luna-welcome__section__title icon icon-person', 'Private'
+                            @div class: 'luna-welcome__section__container', outlet: 'privateContainer', =>
+                    
+                    @div
+                        class: 'luna-welcome__section luna-welcome__section--community'
+                        outlet: 'communitySection'
+                        =>
+                            @h2 class: 'luna-welcome__section__title icon icon-organization',  'Community'
+                            @div  class: 'luna-welcome__section__container', outlet: 'communityContainer', =>
 
     initialize: =>
         @tutorialItems = []
         @privateItems = []
-        @privateNew = new ProjectItem({name: 'new project', uri: null}, privateNewClasses, (progress, finalize) =>
+        @privateNew = new ProjectItem({name: '+', uri: null}, privateNewClasses, (progress, finalize) =>
             finalize()
             atom.pickFolder (paths) => if paths? then atom.project.setPaths paths
             @detach())
         @communityItems = []
-        @comunnityNew = new ProjectItem({name: 'new project', uri: null}, comunnityNewClasses, (progress, finalize) =>
+        @comunnityNew = new ProjectItem({name: '+', uri: null}, comunnityNewClasses, (progress, finalize) =>
             finalize()
             atom.confirm
                 message: "Not supported yet"
