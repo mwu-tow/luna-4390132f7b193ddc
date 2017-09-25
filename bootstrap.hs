@@ -1,5 +1,3 @@
-#!/usr/bin/env stack
--- stack --resolver lts-8.2 --install-ghc runghc --package base --package exceptions --package shelly --package text --package directory --package system-filepath -- -hide-all-packages
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -119,21 +117,16 @@ installNodeModules = do
 
 
 haskellBins :: [T.Text]
-haskellBins = [
-      "hprotoc"
-    , "happy"
-    , "hsc2hs"
-    ]
+haskellBins = ["happy", "hsc2hs"]
 
 installHaskellBins :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => m ()
 installHaskellBins = do
     current <- currentPath
     home <- liftIO $ System.getHomeDirectory
     Shelly.appendToPath $ home </> ".local/bin"
-    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-7.7" "install" "--install-ghc") haskellBins
+    mapM (Shelly.cmd (current </> stack) "--resolver" "lts-8.2" "install" "--install-ghc") haskellBins
     sanityCheck "happy" ["--version"]
     sanityCheck "hsc2hs" ["--version"]
-    sanityCheck "hprotoc" ["--version"]
 
 downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 downloadLibs = do
