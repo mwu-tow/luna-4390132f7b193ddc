@@ -49,6 +49,7 @@ import           LunaStudio.Data.PortDefault              (PortDefault)
 import           LunaStudio.Data.PortRef                  (AnyPortRef (InPortRef'), InPortRef, OutPortRef)
 import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.Project                  (LocationSettings, ProjectId)
+import           LunaStudio.Data.NodeSearcher             (ImportName)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import           NodeEditor.Batch.Workspace               (currentLocation)
 import           NodeEditor.React.Model.Connection        (ConnectionId)
@@ -154,8 +155,8 @@ renamePort portRef name workspace uuid guiID = sendRequest $ Message uuid guiID 
 saveSettings :: LocationSettings -> Workspace -> UUID -> Maybe UUID -> IO ()
 saveSettings settings workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace SaveSettings.Request settings
 
-searchNodes :: Maybe Workspace -> UUID -> Maybe UUID -> IO ()
-searchNodes mayWorkspace uuid guiID = sendRequest $ Message uuid guiID $ SearchNodes.Request (view currentLocation <$> mayWorkspace)
+searchNodes :: [ImportName] -> Maybe Workspace -> UUID -> Maybe UUID -> IO ()
+searchNodes importNames mayWorkspace uuid guiID = sendRequest $ Message uuid guiID $ SearchNodes.Request (view currentLocation <$> mayWorkspace) importNames
 
 setNodeExpression :: NodeLoc -> Text -> Workspace -> UUID -> Maybe UUID -> IO ()
 setNodeExpression nodeLoc expression workspace uuid guiID =

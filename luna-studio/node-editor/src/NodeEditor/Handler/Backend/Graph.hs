@@ -42,9 +42,8 @@ import qualified LunaStudio.Data.GraphLocation               as GraphLocation
 import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
-import           LunaStudio.Data.NodeSearcher                (prepareNSData)
-import           NodeEditor.Action.Basic                     (centerGraph, exitBreadcrumb, localAddConnections, localMerge,
-                                                              localRemoveConnections, localRemoveNodes, localSetSearcherHints,
+import           NodeEditor.Action.Basic                     (centerGraph, exitBreadcrumb, localAddConnections, localAddSearcherHints,
+                                                              localMerge, localRemoveConnections, localRemoveNodes,
                                                               localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
                                                               localUpdateOrAddExpressionNodePreventingPorts, localUpdateOrAddInputNode,
                                                               localUpdateOrAddOutputNode, setNodeProfilingData, updateGraph,
@@ -285,7 +284,7 @@ handle (Event.Batch ev) = Just $ case ev of
         success          = applyResult location
 
     SearchNodesResponse response -> handleResponse response success doNothing where
-        success result = localSetSearcherHints $ prepareNSData (result ^. SearchNodes.globalFunctions) (result ^. SearchNodes.globalClasses)
+        success = localAddSearcherHints . view SearchNodes.searcherHints
 
     SetNodeExpressionResponse response -> handleResponse response success failure where
         requestId       = response ^. Response.requestId

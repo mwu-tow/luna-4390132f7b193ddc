@@ -10,12 +10,14 @@ import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', Ou
                                                       dstNodeLoc, nodeLoc)
 import           LunaStudio.Data.Position            (Position)
 import           LunaStudio.Data.Project             (LocationSettings)
+import           LunaStudio.Data.NodeSearcher        (ImportName)
 import           NodeEditor.Action.UUID              (registerRequest)
 import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
 import           NodeEditor.Batch.Workspace          (Workspace)
 import           NodeEditor.React.Model.Connection   (ConnectionId)
 import           NodeEditor.React.Model.Node         (ExpressionNode, NodeLoc)
 import           NodeEditor.State.Global             (State, backend, clientId, workspace)
+
 
 
 withWorkspace :: (Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
@@ -117,8 +119,8 @@ paste = withWorkspace .: BatchCmd.paste
 saveSettings :: LocationSettings -> Command State ()
 saveSettings = withWorkspace . BatchCmd.saveSettings
 
-searchNodes :: Command State ()
-searchNodes = withMayWorkspace BatchCmd.searchNodes
+searchNodes :: [ImportName] -> Command State ()
+searchNodes = withMayWorkspace . BatchCmd.searchNodes
 
 setNodeExpression :: NodeLoc -> Text -> Command State ()
 setNodeExpression = withWorkspace .: BatchCmd.setNodeExpression

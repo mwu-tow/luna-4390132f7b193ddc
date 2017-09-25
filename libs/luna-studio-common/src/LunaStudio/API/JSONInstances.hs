@@ -38,7 +38,6 @@ import           LunaStudio.API.Graph.RemovePort            as RemovePort
 import           LunaStudio.API.Graph.RenameNode            as RenameNode
 import           LunaStudio.API.Graph.RenamePort            as RenamePort
 import           LunaStudio.API.Graph.Result                as Result
-import           LunaStudio.API.Graph.SearchNodes           as SearchNodes
 import           LunaStudio.API.Graph.SetNodeExpression     as SetNodeExpression
 import           LunaStudio.API.Graph.SetNodesMeta          as SetNodesMeta
 import           LunaStudio.API.Graph.SetPortDefault        as SetPortDefault
@@ -213,8 +212,6 @@ instance ToJSON RenamePort.Inverse
 instance ToJSON RenamePort.Request
 instance ToJSON Result.Result
 instance ToJSON SaveFile.Request
-instance ToJSON SearchNodes.Request
-instance ToJSON SearchNodes.Result
 instance ToJSON SetNodeExpression.Inverse
 instance ToJSON SetNodeExpression.Request
 instance ToJSON SetNodesMeta.Inverse

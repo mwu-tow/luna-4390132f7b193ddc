@@ -11,6 +11,7 @@ import qualified Data.Set                           as Set
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
 import           LunaStudio.Data.Node               (ExpressionNode)
+import           LunaStudio.Data.NodeSearcher       (ImportsHints, prepareNSData)
 import qualified LunaStudio.Data.NodeSearcher       as NS
 import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, modifySearcher)
 import           NodeEditor.React.Model.Searcher    (allCommands, className, updateCommandsResult, updateNodeResult)
@@ -23,9 +24,9 @@ import           Text.ScopeSearcher.Scope           (searchInScope)
 
 type IsFirstQuery = Bool
 
-localSetSearcherHints :: Items ExpressionNode -> Command State ()
-localSetSearcherHints items' = do
-    nodeSearcherData .= items'
+localAddSearcherHints :: ImportsHints -> Command State ()
+localAddSearcherHints ih = do
+    nodeSearcherData %= Map.union (prepareNSData <$> ih)
     localUpdateSearcherHints
 
 localUpdateSearcherHints :: Command State ()
@@ -46,7 +47,7 @@ localUpdateSearcherHints = do
                         items' = mergeByName . flip (maybe []) mayQuery $ \q ->
                             getHintsForNode (q ^. Searcher.query)
                                             (nmi ^. className)
-                                            (filterNSData nsData q)
+                                            (filterNSData (foldl Map.union def $ Map.elems nsData) q)
                                             (filterLocalFuntions localFunctions q)
                                             (isFirstQuery q)
                     (updateNodeResult items' m, length items')

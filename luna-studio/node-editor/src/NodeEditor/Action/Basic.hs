@@ -20,6 +20,7 @@ module NodeEditor.Action.Basic
     , localAddConnections
     , localAddExpressionNode
     , localAddPort
+    , localAddSearcherHints
     , localAddSubgraph
     , localClearSearcherHints
     , localMerge
@@ -39,7 +40,6 @@ module NodeEditor.Action.Basic
     , localSetNodeMeta
     , localSetNodesMeta
     , localSetPortDefault
-    , localSetSearcherHints
     , localUnmerge
     , localUpdateConnection
     , localUpdateExpressionNode
@@ -143,6 +143,6 @@ import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpress
                                                               localUpdateOrAddExpressionNode, localUpdateOrAddExpressionNodePreventingPorts,
                                                               localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
-import           NodeEditor.Action.Basic.UpdateSearcherHints (localClearSearcherHints, localSetSearcherHints, localUpdateSearcherHints)
+import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints)
 import           NodeEditor.Action.State.Model               (isArgConstructorConnectSrc, updateAllPortsMode, updateArgConstructorMode,
                                                               updatePortMode, updatePortsModeForNode)

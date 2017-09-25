@@ -19,6 +19,7 @@ import           LunaStudio.Data.CameraTransformation        (CameraTransformati
 import           LunaStudio.Data.MonadPath                   (MonadPath)
 import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
+import           LunaStudio.Data.NodeSearcher                (ImportName)
 import qualified LunaStudio.Data.NodeSearcher                as NS
 import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType)
 import           LunaStudio.Data.Port                        (_WithDefault)
@@ -250,10 +251,7 @@ getScreenTransform = view Scene.screenTransform <$> getLayout
 setScreenTransform :: CameraTransformation -> Command State ()
 setScreenTransform camera = modifyNodeEditor $ NE.layout . Scene.screenTransform .= camera
 
-globalFunctions :: Items a -> Items a
-globalFunctions = Map.filter isElement
-
-getNodeSearcherData :: Command State (Items Empire.ExpressionNode)
+getNodeSearcherData :: Command State (Map ImportName (Items Empire.ExpressionNode))
 getNodeSearcherData = use nodeSearcherData
 
 class NodeEditorElementId a where

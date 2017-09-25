@@ -31,6 +31,7 @@ module Empire.Commands.Graph
     , connectNoTC
     , decodeLocation
     , disconnect
+    , getAvailableImports
     , getNodeMeta
     , getBuffer
     , getCode
@@ -149,6 +150,7 @@ import           LunaStudio.Data.NodeLoc          (NodeLoc (..))
 import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
+import           LunaStudio.Data.NodeSearcher     (ImportName)
 import           LunaStudio.Data.Point            (Point)
 import qualified LunaStudio.Data.Point            as Point
 import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
@@ -1423,7 +1425,7 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
     resendCode (GraphLocation file (Breadcrumb []))
     return code
 
-getAvailableImports :: GraphLocation -> Empire [Text]
+getAvailableImports :: GraphLocation -> Empire [ImportName]
 getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Breadcrumb [])) $ do
     runASTOp $ do
         unit <- use Graph.clsClass

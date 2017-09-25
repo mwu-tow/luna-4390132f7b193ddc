@@ -16,6 +16,7 @@ import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import           LunaStudio.Data.Node                     (ExpressionNode)
 import           LunaStudio.Data.NodeLoc                  (NodeLoc)
 import           LunaStudio.Data.NodeValue                (Visualizer, VisualizerMatcher, VisualizerName)
+import           LunaStudio.Data.NodeSearcher             (ImportName)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import qualified NodeEditor.Batch.Workspace               as Workspace
@@ -40,7 +41,7 @@ data State = State
         , _debug                :: DebugState
         , _selectionHistory     :: [Set NodeLoc]
         , _workspace            :: Maybe Workspace
-        , _nodeSearcherData     :: Items ExpressionNode
+        , _nodeSearcherData     :: Map ImportName (Items ExpressionNode)
         , _preferedVisualizers  :: HashMap TypeRep Visualizer
         , _visualizers          :: Map VisualizerName VisualizerMatcher
         , _lastEventTimestamp   :: DateTime

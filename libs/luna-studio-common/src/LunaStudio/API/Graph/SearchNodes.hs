@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.SearchNodes where
 
+import           Data.Aeson.Types        	   (ToJSON)
 import           Data.Binary                   (Binary)
 import           Data.Map                      (Map)
 import qualified LunaStudio.API.Graph.Request  as G
@@ -8,23 +9,25 @@ import qualified LunaStudio.API.Response       as Response
 import qualified LunaStudio.API.Topic          as T
 import           LunaStudio.Data.GraphLocation (GraphLocation (GraphLocation))
 import           LunaStudio.Data.Node          (ExpressionNode)
-import           LunaStudio.Data.NodeSearcher  (Items)
+import           LunaStudio.Data.NodeSearcher  (Items, ImportName, ImportsHints)
 import           Prologue
 
 
-data Request = Request { _location :: Maybe GraphLocation
+data Request = Request { _location       :: Maybe GraphLocation
+					   , _missingImports :: [ImportName]
                        } deriving (Eq, Generic, Show)
 
-data Result  = Result  { _globalFunctions :: [Text]
-                       , _globalClasses   :: Map Text [Text]
+data Result  = Result  { _searcherHints :: ImportsHints
                        } deriving (Eq, Generic, Show)
 
 makeLenses ''Request
 makeLenses ''Result
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Result
 instance NFData Result
+instance ToJSON Result
 instance G.GraphRequest Request where location = lens (fromMaybe (GraphLocation def def) . view location) (\r l -> r & location .~ Just l)
 
 

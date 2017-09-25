@@ -186,11 +186,12 @@ handleGetProgram = modifyGraph defInverse action replyResult where
         let moduleChanged = isNothing mayPrevSettings || isJust (maybe Nothing (view Project.visMap . snd) mayPrevSettings)
         withJust mayPrevSettings $ uncurry saveSettings
         code <- Graph.getCode location
-        (graph, crumb, typeRepToVisMap, camera) <- handle
-            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], mempty, def))
+        (graph, crumb, availableImports, typeRepToVisMap, camera) <- handle
+            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], def, mempty, def))
             $ do
-                graph <- Graph.getGraph location
-                crumb <- Graph.decodeLocation location
+                graph            <- Graph.getGraph location
+                crumb            <- Graph.decodeLocation location
+                availableImports <- Graph.getAvailableImports location
                 let filePath = location ^. GraphLocation.filePath
                 mayProjectPathAndRelModulePath <- liftIO $ getProjectPathAndRelativeModulePath filePath
                 mayModuleSettings              <- liftIO $ maybe (return def) (uncurry Project.getModuleSettings) mayProjectPathAndRelModulePath
@@ -202,8 +203,8 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                                        bs     = Map.lookup bc $ ms ^. Project.breadcrumbsSettings
                                        cam    = maybe defaultCamera (view Project.breadcrumbCameraSettings) bs
                             in (visMap, cam)
-                return (Right graph, crumb, typeRepToVisMap, camera)
-        return $ GetProgram.Result graph code crumb typeRepToVisMap camera
+                return (Right graph, crumb, availableImports, typeRepToVisMap, camera)
+        return $ GetProgram.Result graph code crumb availableImports typeRepToVisMap camera
 
 handleAddConnection :: Request AddConnection.Request -> StateT Env BusT ()
 handleAddConnection = modifyGraph inverse action replyResult where
@@ -371,7 +372,8 @@ handleSearchNodes = modifyGraph defInverse replyResult where
         liftIO $ void $ forkIO $ do
             result <- Empire.execEmpire empireNotifEnv currentEmpireEnv $ do
                 sMap <- liftIO . readMVar =<< view Empire.scopeVar
-                return $ SearchNodes.Result (sMap ^. Empire.functions) (sMap ^. Empire.classes)
+                let importsMap = Map.singleton "default" $ NS.ModuleHints (sMap ^. Empire.functions) (sMap ^. Empire.classes)
+                return $ SearchNodes.Result importsMap
             a <- Bus.runBus endPoints $ BusT.runBusT $ flip evalStateT env $ success origReq () result
             case a of
                 Left  a -> error (show a)
