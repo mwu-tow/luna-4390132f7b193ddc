@@ -17,8 +17,11 @@ class LunaWelcomeTab extends View
 
     @content: ->
         @div class: 'luna-welcome', =>
-            @div class: 'luna-header block', =>
-                @div class: 'luna-title inline-block', 'Luna Studio'
+
+            @div class: 'luna-welcome__block luna-welcome__block--header', =>
+
+                @div class: 'luna-welcome__block__title', 'Luna Studio'
+
                 @div class: 'luna-link luna-link-forum inline-block-tight', =>
                     @a
                         class: 'btn'
@@ -29,14 +32,17 @@ class LunaWelcomeTab extends View
                         class: 'btn'
                         href: "http://luna-lang.org"
                         'chat'
-            @div class: 'luna-body', =>
-                @div class: 'luna-search block', =>
+
+            @div class: 'luna-welcome__block luna-welcome__block--body', =>
+
+                @div class: 'luna-welcome__block luna-welcome__block--search', =>
                     @input
                         class: 'luna-input luna-input--search native-key-bindings'
                         type: 'search'
                         placeholder: 'Search'
                         outlet: 'searchInput'
-                @div class: 'luna-projects block', =>
+
+                @div class: 'luna-welcome__block luna-welcome__block--projects', =>
                     @ul class: 'list-group', =>
                         @li
                             class: 'luna-search-results list-item'
