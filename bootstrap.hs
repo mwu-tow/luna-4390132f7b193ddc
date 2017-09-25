@@ -117,10 +117,7 @@ installNodeModules = do
 
 
 haskellBins :: [T.Text]
-haskellBins = [
-    , "happy"
-    , "hsc2hs"
-    ]
+haskellBins = ["happy", "hsc2hs"]
 
 installHaskellBins :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => m ()
 installHaskellBins = do
