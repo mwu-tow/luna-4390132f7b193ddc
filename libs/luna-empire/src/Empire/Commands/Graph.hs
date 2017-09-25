@@ -68,6 +68,7 @@ module Empire.Commands.Graph
     , pasteText
     , collapseToFunction
     , moveToOrigin
+    , getAvailableImports
     ) where
 
 import           Control.Arrow                    ((&&&))
@@ -126,6 +127,7 @@ import           Empire.Empire
 import           Empire.Prelude                   hiding (toList)
 import qualified Luna.IR                          as IR
 import qualified Luna.IR.Term.Core                as Term
+import qualified Luna.IR.Term.Unit                as Term
 import           Luna.Syntax.Text.Analysis.SpanTree (Spanned(..))
 import qualified Luna.Syntax.Text.Analysis.SpanTree as SpanTree
 import qualified Luna.Syntax.Text.Lexer           as Lexer
@@ -1420,6 +1422,23 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
             forM nodeid $ \nid -> setNodeMetaGraph nid meta
     resendCode (GraphLocation file (Breadcrumb []))
     return code
+
+getAvailableImports :: GraphLocation -> Empire [Text]
+getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Breadcrumb [])) $ do
+    runASTOp $ do
+        unit <- use Graph.clsClass
+        IR.matchExpr unit $ \case
+            IR.Unit imps _ _ -> do
+                imps' <- IR.source imps
+                IR.matchExpr imps' $ \case
+                    IR.UnresolvedImportHub imps -> forM imps $ \imp -> do
+                        imp' <- IR.source imp
+                        IR.matchExpr imp' $ \case
+                            IR.UnresolvedImport a _ -> do
+                                a' <- IR.source a
+                                IR.matchExpr a' $ \case
+                                    IR.UnresolvedImportSrc n -> case n of
+                                        Term.Absolute n -> return $ convert n
 
 -- internal
 

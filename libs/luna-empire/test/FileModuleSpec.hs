@@ -718,3 +718,14 @@ spec = around withChannels $ parallel $ do
                 def main:
                     print bar
                 |]
+        it "exports available imports" $
+            let initialCode = [r|
+                    import Std.Base
+                    import Std.Geo
+
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode initialCode $ \loc -> do
+                imports <- Graph.getAvailableImports loc
+                liftIO $ imports `shouldBe` ["Std.Base", "Std.Geo"]
