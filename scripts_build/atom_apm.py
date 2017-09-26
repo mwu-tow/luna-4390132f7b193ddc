@@ -142,12 +142,12 @@ def apm_packages(third_party_path, atom_home_path, package_config_path):
 
 def run(link):
     apm(third_party_path, atom_home_path, studio_package_name, link)
-    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-syntax', 'https://github.com/luna/luna-studio-syntax-theme.git')
-    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dark-ui', 'https://github.com/luna/luna-studio-ui-theme.git')
-    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dpi', 'https://github.com/luna/luna-studio-dpi.git')
-    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-toolbar', 'https://github.com/luna/luna-studio-toolbar.git')
-    apm_luna_atom_package (third_party_path, atom_home_path, 'settings-view', 'https://github.com/luna/atom-settings-view.git')
-    apm_luna_atom_package (third_party_path, atom_home_path, 'tool-bar', 'https://github.com/luna/tool-bar.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-syntax', 'git@github.com:luna/luna-studio-syntax-theme.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dark-ui', 'git@github.com:luna/luna-studio-ui-theme.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-dpi', 'git@github.com:luna/luna-studio-dpi.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'luna-toolbar', 'git@github.com:luna/luna-studio-toolbar.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'settings-view', 'git@github.com:luna/atom-settings-view.git')
+    apm_luna_atom_package (third_party_path, atom_home_path, 'tool-bar', 'git@github.com:luna/tool-bar.git')
     apm_packages(third_party_path, atom_home_path,  package_config_path)
 
 if __name__ == '__main__':
