@@ -1,11 +1,15 @@
-fs      = require 'fs-extra'
+fse     = require 'fs-extra'
+fs      = require 'fs-plus'
 Git     = require 'nodegit'
 path    = require 'path'
 request = require 'request'
 yaml    = require 'js-yaml'
+InputView = require './input-view'
 
 recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
 tutorialsDownloadPath = if process.env.LUNA_STUDIO_TUTORIALS? then  process.env.LUNA_STUDIO_TUTORIALS else '/tmp'
+defaultProjectPath = process.env.LUNA_STUDIO_PROJECTS or path.join(fs.getHomeDirectory(), 'projects')
+
 temporaryProject = {
     name: 'unsaved-luna-project',
     path: '/tmp/unsaved-luna-project',
@@ -33,7 +37,7 @@ loadRecentNoCheck = (callback) =>
         callback recentProjectsPaths
 
 createTemporary = (callback) =>
-    fs.remove temporaryProject.path, (err) =>
+    fse.remove temporaryProject.path, (err) =>
         console.log err
         fs.mkdir temporaryProject.path, (err) =>
             if err then callback err
@@ -57,6 +61,19 @@ module.exports =
         isOpen: =>
             return atom.project.getPaths()[0] == temporaryProject.path
 
+        save: (callback) =>
+            if atom.project.getPaths()[0] == temporaryProject.path
+                inputView = new InputView()
+                inputView.attach "Save project as", defaultProjectPath, 'my-project',
+                    (name) =>!fs.existsSync(name),
+                    (name) => "Path already exists at '#{name}'",
+                    (name) =>
+                        console.log name
+                        # fs.moveSync(temporaryProject.path, name)
+                        # atom.project.setPaths [name]
+                        callback()
+            else
+                callback()
     recent:
         load: (callback) =>
             loadRecentNoCheck (recentProjectsPaths) =>

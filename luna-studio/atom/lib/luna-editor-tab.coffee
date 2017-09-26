@@ -4,7 +4,7 @@
 path = require 'path'
 SubAtom = require 'sub-atom'
 Spinner = require './spinner'
-
+projects = require './projects'
 
 TextBuffer::subscribeToFileOverride = (codeEditor) ->
     @fileSubscriptions?.dispose()
@@ -117,7 +117,8 @@ module.exports =
     handleSave: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+        projects.temporaryProject.save =>
+            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
 
     insertCode: (uri_send, start_send, end_send, text) =>
         if @uri == uri_send
