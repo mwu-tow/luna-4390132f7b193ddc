@@ -7,6 +7,7 @@ import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import           Data.Map                (Map)
 import qualified Data.Map                as Map
+import qualified Data.Set                as Set
 import           Data.Text               (Text)
 import qualified Data.UUID.Types         as UUID
 import           LunaStudio.Data.Node    (ExpressionNode, mkExprNode)
@@ -22,8 +23,22 @@ instance Binary ModuleHints
 instance NFData ModuleHints
 instance ToJSON ModuleHints
 
+
 type ImportName   = Text
 type ImportsHints = Map ImportName ModuleHints
+
+data NodeSearcherData = NodeSearcherData { _imports        :: Map ImportName (Items ExpressionNode)
+                                         , _currentImports :: [ImportName]
+                                         } deriving (Eq, Generic, Show)
+
+makeLenses ''NodeSearcherData
+instance Binary  NodeSearcherData
+instance NFData  NodeSearcherData
+instance Default NodeSearcherData where def = NodeSearcherData def def
+
+missingImports :: Getter NodeSearcherData [ImportName]
+missingImports = to missingImports' where
+    missingImports' (NodeSearcherData imps currentImps) = filter (`Set.notMember` (Map.keysSet imps)) (convert "default" : currentImps)
 
 mockNode :: Text -> ExpressionNode
 mockNode expr = mkExprNode (unsafeFromJust $ UUID.fromString "094f9784-3f07-40a1-84df-f9cf08679a27") expr def

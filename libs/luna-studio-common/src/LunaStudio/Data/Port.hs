@@ -63,9 +63,22 @@ instance Ixed (OutPorts s) where
 data AnyPortId = InPortId'  { inPortId'  :: InPortId  }
                | OutPortId' { outPortId' :: OutPortId }
                deriving (Generic, Show, Eq, Ord)
+
 makePrisms ''AnyPortId
+instance Binary AnyPortId
+instance NFData AnyPortId
+instance FromJSON AnyPortId
+instance ToJSON   AnyPortId
+
 
 data PortState = NotConnected | Connected | WithDefault PortDefault deriving (Eq, Generic, Show)
+
+makePrisms ''PortState
+instance Binary PortState
+instance NFData PortState
+instance FromJSON PortState
+instance ToJSON PortState
+
 
 data Port i = Port
         { _portId     :: i
@@ -78,13 +91,11 @@ type InPort  = Port InPortId
 type OutPort = Port OutPortId
 
 makeLenses ''Port
-makePrisms ''PortState
-instance Binary AnyPortId
-instance NFData AnyPortId
-instance Binary i => Binary (Port i)
-instance NFData i => NFData (Port i)
-instance Binary PortState
-instance NFData PortState
+instance Binary   i => Binary   (Port i)
+instance NFData   i => NFData   (Port i)
+instance FromJSON i => FromJSON (Port i)
+instance ToJSON   i => ToJSON   (Port i)
+
 
 class PortId a where
     isInPort     :: a -> Bool

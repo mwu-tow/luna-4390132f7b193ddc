@@ -1,5 +1,6 @@
 module LunaStudio.Data.NodeMeta where
 
+import           Data.Aeson.Types          (FromJSON, ToJSON)
 import           Data.Binary               (Binary)
 import           LunaStudio.Data.NodeValue (Visualizer)
 import           LunaStudio.Data.Position  (Position)
@@ -12,8 +13,10 @@ data NodeMeta = NodeMeta { _position           :: Position
                          } deriving (Eq, Generic, Ord, Show)
 
 makeLenses ''NodeMeta
-instance Binary NodeMeta
-instance NFData NodeMeta
+instance Binary   NodeMeta
+instance NFData   NodeMeta
+instance FromJSON NodeMeta
+instance ToJSON   NodeMeta
 
 instance Default NodeMeta where
     def = NodeMeta def False def

@@ -6,6 +6,7 @@ module LunaStudio.Data.Position
     , y
     ) where
 
+import           Data.Aeson.Types        (FromJSON, ToJSON)
 import           Data.Binary             (Binary)
 import           LunaStudio.Data.Vector2 hiding (fromTuple, toTuple)
 import           Prologue
@@ -25,10 +26,12 @@ makeWrapped ''Position
 
 type instance VectorOf Position = Vector2 Double
 
-instance Dim1      Position
-instance Dim2      Position
-instance IsVector  Position
-instance Binary Position
+instance Dim1     Position
+instance Dim2     Position
+instance IsVector Position
+instance Binary   Position
+instance FromJSON Position
+instance ToJSON   Position
 
 type instance Item Position = Double
 instance Convertible Position [Double] where convert = toList . view vector

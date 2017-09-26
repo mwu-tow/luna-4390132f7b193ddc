@@ -252,7 +252,8 @@ setScreenTransform :: CameraTransformation -> Command State ()
 setScreenTransform camera = modifyNodeEditor $ NE.layout . Scene.screenTransform .= camera
 
 getNodeSearcherData :: Command State (Map ImportName (Items Empire.ExpressionNode))
-getNodeSearcherData = use nodeSearcherData
+getNodeSearcherData = getAvailableImports <$> use nodeSearcherData where
+    getAvailableImports nsd = Map.filterWithKey (\k _ -> Set.member k . Set.fromList $ nsd ^. NS.currentImports) $ nsd ^. NS.imports
 
 class NodeEditorElementId a where
     inGraph :: a -> Command State Bool

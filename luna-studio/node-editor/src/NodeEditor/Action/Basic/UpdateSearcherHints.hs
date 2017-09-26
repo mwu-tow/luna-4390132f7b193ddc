@@ -11,8 +11,10 @@ import qualified Data.Set                           as Set
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
 import           LunaStudio.Data.Node               (ExpressionNode)
-import           LunaStudio.Data.NodeSearcher       (ImportsHints, prepareNSData)
+import           LunaStudio.Data.NodeSearcher       (currentImports, imports, ImportsHints, ImportName, 
+                                                     missingImports, prepareNSData)
 import qualified LunaStudio.Data.NodeSearcher       as NS
+import           NodeEditor.Action.Batch            (searchNodes)
 import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, modifySearcher)
 import           NodeEditor.React.Model.Searcher    (allCommands, className, updateCommandsResult, updateNodeResult)
 import qualified NodeEditor.React.Model.Searcher    as Searcher
@@ -26,8 +28,14 @@ type IsFirstQuery = Bool
 
 localAddSearcherHints :: ImportsHints -> Command State ()
 localAddSearcherHints ih = do
-    nodeSearcherData %= Map.union (prepareNSData <$> ih)
+    nodeSearcherData . imports %= Map.union (prepareNSData <$> ih)
     localUpdateSearcherHints
+
+setCurrentImports :: [ImportName] -> Command State ()
+setCurrentImports importNames = do
+    nodeSearcherData . currentImports .= (convert "default" : importNames)
+    imps' <- (^. missingImports) <$> use nodeSearcherData
+    when (not $ null imps') $ searchNodes imps'
 
 localUpdateSearcherHints :: Command State ()
 localUpdateSearcherHints = do

@@ -1,9 +1,10 @@
 module LunaStudio.Data.PortDefault where
 
-import           Control.DeepSeq (NFData)
-import           Data.Binary     (Binary)
-import           Data.Text       (Text, pack)
-import           Prologue        hiding (Text)
+import           Control.DeepSeq  (NFData)
+import           Data.Aeson.Types (FromJSON, ToJSON)
+import           Data.Binary      (Binary)
+import           Data.Text        (Text, pack)
+import           Prologue         hiding (Text)
 
 
 
@@ -21,8 +22,12 @@ makePrisms ''PortValue
 makePrisms ''PortDefault
 instance Binary PortValue
 instance NFData PortValue
+instance FromJSON PortValue
+instance ToJSON PortValue
 instance Binary PortDefault
 instance NFData PortDefault
+instance FromJSON PortDefault
+instance ToJSON PortDefault
 
 stringify :: PortValue -> Text
 stringify = pack . show

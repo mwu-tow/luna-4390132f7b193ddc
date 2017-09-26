@@ -444,8 +444,13 @@ handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
     action req@(Substitute.Request location start end newText cursor) = do
         let file = location ^. GraphLocation.filePath
-        withDefaultResultTC location $ do
-            Graph.substituteCodeFromPoints file start end newText cursor
+        prevImports <- Graph.getAvailableImports location
+        res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file start end newText cursor
+        newImports  <- Graph.getAvailableImports location
+        return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then [] else newImports
+
+
+            
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()
 handleGetBuffer = modifyGraph defInverse action replyResult where

@@ -4,6 +4,7 @@ module LunaStudio.Data.PortRef
     ) where
 
 import           Control.DeepSeq         (NFData)
+import           Data.Aeson.Types        (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Binary             (Binary)
 import           LunaStudio.Data.Node    (NodeId)
 import           LunaStudio.Data.NodeLoc (HasNodeLoc (..), NodeLoc)
@@ -29,12 +30,23 @@ makePrisms ''OutPortRef
 makeLenses ''InPortRef
 makePrisms ''InPortRef
 
-instance Binary AnyPortRef
-instance NFData AnyPortRef
-instance Binary InPortRef
-instance NFData InPortRef
-instance Binary OutPortRef
-instance NFData OutPortRef
+instance Binary      AnyPortRef
+instance NFData      AnyPortRef
+instance FromJSON    AnyPortRef
+instance FromJSONKey AnyPortRef
+instance ToJSON      AnyPortRef
+instance ToJSONKey   AnyPortRef
+instance Binary      InPortRef
+instance NFData      InPortRef
+instance FromJSON    InPortRef
+instance FromJSONKey InPortRef
+instance ToJSON      InPortRef
+instance ToJSONKey   InPortRef
+instance Binary      OutPortRef
+instance NFData      OutPortRef
+instance FromJSON    OutPortRef
+instance ToJSON      OutPortRef
+
 
 instance Ord AnyPortRef where
   (InPortRef'  _)  `compare` (OutPortRef' _) = LT

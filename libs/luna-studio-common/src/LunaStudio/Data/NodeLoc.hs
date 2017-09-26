@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes     #-}
 module LunaStudio.Data.NodeLoc where
 
+import           Data.Aeson.Types              (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Binary                   (Binary)
 import           Data.Convert                  (Convertible (convert))
 import qualified Data.Set                      as Set
@@ -25,8 +26,14 @@ data NodeLoc = NodeLoc
 makeLenses ''NodePath
 makeLenses ''NodeLoc
 
-instance Binary NodePath
-instance Binary NodeLoc
+instance Binary      NodePath
+instance FromJSON    NodePath
+instance ToJSON      NodePath
+instance Binary      NodeLoc
+instance FromJSON    NodeLoc
+instance FromJSONKey NodeLoc
+instance ToJSON      NodeLoc
+instance ToJSONKey   NodeLoc
 
 instance Convertible (NodePath, NodeId) NodeLoc where
     convert = uncurry NodeLoc

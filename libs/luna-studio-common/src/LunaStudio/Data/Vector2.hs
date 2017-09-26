@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies      #-}
 module LunaStudio.Data.Vector2 where
 
+import           Data.Aeson.Types    (FromJSON, ToJSON)
 import           Data.Binary         (Binary)
 import           Prologue
 
@@ -55,7 +56,9 @@ makeLenses ''Vector2
 instance Binary a => Binary (Vector2 a)
 instance Dim1 (Vector2 a) where x = vector2_x
 instance Dim2 (Vector2 a) where y = vector2_y
-instance NFData a => NFData (Vector2 a)
+instance NFData   a => NFData   (Vector2 a)
+instance FromJSON a => FromJSON (Vector2 a)
+instance ToJSON   a => ToJSON   (Vector2 a)
 
 instance Default a => Default (Vector2 a) where
     def = Vector2 def def

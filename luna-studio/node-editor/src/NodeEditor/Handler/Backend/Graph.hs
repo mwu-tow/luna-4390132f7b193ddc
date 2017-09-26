@@ -46,8 +46,8 @@ import           NodeEditor.Action.Basic                     (centerGraph, exitB
                                                               localMerge, localRemoveConnections, localRemoveNodes,
                                                               localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
                                                               localUpdateOrAddExpressionNodePreventingPorts, localUpdateOrAddInputNode,
-                                                              localUpdateOrAddOutputNode, setNodeProfilingData, updateGraph,
-                                                              updateNodeValueAndVisualization, updateScene)
+                                                              localUpdateOrAddOutputNode, setCurrentImports, setNodeProfilingData,
+                                                              updateGraph, updateNodeValueAndVisualization, updateScene)
 import           NodeEditor.Action.Basic.Revert              (revertAddConnection, revertAddNode, revertAddPort, revertAddSubgraph,
                                                               revertMovePort, revertRemoveConnection, revertRemoveNodes, revertRemovePort,
                                                               revertRenameNode, revertSetNodeExpression, revertSetNodesMeta,
@@ -108,6 +108,7 @@ handle (Event.Batch ev) = Just $ case ev of
             whenM (isCurrentLocation location) $ do
                 putStrLn "GetProgram"
                 setBreadcrumbs $ result ^. GetProgram.breadcrumb
+                setCurrentImports $ result ^. GetProgram.availableImports
                 case result ^. GetProgram.graph of
                     Left errMsg -> setGraphStatus $ GraphError errMsg
                     Right graph -> do
@@ -308,8 +309,11 @@ handle (Event.Batch ev) = Just $ case ev of
         success         = applyResultPreventingExpressionNodesPorts location
 
     SubstituteResponse response -> handleResponse response success doNothing where
-        location = response ^. Response.request . Substitute.location
-        success  = applyResult location
+        location    = response ^. Response.request . Substitute.location
+        success res = do
+            applyResult location (res ^. Substitute.defResult)
+            let newImports = res ^. Substitute.importChange
+            when (not $ null newImports) $ setCurrentImports newImports
 
     TypeCheckResponse response -> handleResponse response doNothing doNothing
 

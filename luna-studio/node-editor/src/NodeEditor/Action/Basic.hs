@@ -75,6 +75,7 @@ module NodeEditor.Action.Basic
     , selectNode
     , selectNodes
     , selectPreviousNodes
+    , setCurrentImports
     , setFile
     , setInputMode
     , setInputSidebarPortMode
@@ -143,6 +144,7 @@ import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpress
                                                               localUpdateOrAddExpressionNode, localUpdateOrAddExpressionNodePreventingPorts,
                                                               localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
-import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints)
+import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints, 
+                                                              setCurrentImports)
 import           NodeEditor.Action.State.Model               (isArgConstructorConnectSrc, updateAllPortsMode, updateArgConstructorMode,
                                                               updatePortMode, updatePortsModeForNode)

@@ -1,6 +1,7 @@
 {-# LANGUAGE Rank2Types #-}
 module LunaStudio.Data.Node where
 
+import           Data.Aeson.Types          (FromJSON, ToJSON)
 import           Data.Binary               (Binary)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as Text
@@ -52,16 +53,27 @@ makeLenses ''NodeTypecheckerUpdate
 position :: Lens' ExpressionNode Position
 position = nodeMeta . NodeMeta.position
 
-instance Binary ExpressionNode
-instance NFData ExpressionNode
-instance Binary InputSidebar
-instance NFData InputSidebar
-instance Binary OutputSidebar
-instance NFData OutputSidebar
-instance Binary NodeTypecheckerUpdate
-instance NFData NodeTypecheckerUpdate
-instance Binary Node
-instance NFData Node
+
+instance Binary   ExpressionNode
+instance NFData   ExpressionNode
+instance FromJSON ExpressionNode
+instance ToJSON   ExpressionNode
+instance Binary   InputSidebar
+instance NFData   InputSidebar
+instance FromJSON InputSidebar
+instance ToJSON   InputSidebar
+instance Binary   OutputSidebar
+instance NFData   OutputSidebar
+instance FromJSON OutputSidebar
+instance ToJSON   OutputSidebar
+instance Binary   NodeTypecheckerUpdate
+instance NFData   NodeTypecheckerUpdate
+instance FromJSON NodeTypecheckerUpdate
+instance ToJSON   NodeTypecheckerUpdate
+instance Binary   Node
+instance NFData   Node
+instance FromJSON Node
+instance ToJSON   Node
 
 class HasNodeId a where nodeId :: Lens' a NodeId
 

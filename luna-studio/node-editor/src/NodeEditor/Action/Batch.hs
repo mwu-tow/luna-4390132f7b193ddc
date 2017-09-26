@@ -120,7 +120,7 @@ saveSettings :: LocationSettings -> Command State ()
 saveSettings = withWorkspace . BatchCmd.saveSettings
 
 searchNodes :: [ImportName] -> Command State ()
-searchNodes = withMayWorkspace . BatchCmd.searchNodes
+searchNodes imps = withMayWorkspace (BatchCmd.searchNodes imps)
 
 setNodeExpression :: NodeLoc -> Text -> Command State ()
 setNodeExpression = withWorkspace .: BatchCmd.setNodeExpression
