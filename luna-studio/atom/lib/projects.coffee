@@ -1,10 +1,19 @@
-fs      = require 'fs'
+fs      = require 'fs-extra'
 Git     = require 'nodegit'
+path    = require 'path'
 request = require 'request'
 yaml    = require 'js-yaml'
 
 recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
 tutorialsDownloadPath = if process.env.LUNA_STUDIO_TUTORIALS? then  process.env.LUNA_STUDIO_TUTORIALS else '/tmp'
+temporaryProject = {
+    name: 'unsaved-luna-project',
+    path: '/tmp/unsaved-luna-project',
+    srcDir: 'src'
+    mainFile: 'Main.luna'
+    mainContent: 'def main:\n    None'
+    }
+
 encoding = 'utf8'
 
 tutorialRequestOpts =
@@ -12,7 +21,7 @@ tutorialRequestOpts =
     headers:
         'User-Agent': 'luna-studio'
 
-loadRecentNoCheck = (fun) =>
+loadRecentNoCheck = (callback) =>
     fs.readFile recentProjectsPath, encoding, (err, data) =>
         recentProjectsPaths = []
         if err
@@ -21,16 +30,38 @@ loadRecentNoCheck = (fun) =>
             parsed = yaml.safeLoad(data)
             if parsed?
                 recentProjectsPaths = parsed
-        fun recentProjectsPaths
+        callback recentProjectsPaths
+
+createTemporary = (callback) =>
+    fs.remove temporaryProject.path, (err) =>
+        console.log err
+        fs.mkdir temporaryProject.path, (err) =>
+            if err then callback err
+            srcPath = path.join temporaryProject.path, temporaryProject.srcDir
+            fs.mkdir srcPath, (err) =>
+                if err then callback err
+                mainPath = path.join srcPath, temporaryProject.mainFile
+                fs.writeFile mainPath, temporaryProject.mainContent, (err) =>
+                    if err then callback err
+                    callback()
 
 module.exports =
+
+    temporaryProject:
+        path: path.join temporaryProject.path, temporaryProject.srcDir, temporaryProject.mainFile
+        open: (callback) =>
+            createTemporary (err) =>
+                if err then throw err
+                atom.project.setPaths [temporaryProject.path]
+                if callback then callback()
+
     recent:
-        load: (fun) =>
+        load: (callback) =>
             loadRecentNoCheck (recentProjectsPaths) =>
                 recentProjectsPaths.forEach (recentProjectPath) =>
                     fs.access recentProjectPath, (err) =>
                         if not err
-                            fun recentProjectPath
+                            callback recentProjectPath
 
         add: (recentProjectPath) =>
             loadRecentNoCheck (recentProjectsPaths) =>
@@ -43,7 +74,7 @@ module.exports =
                     if err?
                         console.log err
     tutorial:
-        list: (fun) =>
+        list: (callback) =>
             try
                 request.get tutorialRequestOpts, (err, response, body) =>
                     parsed = yaml.safeLoad(body)
@@ -55,7 +86,7 @@ module.exports =
                                 description: repo.description
                                 uri: repo.html_url
                                 thumb: ('https://raw.githubusercontent.com/luna-packages/' + repo.name + '/master/thumb.png')
-                    fun repos
+                    callback repos
             catch error
                 atom.confirm
                     message: "Error while getting tutorials"
