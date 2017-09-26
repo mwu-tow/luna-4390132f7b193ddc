@@ -50,6 +50,10 @@ module.exports = LunaStudio =
         atom.commands.add 'body',
             'luna-studio:welcome': => @welcome.attach()
             'core:cancel': => @welcome.detach()
+        if atom.config.get('luna-studio.resetProjects')
+            projects.temporaryProject.open (err) =>
+                if err then throw err
+                atom.workspace.open(projects.temporaryProject.path, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
         codeEditor.start()
 
     loadAnalyticsConfig: ->
@@ -155,5 +159,10 @@ module.exports = LunaStudio =
 
         analyticsEnabled:
             title: 'Send anonymous data to improve the application'
+            type: 'boolean'
+            default: true
+
+        resetProjects:
+            title: 'Open empty project on start up'
             type: 'boolean'
             default: true

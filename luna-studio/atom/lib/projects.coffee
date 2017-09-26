@@ -54,6 +54,8 @@ module.exports =
                 if err then throw err
                 atom.project.setPaths [temporaryProject.path]
                 if callback then callback()
+        isOpen: =>
+            return atom.project.getPaths()[0] == temporaryProject.path
 
     recent:
         load: (callback) =>
