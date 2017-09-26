@@ -49,7 +49,7 @@ class LunaWelcomeTab extends View
                         =>
                             @h2 class: 'luna-welcome__section__title icon icon-search', 'Search results'
                             @div class: 'luna-welcome__section__container', outlet: 'searchResultsContainer', =>
-                    
+
                     @div
                         class: 'luna-welcome__section luna-welcome__section--tutorials'
                         outlet: 'tutorialsSection'
@@ -63,7 +63,7 @@ class LunaWelcomeTab extends View
                         =>
                             @h2 class: 'luna-welcome__section__title icon icon-person', 'Private'
                             @div class: 'luna-welcome__section__container', outlet: 'privateContainer', =>
-                    
+
                     @div
                         class: 'luna-welcome__section luna-welcome__section--community'
                         outlet: 'communitySection'
@@ -111,12 +111,8 @@ class LunaWelcomeTab extends View
         return 'name'
 
     attach: (@mode) ->
-        console.log 'attach'
         @panel ?= atom.workspace.addModalPanel({item: this, visible: false})
-        console.log @panel
         @previouslyFocusedElement = document.activeElement
-        @panel.show()
-        console.log @panel
         @panel.show()
 
     detach: ->
