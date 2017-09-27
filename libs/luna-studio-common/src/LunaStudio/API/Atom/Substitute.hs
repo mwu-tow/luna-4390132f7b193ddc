@@ -30,7 +30,7 @@ data Update = Update { _filePath' :: FilePath
                      } deriving (Eq, Generic, Show)
 
 data Result = Result { _defResult    :: Result.Result
-                     , _importChange :: [ImportName]
+                     , _importChange :: Maybe [ImportName]
                      } deriving (Eq, Generic, Show)
 
 makeLenses ''Request

@@ -312,8 +312,7 @@ handle (Event.Batch ev) = Just $ case ev of
         location    = response ^. Response.request . Substitute.location
         success res = do
             applyResult location (res ^. Substitute.defResult)
-            let newImports = res ^. Substitute.importChange
-            when (not $ null newImports) $ setCurrentImports newImports
+            withJust (res ^. Substitute.importChange) setCurrentImports
 
     TypeCheckResponse response -> handleResponse response doNothing doNothing
 

@@ -447,7 +447,7 @@ handleSubstitute = modifyGraph defInverse action replyResult where
         prevImports <- Graph.getAvailableImports location
         res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file start end newText cursor
         newImports  <- Graph.getAvailableImports location
-        return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then [] else newImports
+        return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then def else return newImports
 
 
             
