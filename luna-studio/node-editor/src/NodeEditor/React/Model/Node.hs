@@ -46,3 +46,6 @@ instance HasPorts Node where
     outPortAt portId f (Expression node) = Expression <$> outPortAt portId f node
     outPortAt portId f (Input      node) = Input      <$> outPortAt portId f node
     outPortAt portId f (Output     node) = Output     <$> outPortAt portId f node
+    portModeAt portId f (Expression node) = Expression <$> portModeAt portId f node
+    portModeAt portId f (Input      node) = Input      <$> portModeAt portId f node
+    portModeAt portId f (Output     node) = Output     <$> portModeAt portId f node

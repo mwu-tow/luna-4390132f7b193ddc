@@ -13,7 +13,6 @@ import           Data.Time.Clock                          (UTCTime)
 import           Data.UUID.Types                          (UUID)
 import           Data.Word                                (Word8)
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
-import           LunaStudio.Data.Node                     (ExpressionNode)
 import           LunaStudio.Data.NodeLoc                  (NodeLoc)
 import           LunaStudio.Data.NodeValue                (Visualizer, VisualizerMatcher, VisualizerName)
 import           LunaStudio.Data.NodeSearcher             (NodeSearcherData)
@@ -28,7 +27,6 @@ import qualified NodeEditor.State.Collaboration           as Collaboration
 import qualified NodeEditor.State.UI                      as UI
 import           System.Random                            (StdGen)
 import qualified System.Random                            as Random
-import           Text.ScopeSearcher.Item                  (Items)
 
 
 

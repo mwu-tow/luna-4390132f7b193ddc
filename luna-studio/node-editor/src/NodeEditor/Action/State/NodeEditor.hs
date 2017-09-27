@@ -52,7 +52,7 @@ import qualified NodeEditor.React.Model.Searcher             as Searcher
 import           NodeEditor.React.Model.Visualization        (NodeVisualizations)
 import qualified NodeEditor.React.Model.Visualization        as Visualization
 import           NodeEditor.State.Global                     (State, nodeSearcherData, preferedVisualizers, visualizers)
-import           Text.ScopeSearcher.Item                     (Items, isElement)
+import           Text.ScopeSearcher.Item                     (Items)
 
 
 getNodeEditor :: Command State NodeEditor

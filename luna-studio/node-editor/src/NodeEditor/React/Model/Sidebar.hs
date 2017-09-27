@@ -5,10 +5,11 @@ module NodeEditor.React.Model.Sidebar where
 import           Common.Prelude
 import           LunaStudio.Data.Position         (Position, fromDoubles)
 import           LunaStudio.Data.ScreenPosition   (ScreenPosition)
-import           LunaStudio.Data.Size             (Size, width)
+import           LunaStudio.Data.Size             (Size)
 import           NodeEditor.React.Model.Constants (gridSize)
 import           NodeEditor.React.Model.Port      (InPortId, OutPortId, getPortNumber, isSelf)
 
+portHeight, portWidth :: Double
 portHeight = gridSize * 2.0
 portWidth  = portHeight
 
