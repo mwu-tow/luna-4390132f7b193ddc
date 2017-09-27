@@ -21,7 +21,7 @@ import           NodeEditor.React.Model.NodeEditor          (GraphStatus (..), N
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import           NodeEditor.React.Model.Port                (InPortIndex (Self))
 import qualified NodeEditor.React.Model.Searcher            as Searcher
-import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview), 
+import           NodeEditor.React.Model.Visualization       (VisualizationMode (Focused, FullScreen, Preview),
                                                             visPropNodeLoc, visPropVisualization, visualizationMode)
 import           NodeEditor.React.Store                     (Ref)
 import           NodeEditor.React.View.Connection           (connection_, halfConnection_)
@@ -89,7 +89,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         isAnyVisActive   = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen, Focused]) visualizations
         isAnyFullscreen  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
         nodesWithVis     = Set.fromList $ map (^. visPropNodeLoc) visualizations
-        visWithSelection = map (\vis -> (vis, NodeEditor.isVisualizationNodeSelected vis ne)) visualizations 
+        visWithSelection = map (\vis -> (vis, NodeEditor.isVisualizationNodeSelected vis ne)) visualizations
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
             div_ [ "className" $= Style.prefixFromList ( ["studio-window"]
@@ -110,7 +110,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                             monads_ monads
 
                         planeNodes_ $ do
-                            
+
                             forM_ nodes $ \n -> node_ ref
                                                       n
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
