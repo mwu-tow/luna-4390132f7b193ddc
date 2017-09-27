@@ -59,7 +59,10 @@ data NodeValue = NodeValue       ShortValue (Maybe VisualizationValue)
 
 makePrisms ''NodeValue
 makePrisms ''VisualizationValue
-instance Binary NodeValue
-instance NFData NodeValue
-instance Binary VisualizationValue
-instance NFData VisualizationValue
+instance Binary   NodeValue
+instance NFData   NodeValue
+instance ToJSON   NodeValue
+instance Binary   VisualizationValue
+instance NFData   VisualizationValue
+instance FromJSON VisualizationValue
+instance ToJSON   VisualizationValue

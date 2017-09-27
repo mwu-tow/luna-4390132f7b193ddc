@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.NodeTypecheckerUpdate where
 
+import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import qualified LunaStudio.API.Topic          as T
 import           LunaStudio.Data.GraphLocation (GraphLocation)
@@ -14,6 +15,7 @@ data Update = Update { _location  :: GraphLocation
 makeLenses ''Update
 instance Binary Update
 instance NFData Update
+instance ToJSON Update
 
 
 topicPrefix :: T.Topic

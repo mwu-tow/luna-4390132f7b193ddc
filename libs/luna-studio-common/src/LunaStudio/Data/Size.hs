@@ -4,6 +4,7 @@ module LunaStudio.Data.Size
     , vector
     ) where
 
+import           Data.Aeson.Types        (ToJSON)
 import           LunaStudio.Data.Vector2
 import           Prologue
 
@@ -31,6 +32,7 @@ type instance VectorOf Size = Vector2 Double
 instance IsVector Size
 instance Dim1 Size
 instance Dim2 Size
+instance ToJSON Size
 
 type instance Item Size = Double
 instance Convertible Size [Double] where convert = toList . view vector

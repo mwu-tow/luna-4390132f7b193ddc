@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Atom.GetBuffer where
 
+import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
@@ -19,8 +20,11 @@ makeLenses ''Request
 makeLenses ''Result
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Result
 instance NFData Result
+instance ToJSON Result
+
 
 
 type Response = Response.Response Request () Result

@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.CollaborationUpdate where
 
+import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import           Data.UUID.Types               (UUID)
 import qualified LunaStudio.API.Topic          as T
@@ -25,8 +26,10 @@ makeLenses ''Update
 makeLenses ''Event
 instance Binary Update
 instance NFData Update
+instance ToJSON Update
 instance Binary Event
 instance NFData Event
+instance ToJSON Event
 
 
 topicPrefix :: T.Topic

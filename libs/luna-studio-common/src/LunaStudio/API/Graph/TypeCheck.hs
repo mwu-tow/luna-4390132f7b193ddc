@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.TypeCheck where
 
+import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import qualified LunaStudio.API.Graph.Request  as G
 import qualified LunaStudio.API.Request        as R
@@ -15,6 +16,7 @@ data Request = Request { _location :: GraphLocation
 makeLenses ''Request
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance G.GraphRequest Request where location = location
 
 

@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.Redo where
 
+import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
@@ -16,8 +17,10 @@ makeLenses ''RedoRequest
 makeLenses ''Request
 instance Binary RedoRequest
 instance NFData RedoRequest
+instance ToJSON RedoRequest
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 
 
 type Response = Response.Response Request () ()

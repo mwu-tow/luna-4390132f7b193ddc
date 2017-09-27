@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.Undo where
 
+import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
@@ -16,9 +17,10 @@ makeLenses ''UndoRequest
 makeLenses ''Request
 instance Binary UndoRequest
 instance NFData UndoRequest
+instance ToJSON UndoRequest
 instance Binary Request
 instance NFData Request
-
+instance ToJSON Request
 
 type Response = Response.Response Request () ()
 instance Response.ResponseResult Request () ()

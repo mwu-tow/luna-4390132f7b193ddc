@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Library.CreateLibrary where
 
+import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
@@ -30,11 +31,13 @@ makeLenses ''Result
 makeLenses ''Update
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Result
 instance NFData Result
+instance ToJSON Result
 instance Binary Update
 instance NFData Update
-
+instance ToJSON Update
 
 type Response = Response.Response Request () Result
 instance Response.ResponseResult Request () Result

@@ -1,5 +1,6 @@
 module LunaStudio.Data.Project where
 
+import           Data.Aeson.Types                     (ToJSON)
 import qualified Control.Lens.Aeson                   as Lens
 import           Data.Aeson                           (FromJSON (parseJSON), ToJSON (toEncoding, toJSON))
 import           Data.Binary                          (Binary)
@@ -29,6 +30,7 @@ data Project = Project { _name     :: String
 makeLenses ''Project
 instance Binary Project
 instance NFData Project
+instance ToJSON Project
 
 
 --TODO: Add and handle this: _breadcrumbVisualizerPreferences :: HashMap TypeRep Visualizer

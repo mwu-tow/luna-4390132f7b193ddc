@@ -1,6 +1,7 @@
 {-# LANGUAGE Rank2Types #-}
 module LunaStudio.Data.Connection where
 
+import           Data.Aeson.Types        (FromJSON, ToJSON)
 import           Data.Binary             (Binary)
 import           Data.Convert            (Convertible (convert))
 import           LunaStudio.Data.PortRef (InPortRef, OutPortRef)
@@ -13,8 +14,10 @@ data Connection = Connection { _src :: OutPortRef
                              } deriving (Eq, Generic, Show)
 
 makeLenses ''Connection
-instance Binary Connection
-instance NFData Connection
+instance Binary   Connection
+instance NFData   Connection
+instance FromJSON Connection
+instance ToJSON   Connection
 
 instance Convertible Connection (OutPortRef, InPortRef) where
     convert = (,) <$> view src <*> view dst

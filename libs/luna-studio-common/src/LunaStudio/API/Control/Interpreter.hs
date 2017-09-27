@@ -1,5 +1,6 @@
 module LunaStudio.API.Control.Interpreter where
 
+import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
@@ -19,8 +20,10 @@ makeLenses ''Request
 makeLenses ''Update
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Update
 instance NFData Update
+instance ToJSON Update
 
 
 type Response = Response.Response Request () ()

@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 module LunaStudio.API.Response where
 
+import           Data.Aeson.Types       (ToJSON)
 import           Data.Binary            (Binary)
 import           Data.UUID.Types        (UUID)
 import           LunaStudio.API.Request (Request (..))
@@ -19,6 +20,7 @@ makeLenses ''Status
 makePrisms ''Status
 instance Binary a => Binary (Status a)
 instance NFData a => NFData (Status a)
+instance ToJSON a => ToJSON (Status a)
 
 data Response req inv res = Response { _requestId :: UUID
                                      , _guiID     :: Maybe UUID
@@ -44,3 +46,4 @@ makeLenses ''Response
 
 instance (Binary req, Binary res, Binary inv) => Binary (Response req inv res)
 instance (NFData req, NFData res, NFData inv) => NFData (Response req inv res)
+instance (ToJSON req, ToJSON res, ToJSON inv) => ToJSON (Response req inv res)

@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.RemoveConnection where
 
+import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import qualified LunaStudio.API.Graph.Request  as G
 import           LunaStudio.API.Graph.Result   (Result)
@@ -23,8 +24,10 @@ makeLenses ''Request
 makeLenses ''Inverse
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Inverse
 instance NFData Inverse
+instance ToJSON Inverse
 instance G.GraphRequest Request where location = location
 
 

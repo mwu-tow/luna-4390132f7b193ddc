@@ -1,7 +1,8 @@
 module LunaStudio.API.Request where
 
-import           Data.Binary     (Binary)
-import           Data.UUID.Types (UUID)
+import           Data.Aeson.Types (ToJSON)
+import           Data.Binary      (Binary)
+import           Data.UUID.Types  (UUID)
 import           Prologue
 
 
@@ -12,3 +13,4 @@ data Request a = Request { _requestId :: UUID
 
 makeLenses ''Request
 instance Binary a => Binary (Request a)
+instance ToJSON a => ToJSON (Request a)

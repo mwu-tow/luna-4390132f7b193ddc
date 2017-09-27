@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.AddNode where
 
+import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import qualified LunaStudio.API.Graph.Request  as G
 import           LunaStudio.API.Graph.Result   (Result)
@@ -23,6 +24,7 @@ data Request = Request { _location   :: GraphLocation
 makeLenses ''Request
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance G.GraphRequest Request where location = location
 
 

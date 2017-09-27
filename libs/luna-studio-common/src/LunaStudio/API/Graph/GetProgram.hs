@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.GetProgram where
 
+import           Data.Aeson.Types                     (ToJSON)
 import           Data.Binary                          (Binary (..))
 import           Data.Hashable                        (Hashable)
 import           Data.HashMap.Strict                  (HashMap)
@@ -39,8 +40,10 @@ makeLenses ''Result
 
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Result
 instance NFData Result
+instance ToJSON Result
 instance G.GraphRequest Request where location = location
 
 

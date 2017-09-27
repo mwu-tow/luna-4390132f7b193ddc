@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Atom.SetProject where
 
+import           Data.Aeson.Types        (ToJSON)
 import           Data.Binary             (Binary)
 import qualified LunaStudio.API.Request  as R
 import qualified LunaStudio.API.Response as Response
@@ -15,7 +16,7 @@ data Request = Request { _rootPath :: FilePath
 makeLenses ''Request
 instance Binary Request
 instance NFData Request
-
+instance ToJSON Request
 
 type Response = Response.SimpleResponse Request ()
 instance Response.ResponseResult Request () ()

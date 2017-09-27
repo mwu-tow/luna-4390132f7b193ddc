@@ -1,5 +1,6 @@
 module LunaStudio.API.Graph.Copy where
 
+import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import qualified LunaStudio.API.Graph.Request  as G
 import qualified LunaStudio.API.Request        as R
@@ -26,8 +27,10 @@ makeLenses ''Request
 makeLenses ''Result
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 instance Binary Result
 instance NFData Result
+instance ToJSON Result
 instance G.GraphRequest Request where location = location
 
 

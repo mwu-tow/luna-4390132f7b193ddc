@@ -11,7 +11,6 @@ import qualified Data.HashMap.Strict          as HashMap
 import           Data.JSString                (JSString)
 import qualified Data.JSString                as JSString
 import           Development.Placeholders
-import           LunaStudio.API.JSONInstances ()
 import           Prologue
 import           React.Flux
 import           React.Flux.Store             (ReactStoreRef)

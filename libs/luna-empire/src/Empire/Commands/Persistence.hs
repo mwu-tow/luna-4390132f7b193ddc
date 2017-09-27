@@ -42,8 +42,6 @@ import           Empire.Empire                   (Empire)
 import qualified Data.Aeson                      as JSON
 import qualified Data.Aeson.Encode.Pretty        as JSON
 
-import           LunaStudio.API.JSONInstances        ()
-
 import qualified System.Log.MLogger              as Logger
 
 logger :: Logger.Logger
