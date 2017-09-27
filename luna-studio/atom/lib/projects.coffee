@@ -67,13 +67,7 @@ module.exports =
                 inputView.attach "Save project as", defaultProjectPath, 'my-project',
                     (name) =>!fs.existsSync(name),
                     (name) => "Path already exists at '#{name}'",
-                    (name) =>
-                        console.log name
-                        # fs.moveSync(temporaryProject.path, name)
-                        # atom.project.setPaths [name]
-                        callback()
-            else
-                callback()
+                    (name) => callback name
     recent:
         load: (callback) =>
             loadRecentNoCheck (recentProjectsPaths) =>

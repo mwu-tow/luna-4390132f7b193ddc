@@ -35,6 +35,9 @@ saveFile = withUUID . BatchCmd.saveFile
 isSaved :: FilePath -> Command State ()
 isSaved = withUUID . BatchCmd.isSaved
 
+moveProject :: FilePath -> FilePath -> Command State ()
+moveProject = withUUID .: BatchCmd.moveProject
+
 setProject :: FilePath -> Command State ()
 setProject = withUUID . BatchCmd.setProject
 

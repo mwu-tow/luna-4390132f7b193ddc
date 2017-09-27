@@ -80,6 +80,9 @@ module.exports =
 
     getTitle: -> path.basename(@uri)
 
+    setUri: (uri) =>
+        @getBuffer().setPath(uri)
+        @uri = uri
     deactivate: -> @subscribe.dispose()
 
     handleEvents: =>
@@ -117,8 +120,9 @@ module.exports =
     handleSave: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        projects.temporaryProject.save =>
-            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+        projects.temporaryProject.save (newUri) =>
+            @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : @uri, _newPath: newUri)
 
     insertCode: (uri_send, start_send, end_send, text) =>
         if @uri == uri_send

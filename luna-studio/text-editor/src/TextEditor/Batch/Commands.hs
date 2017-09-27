@@ -8,6 +8,7 @@ import qualified LunaStudio.API.Atom.Copy           as Copy
 import qualified LunaStudio.API.Atom.FileChanged    as FileChanged
 import qualified LunaStudio.API.Atom.GetBuffer      as GetBuffer
 import qualified LunaStudio.API.Atom.IsSaved        as IsSaved
+import qualified LunaStudio.API.Atom.MoveProject    as MoveProject
 import qualified LunaStudio.API.Atom.OpenFile       as OpenFile
 import qualified LunaStudio.API.Atom.Paste          as Paste
 import qualified LunaStudio.API.Atom.SaveFile       as SaveFile
@@ -40,6 +41,9 @@ saveFile path uuid guiID = sendRequest $ Message uuid guiID $ SaveFile.Request p
 
 setProject :: FilePath -> UUID -> Maybe UUID -> IO ()
 setProject rootPath uuid guiID = sendRequest $ Message uuid guiID $ SetProject.Request rootPath
+
+moveProject :: FilePath -> FilePath -> UUID -> Maybe UUID -> IO ()
+moveProject oldPath newPath uuid guiID = sendRequest $ Message uuid guiID $ MoveProject.Request oldPath newPath
 
 substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> UUID -> Maybe UUID -> IO ()
 substitute location start end text cursor uuid guiID =

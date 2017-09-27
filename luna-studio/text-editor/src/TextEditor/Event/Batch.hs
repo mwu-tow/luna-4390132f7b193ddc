@@ -9,6 +9,7 @@ import qualified LunaStudio.API.Atom.CloseFile        as CloseFile
 import qualified LunaStudio.API.Atom.Copy             as Copy
 import qualified LunaStudio.API.Atom.GetBuffer        as GetBuffer
 import qualified LunaStudio.API.Atom.IsSaved          as IsSaved
+import qualified LunaStudio.API.Atom.MoveProject      as MoveProject
 import qualified LunaStudio.API.Atom.OpenFile         as OpenFile
 import qualified LunaStudio.API.Atom.SaveFile         as SaveFile
 import qualified LunaStudio.API.Atom.SetProject       as SetProject
@@ -29,6 +30,7 @@ data BatchEvent
         | InterpreterResponse                   Interpreter.Response
         | InterpreterUpdate                     Interpreter.Update
         | IsSaved                                   IsSaved.Response
+        | ProjectMove                           MoveProject.Response
         | ProjectSet                             SetProject.Response
         | SubstituteResponse                     Substitute.Response
         | SubstituteUpdate                       Substitute.Update
