@@ -15,7 +15,7 @@ import           Prologue
 data LabeledTree f a = LabeledTree { _subtrees :: (f (LabeledTree f a)), _value :: a} deriving (Generic, Functor, Foldable, Traversable)
 makeLenses ''LabeledTree
 
-instance (Functor f) => Applicative (LabeledTree f)
+instance Functor f => Applicative (LabeledTree f)
 instance (Binary   (f (LabeledTree f a)), Binary   a) => Binary   (LabeledTree f a)
 instance (ToJSON   (f (LabeledTree f a)), ToJSON   a) => ToJSON   (LabeledTree f a)
 instance (FromJSON (f (LabeledTree f a)), FromJSON a) => FromJSON (LabeledTree f a)

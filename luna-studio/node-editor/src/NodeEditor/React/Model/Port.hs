@@ -43,7 +43,6 @@ data Port i = Port
         , _name      :: Text
         , _valueType :: TypeRep
         , _state     :: PortState
-        , _color     :: Color
         , _mode      :: Mode
         } deriving (Eq, Functor, Generic, NFData, Show, Typeable)
 
@@ -53,6 +52,9 @@ type AnyPort = Port AnyPortId
 type EitherPort = Either InPort OutPort
 
 makeLenses ''Port
+
+color :: Getter (Port i) Color
+color = valueType . to Color.fromType
 
 isInMode :: Mode -> Port i -> Bool
 isInMode m p = case (m, p ^. mode) of
@@ -101,8 +103,8 @@ instance Convertible InPort  EitherPort where convert = convert . fmap InPortId'
 instance Convertible OutPort EitherPort where convert = convert . fmap OutPortId'
 
 instance Convertible AnyPort EitherPort where
-    convert (Port (InPortId'  i) n nt s c m) = Left $ Port i n nt s c m
-    convert (Port (OutPortId' i) n nt s c m) = Right $ Port i n nt s c m
+    convert (Port (InPortId'  i) n nt s m) = Left $ Port i n nt s m
+    convert (Port (OutPortId' i) n nt s m) = Right $ Port i n nt s m
 
 instance Convertible EitherPort AnyPort where
     convert (Left  port) = InPortId'  <$> port
@@ -114,7 +116,6 @@ instance Convertible (Empire.Port i) (Port i) where
         {- name      -} (p ^. Empire.name)
         {- nodeType  -} (p ^. Empire.valueType)
         {- state     -} (p ^. Empire.state)
-        {- color     -} (Color.fromType $ p ^. Empire.valueType)
         {- mode      -} Normal
 
 instance Convertible (Port i) (Empire.Port i) where

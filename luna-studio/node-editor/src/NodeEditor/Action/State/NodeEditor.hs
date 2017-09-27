@@ -27,7 +27,7 @@ import           LunaStudio.Data.PortDefault                 (PortDefault)
 import           LunaStudio.Data.PortRef                     (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.PortRef                     as PortRef
 import           LunaStudio.Data.Position                    (Position)
-import           LunaStudio.Data.TypeRep                     (TypeRep)
+import           LunaStudio.Data.TypeRep                     (TypeRep (TStar))
 import qualified NodeEditor.Action.Batch                     as Batch
 import           NodeEditor.Action.State.App                 (get, modify, modifyApp)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
@@ -371,3 +371,17 @@ updatePreferedVisualizer tpe vis = preferedVisualizers . at tpe ?= vis
 
 getExpressionNodeType :: NodeLoc -> Command State (Maybe TypeRep)
 getExpressionNodeType = fmap (maybe def (view ExpressionNode.nodeType)) . getExpressionNode
+
+resetSuccessors :: NodeLoc -> Command State ()
+resetSuccessors nl = do
+    outConnections <- filter (\c -> c ^. srcNodeLoc == nl) <$> getConnections
+    let successors = view dstNodeLoc <$> outConnections
+    resetNodePorts nl
+    mapM_ resetSuccessors successors
+
+resetNodePorts :: NodeLoc -> Command State ()
+resetNodePorts nl = do
+    modifyExpressionNode nl $ do
+        let resetPort = Port.valueType .~ TStar
+        ExpressionNode.inPorts  %= fmap resetPort
+        ExpressionNode.outPorts %= fmap resetPort

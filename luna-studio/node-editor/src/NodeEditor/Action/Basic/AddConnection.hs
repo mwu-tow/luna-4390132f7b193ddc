@@ -9,7 +9,7 @@ import           NodeEditor.Action.State.Model      (updatePortMode)
 import           NodeEditor.Action.State.Model      (createConnectionModel)
 import qualified NodeEditor.Action.State.NodeEditor as NodeEditor
 import           NodeEditor.React.Model.Connection  (ConnectionId)
-import           NodeEditor.React.Model.Node        (NodeLoc)
+import           NodeEditor.React.Model.Node        (NodeLoc, nodeLoc)
 import           NodeEditor.State.Global            (State)
 
 
@@ -27,6 +27,7 @@ localAddConnection src' dst' = do
     mayConn <- createConnectionModel src' dst'
     withJust mayConn $ \conn -> do
         NodeEditor.addConnection conn
+        NodeEditor.resetSuccessors $ dst' ^. nodeLoc
         updatePortMode $ OutPortRef' src'
         updatePortMode $ InPortRef'  dst'
     return $ isJust mayConn
