@@ -69,6 +69,7 @@ module Empire.Commands.Graph
     , pasteText
     , collapseToFunction
     , moveToOrigin
+    , getImports
     , getAvailableImports
     ) where
 
