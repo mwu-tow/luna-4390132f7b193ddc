@@ -16,6 +16,7 @@ data Request = Request { _oldPath :: FilePath
 makeLenses ''Request
 instance Binary Request
 instance NFData Request
+instance ToJSON Request
 
 
 type Response = Response.SimpleResponse Request ()
@@ -25,4 +26,3 @@ topicPrefix :: T.Topic
 topicPrefix = "empire.atom.project.move"
 instance T.MessageTopic (R.Request Request) where topic _ = topicPrefix <> T.request
 instance T.MessageTopic Response            where topic _ = topicPrefix <> T.response
-instance ToJSON Request

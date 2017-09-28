@@ -40,13 +40,11 @@ module.exports = LunaStudio =
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
             if act == 'ProjectMove'
-                fs.copySync(projects.temporaryProject.path, uri)
-                fse.remove(projects.temporaryProject.path)
                 atom.project.setPaths [uri]
                 for pane in atom.workspace.getPaneItems()
-                    if pane.setUri
+                    if pane.isLunaEditor
                         parsed = path.parse pane.uri
-                        if parsed.dir = projects.temporaryProject.path
+                        if parsed.dir == projects.temporaryProject.path
                             parsed.dir = uri
                             pane.setUri path.format(parsed)
 

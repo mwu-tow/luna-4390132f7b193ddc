@@ -4,6 +4,7 @@ module TextEditor.Event.Preprocessor.Batch (process) where
 import           Common.Prelude                    hiding (cons)
 import           Data.Binary                       (Binary, decode)
 import           Data.ByteString.Lazy.Char8        (ByteString)
+import           Data.Map.Lazy                     (Map)
 import qualified Data.Map.Lazy                     as Map
 import qualified GZip
 
@@ -21,7 +22,7 @@ process _                                = Nothing
 handle :: forall a. (Binary a, Topic.MessageTopic a) => (a -> BatchEvent) -> (String, ByteString -> BatchEvent)
 handle cons = (Topic.topic (undefined :: a), cons . decode . GZip.decompress)
 
-handlers :: Map.Map String (ByteString -> BatchEvent)
+handlers :: Map String (ByteString -> BatchEvent)
 handlers = Map.fromList [ handle BufferGetResponse
                         , handle CopyResponse
                         , handle EmpireStarted
