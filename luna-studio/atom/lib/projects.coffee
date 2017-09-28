@@ -92,7 +92,7 @@ module.exports =
                 request.get tutorialRequestOpts, (err, response, body) =>
                     parsed = yaml.safeLoad(body)
                     repos = []
-                    if parsed?
+                    if body?
                         for repo in parsed
                             repos.push
                                 name: repo.name

@@ -11,7 +11,7 @@ module.exports = ProjectItem = class ProjectItem {
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
         this.thumbLogo = this.thumbLogo.bind(this);
-        this.name = project.name;
+        this.name = project.name != undefined ? project.name : "(unnamed)";
         this.uri = project.uri != undefined ? project.uri : project.name;
         this.classes = classes;
         this.onOpen = function() {

@@ -32,7 +32,7 @@ class LunaWelcomeTab extends View
                             placeholder: 'Search'
                             outlet: 'searchInput'
 
-                        @a 
+                        @a
                             class: 'luna-welcome-link luna-welcome-link--forum'
                             href: "http://luna-lang.org"
                             'forum'
@@ -101,6 +101,10 @@ class LunaWelcomeTab extends View
             @privateItems.push(item)
             @privateContainer.append(item.element)
         projects.tutorial.list (tutorials) =>
+            if tutorials.length == 0
+                @tutorialsContainer[0].innerText = 'Internet connection required.'
+            else
+                @tutorialsContainer[0].innerText = ''
             for tutorial in tutorials
                 item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
                     projects.tutorial.open(tutorial, progress, =>
