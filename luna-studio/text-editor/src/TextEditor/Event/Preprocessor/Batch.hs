@@ -30,6 +30,7 @@ handlers = Map.fromList [ handle BufferGetResponse
                         , handle FileSaved
                         , handle InterpreterResponse
                         , handle InterpreterUpdate
+                        , handle ProjectMove
                         , handle ProjectSet
                         , handle SubstituteResponse
                         , handle SubstituteUpdate
