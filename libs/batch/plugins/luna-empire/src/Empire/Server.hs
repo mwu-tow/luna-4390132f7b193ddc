@@ -89,11 +89,12 @@ run endPoints topics formatted projectRoot = do
     toBusChan        <- atomically newTChan
     fromEmpireChan   <- atomically newTChan
     tcReq            <- newEmptyMVar
-    env              <- Env.make toBusChan fromEmpireChan tcReq scope projectRoot
-    let commEnv = Empire.CommunicationEnv fromEmpireChan tcReq scope
+    modules          <- newEmptyMVar
+    env              <- Env.make toBusChan fromEmpireChan tcReq scope modules projectRoot
+    let commEnv = env ^. Env.empireNotif
     forkIO $ void $ Bus.runBus endPoints $ BusT.runBusT $ evalStateT (startAsyncUpdateWorker fromEmpireChan) env
     forkIO $ void $ Bus.runBus endPoints $ startToBusWorker toBusChan
-    forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker commEnv tcReq scope
+    forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker commEnv
     waiting <- newEmptyMVar
     requestThread <- forkOn requestCapability $ void $ Bus.runBus endPoints $ do
         mapM_ Bus.subscribe topics
@@ -114,21 +115,25 @@ prepareStdlib = do
     (cleanup, std) <- Typecheck.createStdlib $ lunaroot <> "/Std/"
     return (std, Typecheck.getSymbolMap std, cleanup)
 
-startTCWorker :: Empire.CommunicationEnv -> MVar (GraphLocation, ClsGraph, Bool) -> MVar Empire.SymbolMap -> Bus ()
-startTCWorker env reqs scopeVar = liftIO $ do
+startTCWorker :: Empire.CommunicationEnv -> Bus ()
+startTCWorker env = liftIO $ do
+    let reqs = env ^. Empire.typecheckChan
+        scopeVar = env ^. Empire.scopeVar
+        modules = env ^. Empire.modules
     writeIORef minCapabilityNumber 1
     updateCapabilities
     (std, symbolMap, cleanup) <- prepareStdlib
     putMVar scopeVar symbolMap
+    putMVar modules $ unwrap std
     pmState <- Graph.defaultPMState
-    let interpreterEnv = Empire.InterpreterEnv def def def Nothing undefined cleanup def $ unwrap std
+    let interpreterEnv = Empire.InterpreterEnv def def def Nothing undefined cleanup def
     void $ Empire.runEmpire env interpreterEnv $ forever $ do
         (loc, g, flush) <- liftIO $ takeMVar reqs
         when flush
             Typecheck.flushCache
         Empire.graph .= (g & Graph.clsAst . Graph.pmState .~ pmState)
         liftIO performGC
-        catchAll (Typecheck.run loc) print
+        catchAll (Typecheck.run modules loc) print
 
 startToBusWorker :: TChan Message -> Bus ()
 startToBusWorker toBusChan = forever $ do

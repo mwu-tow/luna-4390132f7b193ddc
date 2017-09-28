@@ -73,6 +73,7 @@ module Empire.Commands.Graph
     ) where
 
 import           Control.Arrow                    ((&&&))
+import           Control.Concurrent               (putMVar, readMVar, takeMVar)
 import           Control.Monad                    (forM)
 import           Control.Monad.Catch              (finally, handle, try)
 import           Control.Monad.State              hiding (when)
@@ -99,7 +100,7 @@ import           Data.Text.Position               (Delta)
 import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Data.UUID.V4                     as UUID (nextRandom)
 import           Debug
-import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis)
+import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis, runModuleTypecheck)
 import qualified Empire.ASTOps.Builder            as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
 import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy)
@@ -126,9 +127,13 @@ import           Empire.Data.Layers               (Marker, SpanLength, SpanOffse
 import qualified Empire.Data.Library              as Library
 import           Empire.Empire
 import           Empire.Prelude                   hiding (toList)
+import qualified Luna.Builtin.Data.Class          as IR
+import qualified Luna.Builtin.Data.Module         as Module
+import qualified Luna.Compilation                 as Compilation
 import qualified Luna.IR                          as IR
 import qualified Luna.IR.Term.Core                as Term
 import qualified Luna.IR.Term.Unit                as Term
+import qualified Luna.Project                     as Project
 import           Luna.Syntax.Text.Analysis.SpanTree (Spanned(..))
 import qualified Luna.Syntax.Text.Analysis.SpanTree as SpanTree
 import qualified Luna.Syntax.Text.Lexer           as Lexer
@@ -149,7 +154,7 @@ import           LunaStudio.Data.NodeLoc          (NodeLoc (..))
 import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
-import           LunaStudio.Data.NodeSearcher     (ImportName)
+import           LunaStudio.Data.NodeSearcher     (ImportName, ImportsHints, ModuleHints(..))
 import           LunaStudio.Data.Point            (Point)
 import qualified LunaStudio.Data.Point            as Point
 import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
@@ -160,7 +165,10 @@ import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
 import           LunaStudio.Data.Range            (Range(..))
 import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, narrowTerm, replace)
+import qualified Path
 import qualified Safe
+import           System.Directory                 (canonicalizePath)
+import           System.Environment               (getEnv)
 
 import qualified System.IO as IO
 
@@ -1440,6 +1448,31 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
                                 IR.matchExpr a' $ \case
                                     IR.UnresolvedImportSrc n -> case n of
                                         Term.Absolute n -> return $ convert n
+
+importsToHints :: Module.Imports -> ModuleHints
+importsToHints (Module.Imports classes functions) = ModuleHints funHints classHints
+    where
+        funHints   = map convert $ Map.keys functions
+        classes'   = Map.mapKeys convert classes
+        classHints = Map.map (\(IR.Class _ methods) -> map convert $ Map.keys methods) classes'
+
+getImports :: GraphLocation -> [ImportName] -> Empire ImportsHints
+getImports (GraphLocation file _) imports = do
+    lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
+    currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
+    let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
+    importsMVar     <- view modules
+    hints <- forM imports $ \i -> do
+        cmpModules <- liftIO $ readMVar importsMVar
+        case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
+            Just m -> return (i, m)
+            _      -> do
+                imps            <- liftIO $ takeMVar importsMVar
+                (f, nimps)      <- withUnit (GraphLocation file (Breadcrumb [])) $
+                    runModuleTypecheck (Map.fromList importPaths) imps
+                liftIO $ putMVar importsMVar nimps
+                return (i, f)
+    return $ Map.fromList $ map (_2 %~ importsToHints) hints
 
 -- internal
 

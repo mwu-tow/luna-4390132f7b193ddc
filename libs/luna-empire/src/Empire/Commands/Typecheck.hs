@@ -7,7 +7,7 @@
 module Empire.Commands.Typecheck where
 
 import           Control.Arrow                    ((***), (&&&))
-import           Control.Concurrent               (forkIO, killThread)
+import           Control.Concurrent               (MVar, forkIO, killThread, putMVar, readMVar, takeMVar)
 import           Control.Monad                    (void)
 import           Control.Monad.Except             hiding (when)
 import           Control.Monad.Reader             (ask, runReaderT)
@@ -145,39 +145,40 @@ getSymbolMap (flattenScope -> Imports clss funcs) = SymbolMap functions classes 
     classes   = processClass <$> Map.mapKeys convert clss
     processClass (Class _ methods) = convert <$> Map.keys methods
 
-recomputeCurrentScope :: FilePath -> Command InterpreterEnv Imports
-recomputeCurrentScope file = do
-    imps        <- use imports
+recomputeCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports
+recomputeCurrentScope imports file = do
+    imps        <- liftIO $ takeMVar imports
     lunaroot    <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
     currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
     let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
     (f, nimps) <- zoom graph $ runModuleTypecheck (Map.fromList importPaths) imps
     fileScope ?= f
-    imports   .= nimps
+    liftIO $ putMVar imports nimps
     return f
 
-getCurrentScope :: FilePath -> Command InterpreterEnv Imports
-getCurrentScope file = do
+getCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports
+getCurrentScope imports file = do
     fs   <- use fileScope
     case fs of
         Just f -> return f
-        _      -> recomputeCurrentScope file
+        _      -> recomputeCurrentScope imports file
 
-run :: GraphLocation -> Command InterpreterEnv ()
-run loc@(GraphLocation file br) = do
-    std        <- use imports
+run :: MVar CompiledModules -> GraphLocation -> Command InterpreterEnv ()
+run imports loc@(GraphLocation file br) = do
     cln        <- use cleanUp
     threads    <- use listeners
-    scope      <- getCurrentScope file
-    let imps = unionImports (flattenScope $ Scope std) scope
     listeners .= []
     case br of
-        Breadcrumb [] -> void $ recomputeCurrentScope file
-        _             -> zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
-            runTC imps
-            updateNodes  loc
-            {-updateMonads loc-}
-            liftIO cln
-            liftIO $ mapM killThread threads
-            scope <- runInterpreter file imps
-            traverse_ (updateValues loc) scope
+        Breadcrumb [] -> void $ recomputeCurrentScope imports file
+        _             -> do
+            std        <- liftIO $ readMVar imports
+            scope      <- getCurrentScope imports file
+            let imps = unionImports (flattenScope $ Scope std) scope
+            zoom graph $ flip (zoomBreadcrumb' br) (return ()) $ do
+                runTC imps
+                updateNodes  loc
+                {-updateMonads loc-}
+                liftIO cln
+                liftIO $ mapM killThread threads
+                scope <- runInterpreter file imps
+                traverse_ (updateValues loc) scope

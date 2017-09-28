@@ -51,6 +51,7 @@ data CommunicationEnv = CommunicationEnv { _updatesChan   :: TChan AsyncUpdate
                                          -- FIXME[MK]: Yeah, let's use 3-tuples, way to code!
                                          , _typecheckChan :: MVar (GraphLocation, ClsGraph, Bool)
                                          , _scopeVar      :: MVar SymbolMap
+                                         , _modules       :: MVar CompiledModules
                                          } deriving Generic
 makeLenses ''CommunicationEnv
 
@@ -64,7 +65,6 @@ data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _graph       :: ClsGraph
                                      , _cleanUp     :: IO ()
                                      , _listeners   :: [ThreadId]
-                                     , _imports     :: CompiledModules
                                      }
 makeLenses ''InterpreterEnv
 
