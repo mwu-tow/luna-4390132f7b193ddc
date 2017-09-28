@@ -121,6 +121,7 @@ class LunaWelcomeTab extends View
         @panel ?= atom.workspace.addModalPanel({item: this, visible: false})
         @previouslyFocusedElement = document.activeElement
         @panel.show()
+        @searchInput.focus()
 
     detach: ->
         return unless @panel.isVisible()
