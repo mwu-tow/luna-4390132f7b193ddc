@@ -1,44 +1,74 @@
-@tile-size: 187px;
-@caption-height: 30px;
+@grid:           16px; // Grid size
 
-// atom-panel.modal.overlay.from-top {
-// 	top:0;
-// 	border-radius: 0;
-// 	background: none;
-// 	overflow-y: scroll;
-// 	padding: 0;
-// 	display: flex;
-// 	justify-content: center;
-// 	align-items: center;
-// 	&:before {
-// 		display: none;
-// 	}
-// 	&:after {
-// 		opacity: 0;
-// 	}
-// }
+@background: #171615;
+@input-height:   2*@grid;
+@border-radius:  @grid/2;
+@tile-size:      172px;
+@caption-height: @grid*2;
 
-.luna-welcome {
-	// width: 100%;
-	// background: blue;
-	// overflow-y: scroll;
-	// height: 100%;
+atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use a global class?
+	background-color: #000;
 }
 
-.luna-welcome__section {
+.luna-welcome-scroll {
+	position:   fixed !important;
+	top:        0;
+	bottom:     0;
+	overflow-y: scroll;
+	overflow-x: visible;
+
+}
+
+.luna-welcome {
+	border-radius: @border-radius;
+	padding:       @grid;
+	margin:        3*@grid @grid;
+	background:    @background;
+	width:         580px;
+	left:         -@grid;
+	position: relative;
+	overflow: visible;
 }
 
 .luna-welcome__title {
 	font-weight: 100 !important;
-	font-size: 24px !important;
+	font-size:   32px !important;
+	line-height: 64px;
+	text-align: center;
+}
+
+.luna-welcome__header {
+	text-align: center;
+	margin-bottom: @grid*1;
+}
+.luna-welcome-link {
+	@a: 2px;
+	@b: rgba(255,255,255,0.1);
+	border-radius: 1000px;
+	line-height: @input-height - @a;
+	border-bottom: @a solid transparent;
+	display: inline-block;
+	background: @b;
+	margin-left: @grid/2;
+	width: 80px;
+}
+
+.luna-welcome-search {
+	@b: #000;
+	border-radius: 1000px;
+	background: @b;
+	height: @input-height;
+	border-bottom: 2px solid @b;
+	padding: 0 @grid;
+	width: 372px;
 }
 
 .luna-welcome__section__container {
-	width:   100%;
-	display: grid;
+	width:                 100%;
+	display:               grid;
 	grid-template-columns: @tile-size @tile-size @tile-size;
-	grid-column-gap:       10px;
-    grid-row-gap:          10px;
+	grid-column-gap:       @grid;
+    grid-row-gap:          @grid;
     justify-items: stretch;
 }
 
@@ -49,6 +79,7 @@
 }
 
 .luna-welcome__section__title {
+
 	font-weight: 100;
 	opacity: 1;
 	&::before {
@@ -57,15 +88,14 @@
 }
 
 .luna-project-logo {
-	border-radius: 10px;
+	border-radius: @border-radius;
 	background: rgba(255,255,255,0.05);
 	overflow: hidden;
 	width: @tile-size;
 	height: @tile-size;
+
 }
 .luna-project-caption {
-	width:       94%;
-	padding:     0 1% 0 5%;
 	height:      @caption-height;
 	line-height: @caption-height; 
 	text-align:  center;
