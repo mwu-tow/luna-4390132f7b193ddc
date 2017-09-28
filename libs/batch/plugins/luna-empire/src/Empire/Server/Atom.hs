@@ -59,6 +59,7 @@ replaceDir oldPath newPath path = case stripPrefix oldPath path of
 handleMoveProject :: Request MoveProject.Request -> StateT Env BusT ()
 handleMoveProject req@(Request _ _ (MoveProject.Request oldPath newPath)) = do
     Env.empireEnv . Empire.activeFiles %= Map.mapKeys (replaceDir oldPath newPath)
+    replyOk req ()
 
 handleOpenFile :: Request OpenFile.Request -> StateT Env BusT ()
 handleOpenFile req@(Request _ _ (OpenFile.Request path)) = timeIt "handleOpenFile" $ do
