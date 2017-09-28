@@ -4,10 +4,13 @@ module Empire.Server.Atom where
 
 import           Control.Monad.Catch            (try)
 import           Control.Monad.State            (StateT)
+import           Data.List                      (stripPrefix)
+import qualified Data.Map                       as Map
 import qualified Data.Text.IO                   as Text
 import qualified Path
 import           Prologue                       hiding (Item)
 import qualified System.Directory               as Dir
+import           System.FilePath                ((</>))
 import qualified System.IO.Temp                 as Temp
 
 import           Empire.Env                     (Env)
@@ -19,6 +22,7 @@ import qualified LunaStudio.API.Atom.IsSaved    as IsSaved
 import qualified LunaStudio.API.Atom.OpenFile   as OpenFile
 import qualified LunaStudio.API.Atom.Paste      as Paste
 import qualified LunaStudio.API.Atom.SaveFile   as SaveFile
+import qualified LunaStudio.API.Atom.MoveProject as MoveProject
 import qualified LunaStudio.API.Atom.SetProject as SetProject
 import qualified LunaStudio.API.Graph.Request   as G
 import           LunaStudio.API.Request         (Request (..))
@@ -46,6 +50,15 @@ logger = Logger.getLogger $(Logger.moduleName)
 
 handleSetProject :: Request SetProject.Request -> StateT Env BusT ()
 handleSetProject a = liftIO $ putStrLn $ "OPEN PROJECT" <> show a
+
+replaceDir :: FilePath -> FilePath -> FilePath -> FilePath
+replaceDir oldPath newPath path = case stripPrefix oldPath path of
+    Just suffix -> newPath </> path
+    _           -> path
+
+handleMoveProject :: Request MoveProject.Request -> StateT Env BusT ()
+handleMoveProject req@(Request _ _ (MoveProject.Request oldPath newPath)) = do
+    Env.empireEnv . Empire.activeFiles %= Map.mapKeys (replaceDir oldPath newPath)
 
 handleOpenFile :: Request OpenFile.Request -> StateT Env BusT ()
 handleOpenFile req@(Request _ _ (OpenFile.Request path)) = timeIt "handleOpenFile" $ do
