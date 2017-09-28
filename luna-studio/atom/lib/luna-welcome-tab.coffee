@@ -78,7 +78,7 @@ class LunaWelcomeTab extends View
         @privateItems = []
         @privateNew = new ProjectItem({name: 'New Project', uri: null}, privateNewClasses, (progress, finalize) =>
             finalize()
-            atom.pickFolder (paths) => if paths? then atom.project.setPaths paths
+            projects.temporaryProject.open()
             @detach())
         @communityItems = []
         @comunnityNew = new ProjectItem({name: 'New Project', uri: null}, comunnityNewClasses, (progress, finalize) =>
@@ -95,6 +95,7 @@ class LunaWelcomeTab extends View
         projects.recent.load (recentProjectPath) =>
             item = new ProjectItem {name: recentProjectPath}, recentClasses, (progress, finalize) =>
                 progress 0.5
+                projects.closeAllFiles()
                 atom.project.setPaths [recentProjectPath]
                 finalize()
                 @detach()
@@ -123,6 +124,8 @@ class LunaWelcomeTab extends View
 
     detach: ->
         return unless @panel.isVisible()
+        @searchInput[0].value = ''
+        @hideSearchResults()
         @panel.hide()
         @previouslyFocusedElement?.focus()
 

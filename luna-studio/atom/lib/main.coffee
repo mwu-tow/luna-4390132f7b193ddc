@@ -64,7 +64,6 @@ module.exports = LunaStudio =
         if atom.config.get('luna-studio.resetProjects')
             projects.temporaryProject.open (err) =>
                 if err then throw err
-                atom.workspace.open(projects.temporaryProject.path, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
         codeEditor.start()
 
     loadAnalyticsConfig: ->

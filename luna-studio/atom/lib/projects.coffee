@@ -18,6 +18,8 @@ temporaryProject = {
     mainContent: 'def main:\n    None'
     }
 
+temporaryMainFilePath = path.join temporaryProject.path, temporaryProject.srcDir, temporaryProject.mainFile
+
 encoding = 'utf8'
 
 tutorialRequestOpts =
@@ -56,13 +58,14 @@ closeAllFiles = ->
 
 
 module.exports =
-
+    closeAllFiles: closeAllFiles
     temporaryProject:
-        path: path.join temporaryProject.path, temporaryProject.srcDir, temporaryProject.mainFile
+        path: temporaryProject.path
         open: (callback) =>
             closeAllFiles()
             createTemporary =>
                 atom.project.setPaths [temporaryProject.path]
+                atom.workspace.open(temporaryMainFilePath, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
                 callback?()
         isOpen: =>
             return atom.project.getPaths()[0] == temporaryProject.path
