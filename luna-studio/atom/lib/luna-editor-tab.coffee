@@ -125,8 +125,9 @@ module.exports =
             e.preventDefault()
             e.stopImmediatePropagation()
             @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+            oldPath = atom.project.getPaths()[0]
             projects.temporaryProject.save (newUri) =>
-                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : @uri, _newPath: newUri)
+                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)
 
         insertCode: (uri_send, start_send, end_send, text) =>
             if @uri == uri_send
