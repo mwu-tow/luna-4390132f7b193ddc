@@ -38,26 +38,32 @@ loadRecentNoCheck = (callback) =>
 
 createTemporary = (callback) =>
     fse.remove temporaryProject.path, (err) =>
-        console.log err
         fs.mkdir temporaryProject.path, (err) =>
-            if err then callback err
+            if err then throw err
             srcPath = path.join temporaryProject.path, temporaryProject.srcDir
             fs.mkdir srcPath, (err) =>
-                if err then callback err
+                if err then throw err
                 mainPath = path.join srcPath, temporaryProject.mainFile
                 fs.writeFile mainPath, temporaryProject.mainContent, (err) =>
-                    if err then callback err
+                    if err then throw err
                     callback()
+
+closeAllFiles = ->
+    for pane in atom.workspace.getPanes()
+        for paneItem in pane.getItems()
+            if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaEditorTab
+                pane.destroyItem(paneItem)
+
 
 module.exports =
 
     temporaryProject:
         path: path.join temporaryProject.path, temporaryProject.srcDir, temporaryProject.mainFile
         open: (callback) =>
-            createTemporary (err) =>
-                if err then throw err
+            closeAllFiles()
+            createTemporary =>
                 atom.project.setPaths [temporaryProject.path]
-                if callback then callback()
+                callback?()
         isOpen: =>
             return atom.project.getPaths()[0] == temporaryProject.path
 
@@ -118,10 +124,10 @@ module.exports =
                         transferProgress: (stats) =>
                             p = (stats.receivedObjects() + stats.indexedObjects()) / (stats.totalObjects() * 2)
                             try
-                              progress p
+                                progress p
                             catch error
-                              console.log error
-
+                                console.log error
+            closeAllFiles()
             fs.access dstPath, (err) =>
                 if err
                     Git.Clone(tutorial.uri, dstPath, cloneOpts)

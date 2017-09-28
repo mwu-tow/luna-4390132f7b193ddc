@@ -45,106 +45,110 @@ TextBuffer::subscribeToFileOverride = (codeEditor) ->
 subscribe = null
 
 module.exports =
-  class LunaEditorTab extends TextEditor
+    class LunaEditorTab extends TextEditor
 
-    constructor: (@uri, @codeEditor) ->
-        super
-        @diffToOmit = new Set()
-        @getBuffer().setPath(@uri)
-        @setPlaceholderText 'Please wait'
-        @getBuffer().subscribeToFileOverride(@codeEditor)
-        @codeEditor.pushInternalEvent(tag: 'OpenFile', _path: @uri)
+        constructor: (@uri, @codeEditor) ->
+            super
+            @diffToOmit = new Set()
+            @getBuffer().setPath(@uri)
+            @setPlaceholderText 'Please wait'
+            @getBuffer().subscribeToFileOverride(@codeEditor)
+            @codeEditor.pushInternalEvent(tag: 'OpenFile', _path: @uri)
 
-        @codeEditor.onSetBuffer @setBuffer
-        @codeEditor.onSetClipboard @setClipboard
-        @codeEditor.onInsertCode @insertCode
-        @handleEvents()
+            @codeEditor.onSetBuffer @setBuffer
+            @codeEditor.onSetClipboard @setClipboard
+            @codeEditor.onInsertCode @insertCode
+            @handleEvents()
 
-        @subscribe = new SubAtom
-        @subscribe.add @getBuffer().onDidStopChanging (event) =>
-            for change in event.changes
-                if @diffToOmit.has(change.newText)
-                    @diffToOmit.delete(change.newText)
-                else
-                    diff =
-                        start: change.oldRange.start
-                        end:   change.oldRange.end
-                        text:  change.newText
-                        cursor: @.getCursorBufferPosition()
-                      #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
-                    @codeEditor.pushDiff(diff)
-        spinner = new Spinner(progress = 0, overlap = true)
-        @spinnerElement = @element.appendChild(spinner.element)
+            @subscribe = new SubAtom
+            @subscribe.add @getBuffer().onDidStopChanging (event) =>
+                for change in event.changes
+                    if @diffToOmit.has(change.newText)
+                        @diffToOmit.delete(change.newText)
+                    else
+                        diff =
+                            start: change.oldRange.start
+                            end:   change.oldRange.end
+                            text:  change.newText
+                            cursor: @.getCursorBufferPosition()
+                          #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
+                        @codeEditor.pushDiff(diff)
+            spinner = new Spinner(progress = 0, overlap = true)
+            @spinnerElement = @element.appendChild(spinner.element)
 
-    serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
+        serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
 
-    getTitle: -> path.basename(@uri)
+        getTitle: -> path.basename(@uri)
 
-    setUri: (uri) =>
-        @getBuffer().setPath(uri)
-        @uri = uri
-    deactivate: -> @subscribe.dispose()
+        isLunaEditor: -> true
 
-    handleEvents: =>
-        atom.commands.add @element,
-            'core:copy':  (e) => @handleCopy(e)
-            'core:cut':   (e) => @handleCut(e)
-            'core:paste': (e) => @handlePaste(e)
-            'core:save':  (e) => @handleSave(e)
+        setUri: (uri) =>
+            @getBuffer().setPath(uri)
+            @uri = uri
+        deactivate: -> @subscribe.dispose()
 
-    spans: =>
-        buffer = @getBuffer()
-        [buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition),
-         buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort((a,b) -> a - b) for s in @getSelections()
+        destroy: -> console.log 'DESTROY'
 
-    handleCopy: (e) =>
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+        handleEvents: =>
+            atom.commands.add @element,
+                'core:copy':  (e) => @handleCopy(e)
+                'core:cut':   (e) => @handleCut(e)
+                'core:paste': (e) => @handlePaste(e)
+                'core:save':  (e) => @handleSave(e)
 
-    handleCut: (e) =>
-        @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+        spans: =>
+            buffer = @getBuffer()
+            [buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition),
+             buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort((a,b) -> a - b) for s in @getSelections()
 
-    handlePaste: (e) =>
-        cbd = atom.clipboard.readWithMetadata()
-        cbdData = []
-        if cbd.metadata? && cbd.metadata.selections?
-            for x in cbd.metadata.selections
-                cbdData.push(x.text)
-        else
-            cbdData[0] = cbd.text
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
+        handleCopy: (e) =>
+            e.preventDefault()
+            e.stopImmediatePropagation()
+            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
-    handleSave: (e) =>
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
-        projects.temporaryProject.save (newUri) =>
-            @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : @uri, _newPath: newUri)
+        handleCut: (e) =>
+            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
 
-    insertCode: (uri_send, start_send, end_send, text) =>
-        if @uri == uri_send
-            @omitDiff(text)
-            @getBuffer().setText(text)
+        handlePaste: (e) =>
+            cbd = atom.clipboard.readWithMetadata()
+            cbdData = []
+            if cbd.metadata? && cbd.metadata.selections?
+                for x in cbd.metadata.selections
+                    cbdData.push(x.text)
+            else
+                cbdData[0] = cbd.text
+            e.preventDefault()
+            e.stopImmediatePropagation()
+            @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
 
-    setClipboard: (uri_send, text) =>
-        if @uri == uri_send
-            atom.clipboard.write(text)
+        handleSave: (e) =>
+            e.preventDefault()
+            e.stopImmediatePropagation()
+            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+            projects.temporaryProject.save (newUri) =>
+                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : @uri, _newPath: newUri)
 
-    setBuffer: (uri_send, text) =>
-        console.log(uri_send, @uri)
-        if @uri == uri_send
-            if @getPlaceholderText() != ''
-                @setPlaceholderText ''
-            for child in @element.childNodes
-                if child.id == 'luna_logo-spinner'
-                    @element.removeChild child
-                    break
-            @omitDiff(text)
-            @getBuffer().setText(text)
-            console.log "setBuffer"
+        insertCode: (uri_send, start_send, end_send, text) =>
+            if @uri == uri_send
+                @omitDiff(text)
+                @getBuffer().setText(text)
 
-    omitDiff: (text) =>
-        @diffToOmit.add(text)
+        setClipboard: (uri_send, text) =>
+            if @uri == uri_send
+                atom.clipboard.write(text)
+
+        setBuffer: (uri_send, text) =>
+            console.log(uri_send, @uri)
+            if @uri == uri_send
+                if @getPlaceholderText() != ''
+                    @setPlaceholderText ''
+                for child in @element.childNodes
+                    if child.id == 'luna_logo-spinner'
+                        @element.removeChild child
+                        break
+                @omitDiff(text)
+                @getBuffer().setText(text)
+                console.log "setBuffer"
+
+        omitDiff: (text) =>
+            @diffToOmit.add(text)
