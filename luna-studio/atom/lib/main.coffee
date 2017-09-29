@@ -54,14 +54,15 @@ module.exports = LunaStudio =
         atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
         atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
-        atom.packages.onDidActivateInitialPackages => if atom.config.get('luna-studio.showWelcomeScreen')
-            @welcome.attach()
+        atom.packages.onDidActivateInitialPackages =>
+            if atom.config.get('luna-studio.showWelcomeScreen') and atom.project.getPaths().length == 0
+                @welcome.attach()
+            if atom.config.get('luna-studio.resetProjects') and atom.project.getPaths().length == 0
+                projects.temporaryProject.open (err) =>
+                    if err then throw err
         atom.commands.add 'body',
             'luna-studio:welcome': => @welcome.attach()
             'core:cancel': => @welcome.detach()
-        if atom.config.get('luna-studio.resetProjects')
-            projects.temporaryProject.open (err) =>
-                if err then throw err
         codeEditor.start()
 
     loadAnalyticsConfig: ->

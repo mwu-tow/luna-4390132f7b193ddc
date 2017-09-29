@@ -17,6 +17,7 @@
       "wrap-guide"
     ]
     packagesWithKeymapsDisabled: []
+    restorePreviousWindowsOnStart: "no"
     themes: [
       "luna-dark-ui"
       "luna-syntax"
