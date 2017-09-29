@@ -124,11 +124,11 @@ class LunaWelcomeTab extends View
         @searchInput.focus()
 
     detach: ->
-        return unless @panel.isVisible()
-        @searchInput[0].value = ''
-        @hideSearchResults()
-        @panel.hide()
-        @previouslyFocusedElement?.focus()
+        if @panel.isVisible and @panel.isVisible()
+            @searchInput[0].value = ''
+            @hideSearchResults()
+            @panel.hide()
+            @previouslyFocusedElement?.focus()
 
     search: =>
         filterQuery = @searchInput[0].value
