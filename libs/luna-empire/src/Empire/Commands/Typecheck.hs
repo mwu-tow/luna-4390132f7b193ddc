@@ -8,6 +8,7 @@ module Empire.Commands.Typecheck where
 
 import           Control.Arrow                    ((***), (&&&))
 import           Control.Concurrent               (MVar, forkIO, killThread, putMVar, readMVar, takeMVar)
+import qualified Control.Concurrent.MVar.Lifted   as Lifted
 import           Control.Monad                    (void)
 import           Control.Monad.Except             hiding (when)
 import           Control.Monad.Reader             (ask, runReaderT)
@@ -147,14 +148,17 @@ getSymbolMap (flattenScope -> Imports clss funcs) = SymbolMap functions classes 
 
 recomputeCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports
 recomputeCurrentScope imports file = do
-    imps        <- liftIO $ takeMVar imports
-    lunaroot    <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
-    currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
-    let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
-    (f, nimps) <- zoom graph $ runModuleTypecheck (Map.fromList importPaths) imps
-    fileScope ?= f
-    liftIO $ putMVar imports nimps
-    return f
+    Lifted.modifyMVar imports $ \imps -> do
+        lunaroot    <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
+        currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
+        let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
+        (f, nimps) <- zoom graph $ do
+            t <- runModuleTypecheck (Map.fromList importPaths) imps
+            case t of
+                Right (a, b) -> return (a, b)
+                Left e  -> error $ show e <> " " <> file
+        fileScope ?= f
+        return (nimps, f)
 
 getCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports
 getCurrentScope imports file = do

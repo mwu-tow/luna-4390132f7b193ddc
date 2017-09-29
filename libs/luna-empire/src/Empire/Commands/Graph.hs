@@ -75,6 +75,7 @@ module Empire.Commands.Graph
 
 import           Control.Arrow                    ((&&&))
 import           Control.Concurrent               (putMVar, readMVar, takeMVar)
+import qualified Control.Concurrent.MVar.Lifted   as Lifted
 import           Control.Monad                    (forM)
 import           Control.Monad.Catch              (finally, handle, try)
 import           Control.Monad.State              hiding (when)
@@ -1457,6 +1458,13 @@ importsToHints (Module.Imports classes functions) = ModuleHints funHints classHi
         classes'   = Map.mapKeys convert classes
         classHints = Map.map (\(IR.Class _ methods) -> map convert $ Map.keys methods) classes'
 
+data ModuleCompilationException = ModuleCompilationException Compilation.ModuleCompilationError
+    deriving (Show)
+
+instance Exception ModuleCompilationException where
+    toException = astExceptionToException
+    fromException = astExceptionFromException
+
 getImports :: GraphLocation -> [ImportName] -> Empire ImportsHints
 getImports (GraphLocation file _) imports = do
     lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
@@ -1468,11 +1476,10 @@ getImports (GraphLocation file _) imports = do
         case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
             Just m -> return (i, m)
             _      -> do
-                imps            <- liftIO $ takeMVar importsMVar
-                (f, nimps)      <- withUnit (GraphLocation file (Breadcrumb [])) $
-                    runModuleTypecheck (Map.fromList importPaths) imps
-                liftIO $ putMVar importsMVar nimps
-                return (i, f)
+                Lifted.modifyMVar importsMVar $ \imps -> do
+                    (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+                        fromRight ((Module.Imports def def, Compilation.CompiledModules def def)) <$> runModuleTypecheck (Map.fromList importPaths) imps
+                    return (nimps, (i, f))
     return $ Map.fromList $ map (_2 %~ importsToHints) hints
 
 -- internal
