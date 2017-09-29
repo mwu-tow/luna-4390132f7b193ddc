@@ -2,15 +2,17 @@
 
 module Empire.Server.Atom where
 
-import           Control.Monad.Catch            (try)
+import           Control.Exception.Safe         (try, catchAny)
 import           Control.Monad.State            (StateT)
 import           Data.List                      (stripPrefix)
 import qualified Data.Map                       as Map
 import qualified Data.Text.IO                   as Text
 import qualified Path
 import           Prologue                       hiding (Item)
+import qualified Shelly
 import qualified System.Directory               as Dir
-import           System.FilePath                ((</>))
+import           System.FilePath                (addTrailingPathSeparator, (</>))
+import qualified System.IO                      as IO
 import qualified System.IO.Temp                 as Temp
 
 import           Empire.Env                     (Env)
@@ -44,6 +46,7 @@ import qualified System.Log.MLogger             as Logger
 import qualified ZMQ.Bus.EndPoint               as EP
 import           ZMQ.Bus.Trans                  (BusT (..))
 
+import Debug.Trace (trace)
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
@@ -52,15 +55,30 @@ handleSetProject :: Request SetProject.Request -> StateT Env BusT ()
 handleSetProject a = liftIO $ putStrLn $ "OPEN PROJECT" <> show a
 
 replaceDir :: FilePath -> FilePath -> FilePath -> FilePath
-replaceDir oldPath newPath path = case stripPrefix oldPath path of
-    Just suffix -> newPath </> path
+replaceDir oldPath newPath path = case stripPrefix (addTrailingPathSeparator oldPath) path of
+    Just suffix -> newPath </> suffix
     _           -> path
 
 handleMoveProject :: Request MoveProject.Request -> StateT Env BusT ()
 handleMoveProject req@(Request _ _ (MoveProject.Request oldPath newPath)) = do
-    Env.empireEnv . Empire.activeFiles %= Map.mapKeys (replaceDir oldPath newPath)
-    liftIO $ Dir.renameDirectory oldPath newPath
-    replyOk req ()
+    result <- liftIO $ do
+        r <- try $ Shelly.shelly $ do
+            let conv = Shelly.fromText . convert
+            Shelly.mkdir_p (conv newPath)
+            Shelly.ls (conv oldPath) >>= mapM (flip Shelly.cp_r (conv newPath))
+        Dir.removeDirectoryRecursive oldPath `catchAny` (\e -> logger Logger.error $ "couldn't remove directory" <> oldPath)
+        return r
+    case result of
+        Left (e :: SomeException) -> do
+            let err = displayException e
+            replyFail logger err req (Response.Error err)
+        Right _ -> do
+            activeFiles <- use $ Env.empireEnv . Empire.activeFiles
+            let activeFilesList = Map.toList activeFiles
+                changePath = replaceDir oldPath newPath
+                newFiles = map (\(k, v) -> (changePath k, v & Library.path %~ changePath)) activeFilesList
+            Env.empireEnv . Empire.activeFiles .= Map.fromList newFiles
+            replyOk req ()
 
 handleOpenFile :: Request OpenFile.Request -> StateT Env BusT ()
 handleOpenFile req@(Request _ _ (OpenFile.Request path)) = timeIt "handleOpenFile" $ do

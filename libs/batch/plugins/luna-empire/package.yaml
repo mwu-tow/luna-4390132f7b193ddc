@@ -26,6 +26,8 @@ dependencies:
   - path
   - pretty-show
   - prologue
+  - safe-exceptions
+  - shelly
   - split
   - stm
   - temporary
