@@ -362,22 +362,9 @@ handleSaveSettings = modifyGraphOk defInverse action where
     action (SaveSettings.Request gl settings) = saveSettings gl settings
 
 handleSearchNodes :: Request SearchNodes.Request -> StateT Env BusT ()
-handleSearchNodes = modifyGraph defInverse replyResult where
-    modifyGraph inverse success origReq@(Request uuid guiID request') = do
-        env <- get
-        currentEmpireEnv <- use Env.empireEnv
-        empireNotifEnv   <- use Env.empireNotif
-        let invStatus = Response.Ok ()
-            endPoints = env ^. Env.config . to EP.clientFromConfig
-        liftIO $ void $ forkIO $ do
-            result <- Empire.execEmpire empireNotifEnv currentEmpireEnv $ do
-                sMap <- liftIO . readMVar =<< view Empire.scopeVar
-                let importsMap = Map.singleton "default" $ NS.ModuleHints (sMap ^. Empire.functions) (sMap ^. Empire.classes)
-                return $ SearchNodes.Result importsMap
-            a <- Bus.runBus endPoints $ BusT.runBusT $ flip evalStateT env $ success origReq () result
-            case a of
-                Left  a -> error (show a)
-                Right _ -> return ()
+handleSearchNodes = modifyGraph defInverse action replyResult where
+    action (SearchNodes.Request location importsList) = 
+        SearchNodes.Result <$> Graph.getImports location importsList
 
 handleSetNodeExpression :: Request SetNodeExpression.Request -> StateT Env BusT ()-- fixme [SB] returns Result with no new informations and change node expression has addNode+removeNodes
 handleSetNodeExpression = modifyGraph inverse action replyResult where

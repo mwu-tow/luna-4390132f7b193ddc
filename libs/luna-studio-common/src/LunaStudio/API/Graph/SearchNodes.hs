@@ -13,7 +13,7 @@ import           LunaStudio.Data.NodeSearcher  (Items, ImportName, ImportsHints)
 import           Prologue
 
 
-data Request = Request { _location       :: Maybe GraphLocation
+data Request = Request { _location       :: GraphLocation
 					   , _missingImports :: [ImportName]
                        } deriving (Eq, Generic, Show)
 
@@ -28,7 +28,7 @@ instance ToJSON Request
 instance Binary Result
 instance NFData Result
 instance ToJSON Result
-instance G.GraphRequest Request where location = lens (fromMaybe (GraphLocation def def) . view location) (\r l -> r & location .~ Just l)
+instance G.GraphRequest Request where location = location
 
 
 type Response = Response.Response Request () Result

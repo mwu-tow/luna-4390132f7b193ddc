@@ -87,8 +87,6 @@ module.exports =
             @uri = uri
         deactivate: -> @subscribe.dispose()
 
-        destroy: -> console.log 'DESTROY'
-
         handleEvents: =>
             atom.commands.add @element,
                 'core:copy':  (e) => @handleCopy(e)

@@ -155,8 +155,8 @@ renamePort portRef name workspace uuid guiID = sendRequest $ Message uuid guiID 
 saveSettings :: LocationSettings -> Workspace -> UUID -> Maybe UUID -> IO ()
 saveSettings settings workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace SaveSettings.Request settings
 
-searchNodes :: [ImportName] -> Maybe Workspace -> UUID -> Maybe UUID -> IO ()
-searchNodes importNames mayWorkspace uuid guiID = sendRequest $ Message uuid guiID $ SearchNodes.Request (view currentLocation <$> mayWorkspace) importNames
+searchNodes :: [ImportName] -> Workspace -> UUID -> Maybe UUID -> IO ()
+searchNodes importNames workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace SearchNodes.Request importNames
 
 setNodeExpression :: NodeLoc -> Text -> Workspace -> UUID -> Maybe UUID -> IO ()
 setNodeExpression nodeLoc expression workspace uuid guiID =
