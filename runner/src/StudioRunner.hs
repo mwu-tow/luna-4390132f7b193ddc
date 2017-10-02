@@ -102,7 +102,7 @@ scriptDir = do
 mainAppDir :: MonadIO m => m FilePath
 mainAppDir = liftIO $ do
     scriptPath <- scriptDir
-    return $ parent $ parent $ parent $ scriptPath
+    return $ parent $ parent $ parent scriptPath
 
 version :: MonadRun m => m T.Text
 version = do
@@ -162,14 +162,12 @@ userStudioAtomHome = do
     runnerCfg <- get @RunnerConfig
     home      <- liftIO $ getHomeDirectory
     v         <- version
-    return $ decodeString home </> (runnerCfg ^. mainHomeDir) </> (runnerCfg ^. configHomeFolder) </> fromText (runnerCfg ^. appName) </> fromText v
+    return $ decodeString home </> (runnerCfg ^. mainHomeDir) </> (runnerCfg ^. configHomeFolder) </> fromText (runnerCfg ^. appName) </> fromText v </> (runnerCfg ^. studioHome)
 
 localLogsDirectory :: MonadRun m => m FilePath
 localLogsDirectory = do
     main <- mainAppDir
     return $  main </> decodeString "logs"
-
-
 
 
 userLogsDirectory :: MonadRun m => m FilePath
@@ -182,9 +180,9 @@ userLogsDirectory = do
 copyLunaStudio :: MonadRun m => m ()
 copyLunaStudio = do
     packageAtomHome <- packageStudioAtomHome
-    atomHome <- userStudioAtomHome
-    Shelly.shelly $ Shelly.mkdir_p atomHome
-    Shelly.shelly $ Shelly.cp_r packageAtomHome atomHome
+    atomHomeParent  <- parent <$> userStudioAtomHome
+    Shelly.shelly $ Shelly.mkdir_p $ atomHomeParent
+    Shelly.shelly $ Shelly.cp_r packageAtomHome $ atomHomeParent
 
 testDirectory :: MonadIO m => FilePath -> m Bool
 testDirectory path = Shelly.shelly $ Shelly.test_d path
@@ -194,7 +192,7 @@ checkLunaHome :: MonadRun m => m ()
 checkLunaHome = do
     runnerCfg       <- get @RunnerConfig
     userAtomHome    <- userStudioAtomHome
-    let pathLunaPackage = userAtomHome </> (runnerCfg ^. packageFolder) </> "atom" </> fromText (runnerCfg ^. atomPackageName)
+    let pathLunaPackage = userAtomHome </> (runnerCfg ^. packageFolder) </> fromText (runnerCfg ^. atomPackageName)
     testDirectory pathLunaPackage >>= \case
         True -> return ()
         False -> copyLunaStudio
@@ -253,7 +251,7 @@ runLocal = do
     config      <- configPath
     kill        <- killSupervisorBinPath
     liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
-    liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString $ atomHome)
+    liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString atomHome)
     liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
     liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
     liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
@@ -276,7 +274,7 @@ runPackage = case currentHost of
         atom        <- atomAppPath
         config      <- configPath
         kill        <- killSupervisorBinPath
-        liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString $ atomHome </> "atom")
+        liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" (encodeString atomHome)
         liftIO $ Environment.setEnv "LUNA_STUDIO_LOG_PATH" (encodeString logs)
         liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_PATH" (encodeString backendBins)
         liftIO $ Environment.setEnv "LUNA_STUDIO_GUI_PATH" (encodeString atom)
