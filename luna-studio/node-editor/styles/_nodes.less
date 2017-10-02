@@ -381,36 +381,34 @@ svg.luna-node__ports {
 .luna-ctrl--bool--True,
 .luna-ctrl--bool--False {
     float:    right;
-    top:      4rem;
     cursor:   pointer;
-    height:   8rem;
-    width:    23rem;
+    height:   12rem;
+    width:    26rem;
     .roundCorners;
     position: relative;
     display:  flex;
     &::after {
-        top:     -2rem;
+        top:      2rem;
         position: relative;
         display:  block;
         content:  " ";
-        width:    12rem;
-        height:   12rem;
+        width:    8rem;
+        height:   8rem;
+        .background(1);
         .roundCorners;
     }
 }
 
 .luna-ctrl--bool--True {
-    .background(5);
+    .background(7);
     &::after {
-        .background(7);
-        left: 11rem;
+        left: 16rem;
     }
 }
 
 .luna-ctrl--bool--False {
     .background(3);
     &::after {
-        .background(4);
-        left: -2rem;
+        left: 2rem;
     }
 }
