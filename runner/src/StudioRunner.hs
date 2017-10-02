@@ -194,7 +194,7 @@ checkLunaHome :: MonadRun m => m ()
 checkLunaHome = do
     runnerCfg       <- get @RunnerConfig
     userAtomHome    <- userStudioAtomHome
-    let pathLunaPackage = userAtomHome </> (runnerCfg ^. packageFolder) </> fromText (runnerCfg ^. atomPackageName)
+    let pathLunaPackage = userAtomHome </> (runnerCfg ^. packageFolder) </> "atom" </> fromText (runnerCfg ^. atomPackageName)
     testDirectory pathLunaPackage >>= \case
         True -> return ()
         False -> copyLunaStudio
