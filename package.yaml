@@ -10,8 +10,10 @@ executables:
     ghc-options: -threaded "-with-rtsopts=-N -T"
     dependencies:
       - base
-      - prologue
+      - containers
       - luna-studio-common
+      - prologue
+      - text
 
 default-extensions:
     - AllowAmbiguousTypes
