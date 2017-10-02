@@ -14,15 +14,22 @@ import           LunaStudio.Data.Node    (ExpressionNode, mkExprNode)
 import           Prologue                hiding (Item)
 import           Text.ScopeSearcher.Item as X
 
-data ModuleHints = ModuleHints { _constructors :: [Text] 
-                               , _functions    :: [Text]
-					     	   , _classes      :: Map Text [Text]
-							   } deriving (Eq, Generic, Show)
+data ClassHints = ClassHints { _constructors :: [Text]
+                             , _methods      :: [Text]
+                             } deriving (Eq, Generic, Show)
 
+data ModuleHints = ModuleHints { _functions    :: [Text]
+                               , _classes      :: Map Text ClassHints
+                               } deriving (Eq, Generic, Show)
+
+makeLenses ''ClassHints
 makeLenses ''ModuleHints
 instance Binary ModuleHints
 instance NFData ModuleHints
 instance ToJSON ModuleHints
+instance Binary ClassHints
+instance NFData ClassHints
+instance ToJSON ClassHints
 
 
 type ImportName   = Text
@@ -53,4 +60,4 @@ methodEntry className methodList = (className, Group (Map.fromList $ entry <$> m
 prepareNSData :: ModuleHints -> Items ExpressionNode
 prepareNSData mh = Map.fromList $ functionsList <> methodsList where
     functionsList = entry <$> (mh ^. functions)
-    methodsList   = (uncurry methodEntry) <$> Map.toList (mh ^. classes)
+    methodsList   = (uncurry methodEntry . \(n, ch) -> (n, ch ^. methods)) <$> Map.toList (mh ^. classes)

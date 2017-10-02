@@ -156,7 +156,7 @@ import           LunaStudio.Data.NodeLoc          (NodeLoc (..))
 import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
-import           LunaStudio.Data.NodeSearcher     (ImportName, ImportsHints, ModuleHints(..))
+import           LunaStudio.Data.NodeSearcher     (ImportName, ImportsHints, ClassHints(..), ModuleHints(..))
 import           LunaStudio.Data.Point            (Point)
 import qualified LunaStudio.Data.Point            as Point
 import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
@@ -1451,12 +1451,18 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
                                     IR.UnresolvedImportSrc n -> case n of
                                         Term.Absolute n -> return $ convert n
 
+classToHints :: IR.Class -> ClassHints
+classToHints (IR.Class constructors methods) = ClassHints cons' meth'
+    where
+        cons' = map convert $ Map.keys constructors
+        meth' = map convert $ Map.keys methods
+
 importsToHints :: Module.Imports -> ModuleHints
-importsToHints (Module.Imports classes functions) = ModuleHints def funHints classHints
+importsToHints (Module.Imports classes functions) = ModuleHints funHints classHints
     where
         funHints   = map convert $ Map.keys functions
         classes'   = Map.mapKeys convert classes
-        classHints = Map.map (\(IR.Class _ methods) -> map convert $ Map.keys methods) classes'
+        classHints = Map.map classToHints classes'
 
 data ModuleCompilationException = ModuleCompilationException Compilation.ModuleCompilationError
     deriving (Show)
