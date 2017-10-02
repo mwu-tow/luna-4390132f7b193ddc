@@ -3,6 +3,18 @@ version:    "0.1"
 author:     Luna Team <contact@luna-lang.org>
 maintainer: Luna Team <contact@luna-lang.org>
 
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options: -Wno-unused-do-bind -threaded -with-rtsopts=-N4
+    dependencies:
+      - containers
+      - hspec
+      - luna-studio-common
+      - prologue
+
+
 executables:
   fuzzy-text:
     main: Main.hs
