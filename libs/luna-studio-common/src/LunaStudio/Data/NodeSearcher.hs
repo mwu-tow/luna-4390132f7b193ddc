@@ -14,8 +14,9 @@ import           LunaStudio.Data.Node    (ExpressionNode, mkExprNode)
 import           Prologue                hiding (Item)
 import           Text.ScopeSearcher.Item as X
 
-data ModuleHints = ModuleHints { _functions :: [Text]
-					     	   , _classes   :: Map Text [Text]
+data ModuleHints = ModuleHints { _constructors :: [Text] 
+                               , _functions    :: [Text]
+					     	   , _classes      :: Map Text [Text]
 							   } deriving (Eq, Generic, Show)
 
 makeLenses ''ModuleHints

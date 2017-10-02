@@ -1452,7 +1452,7 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
                                         Term.Absolute n -> return $ convert n
 
 importsToHints :: Module.Imports -> ModuleHints
-importsToHints (Module.Imports classes functions) = ModuleHints funHints classHints
+importsToHints (Module.Imports classes functions) = ModuleHints def funHints classHints
     where
         funHints   = map convert $ Map.keys functions
         classes'   = Map.mapKeys convert classes
