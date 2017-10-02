@@ -42,6 +42,7 @@ dependencies:
   - datetime
   - deepseq
   - extra
+  - filepath
   - ghcjs-base
   - ghcjs-prim
   - hashable
