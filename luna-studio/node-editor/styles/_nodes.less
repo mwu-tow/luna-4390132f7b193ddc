@@ -73,14 +73,14 @@
 
     .luna-ctrl-icon {
         .graphBackground;
-        fill:          @luna-syntax-text-color;
-        border-radius: 0 1000px 1000px 0;
-        opacity:       0;
-        position:      absolute;
-        width:         calc(@ui ~'*' 24px);
-        height:        calc(@ui ~'*' 16px);
-        transform:     translate(0, calc(@ui ~'*' -2px));
-        left:          auto;
+        fill:           @luna-syntax-text-color;
+        border-radius:  0 1000px 1000px 0;
+        opacity:        0;
+        position:       absolute;
+        width:          calc(@ui ~'*' 24px);
+        height:         calc(@ui ~'*' 16px);
+        transform:      translate(0, calc(@ui ~'*' -2px));
+        left:           auto;
         pointer-events: all;
     }
 }
@@ -89,7 +89,7 @@
     .graphBackground;
     .roundCorners;
     line-height: calc(@ui ~'*' 14px);
-    padding:     0 
+    padding:     0
                  calc(@ui ~'*' 7px)
                  calc(@ui ~'*' 2px)
                  calc(@ui ~'*' 6px);
@@ -263,7 +263,10 @@ svg.luna-node__ports {
         left:  -80rem;
     }
     .luna-selection {
-        border-radius: 1px;
+        top:    -10rem !important;
+        bottom: -10rem !important;
+        left:   -10rem !important;
+        right:  -10rem !important;
     }
     &.luna-node--no-self {
         .luna-node__label--self {
@@ -291,7 +294,8 @@ svg.luna-node__ports {
 /////////////////////////////
 
 .luna-node__controls {
-    padding:        12rem 12rem 12rem 4rem;
+    padding:        9rem 12rem 9rem 4rem;
+    margin:         3rem 0;
     overflow:       hidden;
     .background(1);
     border-radius:  3rem;
@@ -326,6 +330,7 @@ svg.luna-node__ports {
 }
 
 .luna-node__ctrl {
+    padding:    2rem 0;
     float:      right;
     text-align: center;
     min-width:  90rem;
@@ -342,11 +347,6 @@ svg.luna-node__ports {
     line-height:    11rem;
     padding-bottom: 1rem;
     width:          100%;
-}
-
-.luna-ctrl--slider {
-    position: relative;
-    top:      2px;
 }
 
 .luna-ctrl--set {
