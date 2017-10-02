@@ -7,10 +7,12 @@ import           JS.Visualizers                     (getVisualizersLibraryPath)
 import           LunaStudio.Data.GraphLocation      (GraphLocation, filePath)
 import           LunaStudio.Data.Project            (LocationSettings (LocationSettings))
 import qualified NodeEditor.Action.Batch            as Batch
+import           NodeEditor.Action.State.App        (getWorkspace, modifyApp)
 import           NodeEditor.Action.State.NodeEditor (getScreenTransform, modifyNodeEditor, resetGraph, setGraphStatus)
 import           NodeEditor.Batch.Workspace         (currentLocation)
 import           NodeEditor.React.Model.NodeEditor  (GraphStatus (GraphLoading), visualizersLibPath)
-import           NodeEditor.State.Global            (State, workspace)
+import           NodeEditor.React.Model.App         (workspace)
+import           NodeEditor.State.Global            (State)
 import qualified NodeEditor.State.Global            as Global
 
 
@@ -20,13 +22,14 @@ loadGraph location prevSettings = do
     visLibPath <- liftIO $ getVisualizersLibraryPath
     modifyNodeEditor $ visualizersLibPath .= visLibPath
     setGraphStatus GraphLoading
-    workspace . _Just . currentLocation .= location
+    modifyApp $ workspace . _Just . currentLocation .= location
     Atom.setActiveLocation location
     Batch.getProgram prevSettings
 
 navigateToGraph :: GraphLocation -> Command State ()
 navigateToGraph location = do
-    mayCurrentLoc <- preuse $ workspace . traverse . currentLocation
+    mayWorkspace <- getWorkspace
+    let mayCurrentLoc = mayWorkspace ^? _Just . currentLocation
     when (mayCurrentLoc /= Just location) $ do
         settings <- if (view filePath <$> mayCurrentLoc) == Just (location ^. filePath)
             then LocationSettings Nothing <$> getScreenTransform

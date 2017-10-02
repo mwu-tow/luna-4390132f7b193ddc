@@ -54,7 +54,7 @@ import           NodeEditor.Action.Basic.Revert              (revertAddConnectio
                                                               revertSetPortDefault)
 import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime, modifyTime, refreshTime, touchCurrentlySelected, updateClient)
 import           NodeEditor.Action.Batch                     (collaborativeModify, getProgram)
-import           NodeEditor.Action.State.App                 (setBreadcrumbs)
+import           NodeEditor.Action.State.App                 (getWorkspace, modifyApp, setBreadcrumbs)
 import           NodeEditor.Action.State.Graph               (inCurrentLocation, isCurrentLocation)
 import           NodeEditor.Action.State.NodeEditor          (modifyExpressionNode, setGraphStatus, setScreenTransform, updateMonads)
 import           NodeEditor.Action.UUID                      (isOwnRequest)
@@ -62,6 +62,7 @@ import qualified NodeEditor.Batch.Workspace                  as Workspace
 import           NodeEditor.Event.Batch                      (Event (..))
 import qualified NodeEditor.Event.Event                      as Event
 import           NodeEditor.Handler.Backend.Common           (doNothing, handleResponse)
+import           NodeEditor.React.Model.App                  (workspace)
 import qualified NodeEditor.React.Model.Node.ExpressionNode  as Node
 import           NodeEditor.React.Model.NodeEditor           (GraphStatus (GraphError, GraphLoaded))
 import           NodeEditor.State.Global                     (State)
@@ -96,7 +97,7 @@ applyResult' preventPorts res path = do
 
 checkBreadcrumb :: Result.Result -> Command State ()
 checkBreadcrumb res = do
-    bc <- maybe def (view (Workspace.currentLocation . GraphLocation.breadcrumb)) <$> use Global.workspace
+    bc <- maybe def (view (Workspace.currentLocation . GraphLocation.breadcrumb)) <$> getWorkspace
     when (any (containsNode bc) $ res ^. Result.removedNodes) $ exitBreadcrumb
 
 handle :: Event.Event -> Maybe (Command State ())
@@ -124,11 +125,12 @@ handle (Event.Batch ev) = Just $ case ev of
                             Global.preferedVisualizers .= visMap
                         updateScene
         failure _ = do
-            isOnTop <- fromMaybe True <$> preuses (Global.workspace . traverse) Workspace.isOnTopBreadcrumb
+            mayWorkspace <- getWorkspace
+            let isOnTop = fromMaybe True (Workspace.isOnTopBreadcrumb <$> mayWorkspace)
             if isOnTop
                 then fatal "Cannot get file from backend"
                 else do
-                    Global.workspace . _Just %= Workspace.upperWorkspace
+                    modifyApp $ workspace . _Just %= Workspace.upperWorkspace
                     getProgram def
 
     AddConnectionResponse response -> handleResponse response success failure where

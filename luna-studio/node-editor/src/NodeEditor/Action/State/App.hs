@@ -1,10 +1,11 @@
 module NodeEditor.Action.State.App where
 
 import           Common.Action.Command              (Command)
-import           Common.Prelude                     hiding (lens)
+import           Common.Prelude                     hiding (get, lens)
 import           Control.Lens.Internal.Zoom         (Focusing)
 import qualified Control.Monad.State                as M
-import           NodeEditor.React.Model.App         (App, breadcrumbs)
+import           NodeEditor.Batch.Workspace         (Workspace)
+import           NodeEditor.React.Model.App         (App, breadcrumbs, workspace)
 import           NodeEditor.React.Model.Breadcrumbs (Breadcrumb, BreadcrumbItem, Named)
 import           NodeEditor.React.Store             (Ref, commit, continueModify)
 import qualified NodeEditor.React.Store             as Store
@@ -15,7 +16,7 @@ import           NodeEditor.State.UI                (app, renderNeeded)
 withApp :: (Ref App -> Command State r) -> Command State r
 withApp action = use (ui . app) >>= action
 
-modify :: LensLike' (Focusing Identity b) App s -> M.StateT s Identity b -> Command State b
+modify :: LensLike' (Focusing Identity b) App s -> M.State s b -> Command State b
 modify lens action = do
     ui . renderNeeded .= True
     withApp . continueModify $ zoom lens action
@@ -33,5 +34,8 @@ renderIfNeeded = whenM (use $ ui . renderNeeded) $ timeIt "render" $ do
     withApp commit
     ui . renderNeeded .= False
 
-setBreadcrumbs :: Breadcrumb (Named BreadcrumbItem)-> Command State ()
+setBreadcrumbs :: Breadcrumb (Named BreadcrumbItem) -> Command State ()
 setBreadcrumbs bc = modifyApp $ breadcrumbs .= bc
+
+getWorkspace :: Command State (Maybe Workspace)
+getWorkspace = get workspace

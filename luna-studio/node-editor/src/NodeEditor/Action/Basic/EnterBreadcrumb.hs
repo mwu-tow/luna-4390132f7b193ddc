@@ -5,24 +5,28 @@ import           Common.Prelude
 import           LunaStudio.Data.Breadcrumb                 (Breadcrumb, BreadcrumbItem (Definition, Lambda), items)
 import           LunaStudio.Data.GraphLocation              (breadcrumb)
 import           NodeEditor.Action.Basic.ProjectManager     (navigateToGraph)
+import           NodeEditor.Action.State.App                (getWorkspace)
 import           NodeEditor.Batch.Workspace                 (currentLocation)
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, canEnter, isDefinition, nodeId)
-import           NodeEditor.State.Global                    (State, workspace)
+import           NodeEditor.State.Global                    (State)
 
 
 enterBreadcrumb :: BreadcrumbItem -> Command State ()
 enterBreadcrumb item =
-    withJustM (preuse $ workspace . traverse . currentLocation) $ \location ->
+    withJustM getWorkspace $ \workspace' -> do
+        let location = workspace' ^. currentLocation
         navigateToGraph $ location & breadcrumb . items %~ (<> [item])
 
 enterBreadcrumbs :: Breadcrumb BreadcrumbItem -> Command State ()
 enterBreadcrumbs newBc =
-    withJustM (preuse $ workspace . traverse . currentLocation) $ \location ->
+    withJustM getWorkspace $ \workspace' -> do
+        let location = workspace' ^. currentLocation
         navigateToGraph $ location & breadcrumb .~ newBc
 
 exitBreadcrumb :: Command State ()
 exitBreadcrumb =
-    withJustM (preuse $ workspace . traverse . currentLocation) $ \location ->
+    withJustM getWorkspace $ \workspace' -> do
+        let location = workspace' ^. currentLocation
         case location ^. breadcrumb . items of
             [] -> return ()
             bc -> navigateToGraph $ location & breadcrumb . items .~ init bc

@@ -40,5 +40,5 @@ create a = do
     se <- ask
     create' se a
 
-createApp :: MonadIO m => SendEvent -> m (Ref App)
-createApp = runReaderT $ create def
+createApp :: MonadIO m => App -> SendEvent -> m (Ref App)
+createApp app = runReaderT $ create app

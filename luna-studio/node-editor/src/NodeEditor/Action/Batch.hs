@@ -11,31 +11,31 @@ import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', Ou
 import           LunaStudio.Data.Position            (Position)
 import           LunaStudio.Data.Project             (LocationSettings)
 import           LunaStudio.Data.NodeSearcher        (ImportName)
+import           NodeEditor.Action.State.App         (getWorkspace)
 import           NodeEditor.Action.UUID              (registerRequest)
 import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
 import           NodeEditor.Batch.Workspace          (Workspace)
 import           NodeEditor.React.Model.Connection   (ConnectionId)
 import           NodeEditor.React.Model.Node         (ExpressionNode, NodeLoc)
-import           NodeEditor.State.Global             (State, backend, clientId, workspace)
-
+import           NodeEditor.State.Global             (State, backend, clientId)
 
 
 withWorkspace :: (Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
 withWorkspace act = do
     uuid       <- registerRequest
     guiID      <- use $ backend . clientId
-    withJustM (use workspace) $ \workspace' ->
+    withJustM getWorkspace $ \workspace' ->
         liftIO $ act workspace' uuid $ Just guiID
 
 withMayWorkspace :: (Maybe Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
 withMayWorkspace act = do
     uuid       <- registerRequest
     guiID      <- use $ backend . clientId
-    mayWorkspace <- use workspace
+    mayWorkspace <- getWorkspace
     liftIO $ act mayWorkspace uuid $ Just guiID
 
 withWorkspace' :: (Workspace -> IO ()) -> Command State ()
-withWorkspace' act = withJustM (use workspace) $ liftIO . act
+withWorkspace' act = withJustM getWorkspace $ liftIO . act
 
 withUUID :: (UUID -> Maybe UUID -> IO ()) -> Command State ()
 withUUID act = do

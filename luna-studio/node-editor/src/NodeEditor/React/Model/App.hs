@@ -7,13 +7,18 @@ module NodeEditor.React.Model.App (
 ) where
 
 import           Common.Prelude
+import           NodeEditor.Batch.Workspace         (Workspace)
+import qualified NodeEditor.Batch.Workspace         as Workspace
 import           NodeEditor.React.Model.Breadcrumbs (Breadcrumbs)
 import           NodeEditor.React.Model.NodeEditor  (NodeEditor)
 
 
-
 data App = App { _breadcrumbs       :: Breadcrumbs
                , _nodeEditor        :: NodeEditor
+               , _workspace         :: Maybe Workspace
                } deriving (Default, Eq, Generic)
 
 makeLenses ''App
+
+mk :: Maybe FilePath -> App
+mk = App def def . fmap Workspace.mk
