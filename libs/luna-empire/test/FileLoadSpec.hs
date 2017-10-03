@@ -46,6 +46,7 @@ import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
 import           LunaStudio.Data.Vector2         (Vector2 (..))
+import qualified LunaStudio.Data.LabeledTree     as LabeledTree
 
 import           Empire.Prelude                  hiding (maximum)
 import           Luna.Prelude                    (normalizeQQ)
@@ -1812,6 +1813,25 @@ spec = around withChannels $ parallel $ do
                     target <- ASTRead.getASTTarget k
                     ASTRead.isApp target
                 liftIO $ negativeIsApp `shouldBe` True
+        it "unary minus behaves as a literal" $ let
+            initialCode = [r|
+                def main:
+                    «0»k = -1
+                |]
+            expectedCode = [r|
+                def main:
+                    k = -1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [k] <- Graph.getNodes loc
+                let portsBefore = k ^. Node.inPorts
+                    valueBefore = portsBefore ^? LabeledTree.value . Port.state . Port._WithDefault
+                liftIO $ valueBefore `shouldBe` (Just $ PortDefault.Constant (PortDefault.IntValue (-1)))
+                Just k <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Graph.setPortDefault loc (inPortRef k []) (Just $ PortDefault.Constant (PortDefault.IntValue (-1)))
+                [k] <- Graph.getNodes loc
+                let portsAfter = k ^. Node.inPorts
+                liftIO $ portsBefore `shouldBe` portsAfter
         it "reads port name" $ let
             initialCode = [r|
                 def main:
