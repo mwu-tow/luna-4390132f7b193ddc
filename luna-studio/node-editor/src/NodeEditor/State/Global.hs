@@ -64,8 +64,8 @@ makeLenses ''BackendState
 makeLenses ''State
 makeLenses ''DebugState
 
-mkState :: Ref App -> ClientId -> Maybe FilePath -> HashMap TypeRep Visualizer -> Map VisualizerName VisualizerMatcher -> DateTime -> StdGen -> State
-mkState ref clientId' mpath = State
+mkState :: Ref App -> ClientId -> HashMap TypeRep Visualizer -> Map VisualizerName VisualizerMatcher -> DateTime -> StdGen -> State
+mkState ref clientId' = State
     {- react                -} (UI.mkState ref)
     {- backend              -} (BackendState def clientId')
     {- actions              -} def

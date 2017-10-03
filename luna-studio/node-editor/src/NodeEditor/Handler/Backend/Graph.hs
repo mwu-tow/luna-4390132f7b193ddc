@@ -43,7 +43,7 @@ import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
 import           NodeEditor.Action.Basic                     (centerGraph, exitBreadcrumb, localAddConnections, localAddSearcherHints,
-                                                              localMerge, localRemoveConnections, localRemoveNodes,
+                                                              localMerge, localMoveProject, localRemoveConnections, localRemoveNodes,
                                                               localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
                                                               localUpdateOrAddExpressionNodePreventingPorts, localUpdateOrAddInputNode,
                                                               localUpdateOrAddOutputNode, setCurrentImports, setNodeProfilingData,
@@ -67,6 +67,8 @@ import qualified NodeEditor.React.Model.Node.ExpressionNode  as Node
 import           NodeEditor.React.Model.NodeEditor           (GraphStatus (GraphError, GraphLoaded))
 import           NodeEditor.State.Global                     (State)
 import qualified NodeEditor.State.Global                     as Global
+import qualified LunaStudio.API.Atom.MoveProject as MoveProject
+
 
 
 applyResult :: GraphLocation -> Result.Result -> Command State ()
@@ -248,6 +250,10 @@ handle (Event.Batch ev) = Just $ case ev of
         request   = response ^. Response.request
         location  = request  ^. Paste.location
         success   = applyResult location
+
+    ProjectMoved response -> handleResponse response success doNothing where
+        request   = response ^. Response.request
+        success _ = localMoveProject (request ^. MoveProject.oldPath) (request ^. MoveProject.newPath)
 
     RedoResponse _response -> $notImplemented
 

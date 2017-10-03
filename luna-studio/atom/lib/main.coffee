@@ -41,12 +41,7 @@ module.exports = LunaStudio =
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
             if act == 'ProjectMove'
                 for pane in atom.workspace.getPaneItems()
-                    if pane instanceof LunaStudioTab
-                        panePath = pane.uri
-                        if panePath.startsWith(projects.temporaryProject.path)
-                            pane.uri = uri + panePath.slice(projects.temporaryProject.path.length)
-                            nodeEditor.pushEvent(tag: "SetFile", path: pane.uri)
-                    else if pane instanceof LunaEditorTab
+                    if pane instanceof LunaEditorTab
                         panePath = pane.uri
                         if panePath.startsWith(projects.temporaryProject.path)
                             pane.setUri(uri + panePath.slice(projects.temporaryProject.path.length))

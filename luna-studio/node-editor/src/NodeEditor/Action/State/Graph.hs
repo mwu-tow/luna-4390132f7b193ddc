@@ -9,7 +9,6 @@ import           LunaStudio.Data.NodeLoc            (NodePath)
 import           NodeEditor.Action.State.NodeEditor (isGraphLoaded)
 import           NodeEditor.Action.State.App        (getWorkspace)
 import           NodeEditor.Batch.Workspace         (currentLocation)
-import           NodeEditor.React.Model.App         (workspace)
 import           NodeEditor.State.Global            (State)
 
 

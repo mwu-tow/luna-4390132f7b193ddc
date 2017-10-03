@@ -4,6 +4,7 @@ module NodeEditor.Event.Batch where
 import           Common.Prelude
 
 import           Common.Analytics                           (IsTrackedEvent (..))
+import qualified LunaStudio.API.Atom.MoveProject            as MoveProject
 import qualified LunaStudio.API.Atom.Paste                  as AtomPaste
 import qualified LunaStudio.API.Atom.Substitute             as Substitute
 import qualified LunaStudio.API.Control.EmpireStarted       as EmpireStarted
@@ -66,6 +67,7 @@ data Event = UnknownEvent                             String
            | ProjectCreatedUpdate              CreateProject.Update
            | ProjectExported                   ExportProject.Response
            | ProjectImported                   ImportProject.Response
+           | ProjectMoved                        MoveProject.Response
            | ProjectList                        ListProjects.Response
            | ProjectOpened                       OpenProject.Response
            | ProjectOpenedUpdate                 OpenProject.Update

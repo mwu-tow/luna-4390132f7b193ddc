@@ -33,7 +33,7 @@ runApp chan socket = do
         Engine.scheduleInit loop
         appRef <- Store.createApp (App.mk openedFile) $ Engine.scheduleEvent loop
         React.reactRender Config.mountPoint (App.app appRef) ()
-        let initState = mkState appRef clientId openedFile mempty visualizersMap initTime random
+        let initState = mkState appRef clientId mempty visualizersMap initTime random
         state <- newMVar initState
         Engine.connectEventSources socket loop
     App.focus
