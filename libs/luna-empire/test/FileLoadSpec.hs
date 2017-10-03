@@ -1829,3 +1829,17 @@ spec = around withChannels $ parallel $ do
                 portName1 <- Graph.getPortName loc' (outPortRef input [Port.Projection 1])
                 liftIO $ portName0 `shouldBe` "a"
                 liftIO $ portName1 `shouldBe` "b"
+        it "disconnects alias node" $ let
+            initialCode = [r|
+                def main:
+                    «0»x = 10
+                    «1»y = x
+                |]
+            expectedCode = [r|
+                def main:
+                    x = 10
+                    y = None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [(outRef, inRef)] <- Graph.getConnections loc
+                Graph.disconnect loc inRef

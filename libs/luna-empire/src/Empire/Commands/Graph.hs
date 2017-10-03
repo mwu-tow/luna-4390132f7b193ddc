@@ -1556,9 +1556,14 @@ setToNothing dst = do
         nothingExpr          = "None"
     nothing <- IR.generalize <$> IR.cons_ (convert nothingExpr)
     IR.putLayer @SpanLength nothing $ convert $ Text.length nothingExpr
-    if disconnectOutputEdge
-        then setOutputTo nothing
-        else GraphUtils.rewireNode dst nothing
+    if disconnectOutputEdge then setOutputTo nothing else do
+        dstTarget <- ASTRead.getASTTarget dst
+        dstBeg    <- Code.getASTTargetBeginning dst
+        oldLen    <- IR.getLayer @SpanLength dstTarget
+        Code.applyDiff dstBeg (dstBeg + oldLen) nothingExpr
+        GraphUtils.rewireNode dst nothing
+        dstTarget <- ASTRead.getASTTarget dst
+        Code.gossipLengthsChanged dstTarget
 
 removeInternalConnection :: GraphOp m => NodeId -> InPortId -> m ()
 removeInternalConnection nodeId port = do
