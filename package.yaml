@@ -7,19 +7,32 @@ tests:
   spec:
     main: Spec.hs
     source-dirs: test
-    ghc-options: -Wno-unused-do-bind -threaded -with-rtsopts=-N4
+    ghc-options: -Wall -O2 -threaded
     dependencies:
+      - base
       - containers
+      - fuzzy-text
       - hspec
       - luna-studio-common
       - prologue
+
+
+library:
+  source-dirs: src
+  ghc-options: -Wall -O2 -threaded
+  dependencies:
+    - base
+    - containers
+    - luna-studio-common
+    - prologue
+    - text
 
 
 executables:
   fuzzy-text:
     main: Main.hs
     source-dirs: src
-    ghc-options: -threaded "-with-rtsopts=-N -T"
+    ghc-options: -Wall -O2 -threaded
     dependencies:
       - base
       - containers
@@ -67,6 +80,5 @@ default-extensions:
     - TupleSections
     - TypeApplications
     - TypeFamilies
-    - TypeFamilyDependencies
     - TypeOperators
     - ViewPatterns

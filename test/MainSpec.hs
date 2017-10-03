@@ -2,11 +2,12 @@
 module MainSpec (spec) where
 
 import Prologue
+import FuzzyText
 import Test.Hspec
 import LunaStudio.Data.NodeSearcher (ModuleHints (ModuleHints), ImportName)
 import qualified Data.Map as Map
 import Data.Map (Map)
-
+import qualified Data.List                    as List
 
 
 mockBase :: ModuleHints
@@ -107,5 +108,37 @@ mockImports = Map.fromList [ ("Std.Base", mockBase)
 spec :: Spec
 spec = do
     describe "scoring function" $ do
-        it "assings proper score to dupa" $ do
-            1 `shouldBe` 1
+        it "match starting with capital is prefered over others" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["fooBar", "optbaru"] def
+                res = List.sort . processEntries "bar" $ toEntries ih False
+            view name (List.head res) `shouldBe` "fooBar"
+        it "match starting with capital have better score" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["fooBar", "optbaru"] def
+                res = List.sort . processEntries "bar" $ toEntries ih False
+            view score (List.head res) `shouldSatisfy` (> view score (List.last res))
+        it "subsequence should be prefered over substring" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["abcdef", "aebdcf"] def
+                res = List.sort . processEntries "abc" $ toEntries ih False
+            view name (List.head res) `shouldBe` "abcdef"
+        it "subsequence should have better score than substring" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["abcdef", "aebdcf"] def
+                res = List.sort . processEntries "abc" $ toEntries ih False
+            view score (List.head res) `shouldSatisfy` (> view score (List.last res))
+        it "subsequence at beggining of the word is prefered over other subsequences" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["getElement", "delement"] def
+                res = List.sort . processEntries "ele" $ toEntries ih False
+            view name (List.head res) `shouldBe` "getElement"
+        it "subsequence at beggining of the word should be scored better than other subsequence" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["getElement", "delement"] def
+                res = List.sort . processEntries "ele" $ toEntries ih False
+            view score (List.head res) `shouldSatisfy` (> view score (List.last res))
+    describe "matched letters" $ do
+        it "match should be eager" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["xx"] def
+                res = List.sort . processEntries "x" $ toEntries ih False
+            view score (List.head res) `shouldBe` 4
+        it "match should be eager" $ do
+            let ih  = Map.singleton "SomeModule" $ ModuleHints ["xxx"] def
+                res = List.sort . processEntries "xx" $ toEntries ih False
+            view score (List.head res) `shouldBe` 6
+            
