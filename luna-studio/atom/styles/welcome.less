@@ -15,7 +15,7 @@ atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use
 	top:        0;
 	bottom:     0;
 	overflow-y: scroll;
-	overflow-x: visible;
+	overflow-x: hidden;
 
 }
 
@@ -26,8 +26,12 @@ atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use
 	background:    @background;
 	width:         580px;
 	left:         -@grid;
-	position: relative;
-	overflow: visible;
+	position:      relative;
+	overflow:      visible;
+}
+
+.luna-welcome__body {
+	width:         110%;
 }
 
 .luna-welcome__title {
@@ -41,43 +45,55 @@ atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use
 	text-align: center;
 	margin-bottom: @grid*1;
 }
+.luna-welcome__header__menu {
+	margin-bottom: 2*@grid;
+	overflow-y: hidden;
+}
+.luna-welcome__header__menu__links {
+	float: right;
+}
 .luna-welcome-link {
 	@a: 2px;
 	@b: rgba(255,255,255,0.1);
+
 	border-radius: 1000px;
-	line-height: @input-height - @a;
+	line-height:   @input-height - @a;
 	border-bottom: @a solid transparent;
-	display: inline-block;
-	background: @b;
-	margin-left: @grid/2;
-	width: 80px;
+	display:       inline-block;
+	background:    @b;
+	margin-left:   @grid/2;
+	width:         80px;
 }
 
 .luna-welcome-search {
-	@b: #000;
+	@bg: #000;
+
 	border-radius: 1000px;
-	background: @b;
-	height: @input-height;
-	border-bottom: 2px solid @b;
-	padding: 0 @grid;
-	width: 372px;
+	background:    @bg;
+	height:        @input-height;
+	border-bottom: 2px solid @bg;
+	padding:       0 @grid;
+	width:         50%;
+	float:         left;
 }
 
 .luna-welcome__section__container {
-	width:   100%;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
+	width:           100%;
+	display:         flex;
+	flex-wrap:       wrap;
+	justify-content: flex-start;
+	align-content:   flex-start;
 }
 
 .luna-welcome__tile {
 	width:  @tile-size !important;
-	height: @tile-size + @caption-height;
+	height:       @tile-size + @caption-height;
 	position: relative;
+	margin-right: @grid;
+	margin-bottom: @grid;
 }
 
 .luna-welcome__section__title {
-
 	font-weight: 100;
 	opacity: 1;
 	&::before {

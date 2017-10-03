@@ -32,15 +32,16 @@ class LunaWelcomeTab extends View
                             placeholder: 'Search'
                             outlet: 'searchInput'
 
-                        @a
-                            class: 'luna-welcome-link luna-welcome-link--forum'
-                            href: "http://luna-lang.org"
-                            'forum'
+                        @div class: 'luna-welcome__header__menu__links', =>
+                            @a
+                                class: 'luna-welcome-link luna-welcome-link--forum'
+                                href: "http://luna-lang.org"
+                                'forum'
 
-                        @a
-                            class: 'luna-welcome-link luna-welcome-link--chat'
-                            href: "http://luna-lang.org"
-                            'chat'
+                            @a
+                                class: 'luna-welcome-link luna-welcome-link--chat'
+                                href: "http://luna-lang.org"
+                                'chat'
 
                 @div class: 'luna-welcome__body', =>
 
