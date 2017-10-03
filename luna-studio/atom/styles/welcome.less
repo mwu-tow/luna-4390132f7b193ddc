@@ -64,12 +64,10 @@ atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use
 }
 
 .luna-welcome__section__container {
-	width:                 100%;
-	display:               grid;
-	grid-template-columns: @tile-size @tile-size @tile-size;
-	grid-column-gap:       @grid;
-    grid-row-gap:          @grid;
-    justify-items: stretch;
+	width:   100%;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
 }
 
 .luna-welcome__tile {
