@@ -42,6 +42,7 @@ data RunnerConfig = RunnerConfig { _versionFile            :: FilePath
                                  , _userConfigFolder       :: FilePath
                                  , _configFolder           :: FilePath
                                  , _configHomeFolder       :: FilePath
+                                 , _storageDataHomeFolder  :: FilePath
                                  , _studioHome             :: FilePath
                                  , _logsFolder             :: FilePath
                                  , _atomPackageName        :: FilePath
@@ -71,6 +72,7 @@ instance Monad m => MonadHostConfig RunnerConfig 'Linux arch m where
         , _userConfigFolder       = "user-config"
         , _configFolder           = "config"
         , _configHomeFolder       = "config"
+        , _storageDataHomeFolder  = "storage"
         , _studioHome             = "atom"
         , _logsFolder             = "logs"
         , _atomPackageName        = "luna-studio"
@@ -123,25 +125,29 @@ version = do
 backendBinsPath, configPath, atomAppPath, backendDir             :: MonadRun m => m FilePath
 supervisordBinPath, killSupervisorBinPath, packageStudioAtomHome :: MonadRun m => m FilePath
 userStudioAtomHome, localLogsDirectory, userLogsDirectory        :: MonadRun m => m FilePath
+userdataStorageDirectory, localdataStorageDirectory              :: MonadRun m => m FilePath
 
-backendBinsPath       = relativeToMainDir [binsFolder, backendBinsFolder]
-configPath            = relativeToMainDir [configFolder]
-atomAppPath           = relativeToMainDir [thirdPartyFolder, atomBinPath]
-backendDir            = relativeToMainDir [configFolder, supervisorFolder]
-supervisordBinPath    = relativeToMainDir [thirdPartyFolder, supervisordFolder, supervisordBin]
-killSupervisorBinPath = relativeToMainDir [thirdPartyFolder, supervisorKillFolder, supervisorKillBin]
-packageStudioAtomHome = relativeToMainDir [userConfigFolder, studioHome]
-localLogsDirectory    = relativeToMainDir [logsFolder]
-userLogsDirectory     = relativeToHomeDir [logsFolder, appName] >>= (\p -> (fmap (p </>) version))
+backendBinsPath           = relativeToMainDir [binsFolder, backendBinsFolder]
+configPath                = relativeToMainDir [configFolder]
+atomAppPath               = relativeToMainDir [thirdPartyFolder, atomBinPath]
+backendDir                = relativeToMainDir [configFolder, supervisorFolder]
+supervisordBinPath        = relativeToMainDir [thirdPartyFolder, supervisordFolder, supervisordBin]
+killSupervisorBinPath     = relativeToMainDir [thirdPartyFolder, supervisorKillFolder, supervisorKillBin]
+packageStudioAtomHome     = relativeToMainDir [userConfigFolder, studioHome]
+localLogsDirectory        = relativeToMainDir [logsFolder]
+userLogsDirectory         = relativeToHomeDir [logsFolder, appName] >>= (\p -> (fmap (p </>) version))
+userdataStorageDirectory  = relativeToHomeDir [configHomeFolder, appName, storageDataHomeFolder]
+localdataStorageDirectory = relativeToHomeDir [storageDataHomeFolder]
 userStudioAtomHome = do
     runnerCfg <- get @RunnerConfig
     baseDir   <- relativeToHomeDir [configHomeFolder, appName] >>= (\p -> (fmap (p </>) version))
     return $ baseDir </> (runnerCfg ^. studioHome)
 
-atomHomeDir, logsDir :: MonadRun m => Bool -> m FilePath
-atomHomeDir develop = if develop then packageStudioAtomHome else userStudioAtomHome
-logsDir     develop = if develop then localLogsDirectory    else userLogsDirectory
 
+atomHomeDir, logsDir, dataStorageDirectory :: MonadRun m => Bool -> m FilePath
+atomHomeDir          develop = if develop then packageStudioAtomHome     else userStudioAtomHome
+logsDir              develop = if develop then localLogsDirectory        else userLogsDirectory
+dataStorageDirectory develop = if develop then localdataStorageDirectory else userdataStorageDirectory
 -- misc runner utils --
 
 windows, linux, darwin, unix :: Bool
@@ -169,6 +175,11 @@ copyLunaStudio = do
 testDirectory :: MonadIO m => FilePath -> m Bool
 testDirectory path = Shelly.shelly $ Shelly.test_d path
 
+createStorageDataDirectory :: MonadRun m => Bool -> m ()
+createStorageDataDirectory develop = do
+    dataStoragePath <- dataStorageDirectory develop
+    Shelly.shelly $ Shelly.mkdir_p dataStoragePath
+
 checkLunaHome :: MonadRun m => m ()
 checkLunaHome = do
     runnerCfg    <- get @RunnerConfig
@@ -191,8 +202,10 @@ runLunaEmpire logs configFile = do
 runFrontend :: MonadRun m => Maybe T.Text -> m ()
 runFrontend args = do
     atom <- atomAppPath
+    createStorageDataDirectory True
     liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
-    setEnv "ATOM_HOME" =<< packageStudioAtomHome
+    setEnv "ATOM_HOME"             =<< packageStudioAtomHome
+    setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory True
     unixOnly $ Shelly.shelly $ Shelly.run_ atom $ "-w" : maybeToList args
 
 runBackend :: MonadRun m => m ()
@@ -208,20 +221,24 @@ runPackage develop = case currentHost of
     Windows -> do
         atom <- atomAppPath
         checkLunaHome
-        setEnv "ATOM_HOME" =<< userStudioAtomHome
+        setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory develop
+        setEnv "ATOM_HOME"             =<< userStudioAtomHome
+        createStorageDataDirectory develop
         Shelly.shelly $ Shelly.cmd atom
 
     _ -> do
         runnerCfg <- get @RunnerConfig
         logs      <- logsDir develop
         let supervisorConf = runnerCfg ^. supervisordConfig
-        setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" =<< atomHomeDir develop
-        setEnv "LUNA_STUDIO_LOG_PATH"        =<< logsDir     develop
+        setEnv "LUNA_STUDIO_DATA_PATH"       =<< dataStorageDirectory develop
+        setEnv "LUNA_STUDIO_GUI_CONFIG_PATH" =<< atomHomeDir          develop
+        setEnv "LUNA_STUDIO_LOG_PATH"        =<< logsDir              develop
         setEnv "LUNA_STUDIO_BACKEND_PATH"    =<< backendBinsPath
         setEnv "LUNA_STUDIO_GUI_PATH"        =<< atomAppPath
         setEnv "LUNA_STUDIO_CONFIG_PATH"     =<< configPath
         setEnv "LUNA_STUDIO_KILL_PATH"       =<< killSupervisorBinPath
         when develop   $ liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
+        createStorageDataDirectory develop
         unless develop $ checkLunaHome
         runLunaEmpire logs supervisorConf
 
