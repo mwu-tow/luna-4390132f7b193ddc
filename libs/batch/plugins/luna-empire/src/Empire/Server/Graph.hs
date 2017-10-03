@@ -350,9 +350,9 @@ handleRenameNode = modifyGraph inverse action replyResult where
         Graph.renameNode location nodeId name
 
 handleRenamePort :: Request RenamePort.Request -> StateT Env BusT ()
-handleRenamePort = modifyGraph inverse action replyResult where --FIXME[pm] implement this!
+handleRenamePort = modifyGraph inverse action replyResult where
     inverse (RenamePort.Request location portRef name) = do
-        let oldName = "oldname" --FIXME
+        oldName <- Graph.getPortName location portRef
         return $ RenamePort.Inverse oldName
     action (RenamePort.Request location portRef name) = withDefaultResult location $
         Graph.renamePort location portRef name
