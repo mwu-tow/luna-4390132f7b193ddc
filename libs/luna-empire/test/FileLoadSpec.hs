@@ -1812,3 +1812,34 @@ spec = around withChannels $ parallel $ do
                     target <- ASTRead.getASTTarget k
                     ASTRead.isApp target
                 liftIO $ negativeIsApp `shouldBe` True
+        it "reads port name" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = (Just a): (Just (Just b)): a + b
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = (Just a): (Just (Just b)): a + b
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                let loc' = loc |> foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                portName0 <- Graph.getPortName loc' (outPortRef input [Port.Projection 0])
+                portName1 <- Graph.getPortName loc' (outPortRef input [Port.Projection 1])
+                liftIO $ portName0 `shouldBe` "a"
+                liftIO $ portName1 `shouldBe` "b"
+        it "disconnects alias node" $ let
+            initialCode = [r|
+                def main:
+                    «0»x = 10
+                    «1»y = x
+                |]
+            expectedCode = [r|
+                def main:
+                    x = 10
+                    y = None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [(outRef, inRef)] <- Graph.getConnections loc
+                Graph.disconnect loc inRef
