@@ -44,12 +44,13 @@ import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
 import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
                                                   OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
 import qualified LunaStudio.Data.Port            as Port
-import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
+import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..), _Constant)
 import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId)
 import           LunaStudio.Data.Position        (Position)
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TStar))
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
+import qualified Luna.Syntax.Text.Parser.Hardcoded as Parser (uminusName)
 import qualified OCI.IR.Combinators              as IR
 
 isDefinition :: BreadcrumbItem -> Bool
@@ -237,6 +238,15 @@ getPortState node = do
                 _       -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
         Blank   -> pure NotConnected
         Missing -> pure NotConnected
+        App f a -> do
+            negLit <- isNegativeLiteral node
+            if negLit then do
+                posLit <- getPortState =<< IR.source a
+                let negate' (IntValue i) = IntValue (negate i)
+                    negate' (RealValue v) = RealValue (negate v)
+                let negated = posLit & Port._WithDefault . _Constant %~ negate'
+                return negated
+            else WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
         _       -> WithDefault . Expression . Text.unpack <$> Print.printFullExpression node
 
 extractArgTypes :: GraphOp m => NodeRef -> m [TypeRep]
@@ -337,6 +347,20 @@ extractPortInfo n = do
     fromType <- extractArgTypes tp
     pure $ mergePortInfo applied fromType
 
+isNegativeLiteral :: GraphOp m => NodeRef -> m Bool
+isNegativeLiteral ref = match ref $ \case
+    App f n -> do
+        minus <- do
+            IR.source f >>= (flip match $ \case
+                Var n -> return $ n == Parser.uminusName
+                _     -> return False)
+        number <- do
+            IR.source n >>= (flip match $ \case
+                Number _ -> return True
+                _        -> return False)
+        return $ minus && number
+    _ -> return False
+
 buildArgPorts :: GraphOp m => InPortId -> NodeRef -> m [InPort]
 buildArgPorts currentPort ref = do
     typed <- extractPortInfo ref
@@ -375,10 +399,15 @@ followTypeRep ref = do
 
 buildInPorts :: GraphOp m => NodeId -> NodeRef -> InPortId -> Text -> m (InPortTree InPort)
 buildInPorts nid ref currentPort portName = do
-    selfPort <- buildSelfPort nid (currentPort <> [Self]) ref
-    argPorts <- buildArgPorts currentPort ref
-    whole    <- buildWholePort nid currentPort portName ref
-    pure $ LabeledTree (InPorts selfPort def (LabeledTree def <$> argPorts)) whole
+    negLiteral <- isNegativeLiteral ref
+    if negLiteral then do
+        whole    <- buildWholePort nid currentPort portName ref
+        pure $ LabeledTree (InPorts def def def) whole
+    else do
+        selfPort <- buildSelfPort nid (currentPort <> [Self]) ref
+        argPorts <- buildArgPorts currentPort ref
+        whole    <- buildWholePort nid currentPort portName ref
+        pure $ LabeledTree (InPorts selfPort def (LabeledTree def <$> argPorts)) whole
 
 buildDummyOutPort :: GraphOp m => NodeRef -> m (OutPortTree OutPort)
 buildDummyOutPort ref = do
