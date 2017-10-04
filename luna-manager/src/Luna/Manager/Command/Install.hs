@@ -329,6 +329,18 @@ prepareWindowsPkgForRunning installPath = do
     copyDllFilesOnWindows installPath
     copyWinSW installPath
 
+copyUserConfig :: MonadInstall m => FilePath -> ResolvedPackage -> m ()
+copyUserConfig installPath package = do
+    installConfig <- get @InstallConfig
+    liftIO $ putStrLn "copy User config"
+    home          <- getHomePath
+    let pkgName               = package ^. header . name
+        pkgVersion            = showPretty $ package ^. header . version
+        homeUserConfigPath    = home </> (installConfig ^. defaultConfPath) </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
+        packageUserConfigPath = installPath </> "user-config"
+    userConfigExist <- Shelly.test_d packageUserConfigPath
+    when userConfigExist $ Shelly.cp_r packageUserConfigPath homeUserConfigPath
+
 -- === MacOS specific === --
 
 touchApp :: MonadInstall m => FilePath -> AppType -> m ()
@@ -370,6 +382,7 @@ installApp' guiInstaller binPath package = do
     downloadAndUnpackApp guiInstaller (package ^. desc . path) installPath pkgName appType $ package ^. header . version
     prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
+    copyUserConfig installPath package
     let appName = mkSystemPkgName pkgName <> ".app"
     touchApp (convert binPath </> convert appName) appType
 
