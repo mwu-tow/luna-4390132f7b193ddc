@@ -62,7 +62,7 @@ def ghcjs_code():
     prepare_ghcjs('../luna-studio/atom/lib/gen/node-editor-ghcjs.js', '../luna-studio/node-editor/env-node-editor.ghcjs', node_editor_js[0])
     prepare_ghcjs('../luna-studio/atom/lib/gen/text-editor-ghcjs.js', '../luna-studio/text-editor/env-text-editor.ghcjs', text_editor_js[0])
 
-def cp_helper(output_path, input_path):
+def cp_helper(input_path, output_path):
     distutils.dir_util.copy_tree(prep_path(input_path), prep_path(output_path))
 
 def cp_files():
@@ -82,8 +82,8 @@ def run():
         create_dirs()
         ghcjs_code()
         #prepare_css('../atom/styles/app.css', '../node-editor/styles/app.less')
-        cp_helper('../luna-studio/atom/styles/fonts', '../luna-studio/node-editor/assets/fonts')
-        cp_helper('../luna-studio/atom/styles/gen', '../luna-studio/node-editor/styles')
+        cp_helper('../luna-studio/node-editor/assets/fonts', '../luna-studio/atom/styles/fonts')
+        cp_helper('../luna-studio/node-editor/styles', '../luna-studio/atom/styles/gen')
         cp_files()
 
 
