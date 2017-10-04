@@ -321,15 +321,18 @@ prepareWindowsPkgForRunning installPath = do
 copyUserConfig :: MonadInstall m => FilePath -> ResolvedPackage -> m ()
 copyUserConfig installPath package = do
     installConfig <- get @InstallConfig
-    home          <- getHomePath
     let pkgName               = package ^. header . name
         pkgVersion            = showPretty $ package ^. header . version
-        homeUserConfigPath    = home </> (installConfig ^. defaultConfPath) </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
         packageUserConfigPath = installPath </> "user-config"
-    userConfigExist <- Shelly.test_d packageUserConfigPath
-    when userConfigExist $ do
+    homeUserConfigPath <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
+    userConfigExists   <- Shelly.test_d packageUserConfigPath
+    liftIO $ print userConfigExists
+    liftIO $ print packageUserConfigPath
+    liftIO $ print homeUserConfigPath
+    when userConfigExists $ do
+        Shelly.mkdir_p homeUserConfigPath
         listedPackageUserConfig <- Shelly.ls packageUserConfigPath
-        mapM_ (flip Shelly.cp_r homeUserConfigPath) listedPackageUserConfig
+        mapM_ (flip Shelly.cp_r homeUserConfigPath) $ map (packageUserConfigPath </>) listedPackageUserConfig
 
 -- === MacOS specific === --
 
