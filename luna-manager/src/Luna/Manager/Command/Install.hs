@@ -332,7 +332,6 @@ prepareWindowsPkgForRunning installPath = do
 copyUserConfig :: MonadInstall m => FilePath -> ResolvedPackage -> m ()
 copyUserConfig installPath package = do
     installConfig <- get @InstallConfig
-    liftIO $ putStrLn "copy User config"
     home          <- getHomePath
     let pkgName               = package ^. header . name
         pkgVersion            = showPretty $ package ^. header . version
