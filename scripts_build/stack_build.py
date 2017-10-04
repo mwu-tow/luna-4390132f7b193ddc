@@ -20,7 +20,7 @@ def create_bin_dirs():
 def build_ghcjs(frontend_args):
     with working_directory(frontend_dir):
         if system.unix():
-            subprocess.check_output(['stack', 'build', '--install-ghc'] + frontend_args)
+            subprocess.check_output(['stack', 'build'] + frontend_args)
 
 def build_runner(runner, runner_args):
     with working_directory(runner):
