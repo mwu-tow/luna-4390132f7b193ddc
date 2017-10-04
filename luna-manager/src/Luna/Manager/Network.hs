@@ -49,7 +49,7 @@ downloadFromURL guiInstaller address info = go `Exception.catchAny` \e -> throwM
         unless guiInstaller $ putStrLn $ (convert info) <>" (" <> convert address <> ")"
         dest    <- (</> (fromText name)) <$> getDownloadPath
         manager <- newHTTPManager
-        request <- HTTP.parseRequest (convert address)
+        request <- HTTP.parseUrlThrow (convert address)
         resp    <- httpLbs request manager
         liftIO $ ByteStringL.writeFile (encodeString dest) $ HTTP.responseBody resp
         return dest
