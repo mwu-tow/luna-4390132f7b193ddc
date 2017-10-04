@@ -23,6 +23,7 @@ packages:
 - {location: ./node-editor}
 - {location: ./text-editor}
 - {extra-dep: true, location: ./lib}
+- {extra-dep: true, location: ./node-editor-view}
 - {extra-dep: true, location: ../libs/luna-studio-common}
 - {extra-dep: true, location: ../libs/scope-searcher}
 - extra-dep: true

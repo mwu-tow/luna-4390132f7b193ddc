@@ -1,0 +1,109 @@
+-- This file has been generated from package.yaml by hpack version 0.17.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           luna-node-editor-view
+version:        0.1.0.0
+author:         New Byte Order <contact@newbyteorder.com>
+maintainer:     New Byte Order <contact@newbyteorder.com>
+build-type:     Simple
+cabal-version:  >= 1.10
+
+flag debug
+  description: Enable debug support
+  manual: False
+  default: False
+
+library
+  hs-source-dirs:
+      src
+  default-extensions: BangPatterns ConstraintKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DoAndIfThenElse FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving LambdaCase MultiParamTypeClasses NoImplicitPrelude ScopedTypeVariables StandaloneDeriving TemplateHaskell TupleSections ViewPatterns
+  ghc-options: -Wall -O2 -threaded -DCOMPRESS_REQUESTS
+  build-depends:
+      base >= 4.9 && < 4.10
+    , aeson
+    , binary
+    , bytestring
+    , common
+    , containers
+    , convert
+    , datetime
+    , deepseq
+    , extra
+    , filepath
+    , ghcjs-base
+    , ghcjs-prim
+    , hashable
+    , lens
+    , luna-studio-common
+    , luna-syntax-text-lexer
+    , matrix
+    , mtl
+    , random
+    , react-flux
+    , scope-searcher
+    , split
+    , text
+    , time
+    , transformers
+    , unordered-containers
+    , uuid-types
+    , vector
+    , vector-text
+    , visualization-api
+  exposed-modules:
+      JS.Lexer
+      JS.Scene
+      NodeEditor.React.Event.App
+      NodeEditor.React.Event.Breadcrumbs
+      NodeEditor.React.Event.Connection
+      NodeEditor.React.Event.Node
+      NodeEditor.React.Event.Port
+      NodeEditor.React.Event.Searcher
+      NodeEditor.React.Event.Sidebar
+      NodeEditor.React.Event.Visualization
+      NodeEditor.React.Model.App
+      NodeEditor.React.Model.Breadcrumbs
+      NodeEditor.React.Model.Connection
+      NodeEditor.React.Model.ConnectionPen
+      NodeEditor.React.Model.Constants
+      NodeEditor.React.Model.DataFrame
+      NodeEditor.React.Model.Field
+      NodeEditor.React.Model.Image
+      NodeEditor.React.Model.IsNode
+      NodeEditor.React.Model.Layout
+      NodeEditor.React.Model.Node
+      NodeEditor.React.Model.Node.ExpressionNode
+      NodeEditor.React.Model.Node.ExpressionNodeProperties
+      NodeEditor.React.Model.Node.SidebarNode
+      NodeEditor.React.Model.NodeEditor
+      NodeEditor.React.Model.Port
+      NodeEditor.React.Model.Searcher
+      NodeEditor.React.Model.SelectionBox
+      NodeEditor.React.Model.Sidebar
+      NodeEditor.React.Model.Visualization
+      NodeEditor.React.Store
+      NodeEditor.React.Store.Ref
+      NodeEditor.React.View.App
+      NodeEditor.React.View.Breadcrumbs
+      NodeEditor.React.View.ColorizedExpression
+      NodeEditor.React.View.Connection
+      NodeEditor.React.View.ConnectionPen
+      NodeEditor.React.View.ExpressionNode
+      NodeEditor.React.View.ExpressionNode.NodeValue
+      NodeEditor.React.View.ExpressionNode.Properties
+      NodeEditor.React.View.Field
+      NodeEditor.React.View.Monad
+      NodeEditor.React.View.NodeEditor
+      NodeEditor.React.View.Plane
+      NodeEditor.React.View.Port
+      NodeEditor.React.View.PortControl
+      NodeEditor.React.View.Searcher
+      NodeEditor.React.View.SelectionBox
+      NodeEditor.React.View.Sidebar
+      NodeEditor.React.View.Style
+      NodeEditor.React.View.Visualization
+      NodeEditor.React.View.Visualization.DataFrame
+      NodeEditor.React.View.Visualization.Graphics
+      NodeEditor.React.View.Visualization.Image
+  default-language: Haskell2010

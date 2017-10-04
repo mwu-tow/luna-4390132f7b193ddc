@@ -1,10 +1,13 @@
-name:                node-editor
-version:             0.1.0.0
-synopsis:            Luna node editor
-homepage:            www.luna-lang.org
-license:             AllRightsReserved
-author:              New Byte Order <contact@newbyteorder.com>
-maintainer:          New Byte Order <contact@newbyteorder.com>
+name:               luna-node-editor-view
+version:            0.1.0.0
+author:             New Byte Order <contact@newbyteorder.com>
+maintainer:         New Byte Order <contact@newbyteorder.com>
+
+flags:
+  debug:
+    description:      Enable debug support
+    default:          false
+    manual:           false
 
 default-extensions:
   - BangPatterns
@@ -28,8 +31,6 @@ default-extensions:
   - TupleSections
   - ViewPatterns
 
-ghc-options:
-  -Wall -O2 -fsimpl-tick-factor=1000
 
 dependencies:
   - "base >= 4.9 && < 4.10"
@@ -49,7 +50,6 @@ dependencies:
   - lens
   - luna-studio-common
   - luna-syntax-text-lexer
-  - luna-node-editor-view
   - matrix
   - mtl
   - random
@@ -63,8 +63,8 @@ dependencies:
   - uuid-types
   - vector
   - vector-text
+  - visualization-api
 
-executables:
-  node-editor:
-    main:             Main.hs
-    source-dirs:      src
+library:
+  source-dirs: src
+  ghc-options: -Wall -O2 -threaded -DCOMPRESS_REQUESTS
