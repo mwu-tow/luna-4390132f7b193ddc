@@ -6,7 +6,7 @@ import           Common.Prelude
 import           LunaStudio.Data.NodeLoc     (NodeLoc)
 import           LunaStudio.Data.PortDefault (PortDefault)
 import           LunaStudio.Data.PortRef     (InPortRef)
-import           NodeEditor.State.Action     (InitValue)
+import           NodeEditor.Data.Slider      (InitValue)
 import           React.Flux                  (KeyboardEvent, MouseEvent)
 
 

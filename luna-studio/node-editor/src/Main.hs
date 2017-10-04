@@ -6,7 +6,7 @@ import           Control.Concurrent.Chan    (Chan)
 import qualified Control.Concurrent.Chan    as Chan
 import           Control.Concurrent.MVar
 import           Data.DateTime              (getCurrentTime)
-import qualified JS.Config                  as Config
+import qualified JS.Mount                   as Mount
 import           JS.UUID                    (generateUUID)
 import           JS.Visualizers             (mkVisualizersMap)
 import           LunaStudio.Data.NodeValue  (fromJSVisualizersMap)
@@ -27,12 +27,12 @@ runApp chan socket = do
     clientId       <- generateUUID
     initTime       <- getCurrentTime
     visualizersMap <- fromJSVisualizersMap <$> mkVisualizersMap
-    let openedFile = Config.openedFile
+    let openedFile = Mount.openedFile
     mdo
         let loop = LoopRef chan state
         Engine.scheduleInit loop
         appRef <- Store.createApp (App.mk openedFile) $ Engine.scheduleEvent loop
-        React.reactRender Config.mountPoint (App.app appRef) ()
+        React.reactRender Mount.mountPoint (App.app appRef) ()
         let initState = mkState appRef clientId mempty visualizersMap initTime random
         state <- newMVar initState
         Engine.connectEventSources socket loop

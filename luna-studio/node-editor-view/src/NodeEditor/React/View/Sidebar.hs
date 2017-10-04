@@ -8,7 +8,7 @@ module NodeEditor.React.View.Sidebar
 import           Common.Prelude
 import qualified Data.Aeson                              as Aeson
 import           Data.Timestamp                          (Timestamp (Timestamp))
-import qualified JS.Config                               as Config
+import qualified JS.Mount                                as Mount
 import           JS.Scene                                (inputSidebarId, outputSidebarId)
 import qualified JS.UI                                   as UI
 import           LunaStudio.Data.PortRef                 (AnyPortRef (OutPortRef'), OutPortRef (OutPortRef), toAnyPortRef)
@@ -16,7 +16,6 @@ import qualified LunaStudio.Data.PortRef                 as PortRef
 import           LunaStudio.Data.Position                (y)
 import qualified NodeEditor.Event.UI                     as UI
 import qualified NodeEditor.React.Event.Sidebar          as Sidebar
-import           NodeEditor.React.Model.App              (App)
 import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, SidebarMode (AddRemove, MoveConnect), SidebarNode, countProjectionPorts,
                                                           isInputSidebar, minimalNumberOfPorts)
 import qualified NodeEditor.React.Model.Node.SidebarNode as SidebarNode
@@ -25,7 +24,7 @@ import           NodeEditor.React.Model.Port             (AnyPort, OutPortIndex 
 import qualified NodeEditor.React.Model.Port             as Port
 import           NodeEditor.React.Model.Searcher         (Searcher)
 import qualified NodeEditor.React.Model.Searcher         as Searcher
-import           NodeEditor.React.Store                  (Ref, dispatch)
+import           NodeEditor.React.IsRef                  (IsRef, dispatch)
 import           NodeEditor.React.View.Port              (handleClick, handleMouseDown, handleMouseEnter, handleMouseLeave, handleMouseUp,
                                                           handlers, jsShow2, modeClass)
 import           NodeEditor.React.View.Searcher          (searcher_)
@@ -39,7 +38,7 @@ name node = "sidebarPorts" <> if isInputSidebar node then "Inputs" else "Outputs
 portViewBox :: JSString
 portViewBox = "-16 -16 32 32"
 
-portHandlers :: Ref App -> SidebarMode -> Bool -> Bool -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
+portHandlers :: IsRef r => r -> SidebarMode -> Bool -> Bool -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
 portHandlers ref AddRemove _ canBeRemoved portRef =
     [ onMouseDown $ \e _ -> [stopPropagation e] ] <>
     if not canBeRemoved then [] else
@@ -58,10 +57,10 @@ portHandlers ref MoveConnect False _ portRef =
     ]
 portHandlers _ _ _ _ _ = []
 
-sidebar_ :: SidebarNode node => Ref App -> Maybe Searcher -> node ->  ReactElementM ViewEventHandler ()
+sidebar_ :: (IsRef ref, SidebarNode node) => ref -> Maybe Searcher -> node ->  ReactElementM ViewEventHandler ()
 sidebar_ ref maySearcher node = React.viewWithSKey sidebar (name node) (ref, maySearcher, node) mempty
 
-sidebar :: SidebarNode node => ReactView (Ref App, Maybe Searcher, node)
+sidebar :: (IsRef ref, SidebarNode node) => ReactView (ref, Maybe Searcher, node)
 sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
     let ports          = SidebarNode.portsList node
         nodeLoc        = node ^. SidebarNode.nodeLoc
@@ -138,7 +137,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                             ] mempty
 
 
-sidebarPortName_ :: Ref App -> AnyPortRef -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
+sidebarPortName_ :: IsRef ref => ref -> AnyPortRef -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] <> handlers') nameElement where
     regularName              = elemString $ convert portName
     (handlers', nameElement) = case portRef of
@@ -150,7 +149,7 @@ sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefix
                 _                            -> regularHandlersAndElem
         _ -> ([], regularName)
 
-sidebarPort_ :: Ref App -> NodeLoc -> AnyPort -> SidebarMode -> Bool -> Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
+sidebarPort_ :: IsRef ref => ref -> NodeLoc -> AnyPort -> SidebarMode -> Bool -> Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
@@ -185,7 +184,7 @@ sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
                 ] <> handlers') mempty
         sidebarPortName_ ref portRef (p ^. Port.name) maySearcher
 
-addButton_ :: Ref App -> AnyPortRef -> ReactElementM ViewEventHandler ()
+addButton_ :: IsRef ref => ref -> AnyPortRef -> ReactElementM ViewEventHandler ()
 addButton_ ref portRef = do
     let classes = ["sidebar__port__svg", "sidebar__port__svg--inbetween"]
     svg_
@@ -208,7 +207,7 @@ sidebarPlaceholderForPort_ = div_
     , "className" $= Style.prefixFromList [ "port", "sidebar__port", "sidebar__port--i", "noselect" ]
     ] mempty
 
-sidebarDraggedPort_ :: Ref App -> AnyPort -> ReactElementM ViewEventHandler ()
+sidebarDraggedPort_ :: IsRef ref => ref -> AnyPort -> ReactElementM ViewEventHandler ()
 sidebarDraggedPort_ _ref p = withJust (getPositionInSidebar p) $ \pos ->
     div_
         [ "className" $= Style.prefixFromList [ "port", "sidebar__port", "sidebar__port--dragged", "hover" ]
@@ -223,7 +222,7 @@ sidebarDraggedPort_ _ref p = withJust (getPositionInSidebar p) $ \pos ->
                 ] mempty
 
 portLabelId :: JSString
-portLabelId = Config.prefix "focus-portLabel"
+portLabelId = Mount.prefix "focus-portLabel"
 
 focusPortLabel :: IO ()
 focusPortLabel = UI.focus portLabelId

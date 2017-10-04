@@ -9,7 +9,7 @@ import           Data.Matrix                                          (Matrix)
 import           Data.Set                                             (Set)
 import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
-import qualified JS.Config                                            as Config
+import qualified JS.Mount                                             as Mount
 import qualified JS.UI                                                as UI
 import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
@@ -17,7 +17,6 @@ import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
 import qualified NodeEditor.React.Event.Node                          as Node
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
-import           NodeEditor.React.Model.App                           (App)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countArgPorts, countOutPorts,
                                                                       isAnyPortHighlighted, isCollapsed, returnsError)
@@ -27,7 +26,7 @@ import           NodeEditor.React.Model.Port                          (isAll, is
 import qualified NodeEditor.React.Model.Port                          as Port
 import           NodeEditor.React.Model.Searcher                      (Searcher)
 import qualified NodeEditor.React.Model.Searcher                      as Searcher
-import           NodeEditor.React.Store                               (Ref, dispatch)
+import           NodeEditor.React.IsRef                               (IsRef, dispatch)
 import           NodeEditor.React.View.ColorizedExpression            (colorizedExpression_)
 import           NodeEditor.React.View.ExpressionNode.NodeValue       (nodeValue_)
 import           NodeEditor.React.View.ExpressionNode.Properties      (nodeProperties_)
@@ -49,24 +48,24 @@ objNamePorts     = "node-ports"
 objNameDynStyles = "node-dynstyle"
 
 prefixNode :: JSString -> JSString
-prefixNode = Config.prefix . ("node-" <>)
+prefixNode = Mount.prefix . ("node-" <>)
 
 nameLabelId :: JSString
-nameLabelId = Config.prefix "focus-nameLabel"
+nameLabelId = Mount.prefix "focus-nameLabel"
 
 focusNameLabel :: IO ()
 focusNameLabel = UI.focus nameLabelId
 
-handleMouseDown :: Ref App -> NodeLoc -> Event -> MouseEvent -> [SomeStoreAction]
+handleMouseDown :: IsRef ref => ref -> NodeLoc -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseDown ref nodeLoc e m =
     if Mouse.withoutMods m Mouse.leftButton || Mouse.withShift m Mouse.leftButton
     then stopPropagation e : dispatch ref (UI.NodeEvent $ Node.MouseDown m nodeLoc)
     else []
 
-nodeName_ :: Ref App -> NodeLoc -> Maybe Text -> Maybe Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
+nodeName_ :: IsRef ref => ref -> NodeLoc -> Maybe Text -> Maybe Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 nodeName_ ref nl name' visualizationVisible mayS = React.viewWithSKey nodeName  "node-name" (ref, nl, name', visualizationVisible, mayS) mempty
 
-nodeName :: ReactView (Ref App, NodeLoc, Maybe Text, Maybe Bool, Maybe Searcher)
+nodeName :: IsRef ref => ReactView (ref, NodeLoc, Maybe Text, Maybe Bool, Maybe Searcher)
 nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisible, mayS) -> do
     let regularHandlersAndElem = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditName nl)]
                                  , elemString . convert $ fromMaybe def name' )
@@ -94,10 +93,10 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
                         else path_ [ "d" $= Style.iconEye         ] mempty
 
 
-nodeExpression_ :: Ref App -> NodeLoc -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
+nodeExpression_ :: IsRef ref => ref -> NodeLoc -> Text -> Maybe Searcher -> ReactElementM ViewEventHandler ()
 nodeExpression_ ref nl expr mayS = React.viewWithSKey nodeExpression "node-expression" (ref, nl, expr, mayS) mempty
 
-nodeExpression :: ReactView (Ref App, NodeLoc, Text, Maybe Searcher)
+nodeExpression :: IsRef ref => ReactView (ref, NodeLoc, Text, Maybe Searcher)
 nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> do
     let isLong = Text.length expr > 64
 
@@ -112,11 +111,11 @@ nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> 
         , "key"       $= "nodeExpression" ] <> handlers
         ) nameElement
 
-node_ :: Ref App -> ExpressionNode -> Bool -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
-node_ ref model performingConnect s relatedNodesWithVis = 
+node_ :: IsRef ref => ref -> ExpressionNode -> Bool -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
+node_ ref model performingConnect s relatedNodesWithVis =
     React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, performingConnect, s, relatedNodesWithVis) mempty
 
-node :: ReactView (Ref App, ExpressionNode, Bool, Maybe Searcher, Set NodeLoc)
+node :: IsRef ref => ReactView (ref, ExpressionNode, Bool, Maybe Searcher, Set NodeLoc)
 node = React.defineView name $ \(ref, n, performingConnect, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
     Node.Expanded (Node.Function fs) -> nodeContainer_ ref performingConnect maySearcher relatedNodesWithVis $ Map.elems fs
     _ -> do
@@ -170,16 +169,16 @@ nodeDynamicStyles :: ReactView (Matrix Double, ExpressionNode)
 nodeDynamicStyles = React.defineView objNameDynStyles $ \(camera, n) -> style_ $ do
     let nodeId  = n ^. Node.nodeId
         nodePos = n ^. Node.position
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate--name { transform: " <> showNodeTranslate camera nodePos <> " }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate { transform: "       <> showNodeTranslate camera nodePos <> " }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " .luna-node-transform { transform: "       <> showNodeMatrix    camera nodePos <> " }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " path.luna-port__shape { clip-path: url(#port-io-shape-mask-"   <> show nodeId <> ") }"
-    elemString $ "#" <> Config.mountPoint <> "-node-" <> show nodeId <> " path.luna-port__select { clip-path: url(#port-io-select-mask-" <> show nodeId <> ") }"
+    elemString $ "#" <> Mount.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate--name { transform: " <> showNodeTranslate camera nodePos <> " }"
+    elemString $ "#" <> Mount.mountPoint <> "-node-" <> show nodeId <> " .luna-node-translate { transform: "       <> showNodeTranslate camera nodePos <> " }"
+    elemString $ "#" <> Mount.mountPoint <> "-node-" <> show nodeId <> " .luna-node-transform { transform: "       <> showNodeMatrix    camera nodePos <> " }"
+    elemString $ "#" <> Mount.mountPoint <> "-node-" <> show nodeId <> " path.luna-port__shape { clip-path: url(#port-io-shape-mask-"   <> show nodeId <> ") }"
+    elemString $ "#" <> Mount.mountPoint <> "-node-" <> show nodeId <> " path.luna-port__select { clip-path: url(#port-io-select-mask-" <> show nodeId <> ") }"
 
-nodeBody_ :: Ref App -> ExpressionNode -> ReactElementM ViewEventHandler ()
+nodeBody_ :: IsRef ref => ref -> ExpressionNode -> ReactElementM ViewEventHandler ()
 nodeBody_ ref model = React.viewWithSKey nodeBody "node-body" (ref, model) mempty
 
-nodeBody :: ReactView (Ref App, ExpressionNode)
+nodeBody :: IsRef ref => ReactView (ref, ExpressionNode)
 nodeBody = React.defineView objNameBody $ \(ref, n) -> do
     let nodeLoc = n ^. Node.nodeLoc
     div_
@@ -196,10 +195,10 @@ nodeBody = React.defineView objNameBody $ \(ref, n) -> do
                 & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
             _                           -> ""
 
-nodePorts_ :: Ref App -> ExpressionNode -> ReactElementM ViewEventHandler ()
+nodePorts_ :: IsRef ref => ref -> ExpressionNode -> ReactElementM ViewEventHandler ()
 nodePorts_ ref model = React.viewWithSKey nodePorts objNamePorts (ref, model) mempty
 
-nodePorts :: ReactView (Ref App, ExpressionNode)
+nodePorts :: IsRef ref => ReactView (ref, ExpressionNode)
 nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
     let nodeId     = n ^. Node.nodeId
         nodeLoc    = n ^. Node.nodeLoc
@@ -242,11 +241,11 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                 forM_  (filter (not . isSelf . (^. Port.portId)) nodePorts') $ portExpanded_ ref nodeLoc
             argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted)
 
-nodeContainer_ :: Ref App -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
-nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs = 
+nodeContainer_ :: IsRef ref => ref -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
+nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs =
     React.viewWithSKey nodeContainer "node-container" (ref, performingConnect, maySearcher, nodesWithVis, subgraphs) mempty
 
-nodeContainer :: ReactView (Ref App, Bool, Maybe Searcher, Set NodeLoc, [Subgraph])
+nodeContainer :: IsRef ref => ReactView (ref, Bool, Maybe Searcher, Set NodeLoc, [Subgraph])
 nodeContainer = React.defineView name $ \(ref, performingConnect, maySearcher, nodesWithVis, subgraphs) -> do
     div_
         [ "className" $= Style.prefix "subgraphs"

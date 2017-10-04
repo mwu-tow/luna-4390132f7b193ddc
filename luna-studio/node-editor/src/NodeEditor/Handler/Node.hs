@@ -12,7 +12,6 @@ import qualified NodeEditor.Action.Port                     as PortControl
 import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getExpressionNodes, getSelectedNodes)
 import           NodeEditor.Event.Event                     (Event (Shortcut, UI))
 import qualified NodeEditor.Event.Keys                      as Keys
-import           NodeEditor.Event.Mouse                     (mousePosition, workspacePosition)
 import qualified NodeEditor.Event.Mouse                     as Mouse
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import           NodeEditor.Event.UI                        (UIEvent (AppEvent, NodeEvent, SidebarEvent))
@@ -23,6 +22,7 @@ import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
 import           NodeEditor.State.Action                    (Action (continue))
 import           NodeEditor.State.Global                    (State)
+import           NodeEditor.State.Mouse                     (mousePosition, workspacePosition)
 import           React.Flux                                 (MouseEvent, mouseButton, mouseCtrlKey, mouseMetaKey)
 
 

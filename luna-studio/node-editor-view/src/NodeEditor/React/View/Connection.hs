@@ -6,10 +6,9 @@ import           LunaStudio.Data.Position          (Position, averagePosition, x
 import qualified NodeEditor.Event.UI               as UI
 import           NodeEditor.React.Event.Connection (ModifiedEnd (Destination, Source))
 import qualified NodeEditor.React.Event.Connection as Connection
-import           NodeEditor.React.Model.App        (App)
 import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Normal), PosConnection, PosHalfConnection)
 import qualified NodeEditor.React.Model.Connection as Connection
-import           NodeEditor.React.Store            (Ref, dispatch)
+import           NodeEditor.React.IsRef            (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style       as Style
 import           Numeric                           (showFFloat)
 import           React.Flux                        as React
@@ -37,7 +36,7 @@ line src dst b = do
             ]
     line_ (mergeList a b) mempty
 
-connection :: ReactView (Ref App, PosConnection)
+connection :: IsRef r => ReactView (r, PosConnection)
 connection = React.defineView name $ \(ref, model) -> do
     let connId   = model ^. Connection.connectionId
         src      = model ^. Connection.srcPos
@@ -85,7 +84,7 @@ connection = React.defineView name $ \(ref, model) -> do
                 , eventDst
                 ]
 
-connection_ :: Ref App -> PosConnection -> ReactElementM ViewEventHandler ()
+connection_ :: IsRef r => r -> PosConnection -> ReactElementM ViewEventHandler ()
 connection_ ref model = React.viewWithSKey connection (jsShow $ model ^. Connection.connectionId) (ref, model) mempty
 
 halfConnection :: ReactView PosHalfConnection

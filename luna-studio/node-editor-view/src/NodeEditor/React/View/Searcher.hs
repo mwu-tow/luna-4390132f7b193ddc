@@ -7,10 +7,9 @@ import qualified NodeEditor.Event.Keys           as Keys
 import qualified NodeEditor.Event.UI             as UI
 import qualified NodeEditor.React.Event.App      as App
 import           NodeEditor.React.Event.Searcher
-import           NodeEditor.React.Model.App      (App)
 import           NodeEditor.React.Model.Searcher (Searcher)
 import qualified NodeEditor.React.Model.Searcher as Searcher
-import           NodeEditor.React.Store          (Ref, dispatch)
+import           NodeEditor.React.IsRef          (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style     as Style
 import           React.Flux
 import qualified React.Flux                      as React
@@ -20,7 +19,7 @@ import qualified Text.ScopeSearcher.QueryResult  as Result
 name :: JSString
 name = "searcher"
 
-handleKeyDown :: Ref App -> React.Event -> KeyboardEvent -> [SomeStoreAction]
+handleKeyDown :: IsRef ref => ref -> React.Event -> KeyboardEvent -> [SomeStoreAction]
 handleKeyDown ref e k = prevent $ stopPropagation e : dispatch' where
     prevent   = if Keys.withoutMods k Keys.tab
                 || Keys.withoutMods k Keys.upArrow
@@ -30,7 +29,7 @@ handleKeyDown ref e k = prevent $ stopPropagation e : dispatch' where
             UI.AppEvent $ App.KeyDown k
         else UI.SearcherEvent $ KeyDown k
 
-searcher :: ReactView (Ref App, Searcher)
+searcher :: IsRef ref => ReactView (ref, Searcher)
 searcher =  React.defineView name $ \(ref, s) -> do
     let mode        = s ^. Searcher.mode
         -- nodePos     = s ^. Searcher.position
@@ -77,10 +76,10 @@ searcher =  React.defineView name $ \(ref, s) -> do
         --     ] $ withJust nodePreview $ nodeBody_ ref . (Node.position .~ nodePos)
                                               -- . (Node.isExpandedControls .~ True)
 
-searcher_ :: Ref App -> Searcher -> ReactElementM ViewEventHandler ()
+searcher_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
 searcher_ ref model = React.viewWithSKey searcher name (ref, model) mempty
 
-results_ :: Ref App -> Int -> [QueryResult r] -> ReactElementM ViewEventHandler ()
+results_ :: IsRef ref => ref -> Int -> [QueryResult res] -> ReactElementM ViewEventHandler ()
 results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx, result) -> do
     let resultClasses i = Style.prefixFromList $ "searcher__results__item" : (if selected > 0 && i == 0 then [ "searcher__results__item--selected" ] else [])
     div_
@@ -93,7 +92,7 @@ results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx,
             ,"className" $= Style.prefix "searcher__results__item__name"
             ] $ highlighted_ result
 
-highlighted_ :: QueryResult r -> ReactElementM ViewEventHandler ()
+highlighted_ :: QueryResult res -> ReactElementM ViewEventHandler ()
 highlighted_ result = prefixElem >> highlighted_' 0 highlights where
     prefix     = convert $ result ^. Result.prefix
     prefixElem = span_ [ "className" $= Style.prefix "searcher__pre"

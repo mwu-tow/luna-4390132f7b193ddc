@@ -9,7 +9,6 @@ import           LunaStudio.Data.PortRef            (AnyPortRef (OutPortRef'), O
 import           NodeEditor.Action.Basic            (localAddPort)
 import           NodeEditor.Action.Connect          (connectToPort, startConnecting)
 import           NodeEditor.Action.Sidebar          (startPortDrag)
-import           NodeEditor.Event.Mouse             (mousePosition)
 import           NodeEditor.React.Model.Node        (countProjectionPorts, hasPort)
 import           NodeEditor.React.Model.Port        (getPortNumber)
 import           NodeEditor.State.Action            (Action (continue), Mode (Click, Drag), connectAction, connectMode, portDragAction,
@@ -18,6 +17,7 @@ import           NodeEditor.State.Action            (Action (continue), Mode (Cl
 import           NodeEditor.Action.State.Action     (checkAction, checkIfActionPerfoming)
 import           NodeEditor.Action.State.NodeEditor (getInputNode)
 import           NodeEditor.State.Global            (State)
+import           NodeEditor.State.Mouse             (mousePosition)
 import           React.Flux                         (MouseEvent)
 
 

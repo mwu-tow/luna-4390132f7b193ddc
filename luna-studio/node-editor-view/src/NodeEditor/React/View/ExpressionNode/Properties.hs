@@ -2,10 +2,9 @@
 module NodeEditor.React.View.ExpressionNode.Properties where
 
 import           Common.Prelude
-import           NodeEditor.React.Model.App                           (App)
 import           NodeEditor.React.Model.Node.ExpressionNodeProperties (NodeProperties)
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
-import           NodeEditor.React.Store                               (Ref)
+import           NodeEditor.React.IsRef                               (IsRef)
 import           NodeEditor.React.View.PortControl                    (portControl_, portLabel_)
 import qualified NodeEditor.React.View.Style                          as Style
 import           React.Flux
@@ -14,7 +13,7 @@ import qualified React.Flux                                           as React
 objName :: JSString
 objName = "node-properties"
 
-nodeProperties :: ReactView (Ref App, NodeProperties)
+nodeProperties :: IsRef ref => ReactView (ref, NodeProperties)
 nodeProperties = React.defineView objName $ \(ref, prop) -> do
     let nodeLoc    = prop ^. Prop.nodeLoc
         ports      = if prop ^. Prop.isExpanded && null (Prop.inPortsList prop) then maybeToList $ prop ^? Prop.inPortAt [] else Prop.inPortsList prop
@@ -33,5 +32,5 @@ nodeProperties = React.defineView objName $ \(ref, prop) -> do
            ] $ elemString "self"
         forM_ ports $ controls
 
-nodeProperties_ :: Ref App -> NodeProperties -> ReactElementM ViewEventHandler ()
+nodeProperties_ :: IsRef ref => ref -> NodeProperties -> ReactElementM ViewEventHandler ()
 nodeProperties_ ref prop = React.viewWithSKey nodeProperties objName (ref, prop) mempty

@@ -17,6 +17,7 @@ import           Data.Map.Lazy                            (Map)
 import           Data.Time.Clock                          (UTCTime)
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import           LunaStudio.Data.Breadcrumb               (BreadcrumbItem)
+import           NodeEditor.Data.Color                    (Color)
 import           LunaStudio.Data.Error                    (Error)
 import           LunaStudio.Data.MonadPath                (MonadPath)
 import           LunaStudio.Data.Node                     (NodeId)
@@ -35,7 +36,6 @@ import           NodeEditor.React.Model.IsNode            as X
 import           NodeEditor.React.Model.Node.SidebarNode  (InputNode, OutputNode)
 import           NodeEditor.React.Model.Port              (AnyPortId (InPortId', OutPortId'), InPort, InPortTree, OutPort, OutPortTree)
 import qualified NodeEditor.React.Model.Port              as Port
-import           NodeEditor.State.Collaboration           (ColorId)
 
 
 data ExpressionNode = ExpressionNode { _nodeLoc'                  :: NodeLoc
@@ -80,7 +80,7 @@ data Value = ShortValue ShortValue
            | Error      Error
            deriving (Eq, Generic, NFData, Show)
 
-data Collaboration = Collaboration { _touch  :: Map ClientId (UTCTime, ColorId)
+data Collaboration = Collaboration { _touch  :: Map ClientId (UTCTime, Color)
                                    , _modify :: Map ClientId  UTCTime
                                    } deriving (Default, Eq, Generic, NFData, Show)
 

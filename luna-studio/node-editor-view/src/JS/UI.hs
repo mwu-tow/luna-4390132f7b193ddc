@@ -12,7 +12,7 @@ module JS.UI
     ) where
 
 import           Common.Prelude
-import qualified JS.Config      as Config
+import qualified JS.Mount       as Mount
 import           JS.Scene       (planeCanvasId)
 
 foreign import javascript safe "document.getElementById($1).focus()"  focus'     :: JSString -> IO ()
@@ -26,7 +26,7 @@ focus :: MonadIO m => JSString -> m ()
 focus = liftIO . focus'
 
 isFocusInApp :: IO Bool
-isFocusInApp = Config.isPrefixed <$> getFocus
+isFocusInApp = Mount.isPrefixed <$> getFocus
 
 setCursor :: MonadIO m => JSString -> m ()
 setCursor = liftIO . setCursor'

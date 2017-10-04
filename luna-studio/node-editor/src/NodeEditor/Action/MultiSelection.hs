@@ -10,18 +10,17 @@ import           Common.Prelude
 import           LunaStudio.Data.Geometry                   (isPointInRectangle)
 import           LunaStudio.Data.Position                   (Position, fromDoubles, x, y)
 import           NodeEditor.Action.Basic                    (modifySelectionHistory, selectNodes, unselectAll)
+import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
+                                                            updateActionWithKey)
 import           NodeEditor.Action.State.NodeEditor         (getExpressionNodes, getSelectedNodes, modifyNodeEditor)
-import           NodeEditor.Event.Mouse                     (workspacePosition)
 import           NodeEditor.React.Model.Node.ExpressionNode (nodeLoc, position)
 import           NodeEditor.React.Model.SelectionBox        (SelectionBox (SelectionBox))
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), MultiSelection (MultiSelection),
                                                              multiSelecectionStartPos, multiSelectionAction)
-import           React.Flux                                 (MouseEvent)
-
-import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
-                                                             updateActionWithKey)
 import           NodeEditor.React.Model.NodeEditor          (selectionBox)
+import           NodeEditor.State.Mouse                     (workspacePosition)
 import           NodeEditor.State.Global                    (State)
+import           React.Flux                                 (MouseEvent)
 
 
 instance Action (Command State) MultiSelection where

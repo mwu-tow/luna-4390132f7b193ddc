@@ -9,14 +9,13 @@ import qualified NodeEditor.Event.Mouse             as Mouse
 import qualified NodeEditor.Event.UI                as UI
 import           LunaStudio.Data.PortRef            (AnyPortRef, toAnyPortRef)
 import qualified NodeEditor.React.Event.Port        as Port
-import           NodeEditor.React.Model.App         (App)
 import           NodeEditor.React.Model.Constants   (lineHeight, nodeRadius, nodeRadius', portRadius, portAliasRadius, connectionWidth)
 import           NodeEditor.React.Model.Node        (NodeLoc)
 import           NodeEditor.React.Model.Port        (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self),
                                                     IsOnly, Mode (..), getPortNumber, isInPort, isInvisible, isSelf,
                                                     portAngleStart, portAngleStop, argumentConstructorOffsetY)
 import qualified NodeEditor.React.Model.Port        as Port
-import           NodeEditor.React.Store             (Ref, dispatch)
+import           NodeEditor.React.IsRef             (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style        as Style
 import           Numeric                            (showFFloat)
 import           React.Flux                         hiding (view)
@@ -48,28 +47,28 @@ modeClass _               = []
 jsShow2 :: Double -> JSString
 jsShow2 a = convert $ showFFloat (Just 2) a "" -- limit Double to two decimal numbers
 
-handleMouseDown :: Ref App -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
+handleMouseDown :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseDown ref portRef e m =
     if Mouse.withoutMods m Mouse.leftButton then
         stopPropagation e : dispatch ref (UI.PortEvent $ Port.MouseDown m portRef)
     else []
 
-handleClick :: Ref App -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
+handleClick :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleClick ref portRef e m =
     if Mouse.withoutMods m Mouse.leftButton then
         stopPropagation e : dispatch ref (UI.PortEvent $ Port.Click m portRef)
     else []
 
-handleMouseUp :: Ref App -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
+handleMouseUp :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseUp ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseUp portRef)
 
-handleMouseEnter :: Ref App -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
+handleMouseEnter :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseEnter ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseEnter portRef)
 
-handleMouseLeave :: Ref App -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
+handleMouseLeave :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseLeave ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseLeave portRef)
 
-port :: ReactView (Ref App, NodeLoc, Int, IsOnly, AnyPort)
+port :: IsRef r => ReactView (r, NodeLoc, Int, IsOnly, AnyPort)
 port = React.defineView name $ \(ref, nl, numOfPorts, isOnly, p) ->
     case p ^. Port.portId of
         InPortId' []       -> portAlias_ p
@@ -78,21 +77,21 @@ port = React.defineView name $ \(ref, nl, numOfPorts, isOnly, p) ->
                                         else portIO_ ref nl p numOfPorts
         _                  -> portIO_ ref nl p numOfPorts
 
-portExpanded :: ReactView (Ref App, NodeLoc, AnyPort)
+portExpanded :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portExpanded = React.defineView name $ \(ref, nl, p) ->
     case p ^. Port.portId of
         InPortId' (Self:_) -> portSelf_       ref nl p
         _                  -> portIOExpanded_ ref nl p
 
-port_ :: Ref App -> NodeLoc -> AnyPort -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
+port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
 port_ ref nl p numOfPorts isOnly =
     React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, numOfPorts, isOnly, p) mempty
 
-portExpanded_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portExpanded_ ref nl p =
     React.viewWithSKey portExpanded (jsShow $ p ^. Port.portId) (ref, nl, p) mempty
 
-handlers :: Ref App -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
+handlers :: IsRef r => r -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
 handlers ref portRef = [ onMouseDown  $ handleMouseDown  ref portRef
                        , onMouseUp    $ handleMouseUp    ref portRef
                        , onClick      $ handleClick      ref portRef
@@ -124,10 +123,10 @@ portAlias = React.defineView "port-alias" $ \p -> do
             , "strokeLocation" $= "outside"
             ] mempty
 
-portSelf_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portSelf_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portSelf_ ref nl p = React.viewWithSKey portSelf "port-self" (ref, nl, p) mempty
 
-portSelf :: ReactView (Ref App, NodeLoc, AnyPort)
+portSelf :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
     let portId       = p ^. Port.portId
         portRef      = toAnyPortRef nl portId
@@ -148,10 +147,10 @@ portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
             , "r"         $= jsShow2 (portAliasRadius - connectionWidth/2)
             ]) mempty
 
-portSingle_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
 
-portSingle :: ReactView (Ref App, NodeLoc, AnyPort)
+portSingle :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
@@ -186,10 +185,10 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
               ]
             ) mempty
 
-portIO_ :: Ref App -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
+portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
 portIO_ ref nl p numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, numOfPorts) mempty
 
-portIO :: ReactView (Ref App, NodeLoc, AnyPort, Int)
+portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
 portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
@@ -249,7 +248,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
               ]
             ) mempty
 
-portIOExpanded_ :: Ref App -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portIOExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p else do
     let portId    = p ^. Port.portId
         portRef   = toAnyPortRef nl portId
@@ -290,7 +289,7 @@ portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p 
               ]
             ) mempty
 
-argumentConstructor_ :: Ref App -> NodeLoc -> Int -> Bool -> ReactElementM ViewEventHandler ()
+argumentConstructor_ :: IsRef r => r -> NodeLoc -> Int -> Bool -> ReactElementM ViewEventHandler ()
 argumentConstructor_ ref nl numOfPorts isConnectionSource = do
     let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
         offsetY   = argumentConstructorOffsetY numOfPorts

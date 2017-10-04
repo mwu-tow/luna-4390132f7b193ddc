@@ -7,7 +7,7 @@ import           Control.Exception              (handle)
 import           GHCJS.Foreign.Callback
 import           GHCJS.Marshal.Pure             (pFromJSVal)
 import           GHCJS.Types                    (JSException (JSException))
-import qualified JS.Config                      as Config
+import qualified JS.Mount                      as Mount
 import           LunaStudio.Data.ScreenPosition (ScreenPosition, fromDoubles)
 import qualified LunaStudio.Data.Size           as Size
 import           NodeEditor.React.Model.Layout  (Scene (Scene))
@@ -15,14 +15,14 @@ import           NodeEditor.React.Model.Sidebar (InputSidebar (InputSidebar), Ou
 
 
 appId :: JSString
-appId = Config.prefix "app"
+appId = Mount.prefix "app"
 
 planeCanvasId :: JSString
-planeCanvasId = Config.prefix "plane-canvas"
+planeCanvasId = Mount.prefix "plane-canvas"
 
 inputSidebarId, outputSidebarId :: JSString
-inputSidebarId  = Config.prefix "sidebar--i"
-outputSidebarId = Config.prefix "sidebar--o"
+inputSidebarId  = Mount.prefix "sidebar--i"
+outputSidebarId = Mount.prefix "sidebar--o"
 
 
 foreign import javascript safe "document.getElementById($1).offsetWidth"  elementWidth  :: JSString -> IO Double

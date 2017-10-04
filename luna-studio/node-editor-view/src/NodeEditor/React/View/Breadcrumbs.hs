@@ -7,10 +7,9 @@ module NodeEditor.React.View.Breadcrumbs (
 
 import qualified NodeEditor.Event.UI                as UI
 import           Common.Prelude
-import           NodeEditor.React.Model.App         (App)
 import           NodeEditor.React.Model.Breadcrumbs (Breadcrumbs)
 import qualified NodeEditor.React.Model.Breadcrumbs as B
-import           NodeEditor.React.Store             (Ref, dispatch)
+import           NodeEditor.React.IsRef             (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style       as Style
 import           React.Flux
 import qualified React.Flux                          as React
@@ -19,7 +18,7 @@ import qualified React.Flux                          as React
 name :: JSString
 name = "breadcrumbs"
 
-breadcrumbs :: ReactView (Ref App, Maybe String, Breadcrumbs)
+breadcrumbs :: IsRef r => ReactView (r, Maybe String, Breadcrumbs)
 breadcrumbs = React.defineView name $ \(ref, moduleName, bcs) ->
     div_
         [ "className" $= Style.prefixFromList [ "breadcrumbs", "noselect" ]
@@ -34,7 +33,7 @@ breadcrumbs = React.defineView name $ \(ref, moduleName, bcs) ->
                     []       -> elemString $ fromMaybe "default" moduleName
                     (item:_) -> elemString $ convert $ item ^. B.name
 
-breadcrumbs_ :: Ref App -> Maybe String -> Breadcrumbs -> ReactElementM ViewEventHandler ()
+breadcrumbs_ :: IsRef r => r -> Maybe String -> Breadcrumbs -> ReactElementM ViewEventHandler ()
 breadcrumbs_ ref moduleName bcs = React.viewWithSKey breadcrumbs name (ref, moduleName, bcs) mempty
 
 unname :: [B.Named a] -> B.Breadcrumb a

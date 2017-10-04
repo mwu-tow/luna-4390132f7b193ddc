@@ -6,11 +6,10 @@ import           Common.Prelude
 import qualified Data.Aeson                                 as Aeson
 import           Data.Map                                   (Map)
 import qualified Data.Map                                   as Map
-import qualified JS.Config                                  as Config
+import qualified JS.Mount                                   as Mount
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import qualified NodeEditor.Event.UI                        as UI
 import qualified NodeEditor.React.Event.Visualization       as Visualization
-import           NodeEditor.React.Model.App                 (App)
 import           NodeEditor.React.Model.Constants           (lineHeight)
 import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc)
 import           NodeEditor.React.Model.Visualization       (RunningVisualization, RunningVisualization, VisualizationId,
@@ -19,17 +18,17 @@ import           NodeEditor.React.Model.Visualization       (RunningVisualizatio
                                                              runningVisualizer, visPropArgPortsNumber, visPropIsNodeExpanded,
                                                              visPropNodeLoc, visPropVisualization, visPropVisualizers, visualizationId,
                                                              visualizationMode)
-import           NodeEditor.React.Store                     (Ref, dispatch)
+import           NodeEditor.React.IsRef                     (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style                as Style
 import           React.Flux                                 hiding (image_)
 import qualified React.Flux                                 as React
 
 
 nodePrefix :: JSString
-nodePrefix = Config.prefix "node-"
+nodePrefix = Mount.prefix "node-"
 
 visKey :: RunningVisualization -> JSString
-visKey vis = Config.prefix $ "visualization-" <> (fromString . show $ vis ^. visualizationId)
+visKey vis = Mount.prefix $ "visualization-" <> (fromString . show $ vis ^. visualizationId)
 
 viewName, iframeName, visMenuName, objNameVis, objNameShortVal :: JSString
 viewName        = "visualization"
@@ -39,10 +38,10 @@ objNameVis      = "node-vis"
 objNameShortVal = "node-short-value"
 
 
-nodeVisualization_ :: Ref App -> FilePath -> VisualizationProperties -> Bool -> ReactElementM ViewEventHandler ()
+nodeVisualization_ :: IsRef r => r -> FilePath -> VisualizationProperties -> Bool -> ReactElementM ViewEventHandler ()
 nodeVisualization_ ref visLibPath visProp isNodeSelected = React.viewWithSKey nodeVisualization (visKey $ visProp ^. visPropVisualization) (ref, visLibPath, visProp, isNodeSelected) mempty
 
-nodeVisualization :: ReactView (Ref App, FilePath, VisualizationProperties, Bool)
+nodeVisualization :: IsRef r => ReactView (r, FilePath, VisualizationProperties, Bool)
 nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, visProp, isNodeSelected) -> do
     let nl           = visProp ^. visPropNodeLoc
         nid          = nl ^. NodeLoc.nodeId
@@ -68,10 +67,10 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visLibPath, visProp, is
             visualizersMenu_ ref nl (vis ^. visualizationId) (vis ^. runningVisualizer . _1) visualizers' menuVisible
 
 
-visualizersMenu_ :: Ref App -> NodeLoc -> VisualizationId -> VisualizerName -> Map VisualizerName VisualizerPath -> Bool -> ReactElementM ViewEventHandler ()
+visualizersMenu_ :: IsRef r => r -> NodeLoc -> VisualizationId -> VisualizerName -> Map VisualizerName VisualizerPath -> Bool -> ReactElementM ViewEventHandler ()
 visualizersMenu_ ref nl visId actVisName visMap visible = React.view visualizersMenu (ref, nl, visId, actVisName, visMap, visible) mempty
 
-visualizersMenu :: ReactView (Ref App, NodeLoc, VisualizationId, VisualizerName, Map VisualizerName VisualizerPath, Bool)
+visualizersMenu :: IsRef r => ReactView (r, NodeLoc, VisualizationId, VisualizerName, Map VisualizerName VisualizerPath, Bool)
 visualizersMenu = React.defineView visMenuName $ \(ref, nl, visId, actVisName, visualizersMap, visible) ->
     when (Map.size visualizersMap > 1 || (Map.size visualizersMap == 1 && Map.notMember actVisName visualizersMap)) $ do
         let menuEntry :: Text -> ReactElementM ViewEventHandler ()
@@ -83,10 +82,10 @@ visualizersMenu = React.defineView visMenuName $ \(ref, nl, visId, actVisName, v
                 span_ $ elemString $ "▾"--convert actVisName
                 ul_ [ "className" $= Style.prefix "dropdown__menu" ] $ mapM_ menuEntry $ Map.keys visualizersMap
 
-visualization_ :: Ref App -> FilePath -> NodeLoc -> RunningVisualization -> ReactElementM ViewEventHandler ()
+visualization_ :: IsRef r => r -> FilePath -> NodeLoc -> RunningVisualization -> ReactElementM ViewEventHandler ()
 visualization_ ref visLibPath nl vis = React.view visualization (ref, visLibPath, nl, vis) mempty
 
-visualization :: ReactView (Ref App, FilePath, NodeLoc, RunningVisualization)
+visualization :: IsRef r => ReactView (r, FilePath, NodeLoc, RunningVisualization)
 visualization = React.defineView viewName $ \(ref, visLibPath, nl, vis) -> do
     let visId          = vis ^. visualizationId
         vmode          = vis ^. visualizationMode
@@ -113,7 +112,7 @@ visualizationIframe = React.defineView iframeName $ \(visLibPath, visId, visuali
         , "width"     $= "300"
         ] mempty
 
--- pinnedVisualization_ :: Ref App -> NodeEditor -> (NodeLoc, Int, Position) -> ReactElementM ViewEventHandler ()
+-- pinnedVisualization_ :: IsRef r => r -> NodeEditor -> (NodeLoc, Int, Position) -> ReactElementM ViewEventHandler ()
 -- pinnedVisualization_ ref ne (nl, _, position) =
 --     withJust (NodeEditor.getExpressionNode nl ne >>= getVisualization) $ \(visId, visualizer, vmode) ->
 --         visualization_ ref nl (Just position) visId visualizer vmode
@@ -128,7 +127,7 @@ visualizationIframe = React.defineView iframeName $ \(visLibPath, visId, visuali
 --     --, onMouseDown $ \_ _ -> traceShowMToStdout "NIE JEST NAJGORZEJ"
 --     ] mempty
 --
--- nodeValue_ :: Ref App -> NodeLoc -> Maybe Position -> Int -> VisualizationValue -> ReactElementM ViewEventHandler ()
+-- nodeValue_ :: IsRef r => r -> NodeLoc -> Maybe Position -> Int -> VisualizationValue -> ReactElementM ViewEventHandler ()
 -- nodeValue_ ref nl mayPos visIx value = do
 --     let isPinned = isJust mayPos
 --         event = case mayPos of

@@ -13,9 +13,9 @@ import           LunaStudio.Data.NodeLoc              (NodeLoc)
 import           LunaStudio.Data.PortRef              (AnyPortRef, InPortRef, OutPortRef)
 import           LunaStudio.Data.Position             (Position)
 import           LunaStudio.Data.ScreenPosition       (ScreenPosition)
+import           NodeEditor.Data.Slider               (InitValue)
 import           NodeEditor.React.Model.Connection    (ConnectionId)
 import           NodeEditor.React.Model.Visualization (VisualizationId, VisualizationMode)
-
 
 data NodeDrag = NodeDrag { _nodeDragStartPos      :: Position
                          , _nodeDragNodeLoc       :: NodeLoc
@@ -47,17 +47,7 @@ data SliderDrag = SliderDrag { _sliderDragPortRef   :: InPortRef
                              , _sliderDragInitValue :: InitValue
                              } deriving (Eq, Show, Generic, Typeable)
 
-data InitValue = Discrete  Integer
-               | Continous Double
-               deriving (Eq, Show, Generic, Typeable)
-
-instance NFData InitValue
-
-makeLenses ''InitValue
 makeLenses ''SliderDrag
-
-instance ToJSON InitValue
-instance FromJSON InitValue
 
 data PenConnect = PenConnect { _penConnectCurve           :: Curve
                              , _penConnectLastVisitedNode :: Maybe NodeLoc

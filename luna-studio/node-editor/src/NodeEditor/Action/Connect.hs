@@ -28,7 +28,6 @@ import           NodeEditor.Action.State.Action             (beginActionWithKey,
 import           NodeEditor.Action.State.Model              (createHalfConnectionModel, createHalfConnectionModel')
 import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, modifyNodeEditor)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
-import           NodeEditor.Event.Mouse                     (mousePosition, workspacePosition)
 import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destination, Source))
 import           NodeEditor.React.Model.Connection          (ConnectionId, toValidConnection)
 import qualified NodeEditor.React.Model.Connection          as Connection
@@ -40,6 +39,7 @@ import           NodeEditor.State.Action                    (Action (begin, cont
                                                              connectAction, connectIsArgumentConstructor, connectMode, connectSnappedPort,
                                                              connectSourcePort, connectStartPos)
 import           NodeEditor.State.Global                    (State, actions, currentConnectAction)
+import           NodeEditor.State.Mouse                     (mousePosition, workspacePosition)
 import           React.Flux                                 (MouseEvent)
 
 

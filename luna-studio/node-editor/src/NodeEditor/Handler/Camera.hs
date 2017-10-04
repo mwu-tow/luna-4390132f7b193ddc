@@ -9,7 +9,6 @@ import           NodeEditor.Action.Camera       (centerGraph, panCamera, panDown
                                                  resetZoom, startPanDrag, startZoomDrag, stopPanDrag, stopZoomDrag, wheelZoom, zoomDrag,
                                                  zoomIn, zoomOut)
 import           NodeEditor.Event.Event         (Event (Shortcut, UI))
-import           NodeEditor.Event.Mouse         (mousePosition)
 import qualified NodeEditor.Event.Mouse         as Mouse
 import qualified NodeEditor.Event.Shortcut      as Shortcut
 import           NodeEditor.Event.UI            (UIEvent (AppEvent, SidebarEvent))
@@ -17,6 +16,7 @@ import qualified NodeEditor.React.Event.App     as App
 import qualified NodeEditor.React.Event.Sidebar as Sidebar
 import           NodeEditor.State.Action        (Action (continue))
 import           NodeEditor.State.Global        (State)
+import           NodeEditor.State.Mouse         (mousePosition)
 import           React.Flux                     (MouseEvent, wheelDeltaX, wheelDeltaY)
 
 

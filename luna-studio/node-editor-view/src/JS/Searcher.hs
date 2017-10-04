@@ -2,12 +2,12 @@
 module JS.Searcher where
 
 import           Common.Prelude
-import qualified JS.Config      as Config
+import qualified JS.Mount       as Mount
 import qualified JS.UI          as UI
 
 
 searcherId :: JSString
-searcherId = Config.prefix "focus-searcher"
+searcherId = Mount.prefix "focus-searcher"
 
 selection :: MonadIO m => m (Int, Int)
 selection = liftIO $ (,) <$> selectionStart searcherId <*> selectionEnd searcherId
