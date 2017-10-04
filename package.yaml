@@ -15,6 +15,7 @@ tests:
       - hspec
       - luna-studio-common
       - prologue
+      - text
 
 
 library:

@@ -1,144 +1,87 @@
 {-# LANGUAGE OverloadedStrings #-}
 module MainSpec (spec) where
 
-import Prologue
-import FuzzyText
-import Test.Hspec
-import LunaStudio.Data.NodeSearcher (ModuleHints (ModuleHints), ImportName)
-import qualified Data.Map as Map
-import Data.Map (Map)
 import qualified Data.List                    as List
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           FuzzyText
+import           LunaStudio.Data.NodeSearcher (ImportName, ModuleHints (ModuleHints))
+import           Prologue
+import           Test.Hspec
 
 
-mockBase :: ModuleHints
-mockBase = ModuleHints ["if_then_else", "seq", "switch", "id", "everyWithState", "newMVar", "fork", "streamFrom", "delayAsync", "every", "pi", "const", "when", "unless", "print"]
-                       $ Map.fromList [ ("Binary", ["+", "equals", "==", "toText", "shortRep", "length", "toBinary"])
-                                      , ("Bool", ["equals", "toText", "toJSON", "shortRep", "and", "or", "not"])
-                                      , ("Complex", ["*", "+", "shortRep", "modulus", "real", "imaginary"])
-                                      , ("Either", ["equals", "toText", "toJSON", "shortRep", "map", "flatMap", "either", "toMaybe", "isLeft", "isRight", "left", "right"])
-                                      , ("Int", ["-", "*", "%", "+", "/", "negate", ">", "<", "equals", "==", "pred", "toText", "toJSON", "shortRep", "toReal", "miliseconds", "seconds", "minutes", "succ", "upto"])
-                                      , ("JSON", ["sum", "toText", "toJSON", "shortRep", "toBinary", "safeParse", "parse", "fromObject", "fromText", "render", "lookup", "toReal", "toList", "lookupReal", "lookupText", "at", "map", "filter", "each", "average"])
-                                      , ("List", ["+", "equals", "sum", "head", "toText", "toJSON", "shortRep", "isEmpty", "length", "at", "map", "filter", "each", "average", "tail", "prepend", "sequence", "take", "drop", "fold", "prependAll", "intersperse", "_merge", "sort", "_prefixes", "prefixes", "zipWith", "zip", "_all", "_any", "collect", "makeText", "concat", "flatMap", "contains"])
-                                      , ("MVar", ["take", "read", "put"])
-                                      , ("Map", ["equals", "toJSON", "isEmpty", "lookup", "toList", "map", "empty", "size", "insert"])
-                                      , ("Maybe", ["equals", "toText", "toJSON", "shortRep", "toList", "map", "each", "flatMap", "fromJust", "fromMaybe", "maybe", "isJust", "isNothing", "join"])
-                                      , ("MsgPack", ["equals", "sum", "toText", "toJSON", "shortRep", "toBinary", "lookup", "toReal", "toList", "lookupText", "at", "map", "filter", "each", "average", "_lookup_list_key", "hasKey", "hasText", "safeLookupText"])
-                                      , ("None", ["toText", "toJSON", "shortRep"])
-                                      , ("Real", ["-", "*", "+", "/", "negate", ">", "<", "equals", "==", "toText", "toJSON", "shortRep", "round", "sin", "cos", "tan"])
-                                      , ("Stream", ["head", "map", "each", "average", "tail", "take", "drop", "fold", "collect", "isStream", "foldFrom", "consume", "consumeWhile", "takeWhile", "dropWhile", "eval", "rateLimit"])
-                                      , ("Text", ["+", ">", "<", "equals", "==", "toText", "toJSON", "shortRep", "isEmpty", "length", "hasPrefix", "isPrefixOf", "characters", "words", "lines", "lowercase", "uppercase", "reverse", "escapeJSON", "toBinary"])
-                                      , ("Tuple2", ["equals", "toText", "toJSON", "shortRep", "map", "first", "second"])
-                                      , ("Tuple3", ["equals", "toText", "toJSON", "shortRep", "map", "first", "second", "third"])
-                                      , ("Tuple4", ["equals", "toText", "toJSON", "shortRep", "map", "first", "second", "third", "fourth"])
-                                      ]
-mockGeo :: ModuleHints
-mockGeo = ModuleHints [] $ Map.fromList [ ("GeoJSONFeature", ["toJSON", "properties", "geometry"])
-                                        , ("GeoJSONFeatureCollection", ["toJSON", "features"])
-                                        ]
+makeTestModule :: [Text] -> Map Text [Text] -> Map ImportName ModuleHints
+makeTestModule funs methods = Map.singleton "TestModule" $ ModuleHints funs methods
 
-mockGraphics2D :: ModuleHints
-mockGraphics2D = ModuleHints ["path", "translationTrans", "rotationTrans", "identityTrans", "point", "lpoint", "rpoint", "lrpoint", "circle", "rectangle", "emptyGeo"]
-                             $ Map.fromList [ ("AffineTransformation", ["a", "b", "*", "+", "c", "d", "toJSON", "toList", "tx", "ty"])
-                                            , ("Boolean", ["toJSON", "toSVGDefs", "type", "operands"])
-                                            , ("BooleanOperation", ["toJSON"])
-                                            , ("ControlPoint", ["toJSON", "point", "leftHandle", "rightHandle"])
-                                            , ("Geo", ["-", "*", "+", "toJSON", "transform", "translate", "rotate", "toSVGDefs", "toSVG", "transformation", "definition"])
-                                            , ("GeoDef", ["toJSON", "toSVGDefs"])
-                                            , ("Point", ["x", "y", "toJSON"])
-                                            , ("Shape", ["toJSON", "toSVGDefs"])
-                                            ]
+makeTestModuleEntries :: [Text] -> Map Text [Text] -> Bool -> [Entry]
+makeTestModuleEntries funs methods = toEntries (makeTestModule funs methods)
 
-mockHttp :: ModuleHints
-mockHttp = ModuleHints ["defaultHttpRequest", "emptyHttpBody"]
-                       $ Map.fromList [ ("Http", ["put", "get", "post", "delete", "getBinary", "getJSON"])
-                                      , ("HttpMethod", ["toText"])
-                                      , ("HttpRequest", ["toText", "shortRep", "uri", "headers", "auth", "oauth1", "params", "body", "method", "setMethod", "setBody", "setUri", "addHeader", "setBasicAuth", "setParam", "setOAuth1", "setOAuth2", "perform"])
-                                      , ("HttpResponse", ["json", "stream", "toText", "shortRep", "body", "successful", "text", "responseCode", "getChunk"])
-                                      , ("HttpSimpleBody", ["toText", "shortRep", "toBinary", "addValue", "values"])
-                                      ]
+topResultNameShouldBe :: [Entry] -> Text -> Expectation
+topResultNameShouldBe []    _ = expectationFailure "Result is empty"
+topResultNameShouldBe (h:_) r = h ^. name `shouldBe` r
 
-mockOAuth :: ModuleHints
-mockOAuth = ModuleHints []
-                        $ Map.fromList [ ("OAuth1Data", ["toText", "shortRep", "clientKey", "clientSecret", "oauthToken", "oauthTokenSecret"])
-                                       , ("OAuth2", ["postRequest", "fetchAccessToken", "invalidateToken"])
-                                       , ("OAuth2Data", ["toText", "shortRep", "clientSecret", "clientId", "accessTokenEndpoint", "invalidateTokenEndpoint", "callback"])
-                                       ]
-
-mockSystem :: ModuleHints
-mockSystem = ModuleHints ["withForkWait"]
-                         $ Map.fromList [ ("BufferMode", [])
-                                        , ("Command", ["args", "command", "run", "processDescription", "runWithInput", "runWithStream", "execute"])
-                                        , ("ExitCode", ["toText", "shortRep", "toInt", "exitSuccess", "exitFailure"])
-                                        , ("FileHandle", ["setBuffering", "isOpen", "isClosed", "close", "flush", "getContents", "getLine", "putText", "putLine", "toStream"])
-                                        , ("PipeRequest", [])
-                                        , ("Process", ["stdin", "stdout", "stderr", "wait", "handle"])
-                                        , ("ProcessDescription", ["args", "stdin", "stdout", "stderr", "command", "setCommand", "setArgs", "setStdin", "setStdout", "setStderr", "run"])
-                                        , ("ProcessHandle", ["wait"])
-                                        ]
-
-mockTime :: ModuleHints
-mockTime = ModuleHints []
-                       $ Map.fromList [ ("Time", [">", "<", "equals", "toText", "shortRep", "safeParse", "parse", "diff", "add", "sub", "now", "timeOfDay", "defaultFormat", "safeParseFmt", "parseFmt"])
-                                      , ("TimeInterval", ["-", "+", ">", "<", "equals", "toText", "shortRep", "toReal", "toInt", "toSeconds", "toMiliseconds", "toMicroseconds", "add", "sub", "before", "from", "ago", "fromNow"])
-                                      ]
-
-mockWebSockets :: ModuleHints
-mockWebSockets = ModuleHints []
-                             $ Map.fromList [ ("WSConnection", ["stream", "read", "close", "write", "writeBinary"])
-                                            , ("WebSocket", ["create"])
-                                            , ("WebSocketInstance", ["path", "port", "secure", "host", "setHost", "setPath", "setPort", "setSecure", "connect"])
-                                            ]
-
-mockXML :: ModuleHints
-mockXML = ModuleHints [] $ Map.fromList [("XNode", ["render", "setAttr"])]
-
-mockImports :: Map ImportName ModuleHints
-mockImports = Map.fromList [ ("Std.Base", mockBase)
-                           , ("Std.Geo", mockGeo)
-                           , ("Std.Graphics2D", mockGraphics2D)
-                           , ("Std.Http", mockHttp)
-                           , ("Std.OAuth", mockOAuth)
-                           , ("Std.System", mockSystem)
-                           , ("Std.Time", mockTime)
-                           , ("Std.WebSockets", mockWebSockets)
-                           , ("Std.XML", mockXML)
-                           ]
-
+topResultShouldHaveBestScore :: [Entry] -> Expectation
+topResultShouldHaveBestScore []      = expectationFailure "Result is empty"
+topResultShouldHaveBestScore [_]     = def
+topResultShouldHaveBestScore (h:s:_) = h ^. score `shouldSatisfy` (> s ^. score)
 
 spec :: Spec
 spec = do
     describe "scoring function" $ do
         it "match starting with capital is prefered over others" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["fooBar", "optbaru"] def
-                res = List.sort . processEntries "bar" $ toEntries ih False
-            view name (List.head res) `shouldBe` "fooBar"
+            let res = processEntries "bar" $ makeTestModuleEntries ["fooBar", "optbaru"] def False
+            res `topResultNameShouldBe` "fooBar"
         it "match starting with capital have better score" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["fooBar", "optbaru"] def
-                res = List.sort . processEntries "bar" $ toEntries ih False
-            view score (List.head res) `shouldSatisfy` (> view score (List.last res))
+            let res = processEntries "bar" $ makeTestModuleEntries ["fooBar", "optbaru"] def False
+            topResultShouldHaveBestScore res
         it "subsequence should be prefered over substring" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["abcdef", "aebdcf"] def
-                res = List.sort . processEntries "abc" $ toEntries ih False
-            view name (List.head res) `shouldBe` "abcdef"
+            let res = processEntries "abc" $ makeTestModuleEntries ["abcdef", "aebdcf"] def False
+            res `topResultNameShouldBe` "abcdef"
         it "subsequence should have better score than substring" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["abcdef", "aebdcf"] def
-                res = List.sort . processEntries "abc" $ toEntries ih False
-            view score (List.head res) `shouldSatisfy` (> view score (List.last res))
+            let res = processEntries "abc" $ makeTestModuleEntries ["abcdef", "aebdcf"] def False
+            topResultShouldHaveBestScore res
         it "subsequence at beggining of the word is prefered over other subsequences" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["getElement", "delement"] def
-                res = List.sort . processEntries "ele" $ toEntries ih False
-            view name (List.head res) `shouldBe` "getElement"
-        it "subsequence at beggining of the word should be scored better than other subsequence" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["getElement", "delement"] def
-                res = List.sort . processEntries "ele" $ toEntries ih False
-            view score (List.head res) `shouldSatisfy` (> view score (List.last res))
+            let res = processEntries "ele" $ makeTestModuleEntries ["getElement", "delement"] def False
+            res `topResultNameShouldBe` "getElement"
+        it "subsequence at beggining of the word should be scored better than other subsequences" $ do
+            let res = processEntries "ele" $ makeTestModuleEntries ["getElement", "delement"] def False
+            topResultShouldHaveBestScore res
+        it "subsequence at beggining of the word is prefered over other subsequences" $ do
+            let res = processEntries "abcf" $ makeTestModuleEntries ["abxcdefx", "aebdcfx"] def False
+            res `topResultNameShouldBe` "abxcdefx"
+        it "subsequence at beggining of the word should be scored better than other subsequences" $ do
+            let res = processEntries "abcf" $ makeTestModuleEntries ["abxcdefx", "aebdcfx"] def False
+            topResultShouldHaveBestScore res
+        it "last letter match should be prefered when results are similar" $ do
+            let res = processEntries "xxxx" $ makeTestModuleEntries ["xxaaxx", "xxbbxxb"] def False
+            res `topResultNameShouldBe` "xxaaxx"
+        it "last letter match should have better score when results are similar" $ do
+            let res = processEntries "xxxx" $ makeTestModuleEntries ["xxaaxx", "xxbbxxb"] def False
+            topResultShouldHaveBestScore res
+        it "longer subsequence is favored" $ do
+            let res = processEntries "xxxxx" $ makeTestModuleEntries ["xxaaxxax", "xbbxxxxb"] def False
+            res `topResultNameShouldBe` "xbbxxxxb"
+        it "longer subsequence have better score" $ do
+            let res = processEntries "xxxxx" $ makeTestModuleEntries ["xxaaxxax", "xbbxxxxb"] def False
+            topResultShouldHaveBestScore res
+        it "result with less omitted letters is prefered" $ do
+            let res = processEntries "xxxxx" $ makeTestModuleEntries ["xxaxxxa", "xxbbxxxb"] def False
+            res `topResultNameShouldBe` "xxaxxxa"
+        it "omitting letters results with worse score" $ do
+            let res = processEntries "xxxxx" $ makeTestModuleEntries ["xxaxxxa", "xxbbxxxb"] def False
+            topResultShouldHaveBestScore res
+        it "exact match is prefered" $ do
+            let res = processEntries "foobar" $ makeTestModuleEntries ["fooBar", "foobar"] def False
+            res `topResultNameShouldBe` "foobar"
+        it "exact match has better score" $ do
+            let res = processEntries "foobar" $ makeTestModuleEntries ["fooBar", "foobar"] def False
+            topResultShouldHaveBestScore res
+          
     describe "matched letters" $ do
         it "match should be eager" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["xx"] def
-                res = List.sort . processEntries "x" $ toEntries ih False
-            view score (List.head res) `shouldBe` 4
+            let res = processEntries "x" $ makeTestModuleEntries ["xx"] def False
+            view match (List.head res) `shouldBe` [(0,0)]
         it "match should be eager" $ do
-            let ih  = Map.singleton "SomeModule" $ ModuleHints ["xxx"] def
-                res = List.sort . processEntries "xx" $ toEntries ih False
-            view score (List.head res) `shouldBe` 6
+            let res = processEntries "xx" $ makeTestModuleEntries ["xxx"] def False
+            view match (List.head res) `shouldBe` [(0,1)]
             
