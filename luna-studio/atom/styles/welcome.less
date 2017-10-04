@@ -1,19 +1,21 @@
-@grid:           16px; // Grid size
+@grid:                  16px; // Grid size
 
-@background:     #171615;
-@searcher-bg:     #000;
+@background:            #171615;
+@searcher-bg:           #000;
 
-@input-height:   2*@grid;
-@border-radius:  @grid;
+@passive:               lighten(@background,24%);
+
+@input-height:          2*@grid;
+@border-radius:         @grid;
 @border-radius-buttons: @border-radius;
 
-@tile-size:      11*@grid;
-@tile-bg:        rgba(255,255,255,0.08);
-@tile-bg-hover:  rgba(255,255,255,0.12);
+@tile-size:             11*@grid;
+@tile-bg:               rgba(255,255,255,0.08);
+@tile-bg-hover:         rgba(255,255,255,0.12);
 
-@caption-height: @grid*2;
-@width:          40*@grid;
-@padding:        2*@grid;
+@caption-height:        @grid*2;
+@width:                 40*@grid;
+@padding:               2*@grid;
 
 .hide-scrollbar() {
 	&::-webkit-scrollbar { 
@@ -24,6 +26,7 @@
 atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use a global class?
 	background-color: #000;
 }
+
 atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a global class?
 	max-width: @width + 20px;
 
@@ -39,18 +42,16 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	.hide-scrollbar;
 }
 
-
 .luna-welcome {
 	font-weight:   300;
 	border-radius: @border-radius;
-	padding:       @padding;
+	padding:       @padding @padding 0;
 	margin:        @padding 0;
 	background:    @background;
 	width:         @width - 2*@padding;
 	position:      relative;
 	overflow:      hidden;
 	box-sizing:    content-box;
-
 }
 
 .luna-welcome__body {
@@ -63,7 +64,9 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	line-height:   1;
 	margin-bottom: @padding;
 	text-align:    center;
+	color:         @passive !important;
 }
+
 .luna-welcome__header {
 	text-align: center;
 }
@@ -74,13 +77,13 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 }
 
 .luna-welcome__header__menu__links {
-	float:         right;
-	width:         11*@grid;
-	display:       flex;
-	align-items:   stretch;
+	float:           right;
+	width:           11*@grid;
+	display:         flex;
+	align-items:     stretch;
 	justify-content: space-between;
-	border-radius: @border-radius-buttons;
-	overflow:      hidden;
+	border-radius:   @border-radius-buttons;
+	overflow:        hidden;
 }
 
 .luna-welcome-link {
@@ -100,13 +103,26 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 }
 
 .luna-welcome-search {
-	border-radius: @border-radius-buttons;
-	background:    @searcher-bg;
+	border-radius:    @border-radius-buttons;
+
+	background-color:    @searcher-bg;
+	background-image:    url("atom://luna-studio/rsc/folder.svg");
+	background-repeat: no-repeat;
+	background-position: top right;
+
 	height:        @input-height;
 	border-bottom: 2px solid @searcher-bg;
 	padding:       0 @grid;
 	width:         23.5*@grid;
 	float:         left;
+
+	&::-webkit-input-placeholder { 
+		color: @passive;
+		opacity:0.8;
+	}
+	&:focus::-webkit-input-placeholder { 
+		color: transparent;
+	}
 }
 
 .luna-welcome__section__container {
@@ -154,6 +170,18 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	img { display: none }
 }
 
+.luna-welcome__section__title {
+	color:       @passive;
+	font-size:   1em !important;
+	padding-bottom: 1.5*@grid;
+
+	&::before {
+		opacity:  0.9;
+		position: relative;
+		top: 1px;
+	}
+}
+
 .luna-project-logo {
 	background:    @tile-bg;
 	overflow:      hidden;
@@ -169,11 +197,3 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	overflow:      hidden;
 }
 
-
-.luna-welcome__section__title {
-	font-weight: 100;
-	opacity: 1;
-	&::before {
-		opacity: 0.8;
-	}
-}
