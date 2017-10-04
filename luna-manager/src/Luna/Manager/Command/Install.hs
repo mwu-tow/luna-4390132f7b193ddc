@@ -278,51 +278,40 @@ linkingLocalBin currentBin appName = do
 -- === Windows specific === --
 
 stopServices ::MonadInstall m => FilePath -> AppType -> m ()
-stopServices installPath appType = case currentHost of
-    Windows   -> case appType of
-        GuiApp   -> do
-            installConfig <- get @InstallConfig
-            let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. configPath) </> fromText "windows"
-            do
-                testservices <- Shelly.test_d currentServices
-                if testservices then stopServicesWindows currentServices else return ()
-        BatchApp -> return ()
-    otherwise -> return ()
+stopServices installPath appType = when (currentHost == Windows && appType == GuiApp) $ do
+    installConfig <- get @InstallConfig
+    let currentServices = parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. configPath) </> fromText "windows"
+    do
+        testservices <- Shelly.test_d currentServices
+        when testservices $ stopServicesWindows currentServices
+
 
 
 runServices :: MonadInstall m => FilePath -> AppType -> Text -> Text -> m ()
-runServices installPath appType appName version = case currentHost of
-    Windows   -> case appType of
-        GuiApp   -> do
-            installConfig <- get @InstallConfig
-            let services = installPath </> (installConfig ^. configPath) </> fromText "windows"
-            logs <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. logsFolder) </> fromText appName </> (fromText $ showPretty version)
-            runServicesWindows services logs
-        BatchApp -> return ()
-    otherwise -> return ()
+runServices installPath appType appName version = when (currentHost == Windows && appType == GuiApp) $ do
+    installConfig <- get @InstallConfig
+    let services = installPath </> (installConfig ^. configPath) </> fromText "windows"
+    logs <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. logsFolder) </> fromText appName </> (fromText $ showPretty version)
+    runServicesWindows services logs
 
 -- whenHost :: MonadInstall m => forall system a. m a -> m ()
 -- whenHost f = when (currentHost == fromType @a) (void f) --TODO : use for matching on single host + refactor -> mv function to utils
 
 copyDllFilesOnWindows :: MonadInstall m => FilePath -> m ()
-copyDllFilesOnWindows installPath = case currentHost of -- whenHost @'Windows $ do
-    Windows   -> do
-        installConfig <- get @InstallConfig
-        let libFolderPath = installPath </> (installConfig ^. libPath)
-            binsFolderPath = installPath </> (installConfig ^. privateBinPath)
-        do
-            listedLibs <- Shelly.ls libFolderPath
-            mapM_ (`Shelly.mv` binsFolderPath) listedLibs
-    otherwise -> return ()
+copyDllFilesOnWindows installPath = when (currentHost == Windows) $ do
+    installConfig <- get @InstallConfig
+    let libFolderPath = installPath </> (installConfig ^. libPath)
+        binsFolderPath = installPath </> (installConfig ^. privateBinPath)
+    do
+        listedLibs <- Shelly.ls libFolderPath
+        mapM_ (`Shelly.mv` binsFolderPath) listedLibs
 
 copyWinSW :: MonadInstall m => FilePath -> m ()
-copyWinSW installPath = case currentHost of
-    Windows   -> do
-        installConfig <- get @InstallConfig
-        let winSW = installPath </> (installConfig ^. thirdParty) </> fromText "WinSW.Net4.exe"
-            winConfigFolderPath = installPath </> (installConfig ^. configPath) </> fromText "windows"
-        Shelly.mv winSW winConfigFolderPath
-    otherwise -> return ()
+copyWinSW installPath = when (currentHost == Windows) $ do
+    installConfig <- get @InstallConfig
+    let winSW = installPath </> (installConfig ^. thirdParty) </> fromText "WinSW.Net4.exe"
+        winConfigFolderPath = installPath </> (installConfig ^. configPath) </> fromText "windows"
+    Shelly.mv winSW winConfigFolderPath
 
 prepareWindowsPkgForRunning :: MonadInstall m => FilePath -> m ()
 prepareWindowsPkgForRunning installPath = do
@@ -340,7 +329,7 @@ copyUserConfig installPath package = do
     userConfigExist <- Shelly.test_d packageUserConfigPath
     when userConfigExist $ do
         listedPackageUserConfig <- Shelly.ls packageUserConfigPath
-        mapM_ (flip Shelly.cp_r homeUserConfigPath) listedPackageUserConfig 
+        mapM_ (flip Shelly.cp_r homeUserConfigPath) listedPackageUserConfig
 
 -- === MacOS specific === --
 

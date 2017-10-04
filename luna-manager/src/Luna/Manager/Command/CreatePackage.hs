@@ -118,10 +118,8 @@ checkAppImageName :: MonadCreatePackage m => Text -> FilePath -> m ()
 checkAppImageName appName filePath = do
     let fileName = filename filePath
         outFolderPath = parent $ filePath
-    if Text.isInfixOf appName (Shelly.toTextIgnore fileName)
-        then do
-            Shelly.mv filePath $ outFolderPath </> convert (appName <> ".AppImage")
-            else return ()
+    when (Text.isInfixOf appName (Shelly.toTextIgnore fileName)) $ do
+        Shelly.mv filePath $ outFolderPath </> convert (appName <> ".AppImage")
 
 changeAppImageName :: MonadCreatePackage m => Text -> FilePath -> m ()
 changeAppImageName appName outFolderPath = do
@@ -252,12 +250,9 @@ changeExecutableLibPathToRelative binPath libSystemPath libLocalPath = do
         relativeLibraryPath = "@executable_path/../../lib/" <> Shelly.toTextIgnore dylibName
         binFolder           = parent binPath
         binName             = "./"  <> (Shelly.toTextIgnore $ filename binPath)
-
-    if filename libLocalPath == filename libSystemPath
-        then do
-            Shelly.chdir binFolder $ do
-                Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binName
-        else return ()
+    when (filename libLocalPath == filename libSystemPath) $ do
+        Shelly.chdir binFolder $ do
+            Shelly.cmd "install_name_tool" "-change" libSystemPath relativeLibraryPath binName
 
 changeExecutablesLibPaths :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => FilePath -> FilePath -> FilePath -> m ()
 changeExecutablesLibPaths binaryPath librariesFolderPath linkedDylib = do
@@ -313,10 +308,7 @@ createPkg verbose cfgFolderPath resolvedApplication = do
 
     Shelly.mkdir_p $ parent versionFile
     liftIO $ writeFile (encodeString versionFile) $ convert $ showPretty appVersion
-    case currentHost of
-        Linux   -> return ()
-        Darwin  -> Shelly.silently $ linkLibs binsFolder libsFolder
-        Windows -> return ()
+    when (currentHost == Darwin) $ Shelly.silently $ linkLibs binsFolder libsFolder
 
     case currentHost of
         Linux   -> createAppimage appName $ appPath
