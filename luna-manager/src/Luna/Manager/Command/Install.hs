@@ -338,7 +338,9 @@ copyUserConfig installPath package = do
         homeUserConfigPath    = home </> (installConfig ^. defaultConfPath) </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
         packageUserConfigPath = installPath </> "user-config"
     userConfigExist <- Shelly.test_d packageUserConfigPath
-    when userConfigExist $ Shelly.cp_r packageUserConfigPath homeUserConfigPath
+    when userConfigExist $ do
+        listedPackageUserConfig <- Shelly.ls packageUserConfigPath
+        mapM_ (flip Shelly.cp_r homeUserConfigPath) listedPackageUserConfig 
 
 -- === MacOS specific === --
 
