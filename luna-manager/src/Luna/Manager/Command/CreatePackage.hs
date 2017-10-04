@@ -180,6 +180,7 @@ createAppimage appName repoPath = do
 
 -- === Utils === --
 
+
 runPkgBuildScript :: MonadCreatePackage m => Bool -> FilePath -> m ()
 runPkgBuildScript verbose repoPath = do
     pkgConfig <- get @PackageConfig
@@ -195,6 +196,7 @@ copyFromDistToDistPkg appName repoPath = do
         Linux   -> expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
     let expandedCopmponents = repoPath </> (pkgConfig ^. componentsToCopy)
+    Shelly.rm_rf packageRepoFolder
     Shelly.mkdir_p $ parent packageRepoFolder
     Shelly.mv expandedCopmponents packageRepoFolder
 
@@ -209,6 +211,7 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL guiInstaller (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
     unpacked           <- Archive.unpack guiInstaller 1.0 "unpacking_progress" downloadedPkg
+    Shelly.rm_rf thirdPartyFullPath
     Shelly.mkdir_p thirdPartyFullPath
     case packageType of
         BatchApp -> Shelly.mv unpacked thirdPartyFullPath
