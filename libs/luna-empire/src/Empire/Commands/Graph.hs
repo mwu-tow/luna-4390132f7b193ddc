@@ -72,6 +72,7 @@ module Empire.Commands.Graph
     , moveToOrigin
     , getImports
     , getAvailableImports
+    , setInterpreterState
     ) where
 
 import           Control.Arrow                    ((&&&))
@@ -145,6 +146,7 @@ import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
 import qualified Luna.Syntax.Text.Parser.Marker   as Luna
+import qualified LunaStudio.API.Control.Interpreter as Interpreter
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Constants        (gapBetweenNodes)
@@ -1489,6 +1491,18 @@ getImports (GraphLocation file _) imports = do
                 return (i, f)
     return $ Map.fromList $ map (_2 %~ importsToHints) hints
 
+setInterpreterState :: Interpreter.Request -> Empire ()
+setInterpreterState (Interpreter.Start loc) = do
+    activeInterpreter .= True
+    Publisher.notifyInterpreterUpdate "Interpreter running"
+    runInterpreter loc
+setInterpreterState (Interpreter.Pause loc) = do
+    activeInterpreter .= False
+    Publisher.notifyInterpreterUpdate "Interpreter stopped"
+    withTC' loc False (return ()) (return ())
+setInterpreterState (Interpreter.Reload loc) = do
+    runInterpreter loc
+
 -- internal
 
 getName :: GraphLocation -> NodeId -> Empire (Maybe Text)
@@ -1505,15 +1519,20 @@ generateNodeNameFromBase base = do
         Just newName     = find (not . flip Set.member names) allPossibleNames
     return newName
 
-runTC :: GraphLocation -> Bool -> Command ClsGraph ()
-runTC loc flush = do
+runTC :: GraphLocation -> Bool -> Bool -> Command ClsGraph ()
+runTC loc flush interpret = do
     g <- get
-    Publisher.requestTC loc g flush
+    Publisher.requestTC loc g flush interpret
+
+runInterpreter :: GraphLocation -> Empire ()
+runInterpreter loc@(GraphLocation file _) = do
+    withGraph' (GraphLocation file def) (return ()) (runTC loc True True)
 
 withTC' :: GraphLocation -> Bool -> Command Graph a -> Command ClsGraph a -> Empire a
 withTC' loc@(GraphLocation file bs) flush actG actC = do
-    res <- withGraph' loc actG actC
-    withGraph' (GraphLocation file def) (return ()) (runTC loc flush)
+    res       <- withGraph' loc actG actC
+    interpret <- use activeInterpreter
+    withGraph' (GraphLocation file def) (return ()) (runTC loc flush interpret)
     return res
 
 withTCUnit :: GraphLocation -> Bool -> Command ClsGraph a -> Empire a

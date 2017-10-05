@@ -18,7 +18,7 @@ import           TextEditor.State.Global            (State)
 handle :: Event -> Maybe (Command State ())
 handle (Batch (InterpreterUpdate (Interpreter.Update update))) = Just $ pushInterpreterUpdate "Update" $ Just update
 handle (Batch (InterpreterResponse response)) = Just $ handleResponse response success doNothing where
-    success _ = pushInterpreterUpdate (show $ response ^. Response.request) Nothing
+    success _ = pushInterpreterUpdate (head $ words $ show $ response ^. Response.request) Nothing
 handle (Atom InterpreterStart ) = Just $ interpreterStart
 handle (Atom InterpreterPause ) = Just $ interpreterPause
 handle (Atom InterpreterReload) = Just $ interpreterReload

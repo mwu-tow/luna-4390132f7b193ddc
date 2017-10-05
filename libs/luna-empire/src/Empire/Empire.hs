@@ -41,15 +41,23 @@ makeLenses ''SymbolMap
 instance Default SymbolMap where
     def = SymbolMap def def
 
-newtype Env = Env { _activeFiles :: ActiveFiles } deriving (Show)
+data Env = Env { _activeFiles       :: ActiveFiles
+               , _activeInterpreter :: Bool
+               } deriving (Show)
 makeLenses ''Env
 
 instance Default Env where
-    def = Env Map.empty
+    def = Env Map.empty True
+
+data TCRequest = TCRequest { _tcLocation       :: GraphLocation
+                           , _tcGraph          :: ClsGraph
+                           , _tcFlush          :: Bool
+                           , _tcRunInterpreter :: Bool
+                           }
+makeLenses ''TCRequest
 
 data CommunicationEnv = CommunicationEnv { _updatesChan   :: TChan AsyncUpdate
-                                         -- FIXME[MK]: Yeah, let's use 3-tuples, way to code!
-                                         , _typecheckChan :: MVar (GraphLocation, ClsGraph, Bool)
+                                         , _typecheckChan :: MVar TCRequest
                                          , _scopeVar      :: MVar SymbolMap
                                          , _modules       :: MVar CompiledModules
                                          } deriving Generic

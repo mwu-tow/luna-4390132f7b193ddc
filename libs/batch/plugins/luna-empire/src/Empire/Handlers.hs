@@ -44,6 +44,7 @@ handlersMap = Map.fromList
     , makeHandler Graph.handleSetNodesMeta
     , makeHandler Graph.handleSetPortDefault
     , makeHandler Graph.handleTypecheck
+    , makeHandler Graph.handleInterpreterControl
     , makeHandler Library.handleCreateLibrary
     , makeHandler Library.handleListLibraries
     , makeHandler Project.handleCreateProject
