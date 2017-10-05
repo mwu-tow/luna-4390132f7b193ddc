@@ -18,9 +18,9 @@ import           NodeEditor.Action.Basic            (localSetPortDefault)
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.State.Action     (beginActionWithKey, continueActionWithKey, removeActionFromState, updateActionWithKey)
 import           NodeEditor.Action.State.NodeEditor (getPortDefault)
-import           NodeEditor.State.Action            (Action (begin, continue, end, update), InitValue (Continous, Discrete),
-                                                     SliderDrag (SliderDrag), sliderDragAction, sliderDragInitValue, sliderDragPortRef,
-                                                     sliderDragStartTime)
+import           NodeEditor.Data.Slider             (InitValue (Continous, Discrete))
+import           NodeEditor.State.Action            (Action (begin, continue, end, update), SliderDrag (SliderDrag), sliderDragAction,
+                                                    sliderDragInitValue, sliderDragPortRef, sliderDragStartTime)
 import           NodeEditor.State.Global            (State)
 
 

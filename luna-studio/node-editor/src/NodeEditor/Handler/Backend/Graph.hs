@@ -43,7 +43,7 @@ import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
 import           NodeEditor.Action.Basic                     (centerGraph, exitBreadcrumb, localAddConnections, localAddSearcherHints,
-                                                              localMerge, localRemoveConnections, localRemoveNodes,
+                                                              localMerge, localMoveProject, localRemoveConnections, localRemoveNodes,
                                                               localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
                                                               localUpdateOrAddExpressionNodePreventingPorts, localUpdateOrAddInputNode,
                                                               localUpdateOrAddOutputNode, setCurrentImports, setNodeProfilingData,
@@ -54,7 +54,7 @@ import           NodeEditor.Action.Basic.Revert              (revertAddConnectio
                                                               revertSetPortDefault)
 import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime, modifyTime, refreshTime, touchCurrentlySelected, updateClient)
 import           NodeEditor.Action.Batch                     (collaborativeModify, getProgram)
-import           NodeEditor.Action.State.App                 (setBreadcrumbs)
+import           NodeEditor.Action.State.App                 (getWorkspace, modifyApp, setBreadcrumbs)
 import           NodeEditor.Action.State.Graph               (inCurrentLocation, isCurrentLocation)
 import           NodeEditor.Action.State.NodeEditor          (modifyExpressionNode, setGraphStatus, setScreenTransform, updateMonads)
 import           NodeEditor.Action.UUID                      (isOwnRequest)
@@ -62,10 +62,13 @@ import qualified NodeEditor.Batch.Workspace                  as Workspace
 import           NodeEditor.Event.Batch                      (Event (..))
 import qualified NodeEditor.Event.Event                      as Event
 import           NodeEditor.Handler.Backend.Common           (doNothing, handleResponse)
+import           NodeEditor.React.Model.App                  (workspace)
 import qualified NodeEditor.React.Model.Node.ExpressionNode  as Node
 import           NodeEditor.React.Model.NodeEditor           (GraphStatus (GraphError, GraphLoaded))
 import           NodeEditor.State.Global                     (State)
 import qualified NodeEditor.State.Global                     as Global
+import qualified LunaStudio.API.Atom.MoveProject as MoveProject
+
 
 
 applyResult :: GraphLocation -> Result.Result -> Command State ()
@@ -96,7 +99,7 @@ applyResult' preventPorts res path = do
 
 checkBreadcrumb :: Result.Result -> Command State ()
 checkBreadcrumb res = do
-    bc <- maybe def (view (Workspace.currentLocation . GraphLocation.breadcrumb)) <$> use Global.workspace
+    bc <- maybe def (view (Workspace.currentLocation . GraphLocation.breadcrumb)) <$> getWorkspace
     when (any (containsNode bc) $ res ^. Result.removedNodes) $ exitBreadcrumb
 
 handle :: Event.Event -> Maybe (Command State ())
@@ -124,11 +127,12 @@ handle (Event.Batch ev) = Just $ case ev of
                             Global.preferedVisualizers .= visMap
                         updateScene
         failure _ = do
-            isOnTop <- fromMaybe True <$> preuses (Global.workspace . traverse) Workspace.isOnTopBreadcrumb
+            mayWorkspace <- getWorkspace
+            let isOnTop = fromMaybe True (Workspace.isOnTopBreadcrumb <$> mayWorkspace)
             if isOnTop
                 then fatal "Cannot get file from backend"
                 else do
-                    Global.workspace . _Just %= Workspace.upperWorkspace
+                    modifyApp $ workspace . _Just %= Workspace.upperWorkspace
                     getProgram def
 
     AddConnectionResponse response -> handleResponse response success failure where
@@ -246,6 +250,10 @@ handle (Event.Batch ev) = Just $ case ev of
         request   = response ^. Response.request
         location  = request  ^. Paste.location
         success   = applyResult location
+
+    ProjectMoved response -> handleResponse response success doNothing where
+        request   = response ^. Response.request
+        success _ = localMoveProject (request ^. MoveProject.oldPath) (request ^. MoveProject.newPath)
 
     RedoResponse _response -> $notImplemented
 

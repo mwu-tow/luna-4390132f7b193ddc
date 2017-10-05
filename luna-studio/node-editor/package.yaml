@@ -31,47 +31,39 @@ default-extensions:
 ghc-options:
   -Wall -O2 -fsimpl-tick-factor=1000
 
-#
-# ACHTUNG! Zmieniasz tu - zmien w interactive
-#
 dependencies:
   - "base >= 4.9 && < 4.10"
   - aeson
-  - base64-bytestring
   - binary
   - bytestring
   - common
   - containers
   - convert
-  - data-default
   - datetime
   - deepseq
   - extra
   - fuzzy-search
+  - filepath
   - ghcjs-base
-  - ghcjs-dom
   - ghcjs-prim
   - hashable
   - lens
   - luna-studio-common
   - luna-syntax-text-lexer
+  - luna-node-editor-view
   - matrix
   - mtl
-  - placeholders
-  - prologue
   - random
   - react-flux
   - scientific
   - split
   - text
-  - text-processing
   - time
   - transformers
   - unordered-containers
   - uuid-types
   - vector
   - vector-text
-  - visualization-api
 
 executables:
   node-editor:

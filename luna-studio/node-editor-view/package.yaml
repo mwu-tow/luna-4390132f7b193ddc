@@ -1,0 +1,72 @@
+name:               luna-node-editor-view
+version:            0.1.0.0
+author:             New Byte Order <contact@newbyteorder.com>
+maintainer:         New Byte Order <contact@newbyteorder.com>
+
+flags:
+  debug:
+    description:      Enable debug support
+    default:          false
+    manual:           false
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - FlexibleContexts
+  - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - ViewPatterns
+
+
+dependencies:
+  - "base >= 4.9 && < 4.10"
+  - aeson
+  - binary
+  - bytestring
+  - common
+  - containers
+  - convert
+  - datetime
+  - deepseq
+  - extra
+  - filepath
+  - fuzzy-search
+  - ghcjs-base
+  - ghcjs-prim
+  - hashable
+  - lens
+  - luna-studio-common
+  - luna-syntax-text-lexer
+  - matrix
+  - mtl
+  - prologue
+  - random
+  - react-flux
+  - split
+  - text
+  - time
+  - transformers
+  - unordered-containers
+  - uuid-types
+  - vector
+  - vector-text
+  - visualization-api
+
+library:
+  source-dirs: src
+  cpp-options: -DCOMPRESS_REQUESTS
+  ghc-options: -Wall -O2 -fsimpl-tick-factor=1000

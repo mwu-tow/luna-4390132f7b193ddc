@@ -2,22 +2,23 @@
 module Main where
 
 import           Common.Prelude
-import           Control.Concurrent.Chan   (Chan)
-import qualified Control.Concurrent.Chan   as Chan
+import           Control.Concurrent.Chan    (Chan)
+import qualified Control.Concurrent.Chan    as Chan
 import           Control.Concurrent.MVar
-import           Data.DateTime             (getCurrentTime)
-import qualified JS.Config                 as Config
-import           JS.UUID                   (generateUUID)
-import           JS.Visualizers            (mkVisualizersMap)
-import           LunaStudio.Data.NodeValue (fromJSVisualizersMap)
-import           NodeEditor.Event.Engine   (LoopRef (LoopRef))
-import qualified NodeEditor.Event.Engine   as Engine
-import qualified NodeEditor.React.Store    as Store
-import qualified NodeEditor.React.View.App as App
-import           NodeEditor.State.Global   (mkState)
-import qualified React.Flux                as React
-import           System.Random             (newStdGen)
-import           WebSocket                 (WebSocket)
+import           Data.DateTime              (getCurrentTime)
+import qualified JS.Mount                   as Mount
+import           JS.UUID                    (generateUUID)
+import           JS.Visualizers             (mkVisualizersMap)
+import           LunaStudio.Data.NodeValue  (fromJSVisualizersMap)
+import           NodeEditor.Event.Engine    (LoopRef (LoopRef))
+import qualified NodeEditor.Event.Engine    as Engine
+import qualified NodeEditor.React.Model.App as App
+import qualified NodeEditor.React.Store     as Store
+import qualified NodeEditor.React.View.App  as App
+import           NodeEditor.State.Global    (mkState)
+import qualified React.Flux                 as React
+import           System.Random              (newStdGen)
+import           WebSocket                  (WebSocket)
 
 
 runApp :: Chan (IO ()) -> WebSocket -> IO ()
@@ -26,13 +27,13 @@ runApp chan socket = do
     clientId       <- generateUUID
     initTime       <- getCurrentTime
     visualizersMap <- fromJSVisualizersMap <$> mkVisualizersMap
-    let openedFile = Config.openedFile
+    let openedFile = Mount.openedFile
     mdo
         let loop = LoopRef chan state
         Engine.scheduleInit loop
-        appRef <- Store.createApp $ Engine.scheduleEvent loop
-        React.reactRender Config.mountPoint (App.app appRef) ()
-        let initState = mkState appRef clientId openedFile mempty visualizersMap initTime random
+        appRef <- Store.createApp (App.mk openedFile) $ Engine.scheduleEvent loop
+        React.reactRender Mount.mountPoint (App.app appRef) ()
+        let initState = mkState appRef clientId mempty visualizersMap initTime random
         state <- newMVar initState
         Engine.connectEventSources socket loop
     App.focus

@@ -4,11 +4,14 @@ module Common.Debug where
 import           Common.Action.Command
 import           Common.Prelude
 import           Data.Map                (Map)
-import qualified Data.Map                as Map
-import           Data.Time.Clock         (UTCTime, diffUTCTime, getCurrentTime)
+import           Data.Time.Clock         (UTCTime)
 import           Data.UUID.Types         (UUID)
 import qualified LunaStudio.API.Response as Response
 import qualified LunaStudio.API.Topic    as Topic
+#ifdef DEBUG_PERF
+import qualified Data.Map                as Map
+import           Data.Time.Clock         (diffUTCTime, getCurrentTime)
+#endif
 
 class HasRequestTimes st where
     requestTimes :: Lens' st (Map UUID UTCTime)

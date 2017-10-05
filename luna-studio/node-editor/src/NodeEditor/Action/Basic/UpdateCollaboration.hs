@@ -8,15 +8,16 @@ import qualified Data.Map.Lazy                              as Map
 import           LunaStudio.API.Graph.CollaborationUpdate   (ClientId)
 import qualified NodeEditor.Action.Batch                    as Batch
 import           NodeEditor.Action.State.NodeEditor         (getSelectedNodes, modifyExpressionNodes_)
+import           NodeEditor.Data.Color                      (Color (Color), fromColor)
 import           NodeEditor.React.Model.Node.ExpressionNode (modify, nodeLoc, touch)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
-import           NodeEditor.State.Collaboration             (Client (Client), ColorId (ColorId), colorId, knownClients, lastSeen, unColorId)
+import           NodeEditor.State.Collaboration             (Client (Client), colorId, knownClients, lastSeen)
 import           NodeEditor.State.Global                    (State, collaboration, lastEventTimestamp)
 
 updateCollaboration :: Command State ()
 updateCollaboration = expireTouchedNodes >> everyNSeconds refreshTime touchCurrentlySelected
 
-updateClient :: ClientId -> Command State ColorId
+updateClient :: ClientId -> Command State Color
 updateClient clId = do
     mayCurrentData <- use $ collaboration . knownClients . at clId
     currentTime    <- use lastEventTimestamp
@@ -25,8 +26,8 @@ updateClient clId = do
             knownClients . ix clId . lastSeen .= currentTime
             return $ currentData ^. colorId
         Nothing          -> do
-            colors <- map (unColorId . view colorId) <$> Map.elems <$> use knownClients
-            let nextColor = ColorId $ if null colors then 0 else maximum colors + 1
+            colors <- map (fromColor . view colorId) <$> Map.elems <$> use knownClients
+            let nextColor = Color $ if null colors then 0 else maximum colors + 1
             knownClients . at clId ?= Client currentTime nextColor
             return nextColor
 
@@ -48,6 +49,6 @@ everyNSeconds :: Integer -> Command State () -> Command State ()
 everyNSeconds interval action = use lastEventTimestamp >>= \currentTime ->
     when (DT.toSeconds currentTime `mod` interval == 0) action
 
-bumpTime :: DT.DateTime -> ColorId -> Maybe (DT.DateTime, ColorId) -> Maybe (DT.DateTime, ColorId)
+bumpTime :: DT.DateTime -> Color -> Maybe (DT.DateTime, Color) -> Maybe (DT.DateTime, Color)
 bumpTime time color (Just (time', _)) = Just (max time time', color)
 bumpTime time color Nothing           = Just (time, color)

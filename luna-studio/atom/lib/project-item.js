@@ -30,7 +30,7 @@ module.exports = ProjectItem = class ProjectItem {
             update();
             onOpen(progress, finalize);
         };
-        this.thumb = project.thumb != undefined ? project.thumb : "atom://luna-studio/rsc/logo.png";
+        this.thumb = project.thumb != undefined ? project.thumb : "atom://luna-studio/rsc/folder.svg";
         this.props = { logo: this.thumbLogo() }
         etch.initialize(this);
     }

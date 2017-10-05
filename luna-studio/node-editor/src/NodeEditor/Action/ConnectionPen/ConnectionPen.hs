@@ -18,13 +18,13 @@ import           NodeEditor.Action.State.Action             (beginActionWithKey,
 import           NodeEditor.Action.State.Model              (getNodeAtPosition)
 import           NodeEditor.Action.State.NodeEditor         (modifyNodeEditor)
 import           NodeEditor.Data.Color                      (Color (Color))
-import           NodeEditor.Event.Mouse                     (workspacePosition)
 import           NodeEditor.React.Model.ConnectionPen       (ConnectionPen (ConnectionPen))
 import qualified NodeEditor.React.Model.ConnectionPen       as ConnectionPen
 import qualified NodeEditor.React.Model.NodeEditor          as NodeEditor
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), PenConnect (PenConnect),
                                                              penConnectAction, penConnectCurve, penConnectLastVisitedNode)
 import           NodeEditor.State.Global                    (State)
+import           NodeEditor.State.Mouse                     (workspacePosition)
 import           React.Flux                                 (MouseEvent)
 
 

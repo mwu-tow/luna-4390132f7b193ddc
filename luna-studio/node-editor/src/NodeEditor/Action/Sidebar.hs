@@ -15,7 +15,6 @@ import           NodeEditor.Action.State.Action          (beginActionWithKey, co
                                                           updateActionWithKey)
 import           NodeEditor.Action.State.NodeEditor      (getInputNode)
 import           NodeEditor.Action.State.Scene           (getInputSidebarSize)
-import           NodeEditor.Event.Mouse                  (mousePosition)
 import           NodeEditor.React.Model.Constants        (gridSize)
 import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, countProjectionPorts)
 import           NodeEditor.React.Model.Port             (AnyPortRef (OutPortRef'), OutPortIndex (Projection), OutPortRef, getPortNumber)
@@ -27,6 +26,7 @@ import           NodeEditor.State.Action                 (Action (begin, continu
                                                           portDragIsArgumentConstructor, portDragMode, portDragPortStartPosInSidebar,
                                                           portDragStartPortRef, portDragStartPos)
 import           NodeEditor.State.Global                 (State)
+import           NodeEditor.State.Mouse                  (mousePosition)
 import           React.Flux                              (MouseEvent)
 
 

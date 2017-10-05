@@ -27,6 +27,7 @@ module NodeEditor.Action.Basic
     , localMoveNode
     , localMoveNodes
     , localMovePort
+    , localMoveProject
     , localRemoveConnection
     , localRemoveConnections
     , localRemoveConnectionsBetweenNodes
@@ -128,6 +129,7 @@ import           NodeEditor.Action.Basic.RemovePort          (localRemovePort, r
 import           NodeEditor.Action.Basic.RenameNode          (localRenameNode, renameNode)
 import           NodeEditor.Action.Basic.RenamePort          (localRenamePort, renamePort)
 import           NodeEditor.Action.Basic.Scene               (getScene, updateScene)
+import           NodeEditor.Action.Basic.MoveProject         (localMoveProject)
 import           NodeEditor.Action.Basic.SelectNode          (dropSelectionHistory, modifySelectionHistory, selectAll, selectNode,
                                                               selectNodes, selectPreviousNodes, toggleSelect, unselectAll)
 import           NodeEditor.Action.Basic.SetNodeExpression   (localSetNodeExpression, setNodeExpression)
@@ -144,7 +146,7 @@ import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpress
                                                               localUpdateOrAddExpressionNode, localUpdateOrAddExpressionNodePreventingPorts,
                                                               localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
-import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints, 
+import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints,
                                                               setCurrentImports)
 import           NodeEditor.Action.State.Model               (isArgConstructorConnectSrc, updateAllPortsMode, updateArgConstructorMode,
                                                               updatePortMode, updatePortsModeForNode)

@@ -22,7 +22,6 @@ import           NodeEditor.Action.State.Model              (createConnectionMod
 import           NodeEditor.Action.State.NodeEditor         (getConnection, getExpressionNode, getNodeEditor, getSelectedNodes,
                                                              modifyConnection, modifyExpressionNode, modifyInPort, modifyNodeEditor,
                                                              modifyOutPort, getNode)
-import           NodeEditor.Event.Mouse                     (workspacePosition)
 import           NodeEditor.React.Model.Connection          (Mode (Dimmed, Highlighted), dst, src, getConnectionMode)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node.ExpressionNode (inPortAt, inPortAt, inPortsList, isSelected, nodeLoc, outPortAt, position)
@@ -32,6 +31,7 @@ import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), NodeDrag (NodeDrag), nodeDragAction,
                                                              nodeDragNodeLoc, nodeDragNodesStartPos, nodeDragSnappedConnId, nodeDragStartPos)
 import           NodeEditor.State.Global                    (State)
+import           NodeEditor.State.Mouse                     (workspacePosition)
 import           React.Flux                                 (MouseEvent)
 
 

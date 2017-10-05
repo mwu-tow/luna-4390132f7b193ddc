@@ -7,17 +7,18 @@ import           LunaStudio.Data.Breadcrumb         (Breadcrumb (Breadcrumb), it
 import           LunaStudio.Data.GraphLocation      (GraphLocation, breadcrumb, filePath)
 import           LunaStudio.Data.NodeLoc            (NodePath)
 import           NodeEditor.Action.State.NodeEditor (isGraphLoaded)
+import           NodeEditor.Action.State.App        (getWorkspace)
 import           NodeEditor.Batch.Workspace         (currentLocation)
-import           NodeEditor.State.Global            (State, workspace)
+import           NodeEditor.State.Global            (State)
 
 
 isCurrentLocation :: GraphLocation -> Command State Bool
-isCurrentLocation location = use workspace >>= return . \case
+isCurrentLocation location = getWorkspace >>= return . \case
     Just w  -> w ^. currentLocation == location
     Nothing -> False
 
 isCurrentFile :: GraphLocation -> Command State Bool
-isCurrentFile location = use workspace >>= return . \case
+isCurrentFile location = getWorkspace >>= return . \case
     Just w  -> w ^. currentLocation . filePath == location ^. filePath
     Nothing -> False
 
@@ -29,6 +30,7 @@ isCurrentLocationAndGraphLoaded location = do
 
 inCurrentLocation :: GraphLocation -> (NodePath -> Command State ()) -> Command State ()
 inCurrentLocation location action = do
-    currentBc <- fromMaybe def <$> preuse (workspace . _Just . currentLocation . breadcrumb . items)
-    withJust (List.stripPrefix currentBc $ location ^. breadcrumb . items) $
-        action . convert . Breadcrumb
+      mayWorkspace <- getWorkspace
+      let currentBc = mayWorkspace ^. traverse . currentLocation . breadcrumb . items
+      withJust (List.stripPrefix currentBc $ location ^. breadcrumb . items) $
+          action . convert . Breadcrumb

@@ -17,8 +17,6 @@ import           LunaStudio.Data.NodeLoc                  (NodeLoc)
 import           LunaStudio.Data.NodeValue                (Visualizer, VisualizerMatcher, VisualizerName)
 import           LunaStudio.Data.NodeSearcher             (NodeSearcherData)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
-import           NodeEditor.Batch.Workspace               (Workspace)
-import qualified NodeEditor.Batch.Workspace               as Workspace
 import           NodeEditor.Event.Event                   (Event)
 import           NodeEditor.React.Model.App               (App)
 import           NodeEditor.React.Store                   (Ref)
@@ -38,7 +36,6 @@ data State = State
         , _collaboration        :: Collaboration.State
         , _debug                :: DebugState
         , _selectionHistory     :: [Set NodeLoc]
-        , _workspace            :: Maybe Workspace
         , _nodeSearcherData     :: NodeSearcherData
         , _preferedVisualizers  :: HashMap TypeRep Visualizer
         , _visualizers          :: Map VisualizerName VisualizerMatcher
@@ -67,15 +64,14 @@ makeLenses ''BackendState
 makeLenses ''State
 makeLenses ''DebugState
 
-mkState :: Ref App -> ClientId -> Maybe FilePath -> HashMap TypeRep Visualizer -> Map VisualizerName VisualizerMatcher -> DateTime -> StdGen -> State
-mkState ref clientId' mpath = State
+mkState :: Ref App -> ClientId -> HashMap TypeRep Visualizer -> Map VisualizerName VisualizerMatcher -> DateTime -> StdGen -> State
+mkState ref clientId' = State
     {- react                -} (UI.mkState ref)
     {- backend              -} (BackendState def clientId')
     {- actions              -} def
     {- collaboration        -} def
     {- debug                -} def
     {- selectionHistory     -} def
-    {- workspace            -} (Workspace.mk <$> mpath)
     {- nodeSearcherData     -} def
 
 nextRandom :: Command State Word8

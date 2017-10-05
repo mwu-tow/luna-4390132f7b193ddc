@@ -19,7 +19,6 @@ import           NodeEditor.Action.State.Action             (beginActionWithKey,
 import           NodeEditor.Action.State.Model              (getConnectionsIntersectingSegment, getNodeAtPosition)
 import           NodeEditor.Action.State.NodeEditor         (getConnectionsMap, modifyNodeEditor)
 import           NodeEditor.Data.Color                      (Color (Color))
-import           NodeEditor.Event.Mouse                     (workspacePosition)
 import           NodeEditor.React.Model.Connection          (Connection, nodeLocs)
 import           NodeEditor.React.Model.ConnectionPen       (ConnectionPen (ConnectionPen))
 import qualified NodeEditor.React.Model.ConnectionPen       as ConnectionPen
@@ -28,6 +27,7 @@ import           NodeEditor.State.Action                    (Action (begin, cont
                                                              penDisconnectAction, penDisconnectCurve, penDisconnectLastVisitedNode,
                                                              penDisconnectNextNodeRestriction)
 import           NodeEditor.State.Global                    (State)
+import           NodeEditor.State.Mouse                     (workspacePosition)
 import           React.Flux                                 (MouseEvent)
 
 

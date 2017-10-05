@@ -167,8 +167,8 @@ getCurrentScope imports file = do
         Just f -> return f
         _      -> recomputeCurrentScope imports file
 
-run :: MVar CompiledModules -> GraphLocation -> Command InterpreterEnv ()
-run imports loc@(GraphLocation file br) = do
+run :: MVar CompiledModules -> GraphLocation -> Bool -> Command InterpreterEnv ()
+run imports loc@(GraphLocation file br) interpret = do
     cln        <- use cleanUp
     threads    <- use listeners
     listeners .= []
@@ -184,5 +184,6 @@ run imports loc@(GraphLocation file br) = do
                 {-updateMonads loc-}
                 liftIO cln
                 liftIO $ mapM killThread threads
-                scope <- runInterpreter file imps
-                traverse_ (updateValues loc) scope
+                when interpret $ do
+                    scope <- runInterpreter file imps
+                    traverse_ (updateValues loc) scope

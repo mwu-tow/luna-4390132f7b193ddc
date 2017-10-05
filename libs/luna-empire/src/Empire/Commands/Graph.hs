@@ -22,6 +22,7 @@ module Empire.Commands.Graph
     , movePort
     , removePort
     , renamePort
+    , getPortName
     , setNodeExpression
     , setNodeMeta
     , setNodePosition
@@ -71,6 +72,7 @@ module Empire.Commands.Graph
     , moveToOrigin
     , getImports
     , getAvailableImports
+    , setInterpreterState
     ) where
 
 import           Control.Arrow                    ((&&&))
@@ -121,7 +123,8 @@ import qualified Empire.Commands.GraphUtils       as GraphUtils
 import qualified Empire.Commands.Library          as Library
 import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.AST                  (InvalidConnectionException (..), EdgeRef, NodeRef, NotInputEdgeException (..),
-                                                   SomeASTException, astExceptionFromException, astExceptionToException)
+                                                   PortDoesNotExistException(..), SomeASTException, astExceptionFromException,
+                                                   astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
 import           Empire.Data.Graph                (ClsGraph, Graph, NodeCache(..), portMappingMap, nodeIdMap)
 import qualified Empire.Data.Graph                as Graph
@@ -144,6 +147,7 @@ import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
 import qualified Luna.Syntax.Text.Parser.Marker   as Luna
+import qualified LunaStudio.API.Control.Interpreter as Interpreter
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Constants        (gapBetweenNodes)
@@ -632,6 +636,18 @@ renamePort loc portRef newName = do
                            else throwM NotInputEdgeException
         GraphBuilder.buildInputSidebar nodeId
     resendCode loc
+
+getPortName :: GraphLocation -> OutPortRef -> Empire Text
+getPortName loc portRef = do
+    withGraph loc $ runASTOp $ do
+        let nodeId = portRef ^. PortRef.srcNodeId
+            arg    = portRef ^. PortRef.srcPortId . to getPortNumber
+        ref        <- ASTRead.getCurrentASTTarget
+        (input, _) <- GraphBuilder.getEdgePortMapping
+        portsNames <- GraphBuilder.getPortsNames ref
+        if nodeId == input
+            then maybe (throwM PortDoesNotExistException) (return . convert) $ Safe.atMay portsNames arg
+            else throwM NotInputEdgeException
 
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
 setNodeExpression loc@(GraphLocation file _) nodeId expr' = do
@@ -1488,6 +1504,18 @@ getImports (GraphLocation file _) imports = do
                     return (nimps, (i, f))
     return $ Map.fromList $ map (_2 %~ importsToHints) hints
 
+setInterpreterState :: Interpreter.Request -> Empire ()
+setInterpreterState (Interpreter.Start loc) = do
+    activeInterpreter .= True
+    Publisher.notifyInterpreterUpdate "Interpreter running"
+    runInterpreter loc
+setInterpreterState (Interpreter.Pause loc) = do
+    activeInterpreter .= False
+    Publisher.notifyInterpreterUpdate "Interpreter stopped"
+    withTC' loc False (return ()) (return ())
+setInterpreterState (Interpreter.Reload loc) = do
+    runInterpreter loc
+
 -- internal
 
 getName :: GraphLocation -> NodeId -> Empire (Maybe Text)
@@ -1504,15 +1532,20 @@ generateNodeNameFromBase base = do
         Just newName     = find (not . flip Set.member names) allPossibleNames
     return newName
 
-runTC :: GraphLocation -> Bool -> Command ClsGraph ()
-runTC loc flush = do
+runTC :: GraphLocation -> Bool -> Bool -> Command ClsGraph ()
+runTC loc flush interpret = do
     g <- get
-    Publisher.requestTC loc g flush
+    Publisher.requestTC loc g flush interpret
+
+runInterpreter :: GraphLocation -> Empire ()
+runInterpreter loc@(GraphLocation file _) = do
+    withGraph' (GraphLocation file def) (return ()) (runTC loc True True)
 
 withTC' :: GraphLocation -> Bool -> Command Graph a -> Command ClsGraph a -> Empire a
 withTC' loc@(GraphLocation file bs) flush actG actC = do
-    res <- withGraph' loc actG actC
-    withGraph' (GraphLocation file def) (return ()) (runTC loc flush)
+    res       <- withGraph' loc actG actC
+    interpret <- use activeInterpreter
+    withGraph' (GraphLocation file def) (return ()) (runTC loc flush interpret)
     return res
 
 withTCUnit :: GraphLocation -> Bool -> Command ClsGraph a -> Empire a
@@ -1555,9 +1588,14 @@ setToNothing dst = do
         nothingExpr          = "None"
     nothing <- IR.generalize <$> IR.cons_ (convert nothingExpr)
     IR.putLayer @SpanLength nothing $ convert $ Text.length nothingExpr
-    if disconnectOutputEdge
-        then setOutputTo nothing
-        else GraphUtils.rewireNode dst nothing
+    if disconnectOutputEdge then setOutputTo nothing else do
+        dstTarget <- ASTRead.getASTTarget dst
+        dstBeg    <- Code.getASTTargetBeginning dst
+        oldLen    <- IR.getLayer @SpanLength dstTarget
+        Code.applyDiff dstBeg (dstBeg + oldLen) nothingExpr
+        GraphUtils.rewireNode dst nothing
+        dstTarget <- ASTRead.getASTTarget dst
+        Code.gossipLengthsChanged dstTarget
 
 removeInternalConnection :: GraphOp m => NodeId -> InPortId -> m ()
 removeInternalConnection nodeId port = do

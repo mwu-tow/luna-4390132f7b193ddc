@@ -21,19 +21,19 @@ class Statusbar extends View
             @div
                 class: 'luna-interpreter-status inline-block'
                 outlet: 'statusLabel'
-                'Interpreter status'
+                'Interpreter running'
 
     initialize: =>
         @startPauseButton.on 'click', @startPause
         @reloadButton.on 'click', @reload
         @codeEditor.onInterpreterUpdate (update, status) =>
-            if update == 'InterpreterStart'
+            if update == 'Start'
                 @unlockPause()
-            if update == 'InterpreterPause'
+            else if update == 'Pause'
                 @unlockStart()
-            else if update == 'InterpreterReload'
+            else if update == 'Reload'
                 @unlockReload()
-            else if update = 'Update'
+            else if update == 'Update'
                 @setStatus(status)
 
     startPause: =>
@@ -59,6 +59,6 @@ class Statusbar extends View
         @reloadButton[0].disabled = false
 
     setStatus: (status) =>
-        @statusLabel[0].value = status
+        @statusLabel[0].innerText = status
 
     getTitle: -> 'Status bar'

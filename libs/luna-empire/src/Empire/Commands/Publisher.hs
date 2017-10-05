@@ -15,6 +15,7 @@ import           LunaStudio.Data.Node                       (NodeId, NodeTypeche
 import           LunaStudio.Data.NodeValue                  (NodeValue)
 
 import qualified LunaStudio.API.Atom.Substitute             as Substitute
+import qualified LunaStudio.API.Control.Interpreter         as Interpreter
 import qualified LunaStudio.API.Graph.MonadsUpdate          as Monads
 import qualified LunaStudio.API.Graph.NodeResultUpdate      as NodeResult
 import qualified LunaStudio.API.Graph.NodeTypecheckerUpdate as NodeTCUpdate
@@ -37,14 +38,18 @@ notifyCodeUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => FilePath -> P
 notifyCodeUpdate path start end code cursor =
     sendUpdate $ CodeUpdate $ Substitute.Update path start end code cursor
 
+notifyInterpreterUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => Text -> m ()
+notifyInterpreterUpdate msg =
+    sendUpdate $ InterpreterUpdate $ Interpreter.Update msg
+
 sendUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => AsyncUpdate -> m ()
 sendUpdate upd = do
     chan <- asks $ view updatesChan
     liftIO $ atomically $ writeTChan chan upd
 
-requestTC :: GraphLocation -> ClsGraph -> Bool -> Command s ()
-requestTC loc g flush = do
+requestTC :: GraphLocation -> ClsGraph -> Bool -> Bool -> Command s ()
+requestTC loc g flush runInterpreter = do
     chan <- view typecheckChan
     liftIO $ do
         tryTakeMVar chan
-        putMVar chan (loc, g, flush)
+        putMVar chan $ TCRequest loc g flush runInterpreter

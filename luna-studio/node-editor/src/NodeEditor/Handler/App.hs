@@ -10,7 +10,6 @@ import qualified NodeEditor.Action.Batch        as Batch
 import           NodeEditor.Action.State.Action (endActions, endAllActions)
 import qualified NodeEditor.Event.Atom          as Atom
 import           NodeEditor.Event.Event         (Event (Atom, Init, Shortcut, UI))
-import           NodeEditor.Event.Mouse         (mousePosition)
 import qualified NodeEditor.Event.Shortcut      as Shortcut
 import           NodeEditor.Event.UI            (UIEvent (AppEvent, SidebarEvent))
 import qualified NodeEditor.React.Event.App     as App
@@ -18,6 +17,7 @@ import qualified NodeEditor.React.Event.Sidebar as Sidebar
 import           NodeEditor.State.Action        (actionsClosingOnMouseLeave)
 import           NodeEditor.State.Global        (State)
 import qualified NodeEditor.State.Global        as Global
+import           NodeEditor.State.Mouse         (mousePosition)
 import qualified NodeEditor.State.UI            as UI
 
 handle :: Event -> Maybe (Command Global.State ())

@@ -8,15 +8,15 @@ module NodeEditor.React.Store
     , module X
 ) where
 
+import           Common.Prelude              as P hiding (transform)
 import           Control.Monad.Trans.Reader
-import           React.Flux                  hiding (Event)
-
 import           NodeEditor.Event.Event     (Event)
 import qualified NodeEditor.Event.Event     as Event
-import           NodeEditor.Event.UI        (UIEvent)
-import           Common.Prelude         as P hiding (transform)
+import           NodeEditor.React.IsRef
 import           NodeEditor.React.Model.App (App)
 import           NodeEditor.React.Store.Ref as X
+import           React.Flux                 hiding (Event)
+
 
 
 
@@ -26,8 +26,11 @@ instance Typeable a => StoreData (Store a) where
         store ^. sendEvent $ event
         return store
 
-dispatch :: Typeable a => Ref a -> UIEvent -> [SomeStoreAction]
-dispatch s = dispatch' s . Event.UI
+instance Typeable a => IsRef (Ref a) where
+    dispatch s = dispatch' s . Event.UI
+
+instance HasApp (Store App) where
+		app = dt
 
 dispatch' :: Typeable a => Ref a -> Event -> [SomeStoreAction]
 dispatch' s a = [SomeStoreAction s a]
@@ -40,5 +43,5 @@ create a = do
     se <- ask
     create' se a
 
-createApp :: MonadIO m => SendEvent -> m (Ref App)
-createApp = runReaderT $ create def
+createApp :: MonadIO m => App -> SendEvent -> m (Ref App)
+createApp app' = runReaderT $ create app'

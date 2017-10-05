@@ -52,6 +52,7 @@ import           Empire.Server.Server                    (defInverse, errorMessa
 import           Luna.Project                            (findProjectFileForFile, getRelativePathForModule)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
+import qualified LunaStudio.API.Control.Interpreter      as Interpreter
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
 import qualified LunaStudio.API.Graph.AddNode            as AddNode
 import qualified LunaStudio.API.Graph.AddPort            as AddPort
@@ -356,9 +357,9 @@ handleRenameNode = modifyGraph inverse action replyResult where
         Graph.renameNode location nodeId name
 
 handleRenamePort :: Request RenamePort.Request -> StateT Env BusT ()
-handleRenamePort = modifyGraph inverse action replyResult where --FIXME[pm] implement this!
+handleRenamePort = modifyGraph inverse action replyResult where
     inverse (RenamePort.Request location portRef name) = do
-        let oldName = "oldname" --FIXME
+        oldName <- Graph.getPortName location portRef
         return $ RenamePort.Inverse oldName
     action (RenamePort.Request location portRef name) = withDefaultResult location $
         Graph.renamePort location portRef name
@@ -466,6 +467,9 @@ handleGetBuffer = modifyGraph defInverse action replyResult where
         code <- Graph.getBuffer file
         return $ GetBuffer.Result code
 
+handleInterpreterControl :: Request Interpreter.Request -> StateT Env BusT ()
+handleInterpreterControl = modifyGraph defInverse action replyResult where
+    action request = Graph.setInterpreterState request
 
 stdlibFunctions :: [String]
 stdlibFunctions = ["mockFunction"]

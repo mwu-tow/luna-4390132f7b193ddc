@@ -13,6 +13,7 @@ import           NodeEditor.State.Global            (State)
 
 handle :: Event -> Maybe (Command State ())
 handle (UI (BreadcrumbsEvent (Breadcrumbs.Enter bc))) = Just $ enterBreadcrumbs bc
+handle (UI (BreadcrumbsEvent  Breadcrumbs.Exit     )) = Just exitBreadcrumb
 handle (Shortcut (Shortcut.Event command _))          = Just $ handleCommand command
 handle _   = Nothing
 
