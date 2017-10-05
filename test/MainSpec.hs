@@ -5,16 +5,16 @@ import qualified Data.List                    as List
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           FuzzyText
-import           LunaStudio.Data.NodeSearcher (ImportName, ModuleHints (ModuleHints))
+import           LunaStudio.Data.NodeSearcher (ClassHints, ImportName, ModuleHints (ModuleHints))
 import           Prologue
 import           Test.Hspec
 
 
-makeTestModule :: [Text] -> Map Text [Text] -> Map ImportName ModuleHints
-makeTestModule funs methods = Map.singleton "TestModule" $ ModuleHints funs methods
+makeTestModule :: [Text] -> Map Text ClassHints -> Map ImportName ModuleHints
+makeTestModule = Map.singleton "TestModule" .: ModuleHints
 
-makeTestModuleEntries :: [Text] -> Map Text [Text] -> Bool -> [Entry]
-makeTestModuleEntries funs methods = toEntries (makeTestModule funs methods)
+makeTestModuleEntries :: [Text] -> Map Text ClassHints -> Bool -> [Entry]
+makeTestModuleEntries funs classes = toEntries (makeTestModule funs classes)
 
 topResultNameShouldBe :: [Entry] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"

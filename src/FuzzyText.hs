@@ -6,7 +6,7 @@ import qualified Data.List                    as List
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import qualified Data.Text                    as Text
-import           LunaStudio.Data.NodeSearcher (ImportName, ModuleHints)
+import           LunaStudio.Data.NodeSearcher (ClassHints, ImportName, ModuleHints)
 import qualified LunaStudio.Data.NodeSearcher as NS
 import           Prologue
 
@@ -14,9 +14,12 @@ import           Prologue
 type Score   = Int
 type Indices = (Int, Int)
 type Bonus   = Int
+type ClassName = Text
+
+data EntryType = Function | Method ClassName | Constructor ClassName deriving (Show, Eq)
 
 data Entry = Entry { _name         :: Text
-                   , _className    :: Maybe Text
+                   , _entryType    :: EntryType
                    , _weight       :: Double 
                    , _score        :: Score
                    , _match        :: [Indices]
@@ -49,23 +52,32 @@ preferedTypeWeight, notPreferedTypeWeight :: Double
 preferedTypeWeight = 0.6
 notPreferedTypeWeight = 1 - preferedTypeWeight
 
-methodWeight, functionWeight :: Bool -> Double
-methodWeight   preferMethods = if preferMethods then preferedTypeWeight else notPreferedTypeWeight
-functionWeight preferMethods = if preferMethods then notPreferedTypeWeight else preferedTypeWeight
+methodWeight, functionWeight, constructorWeight :: Bool -> Double
+methodWeight      preferMethods = if preferMethods then preferedTypeWeight    else notPreferedTypeWeight
+functionWeight    preferMethods = if preferMethods then notPreferedTypeWeight else preferedTypeWeight
+constructorWeight preferMethods = if preferMethods then notPreferedTypeWeight else preferedTypeWeight
 
 
 toEntries :: Map ImportName ModuleHints -> Bool -> [Entry]
 toEntries ih preferMethods = concat . Map.elems $ Map.map moduleHintsToEntries ih where
     moduleHintsToEntries :: ModuleHints -> [Entry]
     moduleHintsToEntries mh = classesToEntries (mh ^. NS.classes) <> functionsToEntries (mh ^. NS.functions)
-    classesToEntries :: Map Text [Text] -> [Entry]
-    classesToEntries  = concat . Map.elems . Map.mapWithKey (\k m -> map (methodToEntry k) m)
+    classesToEntries :: Map Text ClassHints -> [Entry]
+    classesToEntries = concat . Map.elems . Map.mapWithKey classToEntries
+    classToEntries :: Text -> ClassHints -> [Entry]
+    classToEntries className c = methodsToEntries className (c ^. NS.methods) <> constructorsToEntries className (c ^. NS.constructors)
+    methodsToEntries :: Text -> [Text] -> [Entry]
+    methodsToEntries className = map (methodToEntry className)
     methodToEntry :: Text -> Text -> Entry
-    methodToEntry k m = Entry m (Just k) (methodWeight preferMethods) def def True
+    methodToEntry className m = Entry m (Method className) (methodWeight preferMethods) def def True
+    constructorsToEntries :: Text -> [Text] -> [Entry]
+    constructorsToEntries className = map (constructorToEntry className) 
+    constructorToEntry :: Text -> Text -> Entry
+    constructorToEntry className c = Entry c (Constructor className) (constructorWeight preferMethods) def def True
     functionsToEntries :: [Text] -> [Entry]
     functionsToEntries = map functionToEntry
     functionToEntry :: Text -> Entry
-    functionToEntry f = Entry f def (functionWeight preferMethods) def def True
+    functionToEntry f = Entry f Function (functionWeight preferMethods) def def True
 
 processEntries :: Query -> [Entry] -> [Entry]
 processEntries q e = List.sort $ map updateEntry e where

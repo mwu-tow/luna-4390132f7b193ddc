@@ -7,7 +7,7 @@ packages:
 - extra-dep: true
   location: {commit: c1c525d71b5e749f24e26f71d2d1a68019cae850, git: 'git@github.com:luna/prologue.git'}
 - extra-dep: true
-  location: {commit: deef3486b1e6f35565f7a13bb78123e78a862347, git: 'git@github.com:luna/luna-studio.git'}
+  location: {commit: 310376b06baa8e40af086f088efd997ab9e5be73, git: 'git@github.com:luna/luna-studio.git'}
   subdirs: [libs/luna-studio-common, libs/scope-searcher]
 
 
