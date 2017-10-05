@@ -326,9 +326,6 @@ copyUserConfig installPath package = do
         packageUserConfigPath = installPath </> "user-config"
     homeUserConfigPath <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
     userConfigExists   <- Shelly.test_d packageUserConfigPath
-    liftIO $ print userConfigExists
-    liftIO $ print packageUserConfigPath
-    liftIO $ print homeUserConfigPath
     when userConfigExists $ do
         Shelly.mkdir_p homeUserConfigPath
         listedPackageUserConfig <- Shelly.ls packageUserConfigPath
