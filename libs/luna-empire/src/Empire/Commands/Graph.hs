@@ -1496,10 +1496,10 @@ setInterpreterState (Interpreter.Start loc) = do
     activeInterpreter .= True
     Publisher.notifyInterpreterUpdate "Interpreter running"
     runInterpreter loc
-setInterpreterState (Interpreter.Pause _) = do
+setInterpreterState (Interpreter.Pause loc) = do
     activeInterpreter .= False
     Publisher.notifyInterpreterUpdate "Interpreter stopped"
-    -- runCleanup
+    withTC' loc False (return ()) (return ())
 setInterpreterState (Interpreter.Reload loc) = do
     runInterpreter loc
 

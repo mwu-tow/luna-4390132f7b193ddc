@@ -21,7 +21,7 @@ class Statusbar extends View
             @div
                 class: 'luna-interpreter-status inline-block'
                 outlet: 'statusLabel'
-                ''
+                'Interpreter running'
 
     initialize: =>
         @startPauseButton.on 'click', @startPause
