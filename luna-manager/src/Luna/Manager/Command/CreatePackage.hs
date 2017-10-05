@@ -5,7 +5,7 @@ module Luna.Manager.Command.CreatePackage where
 import           Control.Lens.Aeson
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
-import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, parent, splitDirectories, null, filename)
+import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, parent, splitDirectories, null, filename, dirname, splitDirectories)
 import           Luna.Manager.Archive as Archive
 import           Luna.Manager.Command.Options (MakePackageOpts)
 import           Luna.Manager.Component.Repository as Repo
@@ -209,13 +209,17 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
     downloadedPkg      <- downloadFromURL guiInstaller (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
     unpacked           <- Archive.unpack guiInstaller 1.0 "unpacking_progress" downloadedPkg
-    Shelly.rm_rf thirdPartyFullPath
+    unpackedIsDir      <- Shelly.test_d unpacked
     Shelly.mkdir_p thirdPartyFullPath
     case packageType of
-        BatchApp -> Shelly.mv unpacked thirdPartyFullPath
-        GuiApp   -> Shelly.mv unpacked thirdPartyFullPath
+        BatchApp -> do
+            Shelly.rm_rf $ thirdPartyFullPath </> (last $ splitDirectories unpacked)
+            Shelly.mv unpacked thirdPartyFullPath
+        GuiApp   -> do
+            Shelly.rm_rf $ thirdPartyFullPath </> (last $ splitDirectories unpacked)
+            Shelly.mv unpacked thirdPartyFullPath
         Lib      -> do
-            unpackedIsDir <- Shelly.test_d unpacked
+            Shelly.rm_rf libFullPath
             if unpackedIsDir then do
                 listed <- Shelly.ls unpacked
                 if length listed == 1 then do
