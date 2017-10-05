@@ -247,7 +247,7 @@ runTypecheck imports = do
         return (st, passSt)
     put $ newG & Graph.ast .~ AST st passSt
 
-runModuleTypecheck :: Map.Map Name FilePath -> CompiledModules -> Command ClsGraph (Imports, CompiledModules)
+runModuleTypecheck :: Map.Map Name FilePath -> CompiledModules -> Command ClsGraph (Either Compilation.ModuleCompilationError (Imports, CompiledModules))
 runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
     unit :: Expr Unit <- uses Graph.clsClass unsafeGeneralize
     g <- get
@@ -275,10 +275,13 @@ runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
                 IR.Unit _ _ c -> IR.source c
             UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
             return impNames
-        Right (imports, newCmpMods) <- liftIO $ Compilation.requestModules sources impNames cmpMods
-        let imps = unionsImports $ prims : Map.elems imports
-        res <- snd <$> ModuleTC.processModule' imps def "<<interactive>>" (IR.unsafeGeneralize unit)
-        return (res, newCmpMods)
+        result <- liftIO $ Compilation.requestModules sources impNames cmpMods
+        case result of
+            Right (imports, newCmpMods) -> do
+                let imps = unionsImports $ prims : Map.elems imports
+                res <- snd <$> ModuleTC.processModule' imps def "<<interactive>>" (IR.unsafeGeneralize unit)
+                return $ Right (res, newCmpMods)
+            Left err -> return $ Left err
     return res
 
 putNewIR :: IR -> Command Graph ()

@@ -24,7 +24,6 @@ dependencies:
   - matrix
   - pretty-show
   - prologue
-  - scope-searcher
   - text
   - time
   - unordered-containers

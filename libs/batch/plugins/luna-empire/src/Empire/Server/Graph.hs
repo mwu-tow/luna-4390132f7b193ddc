@@ -6,13 +6,17 @@
 
 module Empire.Server.Graph where
 
+import qualified Compress
 import           Control.Arrow                           ((&&&))
 import           Control.Concurrent                      (forkIO)
 import           Control.Concurrent.MVar                 (readMVar)
+import           Control.Concurrent.STM.TChan            (writeTChan)
+import           Control.Error                           (runExceptT)
 import           Control.Monad                           (when)
 import           Control.Monad.Catch                     (handle, try)
 import           Control.Monad.Reader                    (asks)
 import           Control.Monad.State                     (StateT, evalStateT, get)
+import           Control.Monad.STM                       (atomically)
 import qualified Data.Binary                             as Bin
 import           Data.ByteString                         (ByteString)
 import           Data.ByteString.Lazy                    (fromStrict)
@@ -43,7 +47,8 @@ import qualified Empire.Empire                           as Empire
 import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
 import           Empire.Server.Server                    (defInverse, errorMessage, modifyGraph, modifyGraphOk, prettyException, replyFail,
-                                                          replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC)
+                                                          replyOk, replyResult, sendToBus', withDefaultResult, withDefaultResultTC,
+                                                          webGUIHack)
 import           Luna.Project                            (findProjectFileForFile, getRelativePathForModule)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
@@ -113,6 +118,7 @@ import           System.FilePath                         (replaceFileName, (</>)
 import qualified System.Log.MLogger                      as Logger
 import qualified ZMQ.Bus.Bus                             as Bus
 import qualified ZMQ.Bus.Config                          as Config
+import qualified ZMQ.Bus.Data.Message                    as Message
 import qualified ZMQ.Bus.EndPoint                        as EP
 import           ZMQ.Bus.Trans                           (BusT (..))
 import qualified ZMQ.Bus.Trans                           as BusT
@@ -363,22 +369,24 @@ handleSaveSettings = modifyGraphOk defInverse action where
     action (SaveSettings.Request gl settings) = saveSettings gl settings
 
 handleSearchNodes :: Request SearchNodes.Request -> StateT Env BusT ()
-handleSearchNodes = modifyGraph defInverse replyResult where
-    modifyGraph inverse success origReq@(Request uuid guiID request') = do
-        env <- get
-        currentEmpireEnv <- use Env.empireEnv
-        empireNotifEnv   <- use Env.empireNotif
-        let invStatus = Response.Ok ()
-            endPoints = env ^. Env.config . to EP.clientFromConfig
-        liftIO $ void $ forkIO $ do
-            result <- Empire.execEmpire empireNotifEnv currentEmpireEnv $ do
-                sMap <- liftIO . readMVar =<< view Empire.scopeVar
-                let importsMap = Map.singleton "default" $ NS.ModuleHints (sMap ^. Empire.functions) (sMap ^. Empire.classes)
-                return $ SearchNodes.Result importsMap
-            a <- Bus.runBus endPoints $ BusT.runBusT $ flip evalStateT env $ success origReq () result
-            case a of
-                Left  a -> error (show a)
-                Right _ -> return ()
+handleSearchNodes origReq@(Request uuid guiID request'@(SearchNodes.Request location importsList)) = do
+    request          <- liftIO $ webGUIHack request'
+    currentEmpireEnv <- use Env.empireEnv
+    empireNotifEnv   <- use Env.empireNotif
+    endPoints        <- use $ Env.config . to EP.clientFromConfig
+    env              <- get
+    toBusChan        <- use Env.toBusChan
+    let invStatus = Response.Ok ()
+    liftIO $ void $ forkIO $ void $ liftIO $ do
+        result <- try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ SearchNodes.Result <$> Graph.getImports location importsList
+        case result of
+            Left  (exc :: SomeException) -> do
+                err <- prettyException exc
+                let msg = Response.error origReq invStatus err
+                atomically $ writeTChan toBusChan $ Message.Message (Topic.topic msg) $ Compress.pack $ Bin.encode msg
+            Right (result, _) -> do
+                let msg = Response.result origReq () result
+                atomically $ writeTChan toBusChan $ Message.Message (Topic.topic msg) $ Compress.pack $ Bin.encode msg
 
 handleSetNodeExpression :: Request SetNodeExpression.Request -> StateT Env BusT ()-- fixme [SB] returns Result with no new informations and change node expression has addNode+removeNodes
 handleSetNodeExpression = modifyGraph inverse action replyResult where

@@ -43,6 +43,7 @@ dependencies:
     - exceptions
     - filepath
     - lens
+    - lifted-base
     - luna-core
     - luna-passes
     - luna-syntax-text-parser

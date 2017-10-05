@@ -44,6 +44,7 @@ dependencies:
   - deepseq
   - extra
   - filepath
+  - fuzzy-search
   - ghcjs-base
   - ghcjs-prim
   - hashable
@@ -52,9 +53,9 @@ dependencies:
   - luna-syntax-text-lexer
   - matrix
   - mtl
+  - prologue
   - random
   - react-flux
-  - scope-searcher
   - split
   - text
   - time
