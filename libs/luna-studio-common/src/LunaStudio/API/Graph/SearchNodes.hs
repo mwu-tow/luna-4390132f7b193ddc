@@ -9,7 +9,7 @@ import qualified LunaStudio.API.Response       as Response
 import qualified LunaStudio.API.Topic          as T
 import           LunaStudio.Data.GraphLocation (GraphLocation (GraphLocation))
 import           LunaStudio.Data.Node          (ExpressionNode)
-import           LunaStudio.Data.NodeSearcher  (Items, ImportName, ImportsHints)
+import           LunaStudio.Data.NodeSearcher  (ImportName, ImportsHints)
 import           Prologue
 
 

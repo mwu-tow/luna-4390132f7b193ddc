@@ -2,7 +2,6 @@ resolver: lts-8.11
 
 packages:
 - {location: .}
-- {extra-dep: true, location: ../scope-searcher}
 
 - extra-dep: true
   location: {commit: 4d4914483e7f207c94fcadf8f7f2736367165451, git: 'https://github.com/luna/container.git'}

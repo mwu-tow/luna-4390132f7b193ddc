@@ -11,7 +11,6 @@ import           LunaStudio.Data.Graph         (Graph)
 import           LunaStudio.Data.GraphLocation (GraphLocation)
 import           LunaStudio.Data.Node          (ExpressionNode)
 import           LunaStudio.Data.NodeLoc       (NodeLoc)
-import           LunaStudio.Data.NodeSearcher  (Items)
 import           Prologue
 
 

@@ -5,10 +5,13 @@ import           Common.Prelude
 import qualified Data.Map.Lazy                              as Map
 import qualified Data.Text                                  as Text
 import           Data.Text32                                (Text32)
+import qualified Data.UUID.Types                            as UUID
 import qualified Data.Vector.Unboxed                        as Vector
+import           FuzzySearch                                (Entry)
+import qualified FuzzySearch                                as FS
 import           Luna.Syntax.Text.Lexer                     (Bound (Begin, End), Symbol (..), Token)
 import qualified Luna.Syntax.Text.Lexer                     as Lexer
-import           LunaStudio.Data.Node                       (ExpressionNode)
+import           LunaStudio.Data.Node                       (ExpressionNode, mkExprNode)
 import qualified LunaStudio.Data.Node                       as Node
 import           LunaStudio.Data.NodeLoc                    (NodeLoc)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
@@ -16,9 +19,7 @@ import           LunaStudio.Data.PortRef                    (OutPortRef, srcNode
 import           LunaStudio.Data.Position                   (Position)
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Model
-import           Text.ScopeSearcher.Item                    (Item (Element), Items)
-import           Text.ScopeSearcher.QueryResult             (QueryResult)
-import qualified Text.ScopeSearcher.QueryResult             as Result
+import           Prologue                                   (unsafeFromJust)
 
 
 data NewNode = NewNode { _position    :: Position
@@ -42,10 +43,10 @@ data Input = Raw     Text
            | Divided DividedInput
            deriving (Eq, Generic, Show)
 
-data Mode = Command                       [QueryResult ()]
-          | Node     NodeLoc NodeModeInfo [QueryResult ExpressionNode]
-          | NodeName NodeLoc              [QueryResult ExpressionNode]
-          | PortName OutPortRef           [QueryResult ExpressionNode]
+data Mode = Command                       [Entry]
+          | Node     NodeLoc NodeModeInfo [Entry]
+          | NodeName NodeLoc              [Entry]
+          | PortName OutPortRef           [Entry]
           deriving (Eq, Generic, Show)
 
 data Searcher = Searcher
@@ -134,16 +135,17 @@ selectedExpression :: Getter Searcher (Maybe Text)
 selectedExpression = to getExpression where
     getExpression s = let i = s ^. selected in
         if i == 0 then Nothing else case s ^. mode of
-            Command    results -> Result._name <$> results ^? ix (i - 1)
-            Node   _ _ results -> view Node.expression . Result._element <$> results ^? ix (i - 1)
-            NodeName _ results -> view Node.expression . Result._element <$> results ^? ix (i - 1)
-            PortName _ results -> view Node.expression . Result._element <$> results ^? ix (i - 1)
+            Command    results -> view FS.name <$> results ^? ix (i - 1)
+            Node   _ _ results -> view FS.name <$> results ^? ix (i - 1)
+            NodeName _ results -> view FS.name <$> results ^? ix (i - 1)
+            PortName _ results -> view FS.name <$> results ^? ix (i - 1)
 
 selectedNode :: Getter Searcher (Maybe ExpressionNode)
 selectedNode = to getNode where
+    mockNode expr = mkExprNode (unsafeFromJust $ UUID.fromString "094f9784-3f07-40a1-84df-f9cf08679a27") expr def
     getNode s = let i = s ^. selected in
         if i == 0 then Nothing else case s ^. mode of
-            Node _ _ results -> Result._element <$> results ^? ix (i - 1)
+            Node _ _ results -> mockNode . view FS.name <$> results ^? ix (i - 1)
             _                -> Nothing
 
 applyExpressionHint :: ExpressionNode -> Model.ExpressionNode -> Model.ExpressionNode
@@ -161,7 +163,7 @@ resultsLength = to getLength where
         NodeName _ results -> length results
         PortName _ results -> length results
 
-updateNodeResult :: [QueryResult ExpressionNode] -> Mode -> Mode
+updateNodeResult :: [Entry] -> Mode -> Mode
 updateNodeResult r (Node nl nmi _) = Node nl nmi r
 updateNodeResult _ m               = m
 
@@ -169,7 +171,7 @@ updateNodeArgs :: [Text] -> Mode -> Mode
 updateNodeArgs args (Node nl (NodeModeInfo cn nnd _) r) = (Node nl (NodeModeInfo cn nnd args) r)
 updateNodeArgs _ m                                      = m
 
-updateCommandsResult :: [QueryResult ()] -> Mode -> Mode
+updateCommandsResult :: [Entry] -> Mode -> Mode
 updateCommandsResult r (Command _) = Command r
 updateCommandsResult _ m           = m
 
@@ -203,7 +205,7 @@ isSearcherRelated nl s = isPrefixOf nlIdPath sIdPath where
 data OtherCommands = AddNode
                    deriving (Bounded, Enum, Eq, Generic, Read, Show)
 
-allCommands :: Items ()
-allCommands = Map.fromList $ (, Element ()) . convert <$> (commands <> otherCommands) where
+allCommands :: [Text]
+allCommands = convert <$> (commands <> otherCommands) where
     commands = show <$> [(minBound :: Shortcut.Command) ..]
     otherCommands = show <$> [(minBound :: OtherCommands)]

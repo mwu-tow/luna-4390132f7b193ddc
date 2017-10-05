@@ -19,7 +19,7 @@ import           LunaStudio.Data.CameraTransformation        (CameraTransformati
 import           LunaStudio.Data.MonadPath                   (MonadPath)
 import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
-import           LunaStudio.Data.NodeSearcher                (ImportName)
+import           LunaStudio.Data.NodeSearcher                (ImportName, ModuleHints)
 import qualified LunaStudio.Data.NodeSearcher                as NS
 import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType)
 import           LunaStudio.Data.Port                        (_WithDefault)
@@ -52,7 +52,6 @@ import qualified NodeEditor.React.Model.Searcher             as Searcher
 import           NodeEditor.React.Model.Visualization        (NodeVisualizations)
 import qualified NodeEditor.React.Model.Visualization        as Visualization
 import           NodeEditor.State.Global                     (State, nodeSearcherData, preferedVisualizers, visualizers)
-import           Text.ScopeSearcher.Item                     (Items)
 
 
 getNodeEditor :: Command State NodeEditor
@@ -228,10 +227,8 @@ updateMonads update = modifyNodeEditor $ NE.monads .= update
 getNodeMeta :: NodeLoc -> Command State (Maybe NodeMeta)
 getNodeMeta = fmap2 (view ExpressionNode.nodeMeta) . getExpressionNode
 
-
 modifyHalfConnections :: M.State [HalfConnection] r -> Command State r
 modifyHalfConnections = modify (nodeEditor . NE.halfConnections)
-
 
 getSearcher :: Command State (Maybe Searcher)
 getSearcher = view NE.searcher <$> getNodeEditor
@@ -251,7 +248,7 @@ getScreenTransform = view Scene.screenTransform <$> getLayout
 setScreenTransform :: CameraTransformation -> Command State ()
 setScreenTransform camera = modifyNodeEditor $ NE.layout . Scene.screenTransform .= camera
 
-getNodeSearcherData :: Command State (Map ImportName (Items Empire.ExpressionNode))
+getNodeSearcherData :: Command State (Map ImportName ModuleHints)
 getNodeSearcherData = getAvailableImports <$> use nodeSearcherData where
     getAvailableImports nsd = Map.filterWithKey (\k _ -> Set.member k . Set.fromList $ nsd ^. NS.currentImports) $ nsd ^. NS.imports
 
@@ -282,14 +279,14 @@ modifyOutPortsForNode nl action = withJustM (getExpressionNode nl) $ \n -> do
 getPortDefault :: InPortRef -> Command State (Maybe PortDefault)
 getPortDefault portRef = maybe Nothing (\mayPort -> mayPort ^? state . _WithDefault) <$> (NE.getPort portRef <$> getNodeEditor)
 
-getLocalFunctions :: Command State (Items Empire.ExpressionNode)
+getLocalFunctions :: Command State [Text]
 getLocalFunctions = do
     functionsNames  <- Set.toList . Set.fromList . map (view Port.name) . concatMap outPortsList <$> getAllNodes
     searcherMode    <- fmap2 (view Searcher.mode) $ getSearcher
     let lambdaArgsNames = case searcherMode of
             Just (Searcher.Node _ (Searcher.NodeModeInfo _ _ argNames) _) -> argNames
             _                                                             -> []
-    return . Map.fromList . map NS.entry $ (functionsNames <> lambdaArgsNames)
+    return $ functionsNames <> lambdaArgsNames
 
 getVisualizationsBackupMap :: Command State (Map NodeLoc VisualizationBackup)
 getVisualizationsBackupMap = view (NE.visualizationsBackup . NE.backupMap) <$> getNodeEditor

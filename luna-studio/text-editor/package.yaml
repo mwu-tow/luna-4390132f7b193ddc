@@ -47,7 +47,6 @@ dependencies:
   - mtl
   - prologue
   - random
-  - scope-searcher
   - text
   - text-processing
   - time

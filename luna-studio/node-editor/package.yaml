@@ -47,6 +47,7 @@ dependencies:
   - datetime
   - deepseq
   - extra
+  - fuzzy-search
   - ghcjs-base
   - ghcjs-dom
   - ghcjs-prim
@@ -61,7 +62,6 @@ dependencies:
   - random
   - react-flux
   - scientific
-  - scope-searcher
   - split
   - text
   - text-processing
