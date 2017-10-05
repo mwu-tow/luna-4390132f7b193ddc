@@ -108,5 +108,5 @@ main :: IO ()
 main = forever $ do
     line <- getLine
     print line
-    pprint $ take 5 $ processEntries (Text.pack line) $ toEntries mockImports True
+    pprint $ take 5 $ search (Text.pack line) mockImports True
 

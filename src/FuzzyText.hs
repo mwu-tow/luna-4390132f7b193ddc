@@ -1,5 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
-module FuzzyText where
+module FuzzyText
+    ( search
+    , Entry
+    , EntryType
+    , Score
+    , Indices
+    , ClassName
+    , name
+    , entryType
+    , weight
+    , score
+    , match
+    , partialMatch
+    ) where
 
 import           Data.Char
 import qualified Data.List                    as List
@@ -58,6 +71,9 @@ functionWeight    preferMethods = if preferMethods then notPreferedTypeWeight el
 constructorWeight preferMethods = if preferMethods then notPreferedTypeWeight else preferedTypeWeight
 
 
+search :: Query -> Map ImportName ModuleHints -> Bool -> [Entry]
+search q = processEntries q .: toEntries
+
 toEntries :: Map ImportName ModuleHints -> Bool -> [Entry]
 toEntries ih preferMethods = concat . Map.elems $ Map.map moduleHintsToEntries ih where
     moduleHintsToEntries :: ModuleHints -> [Entry]
@@ -89,12 +105,6 @@ processEntries q e = List.sort $ map updateEntry e where
            & partialMatch .~ if matchLength == Text.length q then False else True
     getScoreAndMatch n = (processEntry q (zip (Text.unpack n) [0..]) def (-1)) & _2 %~ List.reverse
 
-appendIndices :: Indices -> [Indices] -> [Indices]
-appendIndices i []    = [i]
-appendIndices i@(newBeg, newEnd) prev@((oldBeg, oldEnd):t) = if oldEnd + 1 == newBeg
-    then (oldBeg, newEnd) : t
-    else i : prev
-
 processEntry :: Query -> [(Char, Int)] -> (Score, [Indices]) -> Int -> (Score, [Indices])
 processEntry q e prevRes@(prevScore, prevMatch) lastCapitalIndex = if Text.null q then (prevScore + 1, prevMatch) else if null e then prevRes else bestMatch e lastCapitalIndex where
     bestMatch :: [(Char, Int)] -> Int -> (Score, [Indices])
@@ -110,6 +120,12 @@ processEntry q e prevRes@(prevScore, prevMatch) lastCapitalIndex = if Text.null 
 
 firstLettersMatch :: Query -> [(Char, Int)] -> Bool
 firstLettersMatch q t = toLower (Text.head q) == toLower (fst $ List.head t)
+
+appendIndices :: Indices -> [Indices] -> [Indices]
+appendIndices i []    = [i]
+appendIndices i@(newBeg, newEnd) prev@((oldBeg, oldEnd):t) = if oldEnd + 1 == newBeg
+    then (oldBeg, newEnd) : t
+    else i : prev
 
 getScore :: Query -> [(Char, Int)] -> (Score, [Indices]) -> Int -> Map Text Bonus -> Score
 getScore q t (s, inds) lastCapIndex bonuses = if Text.null q then s + 1
@@ -135,10 +151,4 @@ calculateBonus q (c, ind) entryMaxInd lastCapIndex (_, inds) bonuses = prefixSeq
     omittedLettersPenalty' = getBonus "omittedLettersPenalty" $ \p -> let end = snd $ List.head inds in
         if null inds then ind * p else (ind - end - 1) * p
     mismatchPenalty' = getBonus "mismatchPenalty" $ \p -> if Text.null q || Text.head q == c then 0 else p
-
-
-
-
-
-
 
