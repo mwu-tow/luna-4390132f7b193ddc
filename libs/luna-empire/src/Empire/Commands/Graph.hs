@@ -1494,9 +1494,11 @@ getImports (GraphLocation file _) imports = do
 setInterpreterState :: Interpreter.Request -> Empire ()
 setInterpreterState (Interpreter.Start loc) = do
     activeInterpreter .= True
+    Publisher.notifyInterpreterUpdate "Interpreter running"
     runInterpreter loc
 setInterpreterState (Interpreter.Pause _) = do
     activeInterpreter .= False
+    Publisher.notifyInterpreterUpdate "Interpreter stopped"
     -- runCleanup
 setInterpreterState (Interpreter.Reload loc) = do
     runInterpreter loc

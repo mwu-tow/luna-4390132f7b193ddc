@@ -15,6 +15,7 @@ import           LunaStudio.Data.Node                       (NodeId, NodeTypeche
 import           LunaStudio.Data.NodeValue                  (NodeValue)
 
 import qualified LunaStudio.API.Atom.Substitute             as Substitute
+import qualified LunaStudio.API.Control.Interpreter         as Interpreter
 import qualified LunaStudio.API.Graph.MonadsUpdate          as Monads
 import qualified LunaStudio.API.Graph.NodeResultUpdate      as NodeResult
 import qualified LunaStudio.API.Graph.NodeTypecheckerUpdate as NodeTCUpdate
@@ -36,6 +37,10 @@ notifyResultUpdate loc nid v t =
 notifyCodeUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => FilePath -> Point -> Point -> Text -> Maybe Point -> m ()
 notifyCodeUpdate path start end code cursor =
     sendUpdate $ CodeUpdate $ Substitute.Update path start end code cursor
+
+notifyInterpreterUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => Text -> m ()
+notifyInterpreterUpdate msg =
+    sendUpdate $ InterpreterUpdate $ Interpreter.Update msg
 
 sendUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => AsyncUpdate -> m ()
 sendUpdate upd = do
