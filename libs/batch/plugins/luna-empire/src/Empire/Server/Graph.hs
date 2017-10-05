@@ -47,6 +47,7 @@ import           Empire.Server.Server                    (defInverse, errorMessa
 import           Luna.Project                            (findProjectFileForFile, getRelativePathForModule)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
+import qualified LunaStudio.API.Control.Interpreter      as Interpreter
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
 import qualified LunaStudio.API.Graph.AddNode            as AddNode
 import qualified LunaStudio.API.Graph.AddPort            as AddPort
@@ -458,6 +459,9 @@ handleGetBuffer = modifyGraph defInverse action replyResult where
         code <- Graph.getBuffer file
         return $ GetBuffer.Result code
 
+handleInterpreterControl :: Request Interpreter.Request -> StateT Env BusT ()
+handleInterpreterControl = modifyGraph defInverse action replyResult where
+    action request = Graph.setInterpreterState request
 
 stdlibFunctions :: [String]
 stdlibFunctions = ["mockFunction"]

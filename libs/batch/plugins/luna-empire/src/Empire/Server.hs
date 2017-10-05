@@ -128,12 +128,12 @@ startTCWorker env = liftIO $ do
     pmState <- Graph.defaultPMState
     let interpreterEnv = Empire.InterpreterEnv def def def Nothing undefined cleanup def
     void $ Empire.runEmpire env interpreterEnv $ forever $ do
-        (loc, g, flush) <- liftIO $ takeMVar reqs
+        Empire.TCRequest loc g flush interpret <- liftIO $ takeMVar reqs
         when flush
             Typecheck.flushCache
         Empire.graph .= (g & Graph.clsAst . Graph.pmState .~ pmState)
         liftIO performGC
-        catchAll (Typecheck.run modules loc) print
+        catchAll (Typecheck.run modules loc interpret) print
 
 startToBusWorker :: TChan Message -> Bus ()
 startToBusWorker toBusChan = forever $ do

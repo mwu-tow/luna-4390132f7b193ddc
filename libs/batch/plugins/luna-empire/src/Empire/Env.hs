@@ -34,7 +34,7 @@ makeLenses ''Env
 
 make :: TChan Message
      -> TChan AsyncUpdate
-     -> MVar (GraphLocation, ClsGraph, Bool)
+     -> MVar Empire.TCRequest
      -> MVar Empire.SymbolMap
      -> MVar CompiledModules
      -> FilePath
