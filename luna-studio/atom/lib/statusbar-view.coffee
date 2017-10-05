@@ -27,11 +27,11 @@ class Statusbar extends View
         @startPauseButton.on 'click', @startPause
         @reloadButton.on 'click', @reload
         @codeEditor.onInterpreterUpdate (update, status) =>
-            if update == 'InterpreterStart'
+            if update == 'Start'
                 @unlockPause()
-            if update == 'InterpreterPause'
+            if update == 'Pause'
                 @unlockStart()
-            else if update == 'InterpreterReload'
+            else if update == 'Reload'
                 @unlockReload()
             else if update = 'Update'
                 @setStatus(status)
