@@ -336,15 +336,15 @@ updateConfig config resolvedApplication =
         filteredConfig = updatedConfig & packages . ix appName . versions . ix (view version appHeader)  %~ Map.filterWithKey (\k _ -> k == currentSysDesc   )
     in filteredConfig
 
-run :: MonadCreatePackage m => MakePackageOpts -> m ()
-run opts = do
+run :: MonadCreatePackage m => MakePackageOpts -> Bool -> Bool -> m ()
+run opts verbose guiInstaller = do
     config <- parseConfig $ convert (opts ^. Opts.cfgPath)
     let cfgFolderPath = parent $ convert (opts ^. Opts.cfgPath)
         appsToPack = config ^. apps
 
     resolved <- mapM (resolvePackageApp config) appsToPack
 
-    mapM_ (createPkg (opts ^. Opts.verbose) cfgFolderPath) resolved
-    repo <- getRepo False
+    mapM_ (createPkg verbose cfgFolderPath) resolved
+    repo <- getRepo guiInstaller
     let updatedConfig = foldl' updateConfig config resolved
     generateConfigYamlWithNewPackage repo updatedConfig $ cfgFolderPath </> "config.yaml"

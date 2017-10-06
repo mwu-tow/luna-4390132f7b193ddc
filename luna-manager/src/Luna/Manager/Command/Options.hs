@@ -23,6 +23,7 @@ data Options = Options
 data GlobalOpts = GlobalOpts
     { _batchMode      :: Bool
     , _guiInstaller   :: Bool
+    , _verbose        :: Bool
     } deriving (Show)
 
 data Command = Install       InstallOpts
@@ -42,7 +43,6 @@ data InstallOpts = InstallOpts
 
 data MakePackageOpts = MakePackageOpts
     { _cfgPath :: Text
-    , _verbose :: Bool
     } deriving (Show)
 
 data SwitchVersionOpts = SwitchVersionOpts
@@ -95,9 +95,9 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsProgram        = Options           <$> optsGlobal <*> hsubparser commands
     optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch" <> help "Do not run interactive mode")
                                            <*> Opts.switch (long "gui" )
+                                           <*> Opts.switch (long "verbose" )
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
-                                           <*> Opts.switch (long "verbose")
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
     optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
     optsDevelop        = Develop           <$> optsDevelop'
