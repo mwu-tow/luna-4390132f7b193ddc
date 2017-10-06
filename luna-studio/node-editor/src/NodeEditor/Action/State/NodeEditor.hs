@@ -373,12 +373,18 @@ resetSuccessors :: NodeLoc -> Command State ()
 resetSuccessors nl = do
     outConnections <- filter (\c -> c ^. srcNodeLoc == nl) <$> getConnections
     let successors = view dstNodeLoc <$> outConnections
-    resetNodePorts nl
-    mapM_ resetSuccessors successors
+    whenM (resetNodePorts nl) $ do
+        mapM_ resetSuccessors successors
 
-resetNodePorts :: NodeLoc -> Command State ()
+resetNodePorts :: NodeLoc -> Command State Bool
 resetNodePorts nl = do
-    modifyExpressionNode nl $ do
+    maySuccess <- modifyExpressionNode nl $ do
         let resetPort = Port.valueType .~ TStar
+        oldInPorts <- use ExpressionNode.inPorts
+        oldOutPorts <- use ExpressionNode.inPorts
         ExpressionNode.inPorts  %= fmap resetPort
         ExpressionNode.outPorts %= fmap resetPort
+        newInPorts <- use ExpressionNode.inPorts
+        newOutPorts <- use ExpressionNode.inPorts
+        return $ First $ Just $ (oldInPorts /= newInPorts) && (oldOutPorts /= newOutPorts)
+    return $ fromMaybe False $ getFirst maySuccess
