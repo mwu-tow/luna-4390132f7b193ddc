@@ -60,7 +60,7 @@ newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.manag
 
 downloadWithProgressBar  :: MonadNetwork m => URIPath -> Bool -> m FilePath
 downloadWithProgressBar address guiInstaller = do
-    liftIO $ putStrLn $ "Downloading: " <> (convert address)
+    unless guiInstaller $ putStrLn $ "Downloading: " <> (convert address)
     tmp <- getTmpPath
     downloadWithProgressBarTo address tmp guiInstaller
 
