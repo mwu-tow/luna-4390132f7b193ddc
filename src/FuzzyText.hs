@@ -6,6 +6,7 @@ module FuzzyText
     , Score
     , Indices
     , ClassName
+    , Query
     , name
     , entryType
     , weight
@@ -23,10 +24,11 @@ import qualified Data.Text                    as Text
 import           Prologue
 
 
-type Score   = Int
-type Indices = (Int, Int)
-type Bonus   = Int
+type Score     = Int
+type Indices   = (Int, Int)
+type Bonus     = Int
 type ClassName = Text
+type Query     = Text
 
 data EntryType = Function | Method ClassName | Constructor ClassName | Command deriving (Show, Eq)
 
@@ -54,8 +56,6 @@ instance Ord Entry where
         else if not (e1 ^. partialMatch) && e2 ^. partialMatch then LT
         else if compareScore /= EQ then compareScore
         else Text.length (e1 ^. name) `compare` Text.length (e2 ^. name)
-
-type Query = Text
 
 bonusMap :: Map Text Bonus
 bonusMap = Map.fromList [wordPrefixBonus, prefixSequenceBonus, sequenceBonus, suffixBonus, omittedLettersPenalty, mismatchPenalty]
