@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module FuzzyText
-    ( search
-    , Entry
-    , EntryType
+    ( fuzzySearch
+    , Entry (..)
+    , EntryType (..)
     , Score
     , Indices
     , ClassName
@@ -12,6 +12,7 @@ module FuzzyText
     , score
     , match
     , partialMatch
+    , className
     ) where
 
 import           Data.Char
@@ -19,8 +20,6 @@ import qualified Data.List                    as List
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import qualified Data.Text                    as Text
-import           LunaStudio.Data.NodeSearcher (ClassHints, ImportName, ModuleHints)
-import qualified LunaStudio.Data.NodeSearcher as NS
 import           Prologue
 
 
@@ -29,7 +28,7 @@ type Indices = (Int, Int)
 type Bonus   = Int
 type ClassName = Text
 
-data EntryType = Function | Method ClassName | Constructor ClassName deriving (Show, Eq)
+data EntryType = Function | Method ClassName | Constructor ClassName | Command deriving (Show, Eq)
 
 data Entry = Entry { _name         :: Text
                    , _entryType    :: EntryType
@@ -40,6 +39,14 @@ data Entry = Entry { _name         :: Text
                    } deriving (Show, Eq)
 
 makeLenses ''Entry
+
+className :: Getter Entry Text
+className = to className' where
+    className' e = case e ^. entryType of
+        Function       -> def
+        Method      cn -> cn
+        Constructor cn -> cn
+        Command        -> def
 
 instance Ord Entry where
     e1 `compare` e2 = let compareScore = (fromIntegral (e2 ^. score) * (e2 ^. weight)) `compare` (fromIntegral (e1 ^. score) * (e1 ^. weight)) in
@@ -61,42 +68,8 @@ suffixBonus           = ("suffixBonus",           4)
 omittedLettersPenalty = ("omittedLettersPenalty", -1)
 mismatchPenalty       = ("mismatchPenalty",       -5)
 
-preferedTypeWeight, notPreferedTypeWeight :: Double
-preferedTypeWeight = 0.6
-notPreferedTypeWeight = 1 - preferedTypeWeight
-
-methodWeight, functionWeight, constructorWeight :: Bool -> Double
-methodWeight      preferMethods = if preferMethods then preferedTypeWeight    else notPreferedTypeWeight
-functionWeight    preferMethods = if preferMethods then notPreferedTypeWeight else preferedTypeWeight
-constructorWeight preferMethods = if preferMethods then notPreferedTypeWeight else preferedTypeWeight
-
-
-search :: Query -> Map ImportName ModuleHints -> Bool -> [Entry]
-search q = processEntries q .: toEntries
-
-toEntries :: Map ImportName ModuleHints -> Bool -> [Entry]
-toEntries ih preferMethods = concat . Map.elems $ Map.map moduleHintsToEntries ih where
-    moduleHintsToEntries :: ModuleHints -> [Entry]
-    moduleHintsToEntries mh = classesToEntries (mh ^. NS.classes) <> functionsToEntries (mh ^. NS.functions)
-    classesToEntries :: Map Text ClassHints -> [Entry]
-    classesToEntries = concat . Map.elems . Map.mapWithKey classToEntries
-    classToEntries :: Text -> ClassHints -> [Entry]
-    classToEntries className c = methodsToEntries className (c ^. NS.methods) <> constructorsToEntries className (c ^. NS.constructors)
-    methodsToEntries :: Text -> [Text] -> [Entry]
-    methodsToEntries className = map (methodToEntry className)
-    methodToEntry :: Text -> Text -> Entry
-    methodToEntry className m = Entry m (Method className) (methodWeight preferMethods) def def True
-    constructorsToEntries :: Text -> [Text] -> [Entry]
-    constructorsToEntries className = map (constructorToEntry className) 
-    constructorToEntry :: Text -> Text -> Entry
-    constructorToEntry className c = Entry c (Constructor className) (constructorWeight preferMethods) def def True
-    functionsToEntries :: [Text] -> [Entry]
-    functionsToEntries = map functionToEntry
-    functionToEntry :: Text -> Entry
-    functionToEntry f = Entry f Function (functionWeight preferMethods) def def True
-
-processEntries :: Query -> [Entry] -> [Entry]
-processEntries q e = List.sort $ map updateEntry e where
+fuzzySearch :: Query -> [Entry] -> [Entry]
+fuzzySearch q e = List.sort $ map updateEntry e where
     updateEntry e' = do
         let (sc, m) = getScoreAndMatch (e' ^. name)
             matchLength = foldl (\s (beg, end) -> s + end - beg + 1) 0 m

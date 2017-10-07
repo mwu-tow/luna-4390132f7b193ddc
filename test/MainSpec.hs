@@ -2,16 +2,14 @@
 module MainSpec (spec) where
 
 import qualified Data.List                    as List
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
 import           FuzzyText
-import           LunaStudio.Data.NodeSearcher (ClassHints, ImportName, ModuleHints (ModuleHints))
 import           Prologue
 import           Test.Hspec
 
 
-makeTestModule :: [Text] -> Map Text ClassHints -> Map ImportName ModuleHints
-makeTestModule = Map.singleton "TestModule" .: ModuleHints
+makeEntries :: [Text] -> [Entry]
+makeEntries = map makeEntry where
+    makeEntry func = Entry func Function 1 def def False
 
 topResultNameShouldBe :: [Entry] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
@@ -26,59 +24,59 @@ spec :: Spec
 spec = do
     describe "scoring function" $ do
         it "match starting with capital is prefered over others" $ do
-            let res = search "bar" (makeTestModule ["fooBar", "optbaru"] def) False
+            let res = fuzzySearch "bar" $ makeEntries ["fooBar", "optbaru"]
             res `topResultNameShouldBe` "fooBar"
         it "match starting with capital have better score" $ do
-            let res = search "bar" (makeTestModule ["fooBar", "optbaru"] def) False
+            let res = fuzzySearch "bar" $ makeEntries ["fooBar", "optbaru"]
             topResultShouldHaveBestScore res
         it "subsequence should be prefered over substring" $ do
-            let res = search "abc" (makeTestModule ["abcdef", "aebdcf"] def) False
+            let res = fuzzySearch "abc" $ makeEntries ["abcdef", "aebdcf"]
             res `topResultNameShouldBe` "abcdef"
         it "subsequence should have better score than substring" $ do
-            let res = search "abc" (makeTestModule ["abcdef", "aebdcf"] def) False
+            let res = fuzzySearch "abc" $ makeEntries ["abcdef", "aebdcf"]
             topResultShouldHaveBestScore res
         it "subsequence at beggining of the word is prefered over other subsequences" $ do
-            let res = search "ele" (makeTestModule ["getElement", "delement"] def) False
+            let res = fuzzySearch "ele" $ makeEntries ["getElement", "delement"]
             res `topResultNameShouldBe` "getElement"
         it "subsequence at beggining of the word should be scored better than other subsequences" $ do
-            let res = search "ele" (makeTestModule ["getElement", "delement"] def) False
+            let res = fuzzySearch "ele" $ makeEntries ["getElement", "delement"]
             topResultShouldHaveBestScore res
         it "subsequence at beggining of the word is prefered over other subsequences" $ do
-            let res = search "abcf" (makeTestModule ["abxcdefx", "aebdcfx"] def) False
+            let res = fuzzySearch "abcf" $ makeEntries ["abxcdefx", "aebdcfx"]
             res `topResultNameShouldBe` "abxcdefx"
         it "subsequence at beggining of the word should be scored better than other subsequences" $ do
-            let res = search "abcf" (makeTestModule ["abxcdefx", "aebdcfx"] def) False
+            let res = fuzzySearch "abcf" $ makeEntries ["abxcdefx", "aebdcfx"]
             topResultShouldHaveBestScore res
         it "last letter match should be prefered when results are similar" $ do
-            let res = search "xxxx" (makeTestModule ["xxaaxx", "xxbbxxb"] def) False
+            let res = fuzzySearch "xxxx" $ makeEntries ["xxaaxx", "xxbbxxb"]
             res `topResultNameShouldBe` "xxaaxx"
         it "last letter match should have better score when results are similar" $ do
-            let res = search "xxxx" (makeTestModule ["xxaaxx", "xxbbxxb"] def) False
+            let res = fuzzySearch "xxxx" $ makeEntries ["xxaaxx", "xxbbxxb"]
             topResultShouldHaveBestScore res
         it "longer subsequence is favored" $ do
-            let res = search "xxxxx" (makeTestModule ["xxaaxxax", "xbbxxxxb"] def) False
+            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaaxxax", "xbbxxxxb"]
             res `topResultNameShouldBe` "xbbxxxxb"
         it "longer subsequence have better score" $ do
-            let res = search "xxxxx" (makeTestModule ["xxaaxxax", "xbbxxxxb"] def) False
+            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaaxxax", "xbbxxxxb"]
             topResultShouldHaveBestScore res
         it "result with less omitted letters is prefered" $ do
-            let res = search "xxxxx" (makeTestModule ["xxaxxxa", "xxbbxxxb"] def) False
+            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaxxxa", "xxbbxxxb"]
             res `topResultNameShouldBe` "xxaxxxa"
         it "omitting letters results with worse score" $ do
-            let res = search "xxxxx" (makeTestModule ["xxaxxxa", "xxbbxxxb"] def) False
+            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaxxxa", "xxbbxxxb"]
             topResultShouldHaveBestScore res
         it "exact match is prefered" $ do
-            let res = search "foobar" (makeTestModule ["fooBar", "foobar"] def) False
+            let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
             res `topResultNameShouldBe` "foobar"
         it "exact match has better score" $ do
-            let res = search "foobar" (makeTestModule ["fooBar", "foobar"] def) False
+            let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
             topResultShouldHaveBestScore res
           
     describe "matched letters" $ do
         it "match should be eager" $ do
-            let res = search "x" (makeTestModule ["xx"] def) False
+            let res = fuzzySearch "x" $ makeEntries ["xx"]
             view match (List.head res) `shouldBe` [(0,0)]
         it "match should be eager" $ do
-            let res = search "xx" (makeTestModule ["xxx"] def) False
+            let res = fuzzySearch "xx" $ makeEntries ["xxx"]
             view match (List.head res) `shouldBe` [(0,1)]
             
