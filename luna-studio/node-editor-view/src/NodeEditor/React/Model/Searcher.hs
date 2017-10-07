@@ -7,14 +7,14 @@ import qualified Data.Text                                  as Text
 import           Data.Text32                                (Text32)
 import qualified Data.UUID.Types                            as UUID
 import qualified Data.Vector.Unboxed                        as Vector
-import           FuzzySearch                                (Entry)
-import qualified FuzzySearch                                as FS
 import           Luna.Syntax.Text.Lexer                     (Bound (Begin, End), Symbol (..), Token)
 import qualified Luna.Syntax.Text.Lexer                     as Lexer
 import           LunaStudio.Data.Node                       (ExpressionNode, mkExprNode)
 import qualified LunaStudio.Data.Node                       as Node
 import           LunaStudio.Data.NodeLoc                    (NodeLoc)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
+import           LunaStudio.Data.NodeSearcher               (Entry)
+import qualified LunaStudio.Data.NodeSearcher               as NS
 import           LunaStudio.Data.PortRef                    (OutPortRef, srcNodeLoc)
 import           LunaStudio.Data.Position                   (Position)
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
@@ -135,17 +135,17 @@ selectedExpression :: Getter Searcher (Maybe Text)
 selectedExpression = to getExpression where
     getExpression s = let i = s ^. selected in
         if i == 0 then Nothing else case s ^. mode of
-            Command    results -> view FS.name <$> results ^? ix (i - 1)
-            Node   _ _ results -> view FS.name <$> results ^? ix (i - 1)
-            NodeName _ results -> view FS.name <$> results ^? ix (i - 1)
-            PortName _ results -> view FS.name <$> results ^? ix (i - 1)
+            Command    results -> view NS.name <$> results ^? ix (i - 1)
+            Node   _ _ results -> view NS.name <$> results ^? ix (i - 1)
+            NodeName _ results -> view NS.name <$> results ^? ix (i - 1)
+            PortName _ results -> view NS.name <$> results ^? ix (i - 1)
 
 selectedNode :: Getter Searcher (Maybe ExpressionNode)
 selectedNode = to getNode where
     mockNode expr = mkExprNode (unsafeFromJust $ UUID.fromString "094f9784-3f07-40a1-84df-f9cf08679a27") expr def
     getNode s = let i = s ^. selected in
         if i == 0 then Nothing else case s ^. mode of
-            Node _ _ results -> mockNode . view FS.name <$> results ^? ix (i - 1)
+            Node _ _ results -> mockNode . view NS.name <$> results ^? ix (i - 1)
             _                -> Nothing
 
 applyExpressionHint :: ExpressionNode -> Model.ExpressionNode -> Model.ExpressionNode

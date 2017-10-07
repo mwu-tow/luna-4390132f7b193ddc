@@ -42,7 +42,6 @@ dependencies:
   - datetime
   - deepseq
   - extra
-  - fuzzy-search
   - filepath
   - ghcjs-base
   - ghcjs-prim

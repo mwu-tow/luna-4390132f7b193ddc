@@ -2,7 +2,6 @@ resolver: lts-8.11
 
 packages:
 - {location: .}
-
 - extra-dep: true
   location: {commit: 4d4914483e7f207c94fcadf8f7f2736367165451, git: 'https://github.com/luna/container.git'}
 - extra-dep: true
@@ -21,6 +20,8 @@ packages:
   location: {commit: 896f4472b64ab23e610db74991de0af3b1ec0e17, git: 'https://github.com/luna/dependent-state.git'}
 - extra-dep: true
   location: {commit: 7a0eb39c82acb212a50c028143458ae7ce93745c, git: 'https://github.com/luna/functor-utils.git'}
+- extra-dep: true
+  location: {commit: 6839f4c9ca179ecf49ed69b6e980fb06174cedd5, git: 'git@github.com:luna/fuzzy-text.git'}
 - extra-dep: true
   location: {commit: 7917cc1d84e421823b6291bb4c5ec065a29e9c42, git: 'https://github.com/luna/hsprocessing.git'}
 - extra-dep: true

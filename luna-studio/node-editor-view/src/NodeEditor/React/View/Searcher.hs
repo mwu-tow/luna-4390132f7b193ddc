@@ -2,9 +2,9 @@
 module NodeEditor.React.View.Searcher where
 
 import           Common.Prelude
-import           FuzzySearch                     (Entry, Indices)
-import qualified FuzzySearch                     as FS
 import           JS.Searcher                     (searcherId)
+import           LunaStudio.Data.NodeSearcher    (Entry, Indices)
+import qualified LunaStudio.Data.NodeSearcher    as NS
 import qualified NodeEditor.Event.Keys           as Keys
 import qualified NodeEditor.Event.UI             as UI
 import qualified NodeEditor.React.Event.App      as App
@@ -94,12 +94,12 @@ results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx,
 
 highlighted_ :: Entry -> ReactElementM ViewEventHandler ()
 highlighted_ result = prefixElem >> highlighted_' 0 highlights where
-    prefix     = convert $ result ^. FS.className
+    prefix     = convert $ result ^. NS.className
     prefixElem = span_ [ "className" $= Style.prefix "searcher__pre"
                        , "key"       $= "searcherPre"]
                        $ elemString $ if prefix == "" then prefix else prefix <> " . "
-    highlights = result ^. FS.match
-    name'      = convert $ result ^. FS.name
+    highlights = result ^. NS.match
+    name'      = convert $ result ^. NS.name
     highlighted_' :: Int -> [Indices] -> ReactElementM ViewEventHandler ()
     highlighted_' omit [] = span_ [ "key" $= "l" ] $ elemString $ snd $ splitAt omit name'
     highlighted_' omit ((start, end):rest) = do

@@ -11,11 +11,10 @@ import           Data.Set                           (Set)
 import qualified Data.Set                           as Set
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
-import           FuzzySearch                        (Entry (Entry), EntryType (Function), TypePreferation (TypePreferation))
-import qualified FuzzySearch                        as FS
 import           LunaStudio.Data.Node               (ExpressionNode)
 import           LunaStudio.Data.NodeSearcher       (currentImports, imports, ImportsHints, ImportName, 
-                                                     missingImports, ModuleHints (ModuleHints))
+                                                     missingImports, ModuleHints (ModuleHints), 
+                                                     Entry (Entry), EntryType (Function), TypePreferation (TypePreferation))
 import qualified LunaStudio.Data.NodeSearcher       as NS
 import           NodeEditor.Action.Batch            (searchNodes)
 import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, modifySearcher)
@@ -57,12 +56,12 @@ localUpdateSearcherHints = do
                             Just q  -> do
                                 let query'     = q ^. Searcher.query
                                     weights    = Just $ getWeights (isFirstQuery q) (searchForMethodsOnly q) nmi query'
-                                    searchRes' = FS.search query' nsData weights
+                                    searchRes' = NS.search query' nsData weights
                                     searchRes  = if query' == "_" then (Entry query' Function 1000000 1000000 [(0, 0)] False) : searchRes' else searchRes' 
-                                takeWhile (not . view FS.partialMatch) searchRes
+                                takeWhile (not . view NS.partialMatch) searchRes
                     (updateNodeResult result m, length result)
                 Searcher.Command {} -> do
-                    let result = maybe [] (\q -> FS.searchCommands (q ^. Searcher.query) allCommands) mayQuery
+                    let result = maybe [] (\q -> NS.searchCommands (q ^. Searcher.query) allCommands) mayQuery
                     (updateCommandsResult result m, length result)
                 _                   -> (m, 0)
         Searcher.selected      .= if selectInput then 0 else min 1 hintsLen

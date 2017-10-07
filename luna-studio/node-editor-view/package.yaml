@@ -44,7 +44,6 @@ dependencies:
   - deepseq
   - extra
   - filepath
-  - fuzzy-search
   - ghcjs-base
   - ghcjs-prim
   - hashable

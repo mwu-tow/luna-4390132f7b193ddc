@@ -25,7 +25,6 @@ packages:
 - {extra-dep: true, location: ./lib}
 - {extra-dep: true, location: ./node-editor-view}
 - {extra-dep: true, location: ../libs/luna-studio-common}
-- {extra-dep: true, location: ../libs/fuzzy-search}
 - extra-dep: true
   location: {commit: 61ff909efd466735cd4820f9ab2c564e324b5546, git: 'git@github.com:luna/container.git'}
 - extra-dep: true
@@ -44,6 +43,8 @@ packages:
   location: {commit: 8c3d63bb78c24fcfadd22efe1a0b8071c4240ff6, git: 'git@github.com:luna/dependent-state.git'}
 - extra-dep: true
   location: {commit: 1c6a4fd165e4b15cad114b0a554e0974fd119223, git: 'git@github.com:luna/functor-utils.git'}
+- extra-dep: true
+  location: {commit: 6839f4c9ca179ecf49ed69b6e980fb06174cedd5, git: 'git@github.com:luna/fuzzy-text.git'}
 - extra-dep: true
   location: {commit: 7917cc1d84e421823b6291bb4c5ec065a29e9c42, git: 'git@github.com:luna/hsprocessing.git'}
 - extra-dep: true

@@ -18,6 +18,7 @@ dependencies:
   - containers
   - convert
   - deepseq
+  - fuzzy-text
   - hashable
   - lens
   - lens-utils
