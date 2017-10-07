@@ -58,7 +58,9 @@ localUpdateSearcherHints = do
                                     weights    = Just $ getWeights (isFirstQuery q) (searchForMethodsOnly q) nmi query'
                                     searchRes' = NS.search query' nsData weights
                                     searchRes  = if query' == "_" then (Entry query' Function 1000000 1000000 [(0, 0)] False) : searchRes' else searchRes' 
-                                takeWhile (not . view NS.partialMatch) searchRes
+                                if Text.strip (q ^. Searcher.prefix) == "def"
+                                    then def
+                                    else takeWhile (not . view NS.partialMatch) searchRes
                     (updateNodeResult result m, length result)
                 Searcher.Command {} -> do
                     let result = maybe [] (\q -> NS.searchCommands (q ^. Searcher.query) allCommands) mayQuery
