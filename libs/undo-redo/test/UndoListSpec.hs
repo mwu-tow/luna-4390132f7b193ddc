@@ -10,7 +10,8 @@ import           Control.Monad.State           (evalStateT, forever)
 import           Data.Binary                   (Binary, encode)
 import qualified Data.List                     as List
 import qualified Data.UUID.V4                  as UUID
-import           Test.Hspec                    (Spec, around, describe, expectationFailure, it, shouldBe, shouldSatisfy)
+import           Test.Hspec                    (Selector, Spec, around, describe, expectationFailure,
+                                                it, shouldBe, shouldThrow, shouldSatisfy)
 
 import qualified ZMQ.Bus.Bus                   as Bus
 import qualified ZMQ.Bus.Config                as Config
@@ -45,6 +46,7 @@ import           LunaStudio.Data.Library       (Library)
 
 import           LunaStudio.API.Request        as Request
 
+import           Handlers                      (ResponseErrorException)
 import           Undo                          (checkGuiId, handleMessage, run', withBus)
 import           UndoState                     (Undo (..), UndoMessage (..), UndoState (..))
 
@@ -74,10 +76,24 @@ spec = describe "Undo-Redo for single user" $ do
             response = Response.Response reqID (Just guiID) (AddNode.Request graphLocation (NodeLoc def nodeId) "3" def Nothing) (Response.Ok ()) (Response.Ok emptyResult)
             topic = "empire.graph.node.add.response"
         (_, state1) <- run' state $ handleMessage $ Message.Message topic $ Compress.pack $ encode response
-        case state1 of UndoState undo redo history -> do
-                                                        undo    `shouldSatisfy` ((== 1) . length)
-                                                        redo    `shouldSatisfy` ((== 0) . length)
-                                                        history `shouldSatisfy` ((== 1) . length)
+        case state1 of
+            UndoState undo redo history -> do
+                undo    `shouldSatisfy` ((== 1) . length)
+                redo    `shouldSatisfy` ((== 0) . length)
+                history `shouldSatisfy` ((== 1) . length)
+    it "adds record to undo list when improper request is coming" $ do
+        graphLocation <- generateGraphLocation
+        reqID <- UUID.nextRandom
+        guiID <- UUID.nextRandom
+        node <- generateNode
+
+        let nodeId = node ^. Node.nodeId
+            response = Response.Response reqID (Just guiID) (AddNode.Request graphLocation (NodeLoc def nodeId) "3" def Nothing) (Response.Ok ()) (Response.Error "error" :: Response.Status ())
+            topic = "empire.graph.node.add.response"
+        let res = run' state (handleMessage (Message.Message topic (Compress.pack (encode response))))
+        let responseException :: Selector ResponseErrorException
+            responseException = const True
+        res `shouldThrow` responseException
     it "compareId check" $ do
         graphLocation <- generateGraphLocation
         reqID <- UUID.nextRandom
@@ -88,9 +104,10 @@ spec = describe "Undo-Redo for single user" $ do
             response = Response.Response reqID (Just guiID) (AddNode.Request graphLocation (NodeLoc def nodeId) "3" def Nothing) (Response.Ok ()) (Response.Ok emptyResult)
             topic    = "empire.graph.node.add.response"
         (_, state1) <- run' state $ handleMessage $ Message.Message topic $ Compress.pack $ encode response
-        case state1 of UndoState undo redo history -> do
-                                                        let msg = unsafeHead undo
-                                                        List.find (checkGuiId guiID) undo `shouldBe` (Just msg)
+        case state1 of
+            UndoState undo redo history -> do
+                let msg = unsafeHead undo
+                List.find (checkGuiId guiID) undo `shouldBe` (Just msg)
 
     it "undo request -> proper message is returned, undo list shorter by 1 and redo list longer" $ do
         graphLocation <- generateGraphLocation

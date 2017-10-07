@@ -1,7 +1,9 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE TypeFamilies              #-}
 
 module Handlers where
 
@@ -98,12 +100,16 @@ type family RedoResponseRequest t where
     RedoResponseRequest SetNodesMeta.Response         = SetNodesMeta.Request
     RedoResponseRequest SetPortDefault.Response       = SetPortDefault.Request
 
-data ResponseErrorException = ResponseErrorException deriving (Show)
+data ResponseErrorException =
+    forall req inv res. (Show req, Show res, Show inv) =>
+        ResponseErrorException (Response req inv res)
+deriving instance Show ResponseErrorException
 instance Exception ResponseErrorException
 
 makeHandler :: forall req inv res. (Topic.MessageTopic (Response req inv res), Binary (Response req inv res),
             Topic.MessageTopic (Request (UndoResponseRequest (Response req inv res))), Binary (UndoResponseRequest (Response req inv res)),
-            Topic.MessageTopic (Request (RedoResponseRequest (Response req inv res))), Binary (RedoResponseRequest (Response req inv res)))
+            Topic.MessageTopic (Request (RedoResponseRequest (Response req inv res))), Binary (RedoResponseRequest (Response req inv res)),
+            Show req, Show inv, Show res)
             => (Response req inv res -> Maybe (UndoRequests (Response req inv res))) -> (String, Handler)
 makeHandler h =
     let process content = let response   = decode content
@@ -111,7 +117,7 @@ makeHandler h =
                               reqUUID    = response ^. Response.requestId
                           in for_ maybeGuiID $ \guiId -> do
                               case h response of
-                                      Nothing     -> throwM ResponseErrorException
+                                      Nothing     -> throwM $ ResponseErrorException response
                                       Just (r, q) -> do
                                           let message = UndoMessage guiId reqUUID (Topic.topic (Request.Request UUID.nil Nothing r)) r (Topic.topic (Request.Request UUID.nil Nothing q)) q
                                           handle message
@@ -133,8 +139,9 @@ getUndoAddNode (AddNode.Request location nodeLoc _ _ _) =
     RemoveNodes.Request location [nodeLoc]
 
 handleAddNodeUndo :: AddNode.Response -> Maybe (RemoveNodes.Request, AddNode.Request)
-handleAddNodeUndo (Response.Response _ _ req _ (Response.Ok _)) =
-    Just (getUndoAddNode req, req)
+handleAddNodeUndo (Response.Response _ _ req _ status) = case status of
+    Response.Ok _ -> Just (getUndoAddNode req, req)
+    _             -> Nothing
 
 
 getUndoAddPort :: AddPort.Request -> RemovePort.Request
@@ -142,7 +149,9 @@ getUndoAddPort (AddPort.Request location portRef connections) =
     RemovePort.Request location portRef
 
 handleAddPortUndo :: AddPort.Response -> Maybe (RemovePort.Request, AddPort.Request)
-handleAddPortUndo (Response.Response _ _ req _ (Response.Ok _)) = Just (getUndoAddPort req, req)
+handleAddPortUndo (Response.Response _ _ req _ status) = case status of
+    Response.Ok _ -> Just (getUndoAddPort req, req)
+    _             -> Nothing
 
 
 getUndoAddSubgraph :: AddSubgraph.Request -> RemoveNodes.Request
@@ -150,8 +159,9 @@ getUndoAddSubgraph (AddSubgraph.Request location nodes conns) =
     RemoveNodes.Request location $ map (convert . view Node.nodeId) nodes
 
 handleAddSubgraphUndo :: AddSubgraph.Response -> Maybe (RemoveNodes.Request, AddSubgraph.Request)
-handleAddSubgraphUndo (Response.Response _ _ req _ (Response.Ok _)) =
-    Just (getUndoAddSubgraph req, req)
+handleAddSubgraphUndo (Response.Response _ _ req _ status) = case status of
+    Response.Ok _ -> Just (getUndoAddSubgraph req, req)
+    _             -> Nothing
 
 
 getUndoAddConnection :: AddConnection.Request -> AddConnection.Inverse -> RemoveConnection.Request
@@ -159,8 +169,9 @@ getUndoAddConnection (AddConnection.Request location _ _) (AddConnection.Inverse
     RemoveConnection.Request location connId
 
 handleAddConnectionUndo :: AddConnection.Response -> Maybe (RemoveConnection.Request, AddConnection.Request)
-handleAddConnectionUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoAddConnection req inv, req)
+handleAddConnectionUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoAddConnection req inv, req)
+    _                                -> Nothing
 
 
 getUndoMovePort :: MovePort.Request -> MovePort.Request
@@ -169,8 +180,9 @@ getUndoMovePort (MovePort.Request location oldPortRef newPos) = case oldPortRef 
         MovePort.Request location (OutPortRef nid $ Projection newPos : rest) i
 
 handleMovePortUndo :: MovePort.Response -> Maybe (MovePort.Request, MovePort.Request)
-handleMovePortUndo (Response.Response _ _ req _ (Response.Ok _)) =
-    Just (getUndoMovePort req, req)
+handleMovePortUndo (Response.Response _ _ req _ status) = case status of
+    Response.Ok _ -> Just (getUndoMovePort req, req)
+    _             -> Nothing
 
 
 getUndoPaste :: Paste.Request -> Result -> RemoveNodes.Request
@@ -178,8 +190,9 @@ getUndoPaste request result = RemoveNodes.Request
     (request ^. Paste.location) (result ^.. Result.graphUpdates . _Right . Graph.nodes . traverse . Node.nodeId . to convert)
 
 handlePasteUndo :: Paste.Response -> Maybe (RemoveNodes.Request, Paste.Request)
-handlePasteUndo (Response.Response _ _ req _ (Response.Ok rsp)) =
-    Just (getUndoPaste req rsp, req)
+handlePasteUndo (Response.Response _ _ req _ status) = case status of
+    Response.Ok rsp -> Just (getUndoPaste req rsp, req)
+    _               -> Nothing
 
 
 getUndoRemoveConnection :: RemoveConnection.Request -> RemoveConnection.Inverse -> AddConnection.Request
@@ -187,8 +200,9 @@ getUndoRemoveConnection (RemoveConnection.Request location dst) (RemoveConnectio
     AddConnection.Request location (Left src) (Left $ InPortRef' dst)
 
 handleRemoveConnectionUndo :: RemoveConnection.Response -> Maybe (AddConnection.Request, RemoveConnection.Request)
-handleRemoveConnectionUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoRemoveConnection req inv, req)
+handleRemoveConnectionUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoRemoveConnection req inv, req)
+    _                                -> Nothing
 
 
 getUndoRemoveNodes :: RemoveNodes.Request -> RemoveNodes.Inverse -> AddSubgraph.Request
@@ -196,8 +210,9 @@ getUndoRemoveNodes (RemoveNodes.Request location _) (RemoveNodes.Inverse nodes c
     AddSubgraph.Request location nodes conns
 
 handleRemoveNodesUndo :: RemoveNodes.Response -> Maybe (AddSubgraph.Request, RemoveNodes.Request)
-handleRemoveNodesUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoRemoveNodes req inv, req)
+handleRemoveNodesUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoRemoveNodes req inv, req)
+    _                                -> Nothing
 
 
 -- TODO[LJK/SB]: Preserve connections
@@ -206,8 +221,9 @@ getUndoRemovePort (RemovePort.Request location portRef) (RemovePort.Inverse conn
     AddPort.Request location portRef $ map (InPortRef' . view Connection.dst) conns
 
 handleRemovePortUndo :: RemovePort.Response -> Maybe (AddPort.Request, RemovePort.Request)
-handleRemovePortUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoRemovePort req inv, req)
+handleRemovePortUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoRemovePort req inv, req)
+    _                                -> Nothing
 
 
 getUndoRenameNode :: RenameNode.Request -> RenameNode.Inverse -> RenameNode.Request
@@ -215,8 +231,9 @@ getUndoRenameNode (RenameNode.Request location nodeId _) (RenameNode.Inverse pre
     RenameNode.Request location nodeId prevName
 
 handleRenameNodeUndo :: RenameNode.Response -> Maybe (RenameNode.Request, RenameNode.Request)
-handleRenameNodeUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoRenameNode req inv, req)
+handleRenameNodeUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoRenameNode req inv, req)
+    _                                -> Nothing
 
 
 getUndoRenamePort :: RenamePort.Request -> RenamePort.Inverse -> RenamePort.Request
@@ -224,8 +241,9 @@ getUndoRenamePort (RenamePort.Request location portRef _) (RenamePort.Inverse pr
     RenamePort.Request location portRef prevName
 
 handleRenamePortUndo :: RenamePort.Response -> Maybe (RenamePort.Request, RenamePort.Request)
-handleRenamePortUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoRenamePort req inv, req)
+handleRenamePortUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoRenamePort req inv, req)
+    _                                -> Nothing
 
 
 getUndoSetNodeExpression :: SetNodeExpression.Request -> SetNodeExpression.Inverse -> SetNodeExpression.Request
@@ -233,8 +251,9 @@ getUndoSetNodeExpression (SetNodeExpression.Request location nodeId _) (SetNodeE
     SetNodeExpression.Request location nodeId prevExpr
 
 handleSetNodeExpressionUndo :: SetNodeExpression.Response -> Maybe ( SetNodeExpression.Request,  SetNodeExpression.Request)
-handleSetNodeExpressionUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoSetNodeExpression req inv, req)
+handleSetNodeExpressionUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoSetNodeExpression req inv, req)
+    _                                -> Nothing
 
 
 getUndoSetNodesMeta :: SetNodesMeta.Request -> SetNodesMeta.Inverse -> SetNodesMeta.Request
@@ -242,8 +261,9 @@ getUndoSetNodesMeta (SetNodesMeta.Request location _) (SetNodesMeta.Inverse prev
     SetNodesMeta.Request location prevMeta
 
 handleSetNodesMetaUndo :: SetNodesMeta.Response -> Maybe (SetNodesMeta.Request, SetNodesMeta.Request)
-handleSetNodesMetaUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoSetNodesMeta req inv, req)
+handleSetNodesMetaUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoSetNodesMeta req inv, req)
+    _                                -> Nothing
 
 
 getUndoSetPortDefault :: SetPortDefault.Request -> SetPortDefault.Inverse -> SetPortDefault.Request
@@ -251,5 +271,6 @@ getUndoSetPortDefault (SetPortDefault.Request location portRef _) (SetPortDefaul
     SetPortDefault.Request location portRef prevPortDefault
 
 handleSetPortDefaultUndo :: SetPortDefault.Response -> Maybe (SetPortDefault.Request, SetPortDefault.Request)
-handleSetPortDefaultUndo (Response.Response _ _ req (Response.Ok inv) (Response.Ok _)) =
-    Just (getUndoSetPortDefault req inv, req)
+handleSetPortDefaultUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of
+    (Response.Ok inv, Response.Ok _) -> Just (getUndoSetPortDefault req inv, req)
+    _                                -> Nothing

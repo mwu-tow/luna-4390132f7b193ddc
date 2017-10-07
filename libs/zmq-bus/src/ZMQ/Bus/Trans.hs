@@ -14,7 +14,7 @@ import           ZMQ.Bus.Bus            (Bus)
 --FIXME[PM] : rename to BusWrapper
 -- and implement as: newtype BusT a = BusT { runBusT :: Bus a} deriving (Monad, MonadIO)
 -- and in other file
-newtype BusT a = BusT { runBusT :: Bus a}
+newtype BusT a = BusT { runBusT :: Bus a }
 
 instance Functor BusT where
     fmap f (BusT a) = BusT $ f <$> a
@@ -31,4 +31,7 @@ instance MonadIO BusT where
     liftIO a = BusT $ liftIO a
 
 instance MonadThrow BusT where
-    throwM e = BusT $ lift $ lift $ throwM e 
+    throwM e = BusT $ lift $ lift $ throwM e
+
+instance MonadCatch BusT where
+    catch (BusT m) h = BusT $ m `catch` \e -> runBusT (h e)

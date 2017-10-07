@@ -32,6 +32,8 @@ import qualified ZMQ.Bus.Data.MessageFrame as MessageFrame
 import           ZMQ.Bus.EndPoint          (BusEndPoints)
 import qualified ZMQ.Bus.Trans             as Bus
 
+import qualified System.IO as IO
+
 
 topic :: Topic
 topic = "empire."
@@ -39,13 +41,16 @@ topic = "empire."
 withBus :: forall a. UndoPure a -> Undo a
 withBus action = Undo $ StateT $ liftIO . runStateT (runUndo action)
 
+print' :: (MonadIO m, Show a) => a -> m ()
+print' a = liftIO $ print a >> IO.hFlush IO.stdout
 
 run :: BusEndPoints -> IO (Either Bus.Error ((), UndoState))
 run endPoints = do
     let state = UndoState [] [] []
     Bus.runBus endPoints $ do
             Bus.subscribe topic
-            Bus.runBusT $ runStateT (runUndo $ forever receiveAndHandleMessage) state
+            let runner = forever $ receiveAndHandleMessage `catchAll` print'
+            Bus.runBusT $ runStateT (runUndo runner) state
 
 run' :: UndoState -> UndoPure a -> IO (a, UndoState)
 run' state undo' = runStateT (runUndo undo') state

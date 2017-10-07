@@ -27,15 +27,6 @@ instance Show UndoMessage where
     show (UndoMessage guiID reqID topic1 _ topic2 _) =
         "UndoMessage " <> show guiID <> " " <> show reqID <> " " <> show topic1 <> " " <> show topic2
 
--- FIXME[WD]: nie uzywajmy NIGDY exystencjali
--- FIXME[WD]: uzywajmy lensow
--- data UndoMessage = forall undoReq redoReq. (Binary undoReq, Binary redoReq) => UndoMessage GuiID Topic.Topic undoReq Topic.Topic redoReq UndoMessage
---
--- data UndoMessage = UndoMessage GuiID Topic.Topic UndoReq Topic.Topic RedoReq UndoMessage
--- newtype UndoReq = UndoReq ByteString
--- newtype RedoReq = RedoReq ByteString
---
-
 
 data UndoState = UndoState { _undo    :: [UndoMessage]
                            , _redo    :: [UndoMessage]
@@ -44,7 +35,7 @@ data UndoState = UndoState { _undo    :: [UndoMessage]
 makeLenses ''UndoState
 
 newtype UndoT b a = Undo {runUndo :: StateT UndoState b a}
-    deriving (Applicative, Functor, Monad, MonadState UndoState, MonadIO, MonadThrow, MonadTrans)
+    deriving (Applicative, Functor, Monad, MonadState UndoState, MonadIO, MonadThrow, MonadTrans, MonadCatch)
 
 type Undo = UndoT Bus.BusT
 type UndoPure = UndoT IO
