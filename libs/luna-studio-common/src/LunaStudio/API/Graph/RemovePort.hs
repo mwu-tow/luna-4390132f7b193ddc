@@ -17,7 +17,8 @@ data Request = Request { _location :: GraphLocation
                        , _portRef  :: OutPortRef
                        } deriving (Eq, Generic, Show)
 
-data Inverse = Inverse { _connections :: [Connection]
+data Inverse = Inverse { _prevName    :: Text
+                       , _connections :: [Connection]
                        } deriving (Eq, Generic, Show)
 
 makeLenses ''Request

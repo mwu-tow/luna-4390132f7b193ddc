@@ -180,7 +180,7 @@ saveSettings gl settings = do
     bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
     let filePath = gl ^. GraphLocation.filePath
     mayProjectPathAndRelModulePath <- liftIO $ getProjectPathAndRelativeModulePath filePath
-    withJust mayProjectPathAndRelModulePath $ \(pf, mf) -> 
+    withJust mayProjectPathAndRelModulePath $ \(pf, mf) ->
         liftIO $ Project.updateLocationSettings pf mf bc settings
 
 
@@ -240,8 +240,8 @@ handleAddNode = modifyGraph defInverse action replyResult where
 
 handleAddPort :: Request AddPort.Request -> StateT Env BusT ()
 handleAddPort = modifyGraph defInverse action replyResult where
-    action (AddPort.Request location portRef connsDst) = withDefaultResult location $
-        Graph.addPortWithConnections location portRef connsDst
+    action (AddPort.Request location portRef connsDst name) = withDefaultResult location $
+        Graph.addPortWithConnections location portRef name connsDst
 
 handleAddSubgraph :: Request AddSubgraph.Request -> StateT Env BusT ()
 handleAddSubgraph = modifyGraph defInverse action replyResult where
@@ -340,9 +340,10 @@ instance Exception SidebarDoesNotExistException where
 handleRemovePort :: Request RemovePort.Request -> StateT Env BusT ()
 handleRemovePort = modifyGraph inverse action replyResult where
     inverse (RemovePort.Request location portRef) = do
-        Graph allNodes allConnections _ _ monads <- Graph.withGraph location $ runASTOp buildGraph
-        let conns = flip filter allConnections $ (== portRef) . fst
-        return $ RemovePort.Inverse $ map (uncurry Connection) conns
+        connections <- Graph.withGraph location $ runASTOp buildConnections
+        oldName     <- Graph.getPortName location portRef
+        let conns = flip filter connections $ (== portRef) . fst
+        return $ RemovePort.Inverse oldName $ map (uncurry Connection) conns
     action (RemovePort.Request location portRef) = withDefaultResult location $ do
         maySidebar <- view GraphAPI.inputSidebar <$> Graph.getGraph location
         when (isNothing maySidebar) $ throwM SidebarDoesNotExistException
@@ -459,7 +460,7 @@ handleSubstitute = modifyGraph defInverse action replyResult where
         return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then def else return newImports
 
 
-            
+
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()
 handleGetBuffer = modifyGraph defInverse action replyResult where
