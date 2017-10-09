@@ -3,18 +3,24 @@
 @background:            #171615;
 @searcher-bg:           #000;
 
+@button-color:       inherit;
+@button-bg:          @tile-bg;       //darken(orange,10%);
+@button-bg-hover:    @tile-bg-hover; //lighten(@button-bg, 10%);
+
 @passive:               lighten(@background,24%);
 
 @input-height:          2*@grid;
-@border-radius:         @grid;
-@border-radius-buttons: @border-radius;
+@border-radius:         1*@grid;
+@border-radius-tile:    1*@grid;
+@border-radius-buttons: 1*@grid;
+
 
 @tile-size:             11*@grid;
 @tile-bg:               rgba(255,255,255,0.08);
 @tile-bg-hover:         rgba(255,255,255,0.12);
 
 @caption-height:        @grid*2;
-@width:                 40*@grid;
+@width:                 52.5*@grid;
 @padding:               2*@grid;
 
 .hide-scrollbar() {
@@ -59,6 +65,7 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 }
 
 .luna-welcome__title {
+	display:       none; // TODO: Decide on that
 	font-weight:   100 !important;
 	font-size:     2*@grid !important;
 	line-height:   1;
@@ -88,27 +95,30 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 
 .luna-welcome-link {
 	@a: 2px;
-	@b: @tile-bg;
-	@c: @tile-bg-hover;
+	@b: @button-bg;
+	@c: @button-bg-hover;
 
-	background:    @b;
-	line-height:   @input-height - @a;
-	border-bottom: @a solid transparent;
-	display:       block;
-	width:         5.438*@grid;
+	color:           @button-color;
+	background:      @b;
+	line-height:     @input-height - @a;
+	border-bottom:   @a solid transparent;
+	display:         block;
+	width:           5.438*@grid;
 	text-decoration: none !important;
 	&:hover {
 		background: @c;
+		color:      @button-color;
 	}
 }
 
 .luna-welcome-search {
-	border-radius:    @border-radius-buttons;
-
+	border-radius:       @border-radius-buttons;
 	background-color:    @searcher-bg;
-	background-image:    url("atom://luna-studio/rsc/folder.svg");
-	background-repeat: no-repeat;
-	background-position: top right;
+	background-image:    url("atom://luna-studio/rsc/zoom.svg");
+	background-repeat:   no-repeat;
+	background-position: right;
+	background-size:     10% 50%;
+
 
 	height:        @input-height;
 	border-bottom: 2px solid @searcher-bg;
@@ -133,6 +143,19 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	align-content:   flex-start;
 }
 
+.luna-welcome__section__title {
+	color:          @passive;
+	font-size:      1.2em !important;
+	padding-bottom: 1.5*@grid;
+	opacity:        0.6;
+
+	&::before {
+		opacity:  0.9;
+		position: relative;
+		top:      1px;
+	}
+}
+
 .luna-welcome__tile {
 	width:         @tile-size !important;
 	height:        @tile-size + @caption-height;
@@ -142,7 +165,7 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	cursor:        pointer;
 	.luna-project-logo,
 	&::before {
-			border-radius: @border-radius;
+			border-radius: @border-radius-tile;
 			overflow-y:    hidden;
 		}
 	&:hover {
@@ -170,23 +193,11 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	img { display: none }
 }
 
-.luna-welcome__section__title {
-	color:       @passive;
-	font-size:   1em !important;
-	padding-bottom: 1.5*@grid;
-
-	&::before {
-		opacity:  0.9;
-		position: relative;
-		top: 1px;
-	}
-}
-
 .luna-project-logo {
-	background:    @tile-bg;
-	overflow:      hidden;
-	width:         @tile-size;
-	height:        @tile-size;
+	background: @tile-bg;
+	overflow:   hidden;
+	width:      @tile-size;
+	height:     @tile-size;
 
 }
 .luna-project-caption {
