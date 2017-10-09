@@ -113,9 +113,10 @@ specifyCodeChange initialCode expectedCode act env = do
             ids      <- runASTOp $ forM markers $ \i -> (i,) <$> Graph.getNodeIdForMarker i
             toplevel <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
             return (ids, toplevel)
-        forM nodeIds $ \(i, Just nodeId) ->
-            when (elem nodeId toplevel) $
-                Graph.setNodeMeta loc' nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
+        forM nodeIds $ \(i, nodeIdMay) ->
+            forM nodeIdMay $ \nodeId -> do
+                when (elem nodeId toplevel) $
+                    Graph.setNodeMeta loc' nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
         act loc'
         Graph.getCode loc'
     Text.strip actualCode `shouldBe` normalize expectedCode
@@ -1863,3 +1864,39 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [(outRef, inRef)] <- Graph.getConnections loc
                 Graph.disconnect loc inRef
+        it "connects pattern-matched variable from list to output" $ let
+            initialCode = [r|
+                def main:
+                    «0»list1 = [1,2,3]
+                    «1»[a,b,c] = list1
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    list1 = [1,2,3]
+                    [a,b,c] = list1
+                    a
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                nodes <- Graph.getNodes loc
+                let Just match = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "[a, b, c]") nodes
+                (_, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.connect loc (outPortRef match [Port.Projection 0]) (InPortRef' $ inPortRef output [])
+        it "connects pattern-matched variable from tuple to output" $ let
+            initialCode = [r|
+                def main:
+                    «0»list1 = (1,2,3)
+                    «1»(a,b,c) = list1
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    list1 = (1,2,3)
+                    (a,b,c) = list1
+                    a
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                nodes <- Graph.getNodes loc
+                let Just match = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "(a, b, c)") nodes
+                (_, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.connect loc (outPortRef match [Port.Projection 0]) (InPortRef' $ inPortRef output [])

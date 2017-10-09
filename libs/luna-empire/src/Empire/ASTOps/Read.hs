@@ -75,9 +75,9 @@ getLambdaInputForPort (Projection i : rest) lam = cutThroughGroups lam >>= flip 
 getOutputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
 getOutputForPort []                    ref = cutThroughGroups ref
 getOutputForPort (Projection i : rest) ref = cutThroughGroups ref >>= flip match `id` \case
-    Cons _ as -> case as ^? ix i of
-        Just s  -> getOutputForPort rest =<< IR.source s
-        Nothing -> throwM PortDoesNotExistException
+    Cons _ as     | Just s <- as ^? ix i   -> getOutputForPort rest =<< IR.source s
+    IR.List args  | Just s <- args ^? ix i -> getOutputForPort rest =<< IR.source s
+    IR.Tuple args | Just s <- args ^? ix i -> getOutputForPort rest =<< IR.source s
     _ -> throwM PortDoesNotExistException
 
 isGraphNode :: GraphOp m => NodeRef -> m Bool
