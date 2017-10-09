@@ -55,7 +55,7 @@ instance Ord Entry where
         if e1 ^. exactMatch && not (e2 ^. exactMatch) then LT
         else if not (e1 ^. exactMatch) && e2 ^. exactMatch then GT
         else if compareScore /= EQ then compareScore
-        else Text.length (e1 ^. name) `compare` Text.length (e2 ^. name)
+        else (e1 ^. name) `compare` (e2 ^. name)
 
 bonusMap :: Map Text Bonus
 bonusMap = Map.fromList [wordPrefixBonus, prefixSequenceBonus, sequenceBonus, suffixBonus, omittedLettersPenalty, mismatchPenalty]
