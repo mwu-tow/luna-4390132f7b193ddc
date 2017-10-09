@@ -6,13 +6,28 @@ SubAtom = require 'sub-atom'
 Spinner = require './spinner'
 projects = require './projects'
 
+TextBuffer::setModified = (@modified) ->
+
+TextBuffer::isModified = ->
+    if @modified?
+        return @modified
+    if @file?
+        not @file.existsSync() or @buffer.isModified()
+    else
+        @buffer.getLength() > 0
+
+TextBuffer::isInConflict = ->
+    if @modified?
+        return false
+    @isModified() and @fileHasChangedSinceLastLoad
+
 TextBuffer::subscribeToFileOverride = (codeEditor) ->
     @fileSubscriptions?.dispose()
     @fileSubscriptions = new CompositeDisposable
 
     @fileSubscriptions.add @file.onDidChange =>
-        @conflict = true if @isModified()
-        console.log "FileChanged"
+        @setModified(false)
+        # @conflict = true if @isModified()
         codeEditor.pushInternalEvent(tag: "FileChanged", _path: @getPath())
       #   previousContents = @cachedDiskContents
       #
@@ -49,6 +64,7 @@ module.exports =
 
         constructor: (@uri, @codeEditor) ->
             super
+            @setModified(false)
             @diffToOmit = new Set()
             @getBuffer().setPath(@uri)
             @setPlaceholderText 'Please wait'
@@ -66,6 +82,7 @@ module.exports =
                     if @diffToOmit.has(change.newText)
                         @diffToOmit.delete(change.newText)
                     else
+                        @setModified(true)
                         diff =
                             start: change.oldRange.start
                             end:   change.oldRange.end
@@ -120,6 +137,7 @@ module.exports =
             @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
 
         handleSave: (e) =>
+            @setModified(false)
             e.preventDefault()
             e.stopImmediatePropagation()
             @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
@@ -148,6 +166,10 @@ module.exports =
                 @omitDiff(text)
                 @getBuffer().setText(text)
                 console.log "setBuffer"
+
+        setModified: (modified) =>
+            @getBuffer().setModified(modified)
+            @getBuffer().emitter.emit 'did-change-modified', modified
 
         omitDiff: (text) =>
             @diffToOmit.add(text)
