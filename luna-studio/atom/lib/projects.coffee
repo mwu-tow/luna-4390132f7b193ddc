@@ -48,7 +48,10 @@ createTemporary = (callback) =>
                 mainPath = path.join srcPath, temporaryProject.mainFile
                 fs.writeFile mainPath, temporaryProject.mainContent, (err) =>
                     if err then throw err
-                    callback()
+                    projectPath = path.join temporaryProject.path, '.lunaproject'
+                    fs.writeFile projectPath, '', (err) =>
+                        if err then throw err
+                        callback()
 
 closeAllFiles = ->
     for pane in atom.workspace.getPanes()
