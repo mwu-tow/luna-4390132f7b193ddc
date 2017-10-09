@@ -21,3 +21,29 @@ TODO: GHC reqs
   * Your luna-studio build environment `$LUNA_STUDIO_DEV` is a `git` repository and you can use it just as a regular source code repository.
   * If you use `git clean -x` git will remove the `$LUNA_STUDIO_DEV/dist` directory content, which contains dependencies needed for building `luna-studio`, which were downloaded there by `luna-manager`. To setup them again again call `luna-manager develop luna-studio --path $LUNA_STUDIO_DEV --download-dependencies`.
   
+## Common problems and fixes
+  * If this problem occurs during build:
+    ```text
+    Initializing APM in: PATH_TO_LUNA_STUDIO/dist/user-config/atom/packages/luna-studio
+    Traceback (most recent call last):
+      File "./build", line 66, in <module>
+        main()
+      File "./build", line 64, in main
+        else: build_app (args.stack_backend_args, args.stack_frontend_args, args.stack_runner_args, not args.release)
+      File "./build", line 21, in build_app
+        atom_apm.run(dev_mode) # RENAME: LunaStudioInstallInAtom ?
+      File "PATH_TO_LUNA_STUDIO/scripts_build/atom_apm.py", line 162, in run
+        init_apm(link)
+      File "PATH_TO_LUNA_STUDIO/scripts_build/atom_apm.py", line 124, in init_apm
+        output = run_apm('install', '.')
+      File "PATH_TO_LUNA_STUDIO/scripts_build/atom_apm.py", line 87, in run_apm
+        return run_process(apm_path, command, *args)
+      File "PATH_TO_LUNA_STUDIO/scripts_build/atom_apm.py", line 75, in run_process
+        proc = subprocess.Popen(pargs, stdout=subprocess.PIPE)
+      File "/usr/local/Cellar/python3/3.6.1/Frameworks/Python.framework/Versions/3.6/lib/python3.6/subprocess.py", line 707, in __init__
+        restore_signals, start_new_session)
+      File "/usr/local/Cellar/python3/3.6.1/Frameworks/Python.framework/Versions/3.6/lib/python3.6/subprocess.py", line 1326, in _execute_child
+        raise child_exception_type(errno_num, err_msg)
+    FileNotFoundError: [Errno 2] No such file or directory: 'PATH_TO_LUNA_STUDIO/dist/third-party/Atom.app/Contents/Resources/app/apm/bin/apm'
+    ```
+    Please do: `luna-manager develop luna-studio --path $LUNA_STUDIO_DEV --download-dependencies`.
