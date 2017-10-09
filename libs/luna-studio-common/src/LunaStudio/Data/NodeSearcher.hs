@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module LunaStudio.Data.NodeSearcher 
+module LunaStudio.Data.NodeSearcher
     ( module LunaStudio.Data.NodeSearcher
     , Entry (..)
     , EntryType (..)
@@ -12,21 +12,21 @@ module LunaStudio.Data.NodeSearcher
     , weight
     , score
     , match
-    , partialMatch
+    , exactMatch
     , className
     ) where
 
-import           Data.Aeson.Types        (ToJSON)
-import           Data.Binary             (Binary)
-import           Data.Map                (Map)
-import qualified Data.Map                as Map
-import           Data.Set                (Set)
-import qualified Data.Set                as Set
-import           Data.Text               (Text)
-import           FuzzyText               (fuzzySearch, Entry (..), EntryType (..), ClassName, Indices
-                                         , Query, Score, name, entryType, weight, score, match
-                                         , partialMatch, className)
-import           Prologue                hiding (Item)
+import           Data.Aeson.Types (ToJSON)
+import           Data.Binary      (Binary)
+import           Data.Map         (Map)
+import qualified Data.Map         as Map
+import           Data.Set         (Set)
+import qualified Data.Set         as Set
+import           Data.Text        (Text)
+import           FuzzyText        (ClassName, Entry (..), EntryType (..), Indices, Query, Score, className, entryType, exactMatch,
+                                   fuzzySearch, match, name, score, weight)
+import           Prologue         hiding (Item)
+
 
 data ClassHints = ClassHints { _constructors :: [Text]
                              , _methods      :: [Text]
@@ -93,7 +93,7 @@ toEntries ih tPref = concat . Map.elems $ Map.mapWithKey moduleHintsToEntries ih
     methodToEntry :: ImportName -> ClassName -> Text -> Entry
     methodToEntry impName cName m = let et = Method cName in Entry m et (getWeight impName cName et) def def True
     constructorsToEntries :: ImportName -> ClassName -> [Text] -> [Entry]
-    constructorsToEntries impName cName = map (constructorToEntry impName cName) 
+    constructorsToEntries impName cName = map (constructorToEntry impName cName)
     constructorToEntry :: ImportName -> ClassName -> Text -> Entry
     constructorToEntry impName cName c = let et = Constructor cName in Entry c et (getWeight impName cName et) def def True
     functionsToEntries :: ImportName -> [Text] -> [Entry]

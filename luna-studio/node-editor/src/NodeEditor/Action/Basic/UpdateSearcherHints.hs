@@ -12,13 +12,13 @@ import qualified Data.Set                           as Set
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
 import           LunaStudio.Data.Node               (ExpressionNode)
-import           LunaStudio.Data.NodeSearcher       (currentImports, imports, ImportsHints, ImportName, 
-                                                     missingImports, ModuleHints (ModuleHints), 
-                                                     Entry (Entry), EntryType (Function), TypePreferation (TypePreferation))
+import           LunaStudio.Data.NodeSearcher       (Entry (Entry), EntryType (Function), ImportName, ImportsHints,
+                                                     ModuleHints (ModuleHints), TypePreferation (TypePreferation), currentImports, imports,
+                                                     missingImports)
 import qualified LunaStudio.Data.NodeSearcher       as NS
 import           NodeEditor.Action.Batch            (searchNodes)
 import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, modifySearcher)
-import           NodeEditor.React.Model.Searcher    (allCommands, className, updateCommandsResult, updateNodeResult, NodeModeInfo)
+import           NodeEditor.React.Model.Searcher    (NodeModeInfo, allCommands, className, updateCommandsResult, updateNodeResult)
 import qualified NodeEditor.React.Model.Searcher    as Searcher
 import           NodeEditor.State.Global            (State, nodeSearcherData)
 
@@ -57,10 +57,10 @@ localUpdateSearcherHints = do
                                 let query'     = q ^. Searcher.query
                                     weights    = Just $ getWeights (isFirstQuery q) (searchForMethodsOnly q) nmi query'
                                     searchRes' = NS.search query' nsData weights
-                                    searchRes  = if query' == "_" then (Entry query' Function 1000000 1000000 [(0, 0)] False) : searchRes' else searchRes' 
+                                    searchRes  = if query' == "_" then (Entry query' Function 1000000 1000000 [(0, 0)] False) : searchRes' else searchRes'
                                 if Text.strip (q ^. Searcher.prefix) == "def"
                                     then def
-                                    else takeWhile (not . view NS.partialMatch) searchRes
+                                    else takeWhile (view NS.exactMatch) searchRes
                     (updateNodeResult result m, length result)
                 Searcher.Command {} -> do
                     let result = maybe [] (\q -> NS.searchCommands (q ^. Searcher.query) allCommands) mayQuery
