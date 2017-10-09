@@ -32,6 +32,10 @@ spec = around withChannels $ parallel $ do
             u1 <- mkUUID
             res <- evalEmp env $ Graph.addNode top u1 "123" def
             withResult res $ \s' -> s' ^. Node.expression `shouldBe` "123"
+        it "parses scientific notation with uppercase E" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ Graph.addNode top u1 "123E3" def
+            withResult res $ \s' -> s' ^. Node.code `shouldBe` "123E3"
         it "parses \"foo\"" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ Graph.addNode top u1 "\"foo\"" def

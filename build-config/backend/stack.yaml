@@ -34,7 +34,7 @@ packages:
 - {location: ../../tools/batch/plugins/luna-empire}
 - {location: ../../tools/batch/plugins/request-monitor}
 - extra-dep: true
-  location: {commit: 1e4a40929aef24f0a5e06b536a0565adbf8d67eb, git: 'git@github.com:luna/luna.git'}
+  location: {commit: bc62b9831254c44554836307f9eb806c0c719a8d, git: 'git@github.com:luna/luna.git'}
   subdirs: [core, passes, syntax/text/parser, syntax/text/lexer, stdlib, project]
 - extra-dep: true
   location: {commit: 61ff909efd466735cd4820f9ab2c564e324b5546, git: 'git@github.com:luna/container.git'}
@@ -70,8 +70,6 @@ packages:
   location: {commit: f4292663aea639c17f66ba3d67e09c79ebf62982, git: 'git@github.com:luna/type-cache.git'}
 - extra-dep: true
   location: {commit: 107db9368e95e192d70c0dec274ecfe3592101d2, git: 'git@github.com:luna/typelevel.git'}
-- extra-dep: true
-  location: {commit: a6afda3b96efe00938aba61ac12a2f5f2134ff3d, git: 'git@github.com:luna/data-construction.git'}
 - extra-dep: true
   location: {commit: b5f02ced2912501d923c07950789fbcf44a6a9ce, git: 'git@github.com:luna/data-prop.git'}
 - extra-dep: true
