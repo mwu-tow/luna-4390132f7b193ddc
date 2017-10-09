@@ -119,13 +119,13 @@ class LunaWelcomeTab extends View
     getFilterKey: ->
         return 'name'
 
-    attach: (@mode) ->
+    attach: (@mode) =>
         @panel ?= atom.workspace.addModalPanel({item: this, visible: false})
         @previouslyFocusedElement = document.activeElement
         @panel.show()
         @searchInput.focus()
 
-    detach: ->
+    detach: =>
         if @panel.isVisible and @panel.isVisible()
             @searchInput[0].value = ''
             @hideSearchResults()
