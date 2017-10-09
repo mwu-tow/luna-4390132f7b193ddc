@@ -92,3 +92,4 @@ supervisor/tmp/*
 **/.stack-work
 supervisord.log
 workspace
+scripts
