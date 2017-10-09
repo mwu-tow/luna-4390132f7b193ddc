@@ -11,10 +11,12 @@ TextBuffer::setModified = (@modified) ->
 TextBuffer::isModified = ->
     if @modified?
         return @modified
-    if @file?
-        not @file.existsSync() or @buffer.isModified()
-    else
-        @buffer.getLength() > 0
+    if @file # This is implementation for version 1.18
+        return false unless @loaded
+
+        if @file.existsSync()
+            return @getText() isnt @cachedDiskContents
+    not @isEmpty()
 
 TextBuffer::isInConflict = ->
     if @modified?
