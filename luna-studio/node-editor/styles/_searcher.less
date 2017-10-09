@@ -18,7 +18,7 @@
 }
 .luna-studio-window--has-searcher {
     .luna-studio-window__center {
-        z-index: @luna-zindex-searcher;
+        //z-index: @luna-zindex-searcher;
     }
 }
 
@@ -42,6 +42,7 @@
         border:     calc(@ui ~'*' 2px) solid @luna-graph-background-color;
         top:        calc(@ui ~'*' -7px);
         position:   relative;
+
         // .graphBackground;
         // height:        14px;
         // line-height:   14px;
@@ -56,17 +57,18 @@
 
 .luna-searcher__input,
 .luna-node__name--input {
-    background:    transparent;
-    border-radius: @borderRadius;
-    color:         @luna-syntax-text-color;
-    font-family:   @fontDefault;
-    font-size:     calc(@ui ~'*' 12px);
-    font-weight:   300;
-    height:        calc(@ui ~'*' 24px);
-    line-height:   calc(@ui ~'*' 24px);
-    overflow:      inherit;
-    text-align:    center;
-    transform:     translateX(-50%);
+    background:     transparent;
+    border-radius:  @borderRadius;
+    color:          @luna-syntax-text-color;
+    font-family:    @fontDefault;
+    font-size:      calc(@ui ~'*' 12px);
+    font-weight:    300;
+    height:         calc(@ui ~'*' 24px);
+    line-height:    calc(@ui ~'*' 24px);
+    letter-spacing: 0.5px; // Matching Atom styles. TODO: Apply to the whole graph?
+    overflow:       inherit;
+    text-align:     center;
+    transform:      translateX(-50%);
     &:focus {
         outline: 0;
     }

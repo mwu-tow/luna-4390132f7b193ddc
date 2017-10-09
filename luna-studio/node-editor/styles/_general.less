@@ -94,7 +94,7 @@ atom-workspace .luna-studio {
 /////////////////////////////
 
 .luna-breadcrumbs {
-    .background(1);
+    background:    @luna-breadcrumbs-bg;
     font-size:     calc(@ui ~'*' 10px);
     position:      absolute;
     top:           calc(@ui ~'*' 8px);
@@ -105,8 +105,17 @@ atom-workspace .luna-studio {
     border-radius: 0 1000px 1000px 0;
     z-index:       @luna-zindex-breadcrumbs;
 }
+.pane.active {
+    .luna-breadcrumbs {
+        background: @luna-breadcrumbs-bg-active;
+    }
+    .luna-breadcrumbs__item {
+        opacity: 1;
+    }
+}
 
 .luna-breadcrumbs__item {
+    opacity: 0.5;
     float:   left;
     padding: calc(@ui ~'*' 4px);
     cursor:  pointer;
