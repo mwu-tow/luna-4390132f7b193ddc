@@ -6,7 +6,7 @@ request = require 'request'
 yaml    = require 'js-yaml'
 InputView = require './input-view'
 
-recentProjectsPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/recent-projects.yml' else './recent-projects.yml'
+recentProjectsPath = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.yml'
 tutorialsDownloadPath = if process.env.LUNA_STUDIO_TUTORIALS? then  process.env.LUNA_STUDIO_TUTORIALS else '/tmp'
 defaultProjectPath = process.env.LUNA_STUDIO_PROJECTS or path.join(fs.getHomeDirectory(), 'projects')
 
