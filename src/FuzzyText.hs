@@ -12,7 +12,7 @@ module FuzzyText
     , weight
     , score
     , match
-    , partialMatch
+    , exactMatch
     , className
     ) where
 
@@ -32,12 +32,12 @@ type Query     = Text
 
 data EntryType = Function | Method ClassName | Constructor ClassName | Command deriving (Show, Eq)
 
-data Entry = Entry { _name         :: Text
-                   , _entryType    :: EntryType
-                   , _weight       :: Double 
-                   , _score        :: Score
-                   , _match        :: [Indices]
-                   , _partialMatch :: Bool
+data Entry = Entry { _name       :: Text
+                   , _entryType  :: EntryType
+                   , _weight     :: Double 
+                   , _score      :: Score
+                   , _match      :: [Indices]
+                   , _exactMatch :: Bool
                    } deriving (Show, Eq)
 
 makeLenses ''Entry
@@ -52,8 +52,8 @@ className = to className' where
 
 instance Ord Entry where
     e1 `compare` e2 = let compareScore = (fromIntegral (e2 ^. score) * (e2 ^. weight)) `compare` (fromIntegral (e1 ^. score) * (e1 ^. weight)) in
-        if e1 ^. partialMatch && not (e2 ^. partialMatch) then GT
-        else if not (e1 ^. partialMatch) && e2 ^. partialMatch then LT
+        if e1 ^. exactMatch && not (e2 ^. exactMatch) then LT
+        else if not (e1 ^. exactMatch) && e2 ^. exactMatch then GT
         else if compareScore /= EQ then compareScore
         else Text.length (e1 ^. name) `compare` Text.length (e2 ^. name)
 
@@ -73,9 +73,9 @@ fuzzySearch q e = List.sort $ map updateEntry e where
     updateEntry e' = do
         let (sc, m) = getScoreAndMatch (e' ^. name)
             matchLength = foldl (\s (beg, end) -> s + end - beg + 1) 0 m
-        e' & score        .~ sc
-           & match        .~ m
-           & partialMatch .~ if matchLength == Text.length q then False else True
+        e' & score      .~ sc
+           & match      .~ m
+           & exactMatch .~ if matchLength == Text.length q then True else False
     getScoreAndMatch n = (processEntry q (zip (Text.unpack n) [0..]) def (-1)) & _2 %~ List.reverse
 
 processEntry :: Query -> [(Char, Int)] -> (Score, [Indices]) -> Int -> (Score, [Indices])
