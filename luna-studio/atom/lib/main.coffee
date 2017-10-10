@@ -30,7 +30,7 @@ module.exports = LunaStudio =
         codeEditor.connect(nodeEditor.connector)
         @welcome = new LunaWelcomeTab(codeEditor)
 
-        actStatus = (act, uri, status) ->
+        actStatus = (act, arg1, arg2) ->
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
                 if rootPath? and rootPath != ""
@@ -38,14 +38,14 @@ module.exports = LunaStudio =
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
                 atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
             if act == 'FileOpened'
-                codeEditor.pushInternalEvent(tag: "GetBuffer", _path: uri)
+                codeEditor.pushInternalEvent(tag: "GetBuffer", _path: arg1)
             if act == 'ProjectMove'
                 for pane in atom.workspace.getPaneItems()
                     if pane instanceof LunaEditorTab
                         panePath = pane.uri
-                        if panePath.startsWith(projects.temporaryProject.path)
-                            pane.setUri(uri + panePath.slice(projects.temporaryProject.path.length))
-                atom.project.setPaths [uri]
+                        if panePath.startsWith(arg2)
+                            pane.setUri(arg1 + panePath.slice(arg2.length))
+                atom.project.setPaths [arg1]
 
         codeEditor.statusListener actStatus
         atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)

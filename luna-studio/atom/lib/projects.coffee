@@ -6,9 +6,10 @@ request = require 'request'
 yaml    = require 'js-yaml'
 InputView = require './input-view'
 
-recentProjectsPath = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.yml'
-tutorialsDownloadPath = if process.env.LUNA_STUDIO_TUTORIALS? then  process.env.LUNA_STUDIO_TUTORIALS else '/tmp'
-defaultProjectPath = process.env.LUNA_STUDIO_PROJECTS or path.join(fs.getHomeDirectory(), 'projects')
+recentProjectsPath    = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.yml'
+defaultProjectPath    = process.env.LUNA_STUDIO_PROJECTS  or path.join(fs.getHomeDirectory(), 'projects')
+temporaryPath         = process.env.LUNA_STUDIO_TEMP      or '/tmp'
+tutorialsDownloadPath = process.env.LUNA_STUDIO_TUTORIALS or '/tmp/tutorials'
 
 temporaryProject = {
     name: 'unsaved-luna-project',
@@ -59,6 +60,7 @@ closeAllFiles = ->
             if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaEditorTab
                 pane.destroyItem(paneItem)
 
+isTemporary = (projectPath) -> projectPath.startsWith temporaryPath
 
 module.exports =
     closeAllFiles: closeAllFiles
@@ -71,12 +73,13 @@ module.exports =
                 atom.workspace.open(temporaryMainFilePath, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
                 callback?()
         isOpen: =>
-            return atom.project.getPaths()[0] == temporaryProject.path
+            return isTemporary atom.project.getPaths()[0]
 
         save: (callback) =>
-            if atom.project.getPaths()[0] == temporaryProject.path
+            if isTemporary atom.project.getPaths()[0]
                 inputView = new InputView()
-                inputView.attach "Save project as", defaultProjectPath, 'MyProject',
+                suggestedProjectName = path.basename(atom.project.getPaths()[0])
+                inputView.attach "Save project as", defaultProjectPath, suggestedProjectName,
                     (name) =>!fs.existsSync(name),
                     (name) => "Path already exists at '#{name}'",
                     (name) => callback name
@@ -134,19 +137,15 @@ module.exports =
                             catch error
                                 console.log error
             closeAllFiles()
-            fs.access dstPath, (err) =>
-                if err
-                    Git.Clone(tutorial.uri, dstPath, cloneOpts)
-                        .then((repo) =>
-                            atom.project.setPaths [dstPath]
-                            finalize())
-                        .catch((error) =>
-                            atom.confirm
-                                message: "Error while cloning tutorial"
-                                detailedMessage: error.message
-                                buttons:
-                                    Ok: ->
-                            finalize())
-                else
-                    atom.project.setPaths [dstPath]
-                    finalize()
+            fse.remove dstPath, (err) =>
+                Git.Clone(tutorial.uri, dstPath, cloneOpts)
+                    .then((repo) =>
+                        atom.project.setPaths [dstPath]
+                        finalize())
+                    .catch((error) =>
+                        atom.confirm
+                            message: "Error while cloning tutorial"
+                            detailedMessage: error.message
+                            buttons:
+                                Ok: ->
+                        finalize())
