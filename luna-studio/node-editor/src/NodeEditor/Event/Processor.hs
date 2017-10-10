@@ -10,7 +10,6 @@ import           Common.Action.Command                  (Command, execCommand)
 import qualified Common.Analytics                       as Analytics
 import           Common.Prelude
 import           Common.Report
-import qualified JS.Debug
 import           NodeEditor.Action.State.App            (renderIfNeeded)
 import           NodeEditor.Event.Event                 (Event)
 import qualified NodeEditor.Event.Event                 as Event
@@ -41,9 +40,6 @@ import           NodeEditor.State.Global                (State)
 import qualified NodeEditor.State.Global                as Global
 import           WebSocket                              (WebSocket)
 
-
-displayProcessingTime :: Bool
-displayProcessingTime = False
 
 foreign import javascript safe "console.time($1);"    consoleTimeStart' :: JSString -> IO ()
 foreign import javascript safe "console.timeEnd($1);" consoleTimeEnd'   :: JSString -> IO ()
@@ -87,18 +83,10 @@ processEvent :: LoopRef -> Event -> IO ()
 processEvent loop ev = handle handleAnyException $ modifyMVar_ (loop ^. Loop.state) $ \state -> do
     realEvent <- preprocessEvent ev
     Analytics.track realEvent
-    when displayProcessingTime $ do
-        consoleTimeStart $ (realEvent ^. Event.name) <>" show and force"
-        JS.Debug.error (convert $ realEvent ^. Event.name) ()
-        consoleTimeEnd $ (realEvent ^. Event.name) <> " show and force"
-        consoleTimeStart (realEvent ^. Event.name)
     timestamp <- getCurrentTime
     let state' = state & Global.lastEventTimestamp .~ timestamp
-    handle (handleExcept state realEvent) $ do
-        newState <- execCommand (runCommands (actions loop) realEvent >> renderIfNeeded) state'
-        when displayProcessingTime $
-            consoleTimeEnd (realEvent ^. Event.name)
-        return newState
+    handle (handleExcept state realEvent) $
+        execCommand (runCommands (actions loop) realEvent >> renderIfNeeded) state'
 
 connectEventSources :: WebSocket -> LoopRef -> IO ()
 connectEventSources conn loop = do
