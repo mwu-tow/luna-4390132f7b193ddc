@@ -1,4 +1,5 @@
-{-# LANGUAGE StrictData #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData        #-}
 module NodeEditor.React.Model.Searcher where
 
 import           Common.Prelude
@@ -104,10 +105,11 @@ fromStream input' inputStream pos = getInput (findQueryBegin inputStream pos) po
             else Just p
     getInput :: Maybe Int -> Int -> Input
     getInput Nothing    _   = Raw input'
-    getInput (Just beg) end = do
-        let (pref', suff) = Text.splitAt end input'
-            (pref , q)    = Text.splitAt beg pref'
-        Divided $ DividedInput pref q suff
+    getInput (Just beg) caretPos = do
+        let (pref', suff') = Text.splitAt caretPos input'
+            (pref , q')    = Text.splitAt beg pref'
+            (q'', suff)    = Text.breakOn " " suff'
+        Divided $ DividedInput pref (q' <> q'') suff
 
 findLambdaArgsAndEndOfLambdaArgs :: Text32 -> [Token Symbol] -> Maybe ([String], Int)
 findLambdaArgsAndEndOfLambdaArgs input' tokens = findRecursive tokens (0 :: Int) 0 def def where
