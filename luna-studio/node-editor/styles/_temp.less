@@ -116,10 +116,19 @@
 
 // Luna theme overwrites
 
-atom-workspace-axis.horizontal {
-    border-right: 4px solid #000;
+atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested styles
+    @a: #070706;
+
+    border-right: 4px solid @a;
+    border-top:   4px solid @a;
+
     atom-workspace-axis.horizontal {
         border-right: none;
+        border-top:   none;
     }
 }
 
+.pane.active .inset-panel {
+    @b: #573614;
+    box-shadow: 4px -4px 0 0 @b !important;
+}
