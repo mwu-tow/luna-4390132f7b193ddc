@@ -1900,3 +1900,17 @@ spec = around withChannels $ parallel $ do
                 let Just match = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "(a, b, c)") nodes
                 (_, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.connect loc (outPortRef match [Port.Projection 0]) (InPortRef' $ inPortRef output [])
+        it "names anonymous node" $ let
+            initialCode = [r|
+                def main:
+                    «0»(1,2,3)
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    tuple1 = (1,2,3)
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just t <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Graph.renameNode loc t "tuple1"

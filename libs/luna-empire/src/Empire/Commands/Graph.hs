@@ -858,6 +858,7 @@ renameNode loc nid name
                 _        <- liftIO $ ASTParse.runProperPatternParser name
                 pat      <- ASTParse.parsePattern name
                 Code.propagateLengths pat
+                ASTBuilder.ensureNodeHasName generateNodeName nid
                 v        <- ASTRead.getASTVar nid
                 patIsVar <- ASTRead.isVar pat
                 varIsVar <- ASTRead.isVar v
