@@ -36,7 +36,8 @@ handle (Batch (Batch.ProjectSet  response))   = Just $ handleResponse response d
 handle (Batch (Batch.ProjectMove response))   = Just $ handleResponse response success doNothing where
     success _ = do
         let newUri = response ^. Response.request . MoveProject.newPath
-        liftIO $ pushStatus (convert "ProjectMove") (convert newUri) def
+        let oldUri = response ^. Response.request . MoveProject.oldPath
+        liftIO $ pushStatus (convert "ProjectMove") (convert newUri) (convert oldUri)
 handle (Batch (Batch.FileClosed  response))   = Just $ handleResponse response doNothing doNothing
 handle (Batch (Batch.FileSaved   response))   = Just $ handleResponse response doNothing doNothing
 handle (Batch (Batch.IsSaved     response))   = Just $ handleResponse response success doNothing where
