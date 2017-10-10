@@ -783,3 +783,19 @@ spec = around withChannels $ parallel $ do
                 (input, _) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
                 Graph.addPort loc' (outPortRef input [Port.Projection 1])
                 Graph.renamePort loc' (outPortRef input [Port.Projection 1]) "bar"
+        it "pastes code from text editor to node editor" $
+            let initialCode = [r|
+                    def main:
+                        «1»number1 = 3
+                        number1
+                    |]
+                expectedCode = [r|
+                    def main:
+                        number1 = 3
+                        number1 = 3
+                        number1
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                clipboard <- Graph.copyText loc [Range 14 25]
+                Graph.paste loc (Position.fromTuple (300, 0)) $ Text.unpack clipboard

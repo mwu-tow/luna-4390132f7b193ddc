@@ -1366,13 +1366,20 @@ paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
         return uuid
     forM uuids $ \uuid -> autolayout (GraphLocation file (Breadcrumb [Breadcrumb.Definition uuid]))
     resendCode loc
-paste loc position (Text.pack -> code) = do
+paste loc position (Text.pack -> text) = do
+    let lexerStream  = Lexer.evalDefLexer (convert text)
+        (_, code)    = partition (\(Lexer.Token _ _ s) -> isJust $ Lexer.matchMetadata s) lexerStream
+        textTree     = SpanTree.buildSpanTree (convert text) code
+        withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
+        metaLine     = Text.drop (Text.length $ convert withoutMeta) text
     withTC loc False $ do
-        let lines = Text.splitOn "\n\n" code
-            (metaLine, exprs) = partition (Text.isPrefixOf "### META") lines
-        fm          <- forM (Safe.headMay metaLine) parseMetadata
+        fm          <- forM (Safe.headMay [metaLine]) parseMetadata
         let metas   =  maybe [] (\(FileMetadata fm') -> moveToOrigin fm') fm
         indentation <- fromIntegral <$> runASTOp Code.getCurrentIndentationLength
+        let exprs = map (Text.stripEnd . Text.unlines)
+                 $ Split.split (Split.dropInitBlank $ Split.keepDelimsL $ Split.whenElt (\a -> maybe False (not . isSeparator . fst) $ Text.uncons a))
+                 $ Text.lines
+                 $ Code.removeMarkers $ convert withoutMeta
         forM exprs $ \(Text.strip -> expr) -> do
             let (marker, rest) = Text.breakOn "»" expr & both %~ Text.drop 1
                 mark           = Safe.readMay (Text.unpack marker) :: Maybe Word64
@@ -1380,9 +1387,11 @@ paste loc position (Text.pack -> code) = do
                     Just marker -> fromMaybe def $ fmap meta $ find (\(MarkerNodeMeta m me) -> m == marker) metas
                     _           -> def
                 movedMeta      = newMeta & NodeMeta.position %~ Position.move (coerce position)
-                nodeCode       = Code.removeMarkers $ indent indentation rest
-            uuid <- liftIO UUID.nextRandom
-            addNodeNoTC loc uuid nodeCode Nothing movedMeta
+                indented       = indent indentation $ if Text.null rest then expr else rest
+                nodeCode       = Code.removeMarkers indented
+            when (not $ Text.null expr) $ do
+                uuid <- liftIO UUID.nextRandom
+                void $ addNodeNoTC loc uuid nodeCode Nothing movedMeta
     autolayout loc
     resendCode loc
 
