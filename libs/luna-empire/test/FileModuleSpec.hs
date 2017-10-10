@@ -729,3 +729,49 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode initialCode $ \loc -> do
                 imports <- Graph.getAvailableImports loc
                 liftIO $ imports `shouldBe` ["Std.Base", "Std.Geo"]
+        it "changes port name on a top-level def" $
+            let initialCode = [r|
+                    def foo a b:
+                        a + b
+
+                    def main:
+                        4
+                    |]
+                expectedCode = [r|
+                    def foo bar baz:
+                        bar + baz
+
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \_ -> do
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                nodes <- Graph.getNodes loc
+                let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                    loc' = loc |>= foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
+                Graph.renamePort loc' (outPortRef input [Port.Projection 0]) "bar"
+                Graph.renamePort loc' (outPortRef input [Port.Projection 1]) "baz"
+        it "changes freshly added port name on a top-level def" $
+            let initialCode = [r|
+                    def foo a:
+                        a
+
+                    def main:
+                        4
+                    |]
+                expectedCode = [r|
+                    def foo a bar:
+                        a
+
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \_ -> do
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                nodes <- Graph.getNodes loc
+                let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                    loc' = loc |>= foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
+                Graph.addPort loc' (outPortRef input [Port.Projection 1])
+                Graph.renamePort loc' (outPortRef input [Port.Projection 1]) "bar"

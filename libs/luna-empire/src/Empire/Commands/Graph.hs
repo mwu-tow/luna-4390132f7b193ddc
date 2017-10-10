@@ -641,12 +641,13 @@ getPortName :: GraphLocation -> OutPortRef -> Empire Text
 getPortName loc portRef = do
     withGraph loc $ runASTOp $ do
         let nodeId = portRef ^. PortRef.srcNodeId
-            arg    = portRef ^. PortRef.srcPortId . to getPortNumber
+            portId = portRef ^. PortRef.srcPortId
+            arg    = getPortNumber portId
         ref        <- ASTRead.getCurrentASTTarget
         (input, _) <- GraphBuilder.getEdgePortMapping
         portsNames <- GraphBuilder.getPortsNames ref
         if nodeId == input
-            then maybe (throwM PortDoesNotExistException) (return . convert) $ Safe.atMay portsNames arg
+            then maybe (throwM $ PortDoesNotExistException portId) (return . convert) $ Safe.atMay portsNames arg
             else throwM NotInputEdgeException
 
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode

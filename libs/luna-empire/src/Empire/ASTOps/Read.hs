@@ -58,27 +58,27 @@ getASTOutForPort nodeId port = do
       else getOutputForPort      port =<< getASTVar nodeId
 
 getLambdaInputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
-getLambdaInputForPort []                    lam = throwM PortDoesNotExistException
-getLambdaInputForPort (Projection 0 : rest) lam = cutThroughGroups lam >>= flip match `id` \case
+getLambdaInputForPort []                           lam = throwM $ PortDoesNotExistException []
+getLambdaInputForPort portId@(Projection 0 : rest) lam = cutThroughGroups lam >>= flip match `id` \case
     Lam i _            -> getOutputForPort rest =<< IR.source i
     ASGFunction _ as _ -> case as of
         (a : _) -> IR.source a
-        _       -> throwM PortDoesNotExistException
-    _                  -> throwM PortDoesNotExistException
-getLambdaInputForPort (Projection i : rest) lam = cutThroughGroups lam >>= flip match `id` \case
+        _       -> throwM $ PortDoesNotExistException portId
+    _                  -> throwM $ PortDoesNotExistException portId
+getLambdaInputForPort portId@(Projection i : rest) lam = cutThroughGroups lam >>= flip match `id` \case
     Lam _ o            -> getLambdaInputForPort (Projection (i - 1) : rest) =<< IR.source o
     ASGFunction _ as _ -> case as ^? ix i of
         Just a -> IR.source a
-        _      -> throwM PortDoesNotExistException
-    _                  -> throwM PortDoesNotExistException
+        _      -> throwM $ PortDoesNotExistException portId
+    _                  -> throwM $ PortDoesNotExistException portId
 
 getOutputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
-getOutputForPort []                    ref = cutThroughGroups ref
-getOutputForPort (Projection i : rest) ref = cutThroughGroups ref >>= flip match `id` \case
+getOutputForPort []                           ref = cutThroughGroups ref
+getOutputForPort portId@(Projection i : rest) ref = cutThroughGroups ref >>= flip match `id` \case
     Cons _ as     | Just s <- as ^? ix i   -> getOutputForPort rest =<< IR.source s
     IR.List args  | Just s <- args ^? ix i -> getOutputForPort rest =<< IR.source s
     IR.Tuple args | Just s <- args ^? ix i -> getOutputForPort rest =<< IR.source s
-    _ -> throwM PortDoesNotExistException
+    _ -> throwM $ PortDoesNotExistException portId
 
 isGraphNode :: GraphOp m => NodeRef -> m Bool
 isGraphNode = fmap isJust . getNodeId
