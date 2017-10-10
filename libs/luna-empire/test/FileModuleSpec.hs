@@ -728,7 +728,15 @@ spec = around withChannels $ parallel $ do
                     |]
             in specifyCodeChange initialCode initialCode $ \loc -> do
                 imports <- Graph.getAvailableImports loc
-                liftIO $ imports `shouldBe` ["Std.Base", "Std.Geo"]
+                liftIO $ imports `shouldMatchList` ["Std.Base", "Std.Geo", "Native"]
+        it "shows implicit imports as always imported" $
+            let initialCode = [r|
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode initialCode $ \loc -> do
+                imports <- Graph.getAvailableImports loc
+                liftIO $ imports `shouldMatchList` ["Std.Base", "Native"]
         it "changes port name on a top-level def" $
             let initialCode = [r|
                     def foo a b:

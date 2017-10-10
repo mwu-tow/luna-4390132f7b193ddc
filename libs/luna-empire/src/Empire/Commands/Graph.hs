@@ -1451,9 +1451,12 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
     resendCode (GraphLocation file (Breadcrumb []))
     return code
 
+nativeModuleName :: Text
+nativeModuleName = "Native"
+
 getAvailableImports :: GraphLocation -> Empire [ImportName]
 getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Breadcrumb [])) $ do
-    runASTOp $ do
+    explicitImports <- runASTOp $ do
         unit <- use Graph.clsClass
         IR.matchExpr unit $ \case
             IR.Unit imps _ _ -> do
@@ -1467,6 +1470,9 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
                                 IR.matchExpr a' $ \case
                                     IR.UnresolvedImportSrc n -> case n of
                                         Term.Absolute n -> return $ convert n
+    let implicitImports = Set.fromList [nativeModuleName, "Std.Base"]
+        resultSet       = Set.fromList explicitImports `Set.union` implicitImports
+    return $ Set.toList resultSet
 
 classToHints :: IR.Class -> ClassHints
 classToHints (IR.Class constructors methods) = ClassHints cons' meth'
@@ -1496,13 +1502,15 @@ getImports (GraphLocation file _) imports = do
     importsMVar     <- view modules
     hints <- forM imports $ \i -> do
         cmpModules <- liftIO $ readMVar importsMVar
-        case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
-            Just m -> return (i, m)
-            _      -> do
-                Lifted.modifyMVar importsMVar $ \imps -> do
-                    (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-                        fromRight ((Module.Imports def def, Compilation.CompiledModules def def)) <$> runModuleTypecheck (Map.fromList importPaths) imps
-                    return (nimps, (i, f))
+        if i == nativeModuleName then return (i, cmpModules ^. Compilation.prims) else do
+            case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
+                Just m -> return (i, m)
+                _      -> do
+                    Lifted.modifyMVar importsMVar $ \imps -> do
+                        (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+                            let defaultModule = (Module.Imports def def, Compilation.CompiledModules def def)
+                            fromRight defaultModule <$> runModuleTypecheck (Map.fromList importPaths) imps
+                        return (nimps, (i, f))
     return $ Map.fromList $ map (_2 %~ importsToHints) hints
 
 setInterpreterState :: Interpreter.Request -> Empire ()
