@@ -26,6 +26,7 @@
     fontFamily: ""
     fontSize: 12
     scrollPastEnd: true
+    tabLength: 4
   "exception-reporting":
     userId: "f639c0b1-9215-40ac-b370-30477aef0fc7"
   hidpi:
