@@ -639,12 +639,13 @@ getPortName :: GraphLocation -> OutPortRef -> Empire Text
 getPortName loc portRef = do
     withGraph loc $ runASTOp $ do
         let nodeId = portRef ^. PortRef.srcNodeId
-            arg    = portRef ^. PortRef.srcPortId . to getPortNumber
+            portId = portRef ^. PortRef.srcPortId
+            arg    = getPortNumber portId
         ref        <- ASTRead.getCurrentASTTarget
         (input, _) <- GraphBuilder.getEdgePortMapping
         portsNames <- GraphBuilder.getPortsNames ref
         if nodeId == input
-            then maybe (throwM PortDoesNotExistException) (return . convert) $ Safe.atMay portsNames arg
+            then maybe (throwM $ PortDoesNotExistException portId) (return . convert) $ Safe.atMay portsNames arg
             else throwM NotInputEdgeException
 
 setNodeExpression :: GraphLocation -> NodeId -> Text -> Empire ExpressionNode
@@ -1363,13 +1364,20 @@ paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
         return uuid
     forM uuids $ \uuid -> autolayout (GraphLocation file (Breadcrumb [Breadcrumb.Definition uuid]))
     resendCode loc
-paste loc position (Text.pack -> code) = do
+paste loc position (Text.pack -> text) = do
+    let lexerStream  = Lexer.evalDefLexer (convert text)
+        (_, code)    = partition (\(Lexer.Token _ _ s) -> isJust $ Lexer.matchMetadata s) lexerStream
+        textTree     = SpanTree.buildSpanTree (convert text) code
+        withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
+        metaLine     = Text.drop (Text.length $ convert withoutMeta) text
     withTC loc False $ do
-        let lines = Text.splitOn "\n\n" code
-            (metaLine, exprs) = partition (Text.isPrefixOf "### META") lines
-        fm          <- forM (Safe.headMay metaLine) parseMetadata
+        fm          <- forM (Safe.headMay [metaLine]) parseMetadata
         let metas   =  maybe [] (\(FileMetadata fm') -> moveToOrigin fm') fm
         indentation <- fromIntegral <$> runASTOp Code.getCurrentIndentationLength
+        let exprs = map (Text.stripEnd . Text.unlines)
+                 $ Split.split (Split.dropInitBlank $ Split.keepDelimsL $ Split.whenElt (\a -> maybe False (not . isSeparator . fst) $ Text.uncons a))
+                 $ Text.lines
+                 $ Code.removeMarkers $ convert withoutMeta
         forM exprs $ \(Text.strip -> expr) -> do
             let (marker, rest) = Text.breakOn "»" expr & both %~ Text.drop 1
                 mark           = Safe.readMay (Text.unpack marker) :: Maybe Word64
@@ -1377,9 +1385,11 @@ paste loc position (Text.pack -> code) = do
                     Just marker -> fromMaybe def $ fmap meta $ find (\(MarkerNodeMeta m me) -> m == marker) metas
                     _           -> def
                 movedMeta      = newMeta & NodeMeta.position %~ Position.move (coerce position)
-                nodeCode       = Code.removeMarkers $ indent indentation rest
-            uuid <- liftIO UUID.nextRandom
-            addNodeNoTC loc uuid nodeCode Nothing movedMeta
+                indented       = indent indentation $ if Text.null rest then expr else rest
+                nodeCode       = Code.removeMarkers indented
+            when (not $ Text.null expr) $ do
+                uuid <- liftIO UUID.nextRandom
+                void $ addNodeNoTC loc uuid nodeCode Nothing movedMeta
     autolayout loc
     resendCode loc
 
@@ -1448,9 +1458,12 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
     resendCode (GraphLocation file (Breadcrumb []))
     return code
 
+nativeModuleName :: Text
+nativeModuleName = "Native"
+
 getAvailableImports :: GraphLocation -> Empire [ImportName]
 getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Breadcrumb [])) $ do
-    runASTOp $ do
+    explicitImports <- runASTOp $ do
         unit <- use Graph.clsClass
         IR.matchExpr unit $ \case
             IR.Unit imps _ _ -> do
@@ -1464,6 +1477,9 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
                                 IR.matchExpr a' $ \case
                                     IR.UnresolvedImportSrc n -> case n of
                                         Term.Absolute n -> return $ convert n
+    let implicitImports = Set.fromList [nativeModuleName, "Std.Base"]
+        resultSet       = Set.fromList explicitImports `Set.union` implicitImports
+    return $ Set.toList resultSet
 
 classToHints :: IR.Class -> ClassHints
 classToHints (IR.Class constructors methods) = ClassHints cons' meth'
@@ -1493,13 +1509,15 @@ getImports (GraphLocation file _) imports = do
     importsMVar     <- view modules
     hints <- forM imports $ \i -> do
         cmpModules <- liftIO $ readMVar importsMVar
-        case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
-            Just m -> return (i, m)
-            _      -> do
-                Lifted.modifyMVar importsMVar $ \imps -> do
-                    (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-                        fromRight ((Module.Imports def def, Compilation.CompiledModules def def)) <$> runModuleTypecheck (Map.fromList importPaths) imps
-                    return (nimps, (i, f))
+        if i == nativeModuleName then return (i, cmpModules ^. Compilation.prims) else do
+            case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
+                Just m -> return (i, m)
+                _      -> do
+                    Lifted.modifyMVar importsMVar $ \imps -> do
+                        (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+                            let defaultModule = (Module.Imports def def, Compilation.CompiledModules def def)
+                            fromRight defaultModule <$> runModuleTypecheck (Map.fromList importPaths) imps
+                        return (nimps, (i, f))
     return $ Map.fromList $ map (_2 %~ importsToHints) hints
 
 setInterpreterState :: Interpreter.Request -> Empire ()

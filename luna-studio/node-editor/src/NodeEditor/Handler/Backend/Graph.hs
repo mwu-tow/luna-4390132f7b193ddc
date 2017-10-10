@@ -50,8 +50,8 @@ import           NodeEditor.Action.Basic                     (centerGraph, exitB
                                                               updateGraph, updateNodeValueAndVisualization, updateScene)
 import           NodeEditor.Action.Basic.Revert              (revertAddConnection, revertAddNode, revertAddPort, revertAddSubgraph,
                                                               revertMovePort, revertRemoveConnection, revertRemoveNodes, revertRemovePort,
-                                                              revertRenameNode, revertSetNodeExpression, revertSetNodesMeta,
-                                                              revertSetPortDefault)
+                                                              revertRenameNode, revertRenamePort, revertSetNodeExpression,
+                                                              revertSetNodesMeta, revertSetPortDefault)
 import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime, modifyTime, refreshTime, touchCurrentlySelected, updateClient)
 import           NodeEditor.Action.Batch                     (collaborativeModify, getProgram)
 import           NodeEditor.Action.State.App                 (getWorkspace, modifyApp, setBreadcrumbs)
@@ -286,11 +286,11 @@ handle (Event.Batch ev) = Just $ case ev of
         success         = applyResult location
 
     RenamePortResponse response -> handleResponse response success failure where
-        requestId        = response ^. Response.requestId
-        request          = response ^. Response.request
-        location         = request  ^. RenamePort.location
-        failure _inverse = whenM (isOwnRequest requestId) $ $notImplemented
-        success          = applyResult location
+        requestId       = response ^. Response.requestId
+        request         = response ^. Response.request
+        location        = request  ^. RenamePort.location
+        failure inverse = whenM (isOwnRequest requestId) $ revertRenamePort request inverse
+        success         = applyResult location
 
     SearchNodesResponse response -> handleResponse response success doNothing where
         success = localAddSearcherHints . view SearchNodes.searcherHints

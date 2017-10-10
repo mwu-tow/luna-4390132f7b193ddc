@@ -1,7 +1,13 @@
-_    = require 'underscore-plus'
 fs   = require 'fs-plus'
 path = require 'path'
 {TextEditor, CompositeDisposable, Disposable} = require 'atom'
+
+camelize = (string) ->
+    if string
+        string = string.replace /[ _-]+(\w)/g, (m) -> m.slice(-1).toUpperCase()
+        string.charAt(0).toUpperCase() + string.slice(1);
+    else
+      ''
 
 module.exports =
 class InputView
@@ -76,5 +82,5 @@ class InputView
 
     getInputText: ->
         packagePath = fs.normalize(@miniEditor.getText().trim())
-        packageName = _.dasherize(path.basename(packagePath))
+        packageName = camelize(path.basename(packagePath))
         path.join(path.dirname(packagePath), packageName)

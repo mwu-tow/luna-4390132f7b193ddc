@@ -6,7 +6,8 @@ import           Empire.Prelude hiding (cast)
 
 import           Data.Typeable  (cast)
 
-import           Luna.IR        (IR, IRBuilder, SomeExpr, SomeExprLink, evalIRBuilder', evalPassManager', runRegs, snapshot)
+import           Luna.IR              (IR, IRBuilder, SomeExpr, SomeExprLink, evalIRBuilder', evalPassManager', runRegs, snapshot)
+import           LunaStudio.Data.Port (OutPortId)
 
 import           System.Log     (DropLogger, Logger, dropLogs)
 
@@ -63,7 +64,7 @@ instance Exception NotInputEdgeException where
     toException   = astExceptionToException
     fromException = astExceptionFromException
 
-data PortDoesNotExistException = PortDoesNotExistException deriving (Show)
+data PortDoesNotExistException = PortDoesNotExistException OutPortId deriving (Show)
 
 instance Exception PortDoesNotExistException where
     toException   = astExceptionToException

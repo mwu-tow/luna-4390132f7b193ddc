@@ -728,4 +728,74 @@ spec = around withChannels $ parallel $ do
                     |]
             in specifyCodeChange initialCode initialCode $ \loc -> do
                 imports <- Graph.getAvailableImports loc
-                liftIO $ imports `shouldBe` ["Std.Base", "Std.Geo"]
+                liftIO $ imports `shouldMatchList` ["Std.Base", "Std.Geo", "Native"]
+        it "shows implicit imports as always imported" $
+            let initialCode = [r|
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode initialCode $ \loc -> do
+                imports <- Graph.getAvailableImports loc
+                liftIO $ imports `shouldMatchList` ["Std.Base", "Native"]
+        it "changes port name on a top-level def" $
+            let initialCode = [r|
+                    def foo a b:
+                        a + b
+
+                    def main:
+                        4
+                    |]
+                expectedCode = [r|
+                    def foo bar baz:
+                        bar + baz
+
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \_ -> do
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                nodes <- Graph.getNodes loc
+                let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                    loc' = loc |>= foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
+                Graph.renamePort loc' (outPortRef input [Port.Projection 0]) "bar"
+                Graph.renamePort loc' (outPortRef input [Port.Projection 1]) "baz"
+        it "changes freshly added port name on a top-level def" $
+            let initialCode = [r|
+                    def foo a:
+                        a
+
+                    def main:
+                        4
+                    |]
+                expectedCode = [r|
+                    def foo a bar:
+                        a
+
+                    def main:
+                        4
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \_ -> do
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                nodes <- Graph.getNodes loc
+                let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                    loc' = loc |>= foo
+                (input, _) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
+                Graph.addPort loc' (outPortRef input [Port.Projection 1])
+                Graph.renamePort loc' (outPortRef input [Port.Projection 1]) "bar"
+        it "pastes code from text editor to node editor" $
+            let initialCode = [r|
+                    def main:
+                        «1»number1 = 3
+                        number1
+                    |]
+                expectedCode = [r|
+                    def main:
+                        number1 = 3
+                        number1 = 3
+                        number1
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                clipboard <- Graph.copyText loc [Range 14 25]
+                Graph.paste loc (Position.fromTuple (300, 0)) $ Text.unpack clipboard

@@ -76,7 +76,7 @@ module.exports =
         save: (callback) =>
             if atom.project.getPaths()[0] == temporaryProject.path
                 inputView = new InputView()
-                inputView.attach "Save project as", defaultProjectPath, 'my-project',
+                inputView.attach "Save project as", defaultProjectPath, 'MyProject',
                     (name) =>!fs.existsSync(name),
                     (name) => "Path already exists at '#{name}'",
                     (name) => callback name

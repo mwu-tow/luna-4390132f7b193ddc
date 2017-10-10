@@ -19,7 +19,9 @@ import qualified LunaStudio.API.Response                   as Response
 import           LunaStudio.Data.Connection                (dst, src)
 import           LunaStudio.Data.Node                      (nodeId)
 import           LunaStudio.Data.NodeLoc                   (NodeLoc, prependPath)
+import qualified LunaStudio.Data.NodeLoc                   as NodeLoc
 import           LunaStudio.Data.PortRef                   (AnyPortRef (InPortRef'), OutPortRef (OutPortRef))
+import qualified LunaStudio.Data.PortRef                   as PortRef
 import           NodeEditor.Action.Basic.AddConnection     (localAddConnection, localAddConnections)
 import           NodeEditor.Action.Basic.AddPort           (localAddPort)
 import           NodeEditor.Action.Basic.AddSubgraph       (localAddSubgraph)
@@ -28,6 +30,7 @@ import           NodeEditor.Action.Basic.RemoveConnection  (localRemoveConnectio
 import           NodeEditor.Action.Basic.RemoveNode        (localRemoveNode, localRemoveNodes)
 import           NodeEditor.Action.Basic.RemovePort        (localRemovePort)
 import           NodeEditor.Action.Basic.RenameNode        (localRenameNode)
+import           NodeEditor.Action.Basic.RenamePort        (localRenamePort)
 import           NodeEditor.Action.Basic.SetNodeExpression (localSetNodeExpression)
 import           NodeEditor.Action.Basic.SetNodeMeta       (localSetNodesMeta)
 import           NodeEditor.Action.Basic.SetPortDefault    (localSetPortDefault)
@@ -92,8 +95,8 @@ revertRenameNode (RenameNode.Request loc nid _) (Response.Ok (RenameNode.Inverse
 revertRenameNode (RenameNode.Request _loc _nid _) (Response.Error _msg) = panic
 
 revertRenamePort :: RenamePort.Request -> Response.Status RenamePort.Inverse -> Command State ()
-revertRenamePort (RenamePort.Request loc _portRef _) (Response.Ok (RenamePort.Inverse _prevName)) =
-    inCurrentLocation loc $ \_path -> void $ $notImplemented
+revertRenamePort (RenamePort.Request loc portRef _) (Response.Ok (RenamePort.Inverse prevName)) =
+    inCurrentLocation loc $ \path -> void $ localRenamePort (OutPortRef (convert (path, portRef ^. PortRef.nodeLoc . NodeLoc.nodeId)) (portRef ^. PortRef.srcPortId)) prevName
 revertRenamePort (RenamePort.Request _loc _portRef _) (Response.Error _msg) = panic
 
 revertSetNodeExpression :: SetNodeExpression.Request -> Response.Status SetNodeExpression.Inverse -> Command State ()

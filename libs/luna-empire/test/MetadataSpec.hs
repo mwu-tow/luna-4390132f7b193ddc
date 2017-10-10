@@ -422,11 +422,9 @@ def main:
                 Graph.loadCode loc oneNode
                 nodes <- Graph.getNodes loc
                 let Just main = find (\n -> n ^. Node.name == Just "main") nodes
-                Graph.paste (loc |>= main ^. Node.nodeId) (Position.fromTuple (200,0)) [r|
-                    «2»c = 4.0
+                Graph.paste (loc |>= main ^. Node.nodeId) (Position.fromTuple (200,0)) [r|«2»c = 4.0
 
-                    «3»bar = foo 8.0 c
-                    |]
+«3»bar = foo 8.0 c|]
                 nodes <- Graph.getNodes (loc |>= main ^. Node.nodeId)
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
