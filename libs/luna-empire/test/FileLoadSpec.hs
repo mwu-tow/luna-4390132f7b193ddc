@@ -1914,3 +1914,20 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just t <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
                 Graph.renameNode loc t "tuple1"
+        it "connects to node f . g" $ let
+            initialCode = [r|
+                def main:
+                    «0»list1 = [1,2,3]
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    list1 = [1,2,3]
+                    map1 = list1 . map +1 . map +2
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                node <- Graph.addNode loc u1 "map +1 . map +2" (atXPos 300)
+                Just l <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Graph.connect loc (outPortRef l []) (InPortRef' $ inPortRef u1 [Port.Self, Port.Self])

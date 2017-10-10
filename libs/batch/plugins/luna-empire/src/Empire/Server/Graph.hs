@@ -23,7 +23,7 @@ import           Data.ByteString.Lazy                    (fromStrict)
 import           Data.Char                               (isUpper)
 import qualified Data.HashMap.Strict                     as HashMap
 import qualified Data.IntMap                             as IntMap
-import           Data.List                               (break, find, partition)
+import           Data.List                               (break, find, partition, sortBy)
 import           Data.List.Split                         (splitOneOf)
 import qualified Data.Map                                as Map
 import           Data.Maybe                              (isJust, isNothing, listToMaybe, maybeToList)
@@ -113,6 +113,7 @@ import           LunaStudio.Data.TypeRep                 (TypeRep (TStar))
 import           Path                                    (fromAbsFile, fromRelFile, parseAbsFile)
 import qualified Path                                    as Path
 import           Prologue                                hiding (Item, when)
+import qualified Safe                                    as Safe
 import           System.Environment                      (getEnv)
 import           System.FilePath                         (replaceFileName, (</>))
 import qualified System.Log.MLogger                      as Logger
@@ -227,13 +228,16 @@ handleAddConnection = modifyGraph inverse action replyResult where
 handleAddNode :: Request AddNode.Request -> StateT Env BusT ()
 handleAddNode = modifyGraph defInverse action replyResult where
     action (AddNode.Request location nl@(NodeLoc _ nodeId) expression nodeMeta connectTo) = withDefaultResult location $ do
-        Graph.addNodeCondTC False location nodeId expression nodeMeta
+        node <- Graph.addNodeCondTC False location nodeId expression nodeMeta
         for_ connectTo $ \nid -> do
             handle (\(e :: SomeASTException) -> return ()) $ do
                 let firstWord = unsafeHead $ Text.words expression
                 symbolMap <- liftIO . readMVar =<< view Empire.scopeVar
                 let shouldConnectToArg w = elem w (symbolMap ^. Empire.functions) || isUpper (Text.head w)
-                let port = if shouldConnectToArg firstWord then [Arg 0] else [Self]
+                    ports = node ^.. Node.inPorts . traverse . Port.portId
+                    selfs = filter (\a -> all (== Self) a) ports
+                    longestSelfChain = Safe.headDef [Self] $ reverse $ sortBy (compare `on` length) selfs
+                    port = if shouldConnectToArg firstWord then [Arg 0] else longestSelfChain
                 void $ Graph.connectCondTC False location (getSrcPortByNodeId nid) (InPortRef' $ InPortRef nl port)
                 Graph.withGraph location $ runASTOp $ Graph.autolayoutNodes [nodeId]
         Graph.typecheck location
