@@ -19,9 +19,7 @@ import qualified LunaStudio.API.Response                   as Response
 import           LunaStudio.Data.Connection                (dst, src)
 import           LunaStudio.Data.Node                      (nodeId)
 import           LunaStudio.Data.NodeLoc                   (NodeLoc, prependPath)
-import qualified LunaStudio.Data.NodeLoc                   as NodeLoc
 import           LunaStudio.Data.PortRef                   (AnyPortRef (InPortRef'), OutPortRef (OutPortRef))
-import qualified LunaStudio.Data.PortRef                   as PortRef
 import           NodeEditor.Action.Basic.AddConnection     (localAddConnection, localAddConnections)
 import           NodeEditor.Action.Basic.AddPort           (localAddPort)
 import           NodeEditor.Action.Basic.AddSubgraph       (localAddSubgraph)
@@ -96,7 +94,7 @@ revertRenameNode (RenameNode.Request _loc _nid _) (Response.Error _msg) = panic
 
 revertRenamePort :: RenamePort.Request -> Response.Status RenamePort.Inverse -> Command State ()
 revertRenamePort (RenamePort.Request loc portRef _) (Response.Ok (RenamePort.Inverse prevName)) =
-    inCurrentLocation loc $ \path -> void $ localRenamePort (OutPortRef (convert (path, portRef ^. PortRef.nodeLoc . NodeLoc.nodeId)) (portRef ^. PortRef.srcPortId)) prevName
+    inCurrentLocation loc $ \path -> void $ localRenamePort (prependPath path portRef) prevName
 revertRenamePort (RenamePort.Request _loc _portRef _) (Response.Error _msg) = panic
 
 revertSetNodeExpression :: SetNodeExpression.Request -> Response.Status SetNodeExpression.Inverse -> Command State ()
