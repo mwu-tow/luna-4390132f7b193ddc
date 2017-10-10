@@ -145,7 +145,7 @@ handleAddNodeUndo (Response.Response _ _ req _ status) = case status of
 
 
 getUndoAddPort :: AddPort.Request -> RemovePort.Request
-getUndoAddPort (AddPort.Request location portRef connections) =
+getUndoAddPort (AddPort.Request location portRef connections _) =
     RemovePort.Request location portRef
 
 handleAddPortUndo :: AddPort.Response -> Maybe (RemovePort.Request, AddPort.Request)
@@ -217,8 +217,8 @@ handleRemoveNodesUndo (Response.Response _ _ req invStatus status) = case (invSt
 
 -- TODO[LJK/SB]: Preserve connections
 getUndoRemovePort :: RemovePort.Request -> RemovePort.Inverse -> AddPort.Request
-getUndoRemovePort (RemovePort.Request location portRef) (RemovePort.Inverse conns) =
-    AddPort.Request location portRef $ map (InPortRef' . view Connection.dst) conns
+getUndoRemovePort (RemovePort.Request location portRef) (RemovePort.Inverse oldName conns) =
+    AddPort.Request location portRef (map (InPortRef' . view Connection.dst) conns) (Just oldName)
 
 handleRemovePortUndo :: RemovePort.Response -> Maybe (AddPort.Request, RemovePort.Request)
 handleRemovePortUndo (Response.Response _ _ req invStatus status) = case (invStatus, status) of

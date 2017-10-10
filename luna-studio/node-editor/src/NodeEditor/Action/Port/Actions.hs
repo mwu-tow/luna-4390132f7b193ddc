@@ -55,4 +55,4 @@ addArgumentConstructorIfPossibleAndNeeded portRef = do
         Nothing   -> return False
         Just node -> if hasPort pid node || countProjectionPorts node /= getPortNumber pid
             then return False
-            else localAddPort portRef Nothing
+            else localAddPort portRef Nothing def

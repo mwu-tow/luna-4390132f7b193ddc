@@ -459,26 +459,24 @@ updateCodeSpan ref = do
     setCodeSpan ref (leftSpacedSpan fileOffset len)
 
 addPort :: GraphLocation -> OutPortRef -> Empire ()
-addPort loc portRef = do
-    withTC loc False $ addPortNoTC loc portRef
-    resendCode loc
+addPort loc portRef = addPortWithConnections loc portRef Nothing []
 
-addPortNoTC :: GraphLocation -> OutPortRef -> Command Graph ()
-addPortNoTC loc (OutPortRef nl pid) = runASTOp $ do
+addPortNoTC :: GraphLocation -> OutPortRef -> Maybe Text -> Command Graph ()
+addPortNoTC loc (OutPortRef nl pid) name = runASTOp $ do
     let nid      = nl ^. NodeLoc.nodeId
         position = getPortNumber pid
     (inE, _) <- GraphBuilder.getEdgePortMapping
     when (inE /= nid) $ throwM NotInputEdgeException
     ref <- ASTRead.getCurrentASTTarget
     ASTBuilder.detachNodeMarkersForArgs ref
-    ASTModify.addLambdaArg position ref
+    ASTModify.addLambdaArg position ref name
     newLam <- ASTRead.getCurrentASTTarget
     ASTBuilder.attachNodeMarkersForArgs nid [] newLam
 
-addPortWithConnections :: GraphLocation -> OutPortRef -> [AnyPortRef] -> Empire ()
-addPortWithConnections loc portRef connectTo = do
+addPortWithConnections :: GraphLocation -> OutPortRef -> Maybe Text -> [AnyPortRef] -> Empire ()
+addPortWithConnections loc portRef name connectTo = do
     withTC loc False $ do
-        newPorts <- addPortNoTC loc portRef
+        newPorts <- addPortNoTC loc portRef name
         for_ connectTo $ connectNoTC loc portRef
         return newPorts
     resendCode loc

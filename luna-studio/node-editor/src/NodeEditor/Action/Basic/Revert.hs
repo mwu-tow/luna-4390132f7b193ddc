@@ -55,7 +55,7 @@ revertAddNode (AddNode.Request loc nl _ _ _) =
     inCurrentLocation loc $ \path -> void $ localRemoveNode $ prependPath path nl
 
 revertAddPort :: AddPort.Request -> Command State ()
-revertAddPort (AddPort.Request loc portRef _) =
+revertAddPort (AddPort.Request loc portRef _ _) =
     inCurrentLocation loc $ \path -> void $ localRemovePort $ prependPath path portRef
 
 revertAddSubgraph :: AddSubgraph.Request -> Command State ()
@@ -83,9 +83,9 @@ revertRemoveNodes (RemoveNodes.Request loc _) (Response.Ok (RemoveNodes.Inverse 
 revertRemoveNodes (RemoveNodes.Request _loc _) (Response.Error _msg) = panic
 
 revertRemovePort :: RemovePort.Request -> Response.Status RemovePort.Inverse -> Command State ()
-revertRemovePort (RemovePort.Request loc portRef) (Response.Ok (RemovePort.Inverse conns)) =
+revertRemovePort (RemovePort.Request loc portRef) (Response.Ok (RemovePort.Inverse prevName conns)) =
     inCurrentLocation loc $ \path -> do
-        void $ localAddPort (prependPath path portRef) Nothing
+        void $ localAddPort (prependPath path portRef) Nothing (Just prevName)
         void $ localAddConnections (map (\conn -> (prependPath path (conn ^. src), prependPath path (conn ^. dst))) conns)
 revertRemovePort (RemovePort.Request _loc _portRef) (Response.Error _msg) = panic
 

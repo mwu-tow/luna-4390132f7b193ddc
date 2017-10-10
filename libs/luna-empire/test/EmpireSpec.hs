@@ -15,7 +15,8 @@ import qualified Empire.ASTOps.Read              as ASTRead
 import qualified Empire.Commands.AST             as AST (dumpGraphViz, isTrivialLambda)
 import qualified Empire.Commands.Graph           as Graph (addNode, addPort, connect, disconnect, getConnections, getGraph,
                                                            getNodeIdForMarker, getNodes, loadCode, movePort, removeNodes, removePort,
-                                                           renameNode, renamePort, setNodeExpression, setNodeMeta, withGraph)
+                                                           renameNode, renamePort, setNodeExpression, setNodeMeta, withGraph,
+                                                           addPortWithConnections)
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import           Empire.Commands.Library         (createLibrary, withLibrary)
 import qualified Empire.Commands.Typecheck       as Typecheck (run)
@@ -41,7 +42,7 @@ import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar, TVar))
 import           OCI.IR.Class                    (exprs, links)
-import           Prologue                        hiding (mapping, toList, (|>))
+import           Empire.Prelude                  hiding (mapping, toList, (|>))
 
 import           Test.Hspec                      (Selector, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
                                                   shouldContain, shouldMatchList, shouldSatisfy, shouldStartWith, shouldThrow, xdescribe,
@@ -689,6 +690,29 @@ spec = around withChannels $ parallel $ do
                       Port.Port []           "alias" TStar (Port.WithDefault $ Expression "a: b: a")
                     , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
                     , Port.Port [Port.Arg 1] "b"    TStar Port.NotConnected
+                    ]
+                connections `shouldMatchList` [referenceConnection]
+        it "adds port with a specified name" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = a: a" def
+                let loc' = top |> u1
+                (input, output) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
+                Graph.addPortWithConnections loc' (outPortRef input [Port.Projection 1]) (Just "zzz") []
+                inputEdge <- buildInputEdge' loc' input
+                defFoo <- Graph.withGraph top $ runASTOp $ GraphBuilder.buildNode u1
+                connections <- Graph.getConnections loc'
+                let referenceConnection = (outPortRef input [Port.Projection 0], inPortRef output [])
+                return (inputEdge, defFoo, connections, referenceConnection)
+            withResult res $ \(inputEdge, defFoo, connections, referenceConnection) -> do
+                (inputEdge ^. Node.inputEdgePorts) `shouldMatchList` [
+                      LabeledTree def (Port.Port [Port.Projection 0] "a" TStar Port.NotConnected)
+                    , LabeledTree def (Port.Port [Port.Projection 1] "zzz" TStar Port.NotConnected)
+                    ]
+                (defFoo ^.. Node.inPorts . traverse) `shouldMatchList` [
+                      Port.Port []           "alias" TStar (Port.WithDefault $ Expression "a: zzz: a")
+                    , Port.Port [Port.Arg 0] "a"    TStar Port.NotConnected
+                    , Port.Port [Port.Arg 1] "zzz"    TStar Port.NotConnected
                     ]
                 connections `shouldMatchList` [referenceConnection]
         it "adds port at the first position" $ \env -> do

@@ -15,6 +15,7 @@ import           Prologue
 data Request = Request { _location   :: GraphLocation
                        , _outPortRef :: OutPortRef
                        , _connectTo  :: [AnyPortRef]
+                       , _name       :: Maybe Text
                        } deriving (Eq, Generic, Show)
 
 makeLenses ''Request

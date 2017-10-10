@@ -107,7 +107,7 @@ finishPortDrag portDrag = do
     if portRef == orgPortRef then end portDrag else do
         setInputSidebarPortMode portRef Port.Normal
         if isArgumentConstructor
-            then Batch.addPort portRef Nothing
+            then Batch.addPort portRef Nothing def
             else Batch.movePort orgPortRef $ getPortNumber portId
         removeActionFromState portDragAction
 
