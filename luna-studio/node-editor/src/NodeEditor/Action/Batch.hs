@@ -5,12 +5,12 @@ import           Common.Prelude
 import           Data.UUID.Types                     (UUID)
 import           LunaStudio.Data.GraphLocation       (GraphLocation)
 import           LunaStudio.Data.NodeMeta            (NodeMeta)
+import           LunaStudio.Data.NodeSearcher        (ImportName)
 import           LunaStudio.Data.PortDefault         (PortDefault)
 import           LunaStudio.Data.PortRef             (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef), OutPortRef (OutPortRef),
                                                       dstNodeLoc, nodeLoc)
 import           LunaStudio.Data.Position            (Position)
 import           LunaStudio.Data.Project             (LocationSettings)
-import           LunaStudio.Data.NodeSearcher        (ImportName)
 import           NodeEditor.Action.State.App         (getWorkspace)
 import           NodeEditor.Action.UUID              (registerRequest)
 import qualified NodeEditor.Batch.Connector.Commands as BatchCmd
@@ -67,8 +67,8 @@ addConnection src dst = do
 addNode :: NodeLoc -> Text -> NodeMeta -> Maybe NodeLoc -> Command State ()
 addNode nl expr nm connectTo = withWorkspace $ BatchCmd.addNode nl expr nm connectTo
 
-addPort :: OutPortRef -> Maybe InPortRef -> Command State ()
-addPort = withWorkspace .: BatchCmd.addPort
+addPort :: OutPortRef -> Maybe InPortRef -> Maybe Text -> Command State ()
+addPort = withWorkspace .:. BatchCmd.addPort
 
 addSubgraph :: [ExpressionNode] -> [(OutPortRef, InPortRef)] -> Command State ()
 addSubgraph [] []       = return ()

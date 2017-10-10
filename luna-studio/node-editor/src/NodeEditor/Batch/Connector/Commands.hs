@@ -45,11 +45,11 @@ import           LunaStudio.Data.Node                     (ExpressionNode)
 import           LunaStudio.Data.NodeLoc                  (NodeLoc, normalise, normalise', normalise_)
 import qualified LunaStudio.Data.NodeLoc                  as NodeLoc
 import           LunaStudio.Data.NodeMeta                 (NodeMeta)
+import           LunaStudio.Data.NodeSearcher             (ImportName)
 import           LunaStudio.Data.PortDefault              (PortDefault)
 import           LunaStudio.Data.PortRef                  (AnyPortRef (InPortRef'), InPortRef, OutPortRef)
 import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.Project                  (LocationSettings, ProjectId)
-import           LunaStudio.Data.NodeSearcher             (ImportName)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import           NodeEditor.Batch.Workspace               (currentLocation)
 import           NodeEditor.React.Model.Connection        (ConnectionId)
@@ -101,8 +101,8 @@ addNode nodeLoc expression meta connectTo workspace uuid guiID =
     sendRequest $ Message uuid guiID $ (withLibrary workspace' AddNode.Request) nodeLoc' expression meta (convert <$> connectTo) where
         (workspace', nodeLoc') = normalise workspace nodeLoc
 
-addPort :: OutPortRef -> Maybe InPortRef -> Workspace -> UUID -> Maybe UUID -> IO ()
-addPort portRef connDst workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace' AddPort.Request) portRef' (InPortRef' <$> maybeToList connDst) Nothing where
+addPort :: OutPortRef -> Maybe InPortRef -> Maybe Text -> Workspace -> UUID -> Maybe UUID -> IO ()
+addPort portRef connDst name workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace' AddPort.Request) portRef' (InPortRef' <$> maybeToList connDst) name where
     (workspace', portRef') = normalise workspace portRef
 
 addSubgraph :: [ExpressionNode] -> [Connection] -> Workspace -> UUID -> Maybe UUID -> IO ()

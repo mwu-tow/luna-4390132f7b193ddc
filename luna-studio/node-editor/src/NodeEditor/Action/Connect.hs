@@ -136,6 +136,6 @@ connectToPort dst action = do
         case (action ^. connectIsArgumentConstructor, action ^. connectSourcePort) of
             (True, OutPortRef' outPortRef) -> do
                 void . localAddConnection outPortRef $ newConn ^. ConnectionAPI.dst
-                Batch.addPort outPortRef $ Just $ newConn ^. ConnectionAPI.dst
+                Batch.addPort outPortRef (Just $ newConn ^. ConnectionAPI.dst) def
             _ -> connect (Left $ newConn ^. ConnectionAPI.src) (Left $ newConn ^. ConnectionAPI.dst)
     stopConnectingUnsafe action

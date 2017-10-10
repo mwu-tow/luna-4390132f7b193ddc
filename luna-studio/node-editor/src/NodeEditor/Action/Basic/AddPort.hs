@@ -17,18 +17,18 @@ import           NodeEditor.React.Model.Port             (OutPortIndex (Projecti
 import           NodeEditor.State.Global                 (State)
 
 
-addPort :: OutPortRef -> Maybe InPortRef -> Command State ()
-addPort portRef connDst = whenM (localAddPort portRef connDst) $ Batch.addPort portRef connDst
+addPort :: OutPortRef -> Maybe InPortRef -> Maybe Text -> Command State ()
+addPort portRef connDst mayName = whenM (localAddPort portRef connDst mayName) $ Batch.addPort portRef connDst mayName
 
-localAddPort :: OutPortRef -> Maybe InPortRef -> Command State Bool
-localAddPort portRef@(OutPortRef nid pid@[Projection pos]) mayConnDst = do
+localAddPort :: OutPortRef -> Maybe InPortRef -> Maybe Text -> Command State Bool
+localAddPort portRef@(OutPortRef nid pid@[Projection pos]) mayConnDst mayName = do
     mayNode <- getInputNode nid
     flip (maybe (return False)) mayNode $ \node ->
         if pos > countProjectionPorts node
         || pos < 0
             then return False
             else do
-                let newPort     = LabeledTree (OutPorts []) $ convert $ Port pid (Text.pack "") TStar NotConnected
+                let newPort     = LabeledTree (OutPorts []) $ convert $ Port pid (fromMaybe def mayName) TStar NotConnected
                     oldPorts    = node ^. inputSidebarPorts
                     (portsBefore, portsAfter) = splitAt pos oldPorts
                     newPorts    = portsBefore <> [newPort] <> portsAfter
@@ -41,4 +41,4 @@ localAddPort portRef@(OutPortRef nid pid@[Projection pos]) mayConnDst = do
                     _ -> return ()
                 withJust mayConnDst $ \connDst -> void $ localAddConnection portRef connDst
                 return True
-localAddPort _ _ = $notImplemented
+localAddPort _ _ _ = $notImplemented
