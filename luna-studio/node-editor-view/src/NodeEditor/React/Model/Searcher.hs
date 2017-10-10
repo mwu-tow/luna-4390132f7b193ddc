@@ -115,14 +115,14 @@ findLambdaArgsAndEndOfLambdaArgs :: Text32 -> [Token Symbol] -> Maybe ([String],
 findLambdaArgsAndEndOfLambdaArgs input' tokens = findRecursive tokens (0 :: Int) 0 def def where
     exprLength   t = fromIntegral $ t ^. Lexer.span
     offsetLength t = fromIntegral $ t ^. Lexer.offset
-    source t = Vector.slice (fromIntegral $ t ^. Lexer.span) (fromIntegral $ t ^. Lexer.offset) input'
+    getArg   beg t = Vector.slice beg (exprLength t) input'
     tokenLength  t = exprLength t + offsetLength t
     findRecursive []    _                     _      _    res = res
     findRecursive (h:t) openParanthesisNumber endPos args res = case h ^. Lexer.element of
         BlockStart    -> if openParanthesisNumber == 0
                     then findRecursive t openParanthesisNumber        (endPos + tokenLength h) args $ Just (convert <$> args, endPos + exprLength h)
                     else findRecursive t openParanthesisNumber        (endPos + tokenLength h) args $ res
-        Var        {} -> findRecursive t openParanthesisNumber        (endPos + tokenLength h) (source h : args) res
+        Var        {} -> findRecursive t openParanthesisNumber        (endPos + tokenLength h) (getArg endPos h : args) res
         Block Begin   -> findRecursive t (succ openParanthesisNumber) (endPos + tokenLength h) args res
         Block End     -> findRecursive t (pred openParanthesisNumber) (endPos + tokenLength h) args res
         _             -> findRecursive t openParanthesisNumber        (endPos + tokenLength h) args res
