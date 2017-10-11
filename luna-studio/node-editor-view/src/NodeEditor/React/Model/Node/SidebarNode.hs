@@ -24,8 +24,8 @@ import qualified NodeEditor.React.Model.Port   as Port
 
 
 data SidebarMode = AddRemove
-              | MoveConnect
-              deriving (Generic, Eq, NFData, Show)
+                 | MoveConnect
+                 deriving (Generic, Eq, NFData, Show)
 
 instance Default SidebarMode where
     def = MoveConnect
@@ -92,7 +92,7 @@ instance HasPorts InputNode where
 
 class (IsNode node, Typeable node, Eq node) => SidebarNode node where
     mode                 :: Lens' node SidebarMode
-    minimalNumberOfPorts :: node -> Int 
+    minimalNumberOfPorts :: node -> Int
     isInputSidebar       :: node -> Bool
 
     isInMode :: SidebarMode -> node -> Bool

@@ -78,17 +78,13 @@ module NodeEditor.Action.Basic
     , selectPreviousNodes
     , setCurrentImports
     , setFile
-    , setInputMode
     , setInputSidebarPortMode
     , setNodeExpression
     , setNodeMeta
     , setNodeProfilingData
     , setNodesMeta
-    , setOutputMode
     , setOutputSidebarPortMode
     , setPortDefault
-    , toggleInputMode
-    , toggleOutputMode
     , toggleSelect
     , toggleSelectedNodesMode
     , toggleSelectedNodesUnfold
@@ -119,6 +115,7 @@ import           NodeEditor.Action.Basic.FocusNode           (focusNode, focusNo
 import           NodeEditor.Action.Basic.Merge               (localMerge, localUnmerge)
 import           NodeEditor.Action.Basic.ModifyCamera        (centerGraph, modifyCamera, resetCamera)
 import           NodeEditor.Action.Basic.MovePort            (localMovePort, movePort)
+import           NodeEditor.Action.Basic.MoveProject         (localMoveProject)
 import           NodeEditor.Action.Basic.ProjectManager      (loadGraph, navigateToGraph, saveSettings)
 import           NodeEditor.Action.Basic.RemoveConnection    (localRemoveConnection, localRemoveConnections,
                                                               localRemoveConnectionsBetweenNodes, removeConnection, removeConnections,
@@ -129,7 +126,6 @@ import           NodeEditor.Action.Basic.RemovePort          (localRemovePort, r
 import           NodeEditor.Action.Basic.RenameNode          (localRenameNode, renameNode)
 import           NodeEditor.Action.Basic.RenamePort          (localRenamePort, renamePort)
 import           NodeEditor.Action.Basic.Scene               (getScene, updateScene)
-import           NodeEditor.Action.Basic.MoveProject         (localMoveProject)
 import           NodeEditor.Action.Basic.SelectNode          (dropSelectionHistory, modifySelectionHistory, selectAll, selectNode,
                                                               selectNodes, selectPreviousNodes, toggleSelect, unselectAll)
 import           NodeEditor.Action.Basic.SetNodeExpression   (localSetNodeExpression, setNodeExpression)
@@ -138,7 +134,6 @@ import           NodeEditor.Action.Basic.SetNodeMeta         (localMoveNode, loc
 import           NodeEditor.Action.Basic.SetNodeMode         (toggleSelectedNodesMode, toggleSelectedNodesUnfold)
 import           NodeEditor.Action.Basic.SetPortDefault      (localSetPortDefault, setPortDefault)
 import           NodeEditor.Action.Basic.SetPortMode         (setInputSidebarPortMode, setOutputSidebarPortMode)
-import           NodeEditor.Action.Basic.SetSidebarMode      (setInputMode, setOutputMode, toggleInputMode, toggleOutputMode)
 import           NodeEditor.Action.Basic.UpdateCollaboration (updateClient, updateCollaboration)
 import           NodeEditor.Action.Basic.UpdateConnection    (localUpdateConnection, updateConnection)
 import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpressionNode, localUpdateExpressionNodePreventingPorts,

@@ -11,20 +11,21 @@ import           LunaStudio.Data.ScreenPosition          (ScreenPosition, y)
 import           NodeEditor.Action.Basic                 (localMovePort, localRemovePort, setInputSidebarPortMode)
 import qualified NodeEditor.Action.Batch                 as Batch
 import qualified NodeEditor.Action.Connect               as Connect
-import           NodeEditor.Action.State.Action          (beginActionWithKey, continueActionWithKey, removeActionFromState,
+import           NodeEditor.Action.State.Action          (beginActionWithKey, checkAction, continueActionWithKey, removeActionFromState,
                                                           updateActionWithKey)
-import           NodeEditor.Action.State.NodeEditor      (getInputNode)
+import           NodeEditor.Action.State.NodeEditor      (getInputNode, modifyInputNode, modifyOutputNode)
 import           NodeEditor.Action.State.Scene           (getInputSidebarSize)
 import           NodeEditor.React.Model.Constants        (gridSize)
-import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, countProjectionPorts)
+import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, SidebarMode (AddRemove, MoveConnect), countProjectionPorts, mode)
 import           NodeEditor.React.Model.Port             (AnyPortRef (OutPortRef'), OutPortIndex (Projection), OutPortRef, getPortNumber)
 import qualified NodeEditor.React.Model.Port             as Port
 import           NodeEditor.React.Model.Sidebar          (portPositionInInputSidebar)
 import           NodeEditor.State.Action                 (Action (begin, continue, end, update), Connect, Mode (Click, Drag),
-                                                          PortDrag (PortDrag), connectIsArgumentConstructor, connectMode, connectSourcePort,
-                                                          connectStartPos, portDragActPortRef, portDragAction,
-                                                          portDragIsArgumentConstructor, portDragMode, portDragPortStartPosInSidebar,
-                                                          portDragStartPortRef, portDragStartPos)
+                                                          PortDrag (PortDrag), SidebarAddRemoveMode (SidebarAddRemoveMode),
+                                                          connectIsArgumentConstructor, connectMode, connectSourcePort, connectStartPos,
+                                                          portDragActPortRef, portDragAction, portDragIsArgumentConstructor, portDragMode,
+                                                          portDragPortStartPosInSidebar, portDragStartPortRef, portDragStartPos,
+                                                          sidebarAddRemoveModeAction, sidebarAddRemoveModeNodeLoc)
 import           NodeEditor.State.Global                 (State)
 import           NodeEditor.State.Mouse                  (mousePosition)
 import           React.Flux                              (MouseEvent)
@@ -39,6 +40,30 @@ instance Action (Command State) PortDrag where
             void $ localRemovePort $ action ^. portDragActPortRef
             removeActionFromState portDragAction
         else cancelPortDragUnsafe action
+
+instance Action (Command State) SidebarAddRemoveMode where
+    begin action = do
+        beginActionWithKey sidebarAddRemoveModeAction action
+        setSidebarMode (action ^. sidebarAddRemoveModeNodeLoc) AddRemove
+    continue     = continueActionWithKey sidebarAddRemoveModeAction
+    update       = updateActionWithKey   sidebarAddRemoveModeAction
+    end action   = do
+        setSidebarMode (action ^. sidebarAddRemoveModeNodeLoc) MoveConnect
+        removeActionFromState sidebarAddRemoveModeAction
+
+escapeAddRemoveMode :: SidebarAddRemoveMode -> Command State ()
+escapeAddRemoveMode = end
+
+setSidebarMode :: NodeLoc -> SidebarMode -> Command State ()
+setSidebarMode nl newMode = do
+    modifyInputNode  nl $ mode .= newMode
+    modifyOutputNode nl $ mode .= newMode
+
+toggleSidebarMode :: NodeLoc -> Command State ()
+toggleSidebarMode nl = do
+    let toggleAction :: Maybe SidebarAddRemoveMode -> Command State ()
+        toggleAction = maybe (begin $ SidebarAddRemoveMode nl) end
+    checkAction sidebarAddRemoveModeAction >>= toggleAction
 
 handleMouseUp :: MouseEvent -> PortDrag -> Command State ()
 handleMouseUp evt portDrag = do
