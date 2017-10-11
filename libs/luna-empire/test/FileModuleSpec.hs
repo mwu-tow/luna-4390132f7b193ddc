@@ -782,6 +782,8 @@ spec = around withChannels $ parallel $ do
                     loc' = loc |>= foo
                 (input, _) <- Graph.withGraph loc' $ runASTOp GraphBuilder.getEdgePortMapping
                 Graph.addPort loc' (outPortRef input [Port.Projection 1])
+                name <- Graph.getPortName loc' (outPortRef input [Port.Projection 1])
+                liftIO $ name `shouldBe` "b"
                 Graph.renamePort loc' (outPortRef input [Port.Projection 1]) "bar"
         it "pastes code from text editor to node editor" $
             let initialCode = [r|

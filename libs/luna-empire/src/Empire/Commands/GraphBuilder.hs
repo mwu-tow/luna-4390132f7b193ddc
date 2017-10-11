@@ -278,6 +278,9 @@ extractArgNames node = do
             vars  <- ASTRead.getVarsInside node
             names <- mapM ASTRead.getVarName vars
             pure $ map Just names
+        ASGFunction _ a _ -> do
+            args <- mapM IR.source a
+            mapM safeGetVarName args
         _ -> pure []
 
 extractAppArgNames :: GraphOp m => NodeRef -> m [Maybe String]
