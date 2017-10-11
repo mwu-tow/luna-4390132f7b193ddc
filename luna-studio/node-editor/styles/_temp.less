@@ -152,5 +152,9 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
 .luna-interpreter-buttons       { margin-right: 16px }
 .atom-dock-toggle-button.left   { margin-left:  -5px }
 .atom-dock-toggle-button.right  { margin-right: -5px }
-.tree-view .full-menu.list-tree { margin-left:   0   }
-.tree-view .selected::before    { border-radius: 0   }
+.tree-view .full-menu.list-tree { margin-left:   0   !important }
+.tree-view .selected::before    { border-radius: 0   !important }
+
+.tool-panel.tree-view::webkit-scrollbar {
+    display: none;
+}
