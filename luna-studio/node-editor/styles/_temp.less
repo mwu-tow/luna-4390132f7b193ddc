@@ -89,7 +89,6 @@
     }
 }
 
-
 // code edit node
 
 .luna-node__controls textarea {
@@ -116,27 +115,43 @@
 
 // Luna theme overwrites
 
-atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested styles
-    @a: #070706;
+@luna-dark-gap-color:    #070706;
+@luna-dark-active-color: #573614;
 
-    border-right: 4px solid @a;
-    border-top:   4px solid @a;
+atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested styles
+
+    border-right: 4px solid @luna-dark-gap-color;
+    border-top:   4px solid @luna-dark-gap-color;
 
     atom-workspace-axis.horizontal {
         border-right: none;
         border-top:   none;
     }
+
+    atom-pane,
+    atom-panel.left {
+        border-right-color:  @luna-dark-gap-color;
+        border-bottom-color: @luna-dark-gap-color;
+    }
 }
 
-.pane.active .inset-panel {
-    @b: #573614;
-    box-shadow: 4px -4px 0 0 @b !important;
+// atom-pane-container atom-pane {
+//     border-right-color:  @luna-dark-gap-color;
+//     border-bottom-color: @luna-dark-gap-color;
+// }
+
+.pane.active .inset-panel {   
+    box-shadow: 4px -4px 0 0 @luna-dark-active-color !important;
 }
 
 .luna-statusbar {
     display: flex;
     align-items: center;
 }
+
 .luna-interpreter-buttons {
     margin-right: 16px;
 }
+
+.atom-dock-toggle-button.left  { margin-left: -5px  }
+.atom-dock-toggle-button.right { margin-right: -5px }
