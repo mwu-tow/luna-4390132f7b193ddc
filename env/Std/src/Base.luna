@@ -845,3 +845,7 @@ def everyWithState timeInterval stateFunc state:
     Stream current future.read
 
 def print x: putStr x.toText
+
+def readFile f: primReadFile (expandPath f)
+
+def writeFile f c: primWriteFile (expandPath f c)
