@@ -215,14 +215,11 @@ close _ = do
     App.focus
 
 selectNextHint :: Searcher -> Command State ()
-selectNextHint _ = modifySearcher $ do
-    hintsLen <- use Searcher.resultsLength
-    Searcher.selected %= \p -> (p + 1) `mod` (hintsLen + 1)
+selectNextHint _ = modifySearcher $ use Searcher.resultsLength >>= \hintsLen ->
+    Searcher.selected %= min hintsLen . succ
 
 selectPreviousHint :: Searcher -> Command State ()
-selectPreviousHint _ = modifySearcher $ do
-    hintsLen <- use Searcher.resultsLength
-    Searcher.selected %= \p -> (p - 1) `mod` (hintsLen + 1)
+selectPreviousHint _ = modifySearcher $ Searcher.selected %= max 0 . pred
 
 selectHint :: Int -> Searcher -> Command State Bool
 selectHint i _ = do
