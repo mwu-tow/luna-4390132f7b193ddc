@@ -149,15 +149,24 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
     align-items: center;
 }
 
-.luna-interpreter-buttons       { margin-right: 16px }
+.luna-interpreter-buttons      { margin-right: 16px }
 
-.atom-dock-toggle-button.left   { margin-left:  -5px !important }
-.atom-dock-toggle-button.right  { margin-right: -5px !important }
+.atom-dock-toggle-button.left  { margin-left:  -4.5px !important }
+.atom-dock-toggle-button.right { margin-right: -4.5px !important }
 
-.tree-view .full-menu.list-tree { margin-left:   0   !important }
-.tree-view .selected::before    { border-radius: 0   !important }
+.tree-view .full-menu.list-tree { 
+    margin-left:   0   !important;
+    padding-left: 10px !important;
+}
 
-.tool-panel.tree-view.opened::-webkit-scrollbar,
-.tool-panel.tree-view.opened::-webkit-scrollbar-track {
-    background: none !important;
+.header.list-item.project-root-header {
+    margin-top: 6px !important;
+}
+.tree-view .selected::before   { border-radius: 0   !important }
+
+.tool-panel.tree-view::-webkit-scrollbar {
+    display:none !important;
+    &:hover {
+        opacity: 0.5 !important;
+    }
 }
