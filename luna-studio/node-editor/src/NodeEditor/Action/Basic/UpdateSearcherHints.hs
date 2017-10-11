@@ -17,8 +17,8 @@ import           LunaStudio.Data.NodeSearcher       (Entry (Entry), EntryType (F
                                                      missingImports)
 import qualified LunaStudio.Data.NodeSearcher       as NS
 import           NodeEditor.Action.Batch            (searchNodes)
-import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, modifySearcher)
-import           NodeEditor.React.Model.Searcher    (NodeModeInfo, allCommands, className, updateCommandsResult, updateNodeResult)
+import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, getSearcher, modifySearcher)
+import           NodeEditor.React.Model.Searcher    (NodeModeInfo, Searcher, allCommands, className, updateCommandsResult, updateNodeResult)
 import qualified NodeEditor.React.Model.Searcher    as Searcher
 import           NodeEditor.State.Global            (State, nodeSearcherData)
 
@@ -26,16 +26,37 @@ import           NodeEditor.State.Global            (State, nodeSearcherData)
 type IsFirstQuery         = Bool
 type SearchForMethodsOnly = Bool
 
+selectNextHint :: Searcher -> Command State ()
+selectNextHint _ = modifySearcher $ use (Searcher.hints . to length) >>= \hintsLen ->
+    Searcher.selected %= min hintsLen . succ
+
+selectPreviousHint :: Searcher -> Command State ()
+selectPreviousHint _ = modifySearcher $ Searcher.selected %= max 0 . pred
+
+selectHint :: Int -> Command State ()
+selectHint i = when (i >= 0) . modifySearcher $ do
+    hLen <- use $ Searcher.hints . to length
+    when (i <= hLen) $ Searcher.selected .= i
+
 localAddSearcherHints :: ImportsHints -> Command State ()
 localAddSearcherHints ih = do
     nodeSearcherData . imports %= Map.union ih
-    localUpdateSearcherHints
+    localUpdateSearcherHintsPreservingSelection
 
 setCurrentImports :: [ImportName] -> Command State ()
 setCurrentImports importNames = do
     nodeSearcherData . currentImports .= importNames
     imps' <- (^. missingImports) <$> use nodeSearcherData
     when (not $ null imps') $ searchNodes imps'
+
+localUpdateSearcherHintsPreservingSelection :: Command State ()
+localUpdateSearcherHintsPreservingSelection = do
+    maySelected <- maybe def (view Searcher.selectedEntry) <$> getSearcher
+    localUpdateSearcherHints
+    withJust maySelected $ \selected -> do
+        let equals e1 e2 = (e1 ^. NS.name == e2 ^. NS.name) && (e1 ^. NS.entryType == e2 ^. NS.entryType)
+        entries <- maybe def (view Searcher.hints) <$> getSearcher
+        withJust (findIndex (equals selected) entries) $ selectHint . (+1)
 
 localUpdateSearcherHints :: Command State ()
 localUpdateSearcherHints = do

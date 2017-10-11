@@ -11,14 +11,15 @@ import           LunaStudio.Data.Geometry                   (snap)
 import           LunaStudio.Data.Matrix                     (invertedTranslationMatrix, translationMatrix)
 import           LunaStudio.Data.NodeLoc                    (NodeLoc, NodePath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
+import qualified LunaStudio.Data.NodeSearcher               as NS
 import           LunaStudio.Data.PortRef                    (OutPortRef (OutPortRef))
 import           LunaStudio.Data.ScreenPosition             (move, x, y)
 import           LunaStudio.Data.Size                       (height, width)
 import           LunaStudio.Data.TypeRep                    (TypeRep (TCons))
 import           LunaStudio.Data.Vector2                    (Vector2 (Vector2))
-import           NodeEditor.Action.Basic                    (createNode, localClearSearcherHints, localUpdateSearcherHints, renameNode,
-                                                             renamePort, setNodeExpression)
-import           NodeEditor.Action.Basic                    (modifyCamera)
+import           NodeEditor.Action.Basic                    (createNode, localClearSearcherHints, localUpdateSearcherHints, modifyCamera,
+                                                             renameNode, renamePort, setNodeExpression)
+import qualified NodeEditor.Action.Basic                    as Basic
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.App                (renderIfNeeded)
@@ -75,11 +76,7 @@ open = do
     (className, nn) <- getSelectedNodes >>= \case
         [n] -> do
             pos <- findSuccessorPosition n
-            let mayP        = listToMaybe $ ExpressionNode.outPortsList n
-                className   = case view Port.valueType <$> mayP of
-                    Just (TCons cn _) -> Just $ convert cn
-                    _                 -> Nothing
-                predPortRef = OutPortRef (n ^. ExpressionNode.nodeLoc) . view Port.portId <$> mayP
+            let (className, predPortRef) = Searcher.getPredInfo n
             return $ (className, Searcher.NewNode (snap pos) predPortRef)
         _   -> do
             pos <- translateToWorkspace =<< use (Global.ui . UI.mousePos)
@@ -117,8 +114,6 @@ openWith input mode = do
             mayDelta = if isNothing xShift && isNothing yShift then Nothing else Just $ Vector2 (fromMaybe def xShift) (fromMaybe def yShift)
         withJust mayDelta $ \delta ->
             modifyCamera (invertedTranslationMatrix delta) (translationMatrix delta)
-    -- print mayNodePos
-    -- getScreenSize >>= print
     let action   = Searcher
         inputLen = Text.length input
     begin action
@@ -171,7 +166,7 @@ handleTabPressed action = withJustM getSearcher $ \s ->
 updateInputWithSelectedHint :: Searcher -> Command State Bool
 updateInputWithSelectedHint action = getSearcher >>= maybe (return False) updateWithSearcher where
     updateWithSearcher s = if s ^. Searcher.selected == 0 then return True else do
-        let mayExpr         = s ^. Searcher.selectedExpression
+        let mayExpr         = s ^? Searcher.selectedEntry . _Just . NS.name
             mayDividedInput = s ^? Searcher.input . Searcher._Divided
         withJust ((,) <$> mayExpr <*> mayDividedInput) $ \(expr, divInput) -> do
             let divInput' = divInput & Searcher.query .~ expr'
@@ -215,20 +210,11 @@ close _ = do
     App.focus
 
 selectNextHint :: Searcher -> Command State ()
-selectNextHint _ = modifySearcher $ use Searcher.resultsLength >>= \hintsLen ->
+selectNextHint _ = modifySearcher $ use (Searcher.hints . to length) >>= \hintsLen ->
     Searcher.selected %= min hintsLen . succ
 
 selectPreviousHint :: Searcher -> Command State ()
 selectPreviousHint _ = modifySearcher $ Searcher.selected %= max 0 . pred
-
-selectHint :: Int -> Searcher -> Command State Bool
-selectHint i _ = do
-    mayHintsLen <- fmap2 (view Searcher.resultsLength) getSearcher
-    case mayHintsLen of
-        Nothing       -> return False
-        Just hintsLen -> if i < 0 || i > hintsLen then return False else do
-            modifySearcher $ Searcher.selected .= i
-            return True
 
 acceptWithHint :: (Event -> IO ()) -> Int -> Searcher -> Command State ()
 acceptWithHint scheduleEvent hintNum' action = let hintNum = (hintNum' - 1) `mod` 10 in
@@ -241,18 +227,7 @@ updateInputWithHint hintNum' action = let hintNum = (hintNum' - 1) `mod` 10 in
         whenM_ (selectHint (max selected 1 + hintNum) action) $
             updateInputWithSelectedHint action
 
--- tryRollback :: Searcher -> Command State ()
--- tryRollback _ = do
---     withJustM getSearcher $ \searcher -> do
---        when (Text.null (searcher ^. Searcher.inputText)
---          && (searcher ^. Searcher.isNode)
---          && (searcher ^. Searcher.rollbackReady)) $
---             modifySearcher $ do
---                 Searcher.rollbackReady .= False
---                 Searcher.selected      .= def
---                 Searcher.mode          .= Searcher.Command def
---                 Searcher.input         .= Searcher.Raw def
---
--- enableRollback :: Searcher -> Command State ()
--- enableRollback _ = modifySearcher $
---     Searcher.rollbackReady .= True
+selectHint :: Int -> Searcher -> Command State Bool
+selectHint i _ = do
+    Basic.selectHint i
+    maybe False ((i ==) . view Searcher.selected) <$> getSearcher

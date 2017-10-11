@@ -73,6 +73,7 @@ module NodeEditor.Action.Basic
     , resetCamera
     , saveSettings
     , selectAll
+    , selectHint
     , selectNode
     , selectNodes
     , selectPreviousNodes
@@ -142,6 +143,6 @@ import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpress
                                                               localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
 import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints,
-                                                              setCurrentImports)
+                                                              selectHint, setCurrentImports)
 import           NodeEditor.Action.State.Model               (isArgConstructorConnectSrc, updateAllPortsMode, updateArgConstructorMode,
                                                               updatePortMode, updatePortsModeForNode)

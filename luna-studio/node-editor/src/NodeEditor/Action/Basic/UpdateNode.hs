@@ -1,19 +1,21 @@
 module NodeEditor.Action.Basic.UpdateNode where
 
-import           Common.Action.Command                      (Command)
+import           Common.Action.Command                       (Command)
 import           Common.Prelude
-import           LunaStudio.Data.Node                       (NodeTypecheckerUpdate, tcNodeId)
-import qualified LunaStudio.Data.Node                       as Empire
-import           NodeEditor.Action.Basic.AddNode            (localAddExpressionNode, localAddInputNode, localAddOutputNode)
-import           NodeEditor.Action.Basic.Scene              (updateScene)
-import           NodeEditor.Action.State.Model              (calculatePortSelfMode)
-import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
-import           NodeEditor.React.Model.Node                (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
-import           NodeEditor.React.Model.Node.ExpressionNode (inPortsList, isSelected, nodeType)
-import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
-import qualified NodeEditor.React.Model.Node.SidebarNode    as SidebarNode
-import           NodeEditor.React.Model.Port                (isSelf, mode, portId)
-import           NodeEditor.State.Global                    (State)
+import           LunaStudio.Data.Node                        (NodeTypecheckerUpdate, tcNodeId)
+import qualified LunaStudio.Data.Node                        as Empire
+import           NodeEditor.Action.Basic.AddNode             (localAddExpressionNode, localAddInputNode, localAddOutputNode)
+import           NodeEditor.Action.Basic.Scene               (updateScene)
+import           NodeEditor.Action.Basic.UpdateSearcherHints (localUpdateSearcherHintsPreservingSelection)
+import           NodeEditor.Action.State.Model               (calculatePortSelfMode)
+import qualified NodeEditor.Action.State.NodeEditor          as NodeEditor
+import           NodeEditor.React.Model.Node                 (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
+import           NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected, nodeType)
+import qualified NodeEditor.React.Model.Node.ExpressionNode  as ExpressionNode
+import qualified NodeEditor.React.Model.Node.SidebarNode     as SidebarNode
+import           NodeEditor.React.Model.Port                 (isSelf, mode, portId)
+import qualified NodeEditor.React.Model.Searcher             as Searcher
+import           NodeEditor.State.Global                     (State)
 
 
 localUpdateExpressionNodes :: [ExpressionNode] -> Command State ()
@@ -66,6 +68,7 @@ localUpdateExpressionNode' preventPorts node = NodeEditor.getExpressionNode (nod
         updatedNode <- maybe (return n) (\sPid -> updatePortSelfMode n sPid <$> calculatePortSelfMode n) mayPortSelfId
         NodeEditor.addExpressionNode updatedNode
         NodeEditor.updateVisualizationsForNode (updatedNode ^. nodeLoc) $ updatedNode ^. nodeType
+        updateSearcherClassName updatedNode
         return True
 
 localUpdateOrAddExpressionNode :: ExpressionNode -> Command State ()
@@ -86,3 +89,11 @@ localUpdateNodeTypecheck path update = do
             SidebarNode.outputSidebarPorts .= convert `fmap` inPorts
         Empire.InputSidebarUpdate _ outPorts -> NodeEditor.modifyInputNode nl $
             SidebarNode.inputSidebarPorts .= convert `fmap2` outPorts
+
+updateSearcherClassName :: ExpressionNode -> Command State ()
+updateSearcherClassName n = do
+    let (className, _) = Searcher.getPredInfo n
+        isNodePred n s = s ^. Searcher.predNl == Just (n ^. ExpressionNode.nodeLoc)
+    whenM (maybe False (isNodePred n) <$> NodeEditor.getSearcher) $ do
+        NodeEditor.modifySearcher $ Searcher.mode . Searcher._Node . _2 . Searcher.className .= className
+        localUpdateSearcherHintsPreservingSelection

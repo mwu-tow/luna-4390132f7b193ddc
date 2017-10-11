@@ -16,10 +16,13 @@ import           LunaStudio.Data.NodeLoc                    (NodeLoc)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import           LunaStudio.Data.NodeSearcher               (Entry)
 import qualified LunaStudio.Data.NodeSearcher               as NS
-import           LunaStudio.Data.PortRef                    (OutPortRef, srcNodeLoc)
+import           LunaStudio.Data.PortRef                    (OutPortRef (OutPortRef), srcNodeLoc)
+import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position)
+import           LunaStudio.Data.TypeRep                    (TypeRep (TCons))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Model
+import qualified NodeEditor.React.Model.Port                as Port
 import           Prologue                                   (unsafeFromJust)
 
 
@@ -64,6 +67,10 @@ makePrisms ''Input
 makePrisms ''Mode
 
 instance Default Input where def = Raw def
+
+predNl :: Getter Searcher (Maybe NodeLoc)
+predNl = to predNl' where
+  predNl' s = s ^? mode . _Node . _2 . newNodeData . _Just . predPortRef . _Just . PortRef.nodeLoc
 
 inputText :: Getter Searcher Text
 inputText = to (toText . view input)
@@ -133,22 +140,34 @@ mkDef mode' = Searcher def mode' (Divided $ DividedInput def def def) False Fals
 defCommand :: Searcher
 defCommand = mkDef $ Command def
 
-selectedExpression :: Getter Searcher (Maybe Text)
-selectedExpression = to getExpression where
-    getExpression s = let i = s ^. selected in
-        if i == 0 then Nothing else case s ^. mode of
-            Command    results -> view NS.name <$> results ^? ix (i - 1)
-            Node   _ _ results -> view NS.name <$> results ^? ix (i - 1)
-            NodeName _ results -> view NS.name <$> results ^? ix (i - 1)
-            PortName _ results -> view NS.name <$> results ^? ix (i - 1)
+hints :: Lens' Searcher [Entry]
+hints = lens getHints setHints where
+  getHints s = case s ^. mode of
+    Command    results -> results
+    Node   _ _ results -> results
+    NodeName _ results -> results
+    PortName _ results -> results
+  setHints s h = case s ^. mode of
+    Command     results -> s & mode .~ Command h
+    Node nl nmi results -> s & mode .~ Node nl nmi h
+    NodeName nl results -> s & mode .~ NodeName nl h
+    PortName pr results -> s & mode .~ PortName pr h
+
+isValidSelection :: Int -> Searcher -> Bool
+isValidSelection i s = i < 0 || i > length (s ^. hints)
+
+selectedEntry :: Getter Searcher (Maybe Entry)
+selectedEntry = to selectedEntry where
+    selectedEntry s = let i = s ^. selected - 1 in
+        if i < 0 then Nothing else s ^? hints . ix i
 
 selectedNode :: Getter Searcher (Maybe ExpressionNode)
 selectedNode = to getNode where
     mockNode expr = mkExprNode (unsafeFromJust $ UUID.fromString "094f9784-3f07-40a1-84df-f9cf08679a27") expr def
     getNode s = let i = s ^. selected in
         if i == 0 then Nothing else case s ^. mode of
-            Node _ _ results -> mockNode . view NS.name <$> results ^? ix (i - 1)
-            _                -> Nothing
+            Node _ _ hints' -> mockNode . view NS.name <$> hints' ^? ix (i - 1)
+            _               -> Nothing
 
 applyExpressionHint :: ExpressionNode -> Model.ExpressionNode -> Model.ExpressionNode
 applyExpressionHint n exprN = exprN & Model.expression .~ n ^. Node.expression
@@ -156,14 +175,6 @@ applyExpressionHint n exprN = exprN & Model.expression .~ n ^. Node.expression
                                     & Model.inPorts    .~ (convert <$> n ^. Node.inPorts)
                                     & Model.outPorts   .~ (convert <$> n ^. Node.outPorts)
                                     & Model.code       .~ n ^. Node.code
-
-resultsLength :: Getter Searcher Int
-resultsLength = to getLength where
-    getLength searcher = case searcher ^. mode of
-        Command    results -> length results
-        Node   _ _ results -> length results
-        NodeName _ results -> length results
-        PortName _ results -> length results
 
 updateNodeResult :: [Entry] -> Mode -> Mode
 updateNodeResult r (Node nl nmi _) = Node nl nmi r
@@ -201,7 +212,7 @@ isSearcherRelated nl s = isPrefixOf nlIdPath sIdPath where
     sIdPath = case s ^. mode of
         Node     snl   _ _ -> NodeLoc.toNodeIdList snl
         NodeName snl     _ -> NodeLoc.toNodeIdList snl
-        PortName portRef _ -> NodeLoc.toNodeIdList $ portRef ^. srcNodeLoc
+        PortName portRef _ -> NodeLoc.toNodeIdList $ portRef ^. PortRef.nodeLoc
         _                  -> []
 
 data OtherCommands = AddNode
@@ -211,3 +222,12 @@ allCommands :: [Text]
 allCommands = convert <$> (commands <> otherCommands) where
     commands = show <$> [(minBound :: Shortcut.Command) ..]
     otherCommands = show <$> [(minBound :: OtherCommands)]
+
+
+getPredInfo :: Model.ExpressionNode -> (Maybe Text, Maybe OutPortRef)
+getPredInfo pred = (className, predPortRef) where
+    mayP        = listToMaybe $ Model.outPortsList pred
+    className   = case view Port.valueType <$> mayP of
+        Just (TCons cn _) -> Just $ convert cn
+        _                 -> Nothing
+    predPortRef = OutPortRef (pred ^. Model.nodeLoc) . view Port.portId <$> mayP

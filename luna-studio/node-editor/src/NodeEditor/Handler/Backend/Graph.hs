@@ -7,6 +7,7 @@ import           Common.Prelude
 import           Common.Report
 import qualified Data.DateTime                               as DT
 import qualified JS.Clipboard                                as JS
+import qualified LunaStudio.API.Atom.MoveProject             as MoveProject
 import qualified LunaStudio.API.Atom.Paste                   as AtomPaste
 import qualified LunaStudio.API.Atom.Substitute              as Substitute
 import qualified LunaStudio.API.Graph.AddConnection          as AddConnection
@@ -67,7 +68,6 @@ import qualified NodeEditor.React.Model.Node.ExpressionNode  as Node
 import           NodeEditor.React.Model.NodeEditor           (GraphStatus (GraphError, GraphLoaded))
 import           NodeEditor.State.Global                     (State)
 import qualified NodeEditor.State.Global                     as Global
-import qualified LunaStudio.API.Atom.MoveProject as MoveProject
 
 
 
