@@ -10,8 +10,7 @@ module Empire.ASTOps.Builder where
 import           Control.Monad                      (foldM, replicateM, zipWithM_)
 import           Data.Maybe                         (isNothing)
 import qualified Data.Text                          as Text
-import           Empire.Prelude                     (stringToName)
-import           Prologue                           hiding (List)
+import           Empire.Prelude                     hiding (List)
 
 import           LunaStudio.Data.Node               (NodeId)
 import           LunaStudio.Data.PortRef            (OutPortRef (..))

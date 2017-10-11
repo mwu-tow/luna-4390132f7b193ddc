@@ -28,8 +28,8 @@ import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Remove               as ASTRemove
 import qualified Empire.Commands.Code               as Code
 import           Empire.Data.AST                    (EdgeRef, NodeRef, NotLambdaException(..),
-                                                     NotUnifyException(..), astExceptionToException,
-                                                     astExceptionFromException)
+                                                     NotUnifyException(..), PortDoesNotExistException(..),
+                                                     astExceptionToException, astExceptionFromException)
 import           Empire.Data.Layers                 (SpanLength, SpanOffset)
 import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import qualified Empire.Data.Graph                  as Graph
@@ -245,10 +245,20 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
             newOffset <- (+funBeg) <$> Code.getOffsetRelativeToTarget alink
             ownOff    <- IR.getLayer @SpanOffset alink
             ownLen    <- IR.getLayer @SpanLength =<< IR.source alink
+            landingLen <- do
+                let landingVar = as ^? ix newPosition
+                landingLenMay <- for landingVar (\l -> IR.source l >>= IR.getLayer @SpanLength)
+                maybe (throwM $ PortDoesNotExistException [Port.Projection newPosition]) pure landingLenMay
             code      <- Code.getAt (initialOffset - ownOff) (initialOffset + ownLen)
-            Code.applyMany [ (initialOffset - ownOff, initialOffset + ownLen, "")
-                           , (newOffset     - ownOff, newOffset     - ownOff, code)
-                           ]
+            let changes = if newPosition < port
+                          then [ (initialOffset - ownOff, initialOffset + ownLen, "")
+                               , (newOffset     - ownOff, newOffset - ownOff, code)
+                               ]
+                          else
+                              [ (initialOffset - ownOff , initialOffset + ownLen, "")
+                              , (newOffset     + landingLen, newOffset + landingLen, code)
+                              ]
+            Code.applyMany changes
     _ -> throwM $ NotLambdaException lambda
 
 renameLambdaArg :: GraphOp m => Port.OutPortId -> String -> NodeRef -> m ()

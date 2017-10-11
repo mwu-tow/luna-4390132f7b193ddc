@@ -1395,6 +1395,35 @@ spec = around withChannels $ parallel $ do
                 let loc' = loc |> foo
                 (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.movePort loc' (outPortRef input [Port.Projection 0]) 2
+        it "reorders function ports in an inner def" $ let
+            initialCode = [r|
+                def main:
+                    «4»def func1 a b:
+                        «2»number1 = 30
+                        «1»x=1
+                        «3»a = x
+                        a
+                    None
+
+                def kek a b: None
+                ### META {"metas":[{"marker":4,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":-80,"_vector2_x":512}}}},{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":80,"_vector2_x":80}}}},{"marker":1,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":176,"_vector2_x":176}}}},{"marker":3,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-80,"_vector2_x":336}}}}]}
+                |]
+            expectedCode = [r|
+                def main:
+                    def func1 b a:
+                        number1 = 30
+                        x=1
+                        a = x
+                        a
+                    None
+
+                def kek a b: None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just func1 <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 4
+                let loc' = loc |> func1
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.movePort loc' (outPortRef input [Port.Projection 0]) 1
         it "removes last port in top-level def" $ \env -> do
             let initialCode = Text.pack $ normalizeQQ [r|
                     def foo aaaa:

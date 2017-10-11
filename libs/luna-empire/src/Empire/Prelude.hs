@@ -2,8 +2,8 @@ module Empire.Prelude (module X, nameToString, pathNameToString, stringToName, (
 
 import qualified Data.Convert              as Convert
 import qualified OCI.IR.Name.Qualified     as IR
-import Prologue as X hiding (TypeRep, p, r, s, (|>), return, liftIO, fromMaybe, when)
-import Control.Monad       as X (return, when)
+import Prologue as X hiding (TypeRep, p, r, s, (|>), return, liftIO, fromMaybe, when, mapM, mapM_)
+import Control.Monad       as X (return, when, mapM, mapM_)
 import Control.Monad.Trans as X (liftIO)
 import Data.List           as X (sort)
 import Data.Maybe          as X (fromMaybe)
