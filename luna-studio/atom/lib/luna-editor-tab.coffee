@@ -115,8 +115,15 @@ module.exports =
 
         spans: =>
             buffer = @getBuffer()
-            [buffer.characterIndexForPosition(s.marker.oldHeadBufferPosition),
-             buffer.characterIndexForPosition(s.marker.oldTailBufferPosition)].sort((a,b) -> a - b) for s in @getSelections()
+            for s in @getSelections()
+                head = s.marker.oldHeadBufferPosition
+                tail = s.marker.oldTailBufferPosition
+                if head.isEqual tail
+                    head.column = 0
+                    tail.column = 0
+                    tail.row += 1
+                [buffer.characterIndexForPosition(head),
+                 buffer.characterIndexForPosition(tail)].sort((a,b) -> a - b)
 
         handleCopy: (e) =>
             e.preventDefault()
