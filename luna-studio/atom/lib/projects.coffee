@@ -102,6 +102,7 @@ module.exports =
                             callback recentProjectPath
 
         add: (recentProjectPath) =>
+            if isTemporary recentProjectPath then return
             loadRecentNoCheck (recentProjectsPaths) =>
                 pos = recentProjectsPaths.indexOf(recentProjectPath);
                 if pos != -1
