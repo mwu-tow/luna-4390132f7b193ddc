@@ -94,7 +94,7 @@ replaceWithLam parent name lam = do
     binder      <- IR.var $ stringToName name
     let argLen = fromIntegral $ length name
     IR.putLayer @SpanLength binder argLen
-    newLam      <- IR.lam binder tmpBlank
+    newLam      <- IR.generalize <$> IR.lam binder tmpBlank
     IR.putLayer @SpanLength newLam $ argLen + 2 + 1 -- ": " + "_"
     IR.matchExpr newLam $ \case
         Lam _ b -> IR.putLayer @SpanOffset b 2 -- ": "
@@ -110,12 +110,18 @@ replaceWithLam parent name lam = do
                 return $ fmap (+ o) beg)
         Code.applyDiff beg beg $ convert $ ": " <> name
     case parent of
-        Just e  -> IR.replaceSource (IR.generalize newLam) e
+        Just e  -> do
+            oldEdgeOffset <- IR.getLayer @SpanOffset e
+            IR.matchExpr newLam $ \case
+                Lam _ b -> IR.putLayer @SpanOffset b oldEdgeOffset
+            IR.putLayer @SpanOffset e 2
+            IR.replaceSource (IR.generalize newLam) e
         Nothing -> substitute (IR.generalize newLam) lam
     IR.replace lam tmpBlank
-    Code.gossipLengthsChangedBy (2 + argLen) =<< case parent of
+    Code.gossipLengthsChanged =<< case parent of
         Just p -> IR.readTarget p
         _      -> pure lam
+    Code.gossipLengthsChanged newLam
     return ()
 
 addLambdaArg' :: GraphOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()

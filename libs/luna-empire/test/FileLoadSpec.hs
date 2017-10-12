@@ -1960,3 +1960,50 @@ spec = around withChannels $ parallel $ do
                 node <- Graph.addNode loc u1 "map +1 . map +2" (atXPos 300)
                 Just l <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
                 Graph.connect loc (outPortRef l []) (InPortRef' $ inPortRef u1 [Port.Self, Port.Self])
+        it "undos add port with connections" $ let
+            initialCode = [r|
+                def main:
+                    «2»lambda1 = x:
+                        «3»id1 = id
+                    None
+
+                ### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":-112,"_vector2_x":-32}}}},{"marker":3,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":-112,"_vector2_x":-112}}}}]}
+                |]
+            expectedCode = [r|
+                def main:
+                    lambda1 = x:
+                        id1 = id a
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just lambda1 <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                let loc' = loc |> lambda1
+                nodes <- Graph.getNodes loc'
+                let Just id1 = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "id1") nodes
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.addPortWithConnections loc' (outPortRef input [Port.Projection 1]) Nothing [InPortRef' $ inPortRef id1 [Port.Arg 0]]
+                Graph.withGraph loc' $ runASTOp $ AST.dumpGraphViz "a"
+                Graph.removePort loc' (outPortRef input [Port.Projection 1])
+        xit "add port updates lambda length - core bug" $ let
+            initialCode = [r|
+                def main:
+                    «2»lambda1 = x:
+                        «3»id1 = id
+                    None
+
+                ### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":-112,"_vector2_x":-32}}}},{"marker":3,"meta":{"_displayResult":false,"_selectedVisualizer":null,"_position":{"fromPosition":{"_vector2_y":-112,"_vector2_x":-112}}}}]}
+                |]
+            expectedCode = [r|
+                def main:
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just lambda1 <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                let loc' = loc |> lambda1
+                nodes <- Graph.getNodes loc'
+                let Just id1 = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "id1") nodes
+                (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.addPortWithConnections loc' (outPortRef input [Port.Projection 1]) Nothing [InPortRef' $ inPortRef id1 [Port.Arg 0]]
+                Graph.removeNodes loc [lambda1]
+                -- uncommenting line below causes a crash, suggesting that something is broken
+                -- Graph.withGraph loc $ runASTOp $ AST.dumpGraphViz "a"
