@@ -12,6 +12,7 @@ module.exports = ProjectItem = class ProjectItem {
         this.render = this.render.bind(this);
         this.thumbLogo = this.thumbLogo.bind(this);
         this.name = project.name != undefined ? project.name : "(unnamed)";
+        this.description = project.description != undefined ? project.description : "";
         this.uri = project.uri != undefined ? project.uri : project.name;
         this.classes = classes;
         this.onOpen = function() {
@@ -46,6 +47,7 @@ module.exports = ProjectItem = class ProjectItem {
         return  <div class={this.classes} on={{click: this.onOpen}}>
                     {this.props.logo}
                     <div class="luna-project-caption">{this.name}</div>
+                    <div class="luna-project-description">{this.description}</div>
                 </div>
     }
 };
