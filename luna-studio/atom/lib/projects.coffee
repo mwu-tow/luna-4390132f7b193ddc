@@ -10,6 +10,7 @@ recentProjectsPath    = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.ym
 defaultProjectPath    = process.env.LUNA_STUDIO_PROJECTS  or path.join(fs.getHomeDirectory(), 'projects')
 temporaryPath         = process.env.LUNA_STUDIO_TEMP      or '/tmp'
 tutorialsDownloadPath = process.env.LUNA_STUDIO_TUTORIALS or '/tmp/tutorials'
+devMode               = process.env.LUNA_STUDIO_DEVELOP?
 
 temporaryProject = {
     name: 'unsaved-luna-project',
@@ -23,15 +24,17 @@ temporaryMainFilePath = path.join temporaryProject.path, temporaryProject.srcDir
 
 encoding = 'utf8'
 
-token = '?access_token=01665947e42b84759406bc56a72ec141575653d1'
+tokenUser = 'luna-studio'
+token = '01665947e42b84759406bc56a72ec141575653d1'
+accessToken = '?access_token=' + token
 
 tutorialRequestOpts =
-    url: 'https://api.github.com/orgs/luna-packages/repos' + token
+    url: 'https://api.github.com/orgs/luna-packages/repos' + accessToken
     headers:
         'User-Agent': 'luna-studio'
 
 thumbnailRequestOpts = (name) ->
-    url: 'https://api.github.com/repos/luna-packages/' + name + '/contents/thumb.png' + token
+    url: 'https://api.github.com/repos/luna-packages/' + name + '/contents/thumb.png' + accessToken
     headers:
         'User-Agent': 'luna-studio'
 
@@ -115,14 +118,14 @@ module.exports =
                     parsed = yaml.safeLoad(body)
                     if body?
                         parsed.forEach (repo) =>
-                            console.log repo
                             request.get thumbnailRequestOpts(repo.name), (err, response, body) =>
-                                parsed = yaml.safeLoad(body)
-                                callback
-                                    name: repo.name
-                                    description: repo.description
-                                    uri: repo.html_url
-                                    thumb: 'data:image/png;base64,' + parsed.content
+                                if body?
+                                    parsed = yaml.safeLoad(body)
+                                    callback
+                                        name: repo.name
+                                        description: repo.description
+                                        uri: repo.html_url
+                                        thumb: 'data:image/png;base64,' + parsed.content
             catch error
                 atom.confirm
                     message: "Error while getting tutorials"
@@ -136,8 +139,11 @@ module.exports =
                 fetchOpts:
                     callbacks:
                         certificateCheck: => 1
-                        credentials: (url, userName, bla) =>
-                            Git.Cred.sshKeyFromAgent(userName)
+                        credentials: (url, userName) =>
+                            if devMode
+                                Git.Cred.sshKeyFromAgent(userName)
+                            else
+                                Git.Cred.userpassPlaintextNew(tokenUser, token)
                         transferProgress: (stats) =>
                             p = (stats.receivedObjects() + stats.indexedObjects()) / (stats.totalObjects() * 2)
                             try
