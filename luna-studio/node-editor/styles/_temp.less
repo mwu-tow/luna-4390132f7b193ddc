@@ -170,3 +170,21 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
         opacity: 0.5 !important;
     }
 }
+
+.tab-bar .tab {
+    display:         flex;
+    flex:            inherit !important;
+    flex-direction:  row-reverse;
+    justify-content: center;
+    * {
+        position: inherit !important;
+    }
+}
+.line-number {
+    margin-left:  0    !important;
+    padding-left: 16px !important;
+}
+
+atom-text-editor .line-number .icon-right {
+    padding: 0 0.5em !important;
+}
