@@ -1,5 +1,6 @@
 path = require 'path'
 {View} = require 'atom-space-pen-views'
+projects = require './projects'
 
 uniqueTabNo = 0
 
@@ -109,3 +110,6 @@ class LunaStudioTab extends View
         e.preventDefault()
         e.stopImmediatePropagation()
         @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
+        oldPath = atom.project.getPaths()[0]
+        projects.temporaryProject.save (newUri) =>
+            @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)
