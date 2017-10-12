@@ -103,18 +103,16 @@ class LunaWelcomeTab extends View
                 @detach()
             @privateItems.push(item)
             @privateContainer.append(item.element)
-        projects.tutorial.list (tutorials) =>
-            if tutorials.length == 0
-                @tutorialsContainer[0].innerText = 'Internet connection required.'
-            else
-                @tutorialsContainer[0].innerText = ''
-            for tutorial in tutorials
-                item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
-                    projects.tutorial.open(tutorial, progress, =>
-                        finalize()
-                        @detach()))
-                @tutorialItems.push(item)
-                @tutorialsContainer.append(item.element)
+
+        @tutorialsContainer[0].innerText = 'Internet connection required.'
+        projects.tutorial.list (tutorial) =>
+            @tutorialsContainer[0].innerText = ''
+            item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
+                projects.tutorial.open(tutorial, progress, =>
+                    finalize()
+                    @detach()))
+            @tutorialItems.push(item)
+            @tutorialsContainer.append(item.element)
 
     getFilterKey: ->
         return 'name'

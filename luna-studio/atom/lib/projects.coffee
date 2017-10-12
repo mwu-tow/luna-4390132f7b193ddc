@@ -23,8 +23,15 @@ temporaryMainFilePath = path.join temporaryProject.path, temporaryProject.srcDir
 
 encoding = 'utf8'
 
+token = '?access_token=01665947e42b84759406bc56a72ec141575653d1'
+
 tutorialRequestOpts =
-    url: 'https://api.github.com/users/luna-packages/repos'
+    url: 'https://api.github.com/orgs/luna-packages/repos' + token
+    headers:
+        'User-Agent': 'luna-studio'
+
+thumbnailRequestOpts = (name) ->
+    url: 'https://api.github.com/repos/luna-packages/' + name + '/contents/thumb.png' + token
     headers:
         'User-Agent': 'luna-studio'
 
@@ -106,15 +113,16 @@ module.exports =
             try
                 request.get tutorialRequestOpts, (err, response, body) =>
                     parsed = yaml.safeLoad(body)
-                    repos = []
                     if body?
-                        for repo in parsed
-                            repos.push
-                                name: repo.name
-                                description: repo.description
-                                uri: repo.html_url
-                                thumb: ('https://raw.githubusercontent.com/luna-packages/' + repo.name + '/master/thumb.png')
-                    callback repos
+                        parsed.forEach (repo) =>
+                            console.log repo
+                            request.get thumbnailRequestOpts(repo.name), (err, response, body) =>
+                                parsed = yaml.safeLoad(body)
+                                callback
+                                    name: repo.name
+                                    description: repo.description
+                                    uri: repo.html_url
+                                    thumb: 'data:image/png;base64,' + parsed.content
             catch error
                 atom.confirm
                     message: "Error while getting tutorials"
