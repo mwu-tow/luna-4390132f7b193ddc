@@ -147,9 +147,16 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
 .luna-statusbar {
     display: flex;
     align-items: center;
+    .inline-block:hover {
+        background-color: inherit;
+        cursor: pointer;
+    }
+    .icon:before { top: 0 !important }
 }
 
-.luna-interpreter-buttons      { margin-right: 16px }
+
+.luna-interpreter-buttons      { margin-right:  16px !important }
+
 
 .atom-dock-toggle-button.left  { margin-left:  -4.5px !important }
 .atom-dock-toggle-button.right { margin-right: -4.5px !important }
@@ -163,13 +170,6 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
     margin-top: 6px !important;
 }
 .tree-view .selected::before   { border-radius: 0   !important }
-
-.tool-panel.tree-view::-webkit-scrollbar {
-    display:none !important;
-    &:hover {
-        opacity: 0.5 !important;
-    }
-}
 
 .tab-bar .tab {
     display:         flex;
