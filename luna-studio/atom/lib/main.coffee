@@ -114,7 +114,7 @@ module.exports = LunaStudio =
 
     handleSaveAsLuna: (editor) ->
         editor.onDidSave (e) =>
-            if path.extname(e.path) is ".luna" and not editor instanceof LunaEditorTab
+            if path.extname(e.path) is ".luna" and not (editor instanceof LunaEditorTab)
                 atom.workspace.destroyActivePaneItem()
                 atom.workspace.open(e.path)
 
