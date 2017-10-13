@@ -326,6 +326,12 @@ isVar expr = isJust <$> IRExpr.narrowTerm @IR.Var expr
 isASGFunction :: GraphOp m => NodeRef -> m Bool
 isASGFunction expr = isJust <$> IRExpr.narrowTerm @IR.ASGFunction expr
 
+isAnonymous :: GraphOp m => NodeRef -> m Bool
+isAnonymous expr = match expr $ \case
+    Marked _ e -> isAnonymous =<< IR.source e
+    Unify _ _  -> return False
+    _          -> return True
+
 dumpPatternVars :: GraphOp m => NodeRef -> m [NodeRef]
 dumpPatternVars ref = match ref $ \case
     Var _     -> return [ref]

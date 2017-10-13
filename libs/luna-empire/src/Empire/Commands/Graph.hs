@@ -107,7 +107,7 @@ import           Debug
 import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis, runModuleTypecheck)
 import qualified Empire.ASTOps.Builder            as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
-import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy)
+import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy, isNone)
 import qualified Empire.ASTOps.Modify             as ASTModify
 import           Empire.ASTOps.Parse              (FunctionParsing(..))
 import qualified Empire.ASTOps.Parse              as ASTParse
@@ -371,6 +371,12 @@ insertAfter s after new textBeginning code = IR.matchExpr s $ \case
                     setSeqOffsets newSeq 0 (indentBy + 1)
                     return $ (newSeq, True)
 
+getCurrentFunctionOutput :: GraphOp m => m NodeRef
+getCurrentFunctionOutput = do
+    seq <- ASTRead.getCurrentBody
+    IR.matchExpr seq $ \case
+        IR.Seq _ r -> IR.source r
+        _ -> return seq
 
 putInSequence :: GraphOp m => NodeRef -> Text -> NodeMeta -> m ()
 putInSequence ref code meta = do
@@ -380,9 +386,17 @@ putInSequence ref code meta = do
     let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
     nearestNode        <- findPreviousNodeInSequence oldSeq meta nodesWithMetas
     blockEnd           <- Code.getCurrentBlockEnd
+    currentOutput      <- getCurrentFunctionOutput
+    anonOutput         <- ASTRead.isAnonymous currentOutput
+    none               <- isNone currentOutput
     (newS, shouldUpdate) <- insertAfter oldSeq nearestNode ref blockEnd code
     when shouldUpdate (updateGraphSeq $ Just newS)
     Code.gossipLengthsChanged newS
+    when (Just currentOutput == nearestNode && anonOutput && not none) $ do
+        Just nid <- GraphBuilder.getNodeIdWhenMarked currentOutput
+        ASTBuilder.ensureNodeHasName generateNodeName nid
+        v <- ASTRead.getASTVar nid
+        setOutputTo v
 
 addOutputAtEnd :: GraphOp m => NodeRef -> NodeRef -> Delta -> m NodeRef
 addOutputAtEnd initial out blockEnd = do

@@ -694,7 +694,8 @@ spec = around withChannels $ parallel $ do
                 def main:
                     pi = 3.14
                     foo = a: b: d = 8
-                                a + b
+                                sum1 = a + b
+                                sum1
                     c = 4
                     bar = foo 8 c
                 |]
@@ -1231,8 +1232,9 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main a c b:
                     foo bar
-                    baz
+                    baz1 = baz
                     foo1 = foo a b c
+                    baz1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
@@ -1250,8 +1252,9 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     foo bar
-                    baz
+                    baz1 = baz
                     foo1 = foo a b c
+                    baz1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 (input, _) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
@@ -2007,3 +2010,17 @@ spec = around withChannels $ parallel $ do
                 Graph.removeNodes loc [lambda1]
                 -- uncommenting line below causes a crash, suggesting that something is broken
                 -- Graph.withGraph loc $ runASTOp $ AST.dumpGraphViz "a"
+        it "maintains connection to output after adding a node" $ let
+            initialCode = [r|
+                def main:
+                    «0»(1,2,3)
+                |]
+            expectedCode = [r|
+                def main:
+                    tuple1 = (1,2,3)
+                    first1 = first
+                    tuple1
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                Graph.addNode loc u1 "first" (atXPos 300)

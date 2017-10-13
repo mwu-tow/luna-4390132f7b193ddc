@@ -43,7 +43,6 @@ import           LunaStudio.Data.Node               (NodeId)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 
 import           LunaStudio.Data.Point (Point(Point))
-import Debug.Trace as Trace
 
 pointToDelta :: Point -> Text -> Delta
 pointToDelta (Point col row) code = fromIntegral $ col + row + sumOfRowsBefore where

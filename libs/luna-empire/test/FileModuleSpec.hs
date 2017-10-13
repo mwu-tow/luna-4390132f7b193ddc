@@ -551,7 +551,7 @@ spec = around withChannels $ parallel $ do
 
                     «0»def bar:
                         «5»number2 = 1
-                        «2»"bar"
+                        «2»text1 = "bar"
                         «4»number1 = 5
                         number1
 
@@ -577,14 +577,14 @@ spec = around withChannels $ parallel $ do
                         «1»5
 
                     «0»def bar:
-                        «2»"bar"
+                        «2»text1 = "bar"
                         «4»number1 = 5
                         number1
 
                     def main:
                         «3»print bar
                 |]
-            blockEnd `shouldBe` 74
+            blockEnd `shouldBe` 82
         it "maintains proper block start info after adding node" $ \env -> do
             (starts, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
