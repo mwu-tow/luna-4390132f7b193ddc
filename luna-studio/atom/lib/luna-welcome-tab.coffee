@@ -104,9 +104,11 @@ class LunaWelcomeTab extends View
             @privateItems.push(item)
             @privateContainer.append(item.element)
 
-        @tutorialsContainer[0].innerText = 'Internet connection required.'
+        noTutorialsMsg = 'Internet connection required.'
+        @tutorialsContainer[0].innerText = noTutorialsMsg
         projects.tutorial.list (tutorial) =>
-            @tutorialsContainer[0].innerText = ''
+            if @tutorialsContainer[0].innerText is noTutorialsMsg
+                @tutorialsContainer[0].innerText = ''
             item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
                 projects.tutorial.open(tutorial, progress, =>
                     finalize()
