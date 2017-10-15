@@ -141,10 +141,7 @@ module.exports =
                     callbacks:
                         certificateCheck: => 1
                         credentials: (url, userName) =>
-                            if devMode
-                                Git.Cred.sshKeyFromAgent(userName)
-                            else
-                                Git.Cred.userpassPlaintextNew(tokenUser, token)
+                            Git.Cred.userpassPlaintextNew(tokenUser, token)
                         transferProgress: (stats) =>
                             p = (stats.receivedObjects() + stats.indexedObjects()) / (stats.totalObjects() * 2)
                             try
