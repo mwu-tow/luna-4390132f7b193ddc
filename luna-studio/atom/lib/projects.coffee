@@ -136,12 +136,16 @@ module.exports =
 
         open: (tutorial, progress, finalize) ->
             dstPath = tutorialsDownloadPath + '/' + tutorial.name
+            cloneAttempts = 0
             cloneOpts =
                 fetchOpts:
                     callbacks:
                         certificateCheck: => 1
                         credentials: (url, userName) =>
-                            Git.Cred.userpassPlaintextNew(tokenUser, token)
+                            if cloneAttempts > 0
+                                return Git.Cred.sshKeyFromAgent(userName)
+                            cloneAttempts++
+                            return Git.Cred.userpassPlaintextNew(tokenUser, token)
                         transferProgress: (stats) =>
                             p = (stats.receivedObjects() + stats.indexedObjects()) / (stats.totalObjects() * 2)
                             try
@@ -150,11 +154,13 @@ module.exports =
                                 console.log error
             closeAllFiles()
             fse.remove dstPath, (err) =>
-                Git.Clone(tutorial.uri, dstPath, cloneOpts)
-                    .then((repo) =>
-                        atom.project.setPaths [dstPath]
-                        finalize())
-                    .catch((error) =>
+                clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then((repo) =>
+                            atom.project.setPaths [dstPath]
+                            finalize())
+
+
+                clone().catch((error) =>
+                    clone().catch(error) =>
                         atom.confirm
                             message: "Error while cloning tutorial"
                             detailedMessage: error.message
