@@ -3,15 +3,15 @@ module NodeEditor.React.View.Searcher where
 
 import           Common.Prelude
 import           JS.Searcher                     (searcherId)
-import           LunaStudio.Data.NodeSearcher    (Entry, Indices)
+import           LunaStudio.Data.NodeSearcher    (Match, Range)
 import qualified LunaStudio.Data.NodeSearcher    as NS
 import qualified NodeEditor.Event.Keys           as Keys
 import qualified NodeEditor.Event.UI             as UI
 import qualified NodeEditor.React.Event.App      as App
 import           NodeEditor.React.Event.Searcher
+import           NodeEditor.React.IsRef          (IsRef, dispatch)
 import           NodeEditor.React.Model.Searcher (Searcher)
 import qualified NodeEditor.React.Model.Searcher as Searcher
-import           NodeEditor.React.IsRef          (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style     as Style
 import           React.Flux
 import qualified React.Flux                      as React
@@ -79,7 +79,7 @@ searcher =  React.defineView name $ \(ref, s) -> do
 searcher_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
 searcher_ ref model = React.viewWithSKey searcher name (ref, model) mempty
 
-results_ :: IsRef ref => ref -> Int -> [Entry] -> ReactElementM ViewEventHandler ()
+results_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
 results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx, result) -> do
     let resultClasses i = Style.prefixFromList $ "searcher__results__item" : (if selected > 0 && i == 0 then [ "searcher__results__item--selected" ] else [])
     div_
@@ -92,7 +92,7 @@ results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx,
             ,"className" $= Style.prefix "searcher__results__item__name"
             ] $ highlighted_ result
 
-highlighted_ :: Entry -> ReactElementM ViewEventHandler ()
+highlighted_ :: Match -> ReactElementM ViewEventHandler ()
 highlighted_ result = prefixElem >> highlighted_' 0 highlights where
     prefix     = convert $ result ^. NS.className
     prefixElem = span_ [ "className" $= Style.prefix "searcher__pre"
@@ -100,10 +100,10 @@ highlighted_ result = prefixElem >> highlighted_' 0 highlights where
                        $ elemString $ if prefix == "" then prefix else prefix <> " . "
     highlights = result ^. NS.match
     name'      = convert $ result ^. NS.name
-    highlighted_' :: Int -> [Indices] -> ReactElementM ViewEventHandler ()
+    highlighted_' :: Int -> [Range] -> ReactElementM ViewEventHandler ()
     highlighted_' omit [] = span_ [ "key" $= "l" ] $ elemString $ snd $ splitAt omit name'
     highlighted_' omit ((start, end):rest) = do
-        let len                   = end - start + 1
+        let len                   = end - start
             (r1         , r2    ) = splitAt start name'
             (_          , normal) = splitAt omit r1
             (highlighted, _     ) = splitAt len r2

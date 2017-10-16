@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module LunaStudio.Data.NodeSearcher
     ( module LunaStudio.Data.NodeSearcher
-    , Entry (..)
+    , RawEntry (..)
+    , Match (..)
     , EntryType (..)
     , ClassName
-    , Indices
+    , Range
     , Query
     , Score
     , name
@@ -23,8 +24,8 @@ import qualified Data.Map         as Map
 import           Data.Set         (Set)
 import qualified Data.Set         as Set
 import           Data.Text        (Text)
-import           FuzzyText        (ClassName, Entry (..), EntryType (..), Indices, Query, Score, className, entryType, exactMatch,
-                                   fuzzySearch, match, name, score, weight)
+import           FuzzyText        (ClassName, EntryType (..), Match (..), Query, Range, RawEntry (..), Score, className, entryType,
+                                   exactMatch, fuzzySearch, match, name, score, weight)
 import           Prologue         hiding (Item)
 
 
@@ -73,33 +74,33 @@ data TypePreferation = TypePreferation { _localFunctionsWeight         :: Double
 makeLenses ''TypePreferation
 instance Default TypePreferation where def = TypePreferation 1 1 (def, 1) 1 1
 
-searchCommands :: Query -> [Text] -> [Entry]
-searchCommands q = fuzzySearch q . map (\c -> Entry c Command 1 def def True)
+searchCommands :: Query -> [Text] -> [Match]
+searchCommands q = fuzzySearch q . map (\c -> RawEntry c Command 1)
 
-search :: Query -> Map ImportName ModuleHints -> Maybe TypePreferation -> [Entry]
+search :: Query -> Map ImportName ModuleHints -> Maybe TypePreferation -> [Match]
 search q h tp = fuzzySearch q $ toEntries h (fromJust def tp)
 
 
-toEntries :: Map ImportName ModuleHints -> TypePreferation -> [Entry]
+toEntries :: Map ImportName ModuleHints -> TypePreferation -> [RawEntry]
 toEntries ih tPref = concat . Map.elems $ Map.mapWithKey moduleHintsToEntries ih where
-    moduleHintsToEntries :: ImportName -> ModuleHints -> [Entry]
+    moduleHintsToEntries :: ImportName -> ModuleHints -> [RawEntry]
     moduleHintsToEntries impName mh = classesToEntries impName (mh ^. classes) <> functionsToEntries impName (mh ^. functions)
-    classesToEntries :: ImportName -> Map Text ClassHints -> [Entry]
+    classesToEntries :: ImportName -> Map Text ClassHints -> [RawEntry]
     classesToEntries impName = concat . Map.elems . Map.mapWithKey (classToEntries impName)
-    classToEntries :: ImportName -> ClassName -> ClassHints -> [Entry]
+    classToEntries :: ImportName -> ClassName -> ClassHints -> [RawEntry]
     classToEntries impName cName c = methodsToEntries impName cName (c ^. methods) <> constructorsToEntries impName cName (c ^. constructors)
-    methodsToEntries :: ImportName -> ClassName -> [Text] -> [Entry]
+    methodsToEntries :: ImportName -> ClassName -> [Text] -> [RawEntry]
     methodsToEntries impName cName = map (methodToEntry impName cName)
-    methodToEntry :: ImportName -> ClassName -> Text -> Entry
-    methodToEntry impName cName m = let et = Method cName in Entry m et (getWeight impName cName et) def def True
-    constructorsToEntries :: ImportName -> ClassName -> [Text] -> [Entry]
+    methodToEntry :: ImportName -> ClassName -> Text -> RawEntry
+    methodToEntry impName cName m = let et = Method cName in RawEntry m et $ getWeight impName cName et
+    constructorsToEntries :: ImportName -> ClassName -> [Text] -> [RawEntry]
     constructorsToEntries impName cName = map (constructorToEntry impName cName)
-    constructorToEntry :: ImportName -> ClassName -> Text -> Entry
-    constructorToEntry impName cName c = let et = Constructor cName in Entry c et (getWeight impName cName et) def def True
-    functionsToEntries :: ImportName -> [Text] -> [Entry]
+    constructorToEntry :: ImportName -> ClassName -> Text -> RawEntry
+    constructorToEntry impName cName c = let et = Constructor cName in RawEntry c et $ getWeight impName cName et
+    functionsToEntries :: ImportName -> [Text] -> [RawEntry]
     functionsToEntries impName = map (functionToEntry impName)
-    functionToEntry :: ImportName -> Text -> Entry
-    functionToEntry impName f = Entry f Function (getWeight impName def Function) def def True
+    functionToEntry :: ImportName -> Text -> RawEntry
+    functionToEntry impName f = RawEntry f Function $ getWeight impName def Function
     getWeight :: ImportName -> ClassName -> EntryType -> Double
     getWeight moduleName cName et = case et of
         Function      -> if moduleName == "Local" then tPref ^. localFunctionsWeight else tPref ^. globalFunctionsWeight

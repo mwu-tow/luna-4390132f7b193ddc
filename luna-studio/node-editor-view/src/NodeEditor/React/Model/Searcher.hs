@@ -14,7 +14,7 @@ import           LunaStudio.Data.Node                       (ExpressionNode, mkE
 import qualified LunaStudio.Data.Node                       as Node
 import           LunaStudio.Data.NodeLoc                    (NodeLoc)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
-import           LunaStudio.Data.NodeSearcher               (Entry)
+import           LunaStudio.Data.NodeSearcher               (Match)
 import qualified LunaStudio.Data.NodeSearcher               as NS
 import           LunaStudio.Data.PortRef                    (OutPortRef (OutPortRef), srcNodeLoc)
 import qualified LunaStudio.Data.PortRef                    as PortRef
@@ -47,10 +47,10 @@ data Input = Raw     Text
            | Divided DividedInput
            deriving (Eq, Generic, Show)
 
-data Mode = Command                       [Entry]
-          | Node     NodeLoc NodeModeInfo [Entry]
-          | NodeName NodeLoc              [Entry]
-          | PortName OutPortRef           [Entry]
+data Mode = Command                       [Match]
+          | Node     NodeLoc NodeModeInfo [Match]
+          | NodeName NodeLoc              [Match]
+          | PortName OutPortRef           [Match]
           deriving (Eq, Generic, Show)
 
 data Searcher = Searcher
@@ -140,7 +140,7 @@ mkDef mode' = Searcher def mode' (Divided $ DividedInput def def def) False Fals
 defCommand :: Searcher
 defCommand = mkDef $ Command def
 
-hints :: Lens' Searcher [Entry]
+hints :: Lens' Searcher [Match]
 hints = lens getHints setHints where
   getHints s = case s ^. mode of
     Command    results -> results
@@ -156,9 +156,9 @@ hints = lens getHints setHints where
 isValidSelection :: Int -> Searcher -> Bool
 isValidSelection i s = i < 0 || i > length (s ^. hints)
 
-selectedEntry :: Getter Searcher (Maybe Entry)
-selectedEntry = to selectedEntry where
-    selectedEntry s = let i = s ^. selected - 1 in
+selectedMatch :: Getter Searcher (Maybe Match)
+selectedMatch = to selectedMatch where
+    selectedMatch s = let i = s ^. selected - 1 in
         if i < 0 then Nothing else s ^? hints . ix i
 
 selectedNode :: Getter Searcher (Maybe ExpressionNode)
@@ -176,7 +176,7 @@ applyExpressionHint n exprN = exprN & Model.expression .~ n ^. Node.expression
                                     & Model.outPorts   .~ (convert <$> n ^. Node.outPorts)
                                     & Model.code       .~ n ^. Node.code
 
-updateNodeResult :: [Entry] -> Mode -> Mode
+updateNodeResult :: [Match] -> Mode -> Mode
 updateNodeResult r (Node nl nmi _) = Node nl nmi r
 updateNodeResult _ m               = m
 
@@ -184,7 +184,7 @@ updateNodeArgs :: [Text] -> Mode -> Mode
 updateNodeArgs args (Node nl (NodeModeInfo cn nnd _) r) = (Node nl (NodeModeInfo cn nnd args) r)
 updateNodeArgs _ m                                      = m
 
-updateCommandsResult :: [Entry] -> Mode -> Mode
+updateCommandsResult :: [Match] -> Mode -> Mode
 updateCommandsResult r (Command _) = Command r
 updateCommandsResult _ m           = m
 

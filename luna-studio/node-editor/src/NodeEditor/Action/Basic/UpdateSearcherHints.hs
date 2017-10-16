@@ -12,9 +12,9 @@ import qualified Data.Set                           as Set
 import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
 import           LunaStudio.Data.Node               (ExpressionNode)
-import           LunaStudio.Data.NodeSearcher       (Entry (Entry), EntryType (Function), ImportName, ImportsHints,
-                                                     ModuleHints (ModuleHints), TypePreferation (TypePreferation), currentImports, imports,
-                                                     missingImports)
+import           LunaStudio.Data.NodeSearcher       (EntryType (Function), ImportName, ImportsHints, Match (Match),
+                                                     ModuleHints (ModuleHints), RawEntry (RawEntry), TypePreferation (TypePreferation),
+                                                     currentImports, imports, missingImports)
 import qualified LunaStudio.Data.NodeSearcher       as NS
 import           NodeEditor.Action.Batch            (searchNodes)
 import           NodeEditor.Action.State.NodeEditor (getLocalFunctions, getNodeSearcherData, getSearcher, modifySearcher)
@@ -51,7 +51,7 @@ setCurrentImports importNames = do
 
 localUpdateSearcherHintsPreservingSelection :: Command State ()
 localUpdateSearcherHintsPreservingSelection = do
-    maySelected <- maybe def (view Searcher.selectedEntry) <$> getSearcher
+    maySelected <- maybe def (view Searcher.selectedMatch) <$> getSearcher
     localUpdateSearcherHints
     withJust maySelected $ \selected -> do
         let equals e1 e2 = (e1 ^. NS.name == e2 ^. NS.name) && (e1 ^. NS.entryType == e2 ^. NS.entryType)
@@ -78,7 +78,7 @@ localUpdateSearcherHints = do
                                 let query'     = q ^. Searcher.query
                                     weights    = Just $ getWeights (isFirstQuery q) (searchForMethodsOnly q) nmi query'
                                     searchRes' = NS.search query' nsData weights
-                                    searchRes  = if query' == "_" then (Entry query' Function 1000000 1000000 [(0, 0)] False) : searchRes' else searchRes'
+                                    searchRes  = if query' == "_" then (Match (RawEntry query' Function 1000000) True 1000000 [(0, 1)]) : searchRes' else searchRes'
                                 if Text.strip (q ^. Searcher.prefix) == "def"
                                     then def
                                     else takeWhile (view NS.exactMatch) searchRes

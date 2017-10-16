@@ -166,7 +166,7 @@ handleTabPressed action = withJustM getSearcher $ \s ->
 updateInputWithSelectedHint :: Searcher -> Command State Bool
 updateInputWithSelectedHint action = getSearcher >>= maybe (return False) updateWithSearcher where
     updateWithSearcher s = if s ^. Searcher.selected == 0 then return True else do
-        let mayExpr         = s ^? Searcher.selectedEntry . _Just . NS.name
+        let mayExpr         = s ^? Searcher.selectedMatch . _Just . NS.name
             mayDividedInput = s ^? Searcher.input . Searcher._Divided
         withJust ((,) <$> mayExpr <*> mayDividedInput) $ \(expr, divInput) -> do
             let divInput' = divInput & Searcher.query .~ expr'
