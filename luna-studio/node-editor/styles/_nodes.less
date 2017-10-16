@@ -39,7 +39,7 @@
     font-size:      calc(@ui ~'*' @luna-font-size);
     line-height:    calc(@ui ~'*' @luna-line-height);
     align-items:    center;
-    bottom:         36rem !important;
+    bottom:         33rem !important;
     color:          @luna-text-color;
     cursor:         default;
     display:        flex;
@@ -330,24 +330,38 @@ svg.luna-node__ports {
     display: none;
 }
 
+.luna-node__ctrl--alias {
+    position:       relative;
+    margin-bottom: -15rem;
+    top:           -15rem;
+    width:          94% !important;
+}
+
 .luna-node__ctrl {
     padding:    2rem 0;
     float:      right;
     text-align: center;
-    min-width:  90rem;
+    width:  90rem;
     align-self: center;
 }
 
+.luna-ctrl--text,
 .luna-ctrl--slider,
 .luna-ctrl--set {
     .background(2);
-    border-radius:  100rem;
+    border-radius: 100rem;
+    box-sizing:    border-box;
     .color(5);
-    cursor:         pointer;
-    text-align:     center;
-    line-height:    11rem;
-    padding-bottom: 1rem;
-    width:          100%;
+    cursor:        pointer;
+    text-align:    center;
+    line-height:   11rem;
+    width:         100%;
+}
+
+.luna-ctrl--text {
+    text-overflow: ellipsis;
+    padding:       0 5rem;
+    display:       block;
 }
 
 .luna-ctrl--set {
@@ -357,9 +371,14 @@ svg.luna-node__ports {
     }
 }
 
-.luna-ctrl--slider--double {
+.luna-ctrl--slider--int {
     display:               grid;
-    grid-template-columns: 50% 50%;
+    grid-template-columns: 100%;
+}
+
+.luna-ctrl--slider--real {
+    display:               grid;
+    grid-template-columns: 54% 46%;
 }
 
 .luna-ctrl--slider__right {

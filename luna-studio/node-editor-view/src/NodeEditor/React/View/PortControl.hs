@@ -74,7 +74,7 @@ portLabel_ port = case port ^. Port.portId of
 portControl_ :: IsRef r => r -> NodeLoc -> InPort -> ReactElementM ViewEventHandler ()
 portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. Port.portId) (ref', nl', port') mempty
     where
-        mkPortControl ref nl port = do
+        mkPortControl ref nl port isAlias = do
             let valueClass  = case port ^. Port.state of
                     PortAPI.NotConnected  -> "node__ctrl--not-connected"
                     PortAPI.Connected     -> "node__ctrl--connected"
@@ -82,7 +82,7 @@ portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. 
                 portRef     = InPortRef nl $ port ^. Port.portId
             div_
                 [ "key"       $= (controlPrefix <> jsShow (port ^. Port.portId))
-                , "className" $= Style.prefixFromList [ "node__ctrl", valueClass ]
+                , "className" $= Style.prefixFromList [ "node__ctrl", valueClass, if isAlias then "node__ctrl--alias" else "" ]
                 ] $ case port ^. Port.state of
                     PortAPI.NotConnected -> do
                         let tConsElem :: PortDefault.PortValue -> ReactElementM ViewEventHandler ()
@@ -101,14 +101,14 @@ portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. 
                         TCons "Int" _ -> do
                             let value       = fromMaybe 0 $ defVal ^? PortDefault._Constant . PortDefault._IntValue
                             div_
-                                [ "className" $= Style.prefix "ctrl--slider"
+                                [ "className" $= Style.prefixFromList [ "ctrl--slider", "ctrl--slider--int" ]
                                 --TODO[react]: +1 with Q and up key, -1 with W and down key, edit on double click
                                 , onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.PortInitSlider m portRef $ Discrete value)
                                 ] $ elemString $ show value
                         TCons "Real" _ -> do
                             let value = fromMaybe 0.0 $ defVal ^? PortDefault._Constant . PortDefault._RealValue
                             div_
-                                [ "className" $= Style.prefixFromList [ "ctrl--slider", "ctrl--slider--double" ]
+                                [ "className" $= Style.prefixFromList [ "ctrl--slider", "ctrl--slider--real" ]
                                 --TODO[react]: +1 with Q and up key, -1 with W and down key, edit on double click
                                 , onMouseDown $ \e m -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.PortInitSlider m portRef $ Continous value)
                                 ] $ do
@@ -120,6 +120,7 @@ portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. 
                                 defaultValue val = PortDefault.Constant $ PortDefault.TextValue val
                             input_
                                 [ "id" $= portControlId
+                                , "className" $= Style.prefix "ctrl--text"
                                 , "value" $= convert value
                                 , onMouseDown $ \e _ -> [stopPropagation e]
                                 , onKeyDown   $ \e k -> let val = target e "value" in stopPropagation e : dispatch ref (UI.NodeEvent $ Node.PortApplyString k portRef $ defaultValue val)
@@ -135,8 +136,8 @@ portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. 
                         _ -> elemString ""
 
         portControl = React.defineView "portControl" $ \(ref, nl, port) -> case port ^. Port.portId of
-            [Arg {}] -> mkPortControl ref nl port
-            []       -> mkPortControl ref nl port
+            [Arg {}] -> mkPortControl ref nl port False
+            []       -> mkPortControl ref nl port True
             _        -> div_
                 [ "key"       $= "self-ctrl"
                 , "className" $= Style.prefixFromList ["node__ctrl", "node__ctrl--self"]
