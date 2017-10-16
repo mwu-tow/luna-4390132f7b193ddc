@@ -17,12 +17,12 @@ import qualified Luna.Manager.Shell.Shelly          as Shelly
 import           Luna.Manager.Shell.Shelly          (MonadSh, MonadShControl)
 import Control.Monad.Trans.Resource ( MonadBaseControl)
 
-chooseCommand :: (MonadIO m, MonadException SomeException m, MonadState Options m, MonadSh m, MonadShControl m, MonadThrow m, MonadCatch m, MonadBaseControl IO m) => m ()
+chooseCommand :: (MonadIO m, MonadException SomeException m, MonadGetter Options m, MonadSh m, MonadShControl m, MonadThrow m, MonadCatch m, MonadBaseControl IO m) => m ()
 chooseCommand = do
     opts <- get @Options
 
     case opts ^. command of
-        Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig] $ Install.run                        opt $ opts ^. globals . guiInstaller
-        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig, RepoConfig] $ CreatePackage.run                  opt (opts ^. globals . verbose) (opts ^. globals . guiInstaller)
-        Develop     opt -> evalDefHostConfigs @'[Develop.DevelopConfig, EnvConfig, PackageConfig, RepoConfig] $ Develop.run opt
+        Install     opt -> evalDefHostConfigs @'[InstallConfig, EnvConfig, RepoConfig]                        $ Install.run       opt
+        MakePackage opt -> evalDefHostConfigs @'[PackageConfig, EnvConfig, RepoConfig]                        $ CreatePackage.run opt
+        Develop     opt -> evalDefHostConfigs @'[Develop.DevelopConfig, EnvConfig, PackageConfig, RepoConfig] $ Develop.run       opt
         -- TODO: other commands

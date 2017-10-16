@@ -5,8 +5,8 @@ module Luna.Manager.System.Env where
 import Prologue hiding (FilePath, fromText, toText)
 
 import           Luna.Manager.System.Host
-import qualified Luna.Manager.Shell.Shelly as Shelly
-import           Luna.Manager.Shell.Shelly (MonadSh)
+import qualified Shelly.Lifted as Shelly
+import           Shelly.Lifted (MonadSh)
 import           Filesystem.Path.CurrentOS
 import           Control.Monad.State.Layered
 import qualified System.Directory as System
@@ -27,14 +27,10 @@ makeLenses ''EnvConfig
 -- === Utils === --
 
 getHomePath :: MonadIO m => m FilePath
-getHomePath = do
-    home <- liftIO $ System.getHomeDirectory
-    return $ fromText $ convert home
+getHomePath = fromText . convert <$> liftIO System.getHomeDirectory
 
 getCurrentPath :: MonadIO m => m FilePath
-getCurrentPath = do
-    current <- liftIO $ System.getCurrentDirectory
-    return $ fromText $ convert current
+getCurrentPath = fromText . convert <$> liftIO System.getCurrentDirectory
 
 getTmpPath, getDownloadPath :: (MonadIO m, MonadGetter EnvConfig m, MonadSh m) => m FilePath
 getDownloadPath = getTmpPath
