@@ -7,15 +7,15 @@ import           Prologue
 import           Test.Hspec
 
 
-makeEntries :: [Text] -> [Entry]
+makeEntries :: [Text] -> [RawEntry]
 makeEntries = map makeEntry where
-    makeEntry func = Entry func Function 1 def def False
+    makeEntry func = RawEntry func Function 1
 
-topResultNameShouldBe :: [Entry] -> Text -> Expectation
+topResultNameShouldBe :: [Match] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
 topResultNameShouldBe (h:_) r = h ^. name `shouldBe` r
 
-topResultShouldHaveBestScore :: [Entry] -> Expectation
+topResultShouldHaveBestScore :: [Match] -> Expectation
 topResultShouldHaveBestScore []      = expectationFailure "Result is empty"
 topResultShouldHaveBestScore [_]     = def
 topResultShouldHaveBestScore (h:s:_) = h ^. score `shouldSatisfy` (> s ^. score)
@@ -75,8 +75,8 @@ spec = do
     describe "matched letters" $ do
         it "match should be eager" $ do
             let res = fuzzySearch "x" $ makeEntries ["xx"]
-            view match (List.head res) `shouldBe` [(0,0)]
+            view match (List.head res) `shouldBe` [(0,1)]
         it "match should be eager" $ do
             let res = fuzzySearch "xx" $ makeEntries ["xxx"]
-            view match (List.head res) `shouldBe` [(0,1)]
+            view match (List.head res) `shouldBe` [(0,2)]
             
