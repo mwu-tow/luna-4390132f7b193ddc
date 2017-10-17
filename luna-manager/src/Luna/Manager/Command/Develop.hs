@@ -81,8 +81,9 @@ cloneRepo appName appPath = Shelly.run "git" ["clone", repoPath, Shelly.toTextIg
 
 downloadDeps :: MonadDevelop m => Text -> FilePath -> m ()
 downloadDeps appName appPath = do
-    repo <- getRepo
-    resolvedApplication <- resolvePackageApp repo appName
+    let yamlPath = appPath </>  "luna-package.yaml"
+    config <- parseConfig yamlPath
+    resolvedApplication <- resolvePackageApp config appName
     mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
 
 
