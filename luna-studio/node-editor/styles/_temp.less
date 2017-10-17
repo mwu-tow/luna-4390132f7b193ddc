@@ -154,15 +154,13 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
     .icon:before { top: 0 !important }
 }
 
-
 .luna-interpreter-buttons      { margin-right:  16px !important }
-
 
 .atom-dock-toggle-button.left  { margin-left:  -4.5px !important }
 .atom-dock-toggle-button.right { margin-right: -4.5px !important }
 
 .tree-view .full-menu.list-tree { 
-    margin-left:   0   !important;
+    margin-left:  0    !important;
     padding-left: 10px !important;
 }
 
@@ -171,15 +169,28 @@ atom-workspace-axis.horizontal { // TODO: Discuss and remove unnecessary nested 
 }
 .tree-view .selected::before   { border-radius: 0   !important }
 
-.tab-bar .tab {
-    display:         flex;
-    flex:            inherit !important;
-    flex-direction:  row-reverse;
-    justify-content: center;
-    * {
-        position: inherit !important;
+.tab-bar {
+    display: flex !important;
+    justify-content: space-around !important;
+    .tab {
+        display:         flex;
+        flex:            inherit !important;
+        flex-direction:  row-reverse;
+        justify-content: center;
+        * {
+            position: inherit !important;
+        }
+        .title {
+            margin: 0 16px !important;
+        }
+        .close-icon {
+            position: absolute !important;
+            left:     0        !important;
+            width:    8px      !important;
+        }
     }
 }
+
 .line-number {
     margin-left:  0    !important;
     padding-left: 16px !important;
