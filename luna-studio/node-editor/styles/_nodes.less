@@ -1,5 +1,8 @@
 @import '_variables';
 
+
+@portFocusColor: #fff;
+
 /////////////////////////////
 //          nodes          //
 /////////////////////////////
@@ -163,7 +166,7 @@ svg.luna-node__ports {
     stroke-width: 0;
     &.luna-port--highlighted {
         .luna-port__shape {
-            fill: #fff !important;
+            fill: @portFocusColor !important;
         }
     }
 }
@@ -174,6 +177,12 @@ svg.luna-node__ports {
     }
     .luna-port__select {
         r: 18;
+    }
+    &.luna-port--highlighted {
+        .luna-port__shape {
+            fill:   none !important;
+            stroke: @portFocusColor !important;
+        }
     }
 }
 
