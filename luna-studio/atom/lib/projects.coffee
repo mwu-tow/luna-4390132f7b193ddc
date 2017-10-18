@@ -70,17 +70,24 @@ closeAllFiles = ->
             if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaEditorTab
                 pane.destroyItem(paneItem)
 
+openMainIfExists = ->
+    projectPath = atom.project.getPaths()[0]
+    return unless projectPath?
+    mainLocation = projectPath + '/src/Main.luna'
+    if fs.existsSync mainLocation
+        atom.workspace.open(mainLocation, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
 isTemporary = (projectPath) -> projectPath.startsWith temporaryPath
 
 module.exports =
     closeAllFiles: closeAllFiles
+    openMainIfExists: openMainIfExists
     temporaryProject:
         path: temporaryProject.path
         open: (callback) =>
             closeAllFiles()
             createTemporary =>
                 atom.project.setPaths [temporaryProject.path]
-                atom.workspace.open(temporaryMainFilePath, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
+                openMainIfExists()
                 callback?()
         isOpen: =>
             return isTemporary atom.project.getPaths()[0]
@@ -156,6 +163,7 @@ module.exports =
             fse.remove dstPath, (err) =>
                 clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then((repo) =>
                             atom.project.setPaths [dstPath]
+                            openMainIfExists()
                             finalize())
 
 

@@ -101,6 +101,7 @@ class LunaWelcomeTab extends View
                 atom.project.setPaths [recentProjectPath]
                 finalize()
                 @detach()
+                projects.openMainIfExists()
             @privateItems.push(item)
             @privateContainer.append(item.element)
 
