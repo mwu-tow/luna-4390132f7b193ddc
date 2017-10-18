@@ -67,7 +67,7 @@ createTemporary = (callback) =>
 closeAllFiles = ->
     for pane in atom.workspace.getPanes()
         for paneItem in pane.getItems()
-            if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaEditorTab
+            if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaCodeEditorTab
                 pane.destroyItem(paneItem)
 
 openMainIfExists = ->

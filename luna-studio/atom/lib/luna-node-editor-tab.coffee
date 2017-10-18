@@ -5,7 +5,7 @@ projects = require './projects'
 uniqueTabNo = 0
 
 module.exports =
-class LunaStudioTab extends View
+class LunaNodeEditorTab extends View
     mountPoint = ""
     pushShortcutEvent = null
     pushSearcherEvent = null

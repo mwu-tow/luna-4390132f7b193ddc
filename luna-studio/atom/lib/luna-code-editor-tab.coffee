@@ -62,7 +62,7 @@ TextBuffer::subscribeToFileOverride = (codeEditor) ->
 subscribe = null
 
 module.exports =
-    class LunaEditorTab extends TextEditor
+    class LunaCodeEditorTab extends TextEditor
 
         constructor: (@uri, @codeEditor) ->
             super
@@ -95,7 +95,7 @@ module.exports =
             spinner = new Spinner(progress = 0, overlap = true)
             @spinnerElement = @element.appendChild(spinner.element)
 
-        serialize: -> { deserializer: 'LunaEditorTab', uri: @uri }
+        serialize: -> { deserializer: 'LunaCodeEditorTab', uri: @uri }
 
         getTitle: -> path.basename(@uri)
 

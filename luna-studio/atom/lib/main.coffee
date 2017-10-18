@@ -4,8 +4,8 @@ yaml     = require 'js-yaml'
 
 stats = require './stats'
 analytics = require './gen/analytics'
-LunaEditorTab  = require './luna-editor-tab'
-LunaStudioTab  = require './luna-studio-tab'
+LunaCodeEditorTab  = require './luna-code-editor-tab'
+LunaNodeEditorTab  = require './luna-node-editor-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
 LunaSemanticGrammar = require './luna-grammar'
 projects  = require './projects'
@@ -46,10 +46,10 @@ module.exports = LunaStudio =
                 @moving = true
                 atom.project.setPaths [arg1]
                 for pane in atom.workspace.getPaneItems()
-                    if pane instanceof LunaEditorTab
+                    if pane instanceof LunaCodeEditorTab
                         newUri = moveUri pane.uri
                         pane.setUri newUri if newUri?
-                    else if pane instanceof LunaStudioTab
+                    else if pane instanceof LunaNodeEditorTab
                         newUri = moveUri pane.uri
                         if newUri?
                             pane.uri = newUri
@@ -84,7 +84,7 @@ module.exports = LunaStudio =
         myElement = new Statusbar(codeEditor)
         @statusBarTile = statusBar.addLeftTile(item: myElement, priority: -1)
 
-    deserializeLunaEditorTab: ({uri}) ->
+    deserializeLunaCodeEditorTab: ({uri}) ->
         actStatus = (status) ->
             if status == 'Init'
                 atom.workspace.open(uri, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
@@ -93,9 +93,9 @@ module.exports = LunaStudio =
 
     lunaOpener: (uri) ->
         if uri is LUNA_STUDIO_URI
-              new LunaStudioTab(null, nodeEditor, codeEditor)
+              new LunaNodeEditorTab(null, nodeEditor, codeEditor)
         else if path.extname(uri) is '.luna'
-              new LunaEditorTab(uri, codeEditor)
+              new LunaCodeEditorTab(uri, codeEditor)
 
     deactivate: ->
         stats.finalize()
@@ -112,18 +112,18 @@ module.exports = LunaStudio =
 
     getNodeEditorTab: =>
         for i in atom.workspace.getPaneItems()
-            return i if i instanceof LunaStudioTab
+            return i if i instanceof LunaNodeEditorTab
 
     handleItemChange: (item) ->
-        if item instanceof LunaEditorTab
+        if item instanceof LunaCodeEditorTab
             @setNodeEditorUri item.uri
 
     handleItemDestroy: (event) =>
-        if (event.item instanceof LunaEditorTab)
+        if (event.item instanceof LunaCodeEditorTab)
             urisOf = (instance) ->
                 pane.uri for pane in atom.workspace.getPaneItems().filter((a) -> a instanceof instance)
-            codeUris  = urisOf LunaEditorTab
-            graphUris = urisOf LunaStudioTab
+            codeUris  = urisOf LunaCodeEditorTab
+            graphUris = urisOf LunaNodeEditorTab
             if event.item.uri not in codeUris #last opened file
                 if event.item.uri in graphUris
                     nodeEditor.pushEvent(tag: "UnsetFile")
@@ -131,7 +131,7 @@ module.exports = LunaStudio =
 
     handleSaveAsLuna: (editor) ->
         editor.onDidSave (e) =>
-            if path.extname(e.path) is ".luna" and not (editor instanceof LunaEditorTab)
+            if path.extname(e.path) is ".luna" and not (editor instanceof LunaCodeEditorTab)
                 atom.workspace.destroyActivePaneItem()
                 atom.workspace.open(e.path)
 

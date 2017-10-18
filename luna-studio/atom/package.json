@@ -16,7 +16,7 @@
         }
     },
     "deserializers": {
-        "LunaEditorTab": "deserializeLunaEditorTab"
+        "LunaCodeEditorTab": "deserializeLunaCodeEditorTab"
     },
     "dependencies": {
         "atom-space-pen-views": "^2.0.x",
