@@ -154,18 +154,17 @@ module.exports =
             projects.temporaryProject.save (newUri) =>
                 @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)
 
-        insertCode: (uri_send, start_send, end_send, text) =>
-            if @uri == uri_send
+        insertCode: (uri, start, end, text, cursor) =>
+            if @uri == uri
                 @omitDiff(text)
                 @getBuffer().setText(text)
 
-        setClipboard: (uri_send, text) =>
-            if @uri == uri_send
+        setClipboard: (uri, text) =>
+            if @uri == uri
                 atom.clipboard.write(text)
 
-        setBuffer: (uri_send, text) =>
-            console.log(uri_send, @uri)
-            if @uri == uri_send
+        setBuffer: (uri, text) =>
+            if @uri == uri
                 if @getPlaceholderText() != ''
                     @setPlaceholderText ''
                 for child in @element.childNodes

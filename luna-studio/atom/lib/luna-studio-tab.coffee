@@ -109,7 +109,8 @@ class LunaStudioTab extends View
     handleSave: (e) =>
         e.preventDefault()
         e.stopImmediatePropagation()
-        @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
-        oldPath = atom.project.getPaths()[0]
-        projects.temporaryProject.save (newUri) =>
-            @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)
+        if @uri?
+            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
+            oldPath = atom.project.getPaths()[0]
+            projects.temporaryProject.save (newUri) =>
+                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)

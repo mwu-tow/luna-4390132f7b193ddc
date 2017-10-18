@@ -95,11 +95,17 @@ module.exports = LunaStudio =
         @statusBarTile?.destroy()
         @statusBarTile = null
 
-    handleItemChange: (item) =>
+    setNodeEditorUri: (uri) =>
+        for i in atom.workspace.getPaneItems()
+            i.uri = uri if i instanceof LunaStudioTab
+        if uri?
+            nodeEditor.pushEvent(tag: "SetFile", path: uri)
+        else
+            nodeEditor.pushEvent(tag: "UnsetFile")
+
+    handleItemChange: (item) ->
         if item instanceof LunaEditorTab
-            for i in atom.workspace.getPaneItems()
-                i.uri = item.uri if i instanceof LunaStudioTab
-            nodeEditor.pushEvent(tag: "SetFile", path: item.uri)
+            @setNodeEditorUri item.uri
 
     handleItemDestroy: (event) =>
         if (event.item instanceof LunaEditorTab)
@@ -123,6 +129,7 @@ module.exports = LunaStudio =
         if projectPath?
             projects.recent.add projectPath
             codeEditor.pushInternalEvent(tag: "SetProject", _path: projectPath)
+        @setNodeEditorUri null
 
     config:
         showWelcomeScreen:
