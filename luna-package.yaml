@@ -3,12 +3,12 @@ apps:
 packages:
   luna-studio:
     versions:
-      0.9.0:
+      0.0.19:
         darwin.x64:
           path: ./
           deps:
           - zmq-1.0.0
-          - supervisord-0.0.4.dev
+          - supervisord-1.0.0
           - atom-1.18.0
           - kill-1.0.0
         linux.x64:
@@ -55,7 +55,7 @@ packages:
                   path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/supervisord/4.0.0dev/supervisord.tar.gz
                   deps: []
               darwin.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/supervisord/supervisord.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/supervisord/supervisord.zip
                   deps: []
       appType: BatchApp
       synopsis: supervisord synopsis
@@ -63,7 +63,7 @@ packages:
       versions:
           1.18.0:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/luna-studio/0.0.18/luna-studio.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/studio/atom/1.18.0/atom-linux.tar.gz
                   deps: []
               windows.x64:
                 path: https://github.com/atom/atom/releases/download/v1.18.0/atom-windows.zip
