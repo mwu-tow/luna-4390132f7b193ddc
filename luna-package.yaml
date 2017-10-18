@@ -63,7 +63,7 @@ packages:
       versions:
           1.18.0:
               linux.x64:
-                  path: https://github.com/atom/atom/releases/download/v1.18.0/atom.x86_64.rpm
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/luna-studio/0.0.18/luna-studio.tar.gz
                   deps: []
               windows.x64:
                 path: https://github.com/atom/atom/releases/download/v1.18.0/atom-windows.zip
