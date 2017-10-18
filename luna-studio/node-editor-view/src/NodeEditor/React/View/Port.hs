@@ -42,7 +42,7 @@ modeClass Invisible      = ["port--invisible"]
 modeClass Inactive       = ["port--inactive"]
 modeClass TypeNotMatched = ["port--type-not-matched"]
 modeClass Highlighted    = ["port--highlighted"]
-modeClass _               = []
+modeClass _              = []
 
 jsShow2 :: Double -> JSString
 jsShow2 a = convert $ showFFloat (Just 2) a "" -- limit Double to two decimal numbers
@@ -105,12 +105,18 @@ portAlias_ ref nl p = React.viewWithSKey portAlias "port-alias" (ref, nl, p) mem
 portSelf_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portSelf_ ref nl p = React.viewWithSKey portSelf "port-self" (ref, nl, p) mempty
 
+portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
+
+portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
+portIO_ ref nl p numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, numOfPorts) mempty
+
 portAlias :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portAlias = React.defineView "port-alias" $ \(ref, nl, p) -> do
-    let portId    = p ^. Port.portId
-        portRef   = toAnyPortRef nl portId
-        color     = convert $ p ^. Port.color
-        className = Style.prefixFromList $ ["port", "port--alias"] <> modeClass (p ^. Port.mode)
+    let portId       = p ^. Port.portId
+        portRef      = toAnyPortRef nl portId
+        color        = convert $ p ^. Port.color
+        className    = Style.prefixFromList $ ["port", "port--alias"] <> modeClass (p ^. Port.mode)
         portHandlers = if isInvisible p then [] else handlers ref portRef
     g_
         [ "className" $= className ] $ do
@@ -150,9 +156,6 @@ portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
             , "r"         $= jsShow2 (portAliasRadius - connectionWidth/2)
             ]) mempty
 
-portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
-
 portSingle :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
     let portId   = p ^. Port.portId
@@ -182,28 +185,24 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
             ] mempty
         path_
             ( handlers ref portRef <>
-              [ "className" $= Style.prefix "port__select"
-              , "key"       $= (jsShow portId <> "b")
-              , "d"         $= (svgPath 20 0 1 <> svgPath 20 1 0)
-              ]
-            ) mempty
-
-portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
-portIO_ ref nl p numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, numOfPorts) mempty
+            [ "className" $= Style.prefix "port__select"
+            , "key"       $= (jsShow portId <> "b")
+            , "d"         $= (svgPath 20 0 1 <> svgPath 20 1 0)
+            ]) mempty
 
 portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
 portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
-    let portId    = p ^. Port.portId
-        portRef   = toAnyPortRef nl portId
-        portType  = toString $ p ^. Port.valueType
-        isInput   = isInPort portId
-        num       = getPortNumber portId
-        color     = convert $ p ^. Port.color
-        classes   = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
-                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
-        svgFlag1  = if isInput then "1"  else "0"
-        svgFlag2  = if isInput then "0"  else "1"
-        mode      = if isInput then -1.0 else 1.0
+    let portId   = p ^. Port.portId
+        portRef  = toAnyPortRef nl portId
+        portType = toString $ p ^. Port.valueType
+        isInput  = isInPort portId
+        num      = getPortNumber portId
+        color    = convert $ p ^. Port.color
+        classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
+                              else [ "port", "port--o", "port--o--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
+        svgFlag1 = if isInput then "1"  else "0"
+        svgFlag2 = if isInput then "0"  else "1"
+        mode     = if isInput then -1.0 else 1.0
         adjust
             | numOfPorts == 1 = typeOffsetY1
             | numOfPorts == 2 = typeOffsetY2
@@ -224,9 +223,9 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
         r1 = jsShow2 . (+) nodeRadius
         r2 = jsShow2 nodeRadius'
         svgPath a b = "M"  <> ax a b <> " " <> ay a b <>
-                     " A " <> r1 b <> " " <> r1 b <> " 0 0 " <> svgFlag1 <> " " <> bx a b <> " " <> by a b <>
-                     " L " <> cx a <> " " <> cy a <>
-                     " A " <> r2   <> " " <> r2   <> " 0 0 " <> svgFlag2 <> " " <> dx a   <> " " <> dy a   <>
+                     " A " <> r1 b   <> " " <> r1 b   <> " 0 0 " <> svgFlag1 <> " " <> bx a b <> " " <> by a b <>
+                     " L " <> cx a   <> " " <> cy a   <>
+                     " A " <> r2     <> " " <> r2     <> " 0 0 " <> svgFlag2 <> " " <> dx a   <> " " <> dy a   <>
                      " Z"
     g_
         [ "className" $= Style.prefixFromList classes
@@ -253,17 +252,17 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
 
 portIOExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p else do
-    let portId    = p ^. Port.portId
-        portRef   = toAnyPortRef nl portId
-        portType  = toString $ p ^. Port.valueType
-        isInput   = isInPort portId
-        num       = getPortNumber portId
-        n         = if isInput then 1 else 0
-        color     = convert $ p ^. Port.color
-        px        = jsShow2 (if isInput then (-nodePropertiesWidth/2) else nodePropertiesWidth/2)
-        py        = jsShow2 (lineHeight * fromIntegral (num + n))
-        classes   =  if isInput then [ "port", "port--i", "port--i--" <> show (num + 1)] <> modeClass (p ^. Port.mode)
-                                else [ "port", "port--o", "port--o--" <> show (num + 1)] <> modeClass (p ^. Port.mode)
+    let portId   = p ^. Port.portId
+        portRef  = toAnyPortRef nl portId
+        portType = toString $ p ^. Port.valueType
+        isInput  = isInPort portId
+        num      = getPortNumber portId
+        n        = if isInput then 1 else 0
+        color    = convert $ p ^. Port.color
+        px       = jsShow2 (if isInput then (-nodePropertiesWidth/2) else nodePropertiesWidth/2)
+        py       = jsShow2 (lineHeight * fromIntegral (num + n))
+        classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1)] <> modeClass (p ^. Port.mode)
+                              else [ "port", "port--o", "port--o--" <> show (num + 1)] <> modeClass (p ^. Port.mode)
     g_
         [ "className" $= Style.prefixFromList classes
         ] $ do
@@ -305,7 +304,6 @@ argumentConstructor_ ref nl numOfPorts isConnectionSource = do
             [ "className" $= Style.prefix "port__shape"
             , "key"       $= "shape"
             , "r"         $= jsShow2 3
-            --, "cy"        $= fromString (show offsetY <> "px")
             , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY <> "px") ]
             ] mempty
         circle_
@@ -313,7 +311,6 @@ argumentConstructor_ ref nl numOfPorts isConnectionSource = do
               [ "className" $= Style.prefix "port__select"
               , "key"       $= "select"
               , "r"         $= jsShow2 (lineHeight/1.5)
-              --, "cy"        $= fromString (show offsetY <> "px")
               , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY <> "px") ]
               ]
             ) mempty

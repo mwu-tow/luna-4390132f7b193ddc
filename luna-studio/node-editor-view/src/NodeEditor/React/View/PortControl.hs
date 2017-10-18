@@ -69,6 +69,10 @@ portLabel_ port = case port ^. Port.portId of
                    [ "key"       $= (labelPrefix <> jsShow (port ^. Port.portId))
                    , "className" $= Style.prefix "node__label"
                    ] $ elemString . convert $ port ^. Port.name
+    []      -> div_
+                   [ "key"       $= (labelPrefix <> "alias")
+                   , "className" $= Style.prefixFromList ["node__label","node__label--alias"]
+                   ] $ elemString "alias"
     _       -> return ()
 
 portControl_ :: IsRef r => r -> NodeLoc -> InPort -> ReactElementM ViewEventHandler ()

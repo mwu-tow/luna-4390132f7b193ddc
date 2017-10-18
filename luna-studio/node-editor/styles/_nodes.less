@@ -351,8 +351,16 @@ svg.luna-node__ports {
     position:       relative;
     margin-bottom: -15rem;
     top:           -15rem;
-    width:          94% !important;
 }
+.luna-node--no-alias {
+    .luna-node__ctrl--alias {
+        width: 94% !important;
+    }
+    .luna-node__label--alias {
+        display: none !important;
+    }
+}
+
 
 .luna-node__ctrl {
     padding:    2rem 0;

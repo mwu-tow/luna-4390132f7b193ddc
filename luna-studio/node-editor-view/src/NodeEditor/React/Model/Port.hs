@@ -46,9 +46,9 @@ data Port i = Port
         , _mode      :: Mode
         } deriving (Eq, Functor, Generic, NFData, Show, Typeable)
 
-type InPort = Port InPortId
-type OutPort = Port OutPortId
-type AnyPort = Port AnyPortId
+type InPort     = Port InPortId
+type OutPort    = Port OutPortId
+type AnyPort    = Port AnyPortId
 type EitherPort = Either InPort OutPort
 
 makeLenses ''Port
@@ -97,8 +97,8 @@ visibleInPorts root@(LabeledTree (InPorts maySelf _ args') _) = findSelfAndOrHea
     findSelf (LabeledTree (InPorts maySelf' _ _) p') = if p' ^. state == Connected then p' else maybe p' findSelf maySelf'
 
 
-instance Convertible InPort  AnyPort where convert = fmap InPortId'
-instance Convertible OutPort AnyPort where convert = fmap OutPortId'
+instance Convertible InPort  AnyPort    where convert = fmap InPortId'
+instance Convertible OutPort AnyPort    where convert = fmap OutPortId'
 instance Convertible InPort  EitherPort where convert = convert . fmap InPortId'
 instance Convertible OutPort EitherPort where convert = convert . fmap OutPortId'
 
