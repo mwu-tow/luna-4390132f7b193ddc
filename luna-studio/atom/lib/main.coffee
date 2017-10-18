@@ -29,8 +29,9 @@ module.exports = LunaStudio =
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
         @welcome = new LunaWelcomeTab(codeEditor)
+        @moving = false
 
-        actStatus = (act, arg1, arg2) ->
+        actStatus = (act, arg1, arg2) =>
             if act == 'Init'
                 rootPath = atom.project.getPaths().shift()
                 if rootPath? and rootPath != ""
@@ -40,12 +41,18 @@ module.exports = LunaStudio =
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: arg1)
             if act == 'ProjectMove'
+                moveUri = (oldUri) -> if oldUri? and oldUri.startsWith arg2
+                    return arg1 + oldUri.slice arg2.length
+                @moving = true
+                atom.project.setPaths [arg1]
                 for pane in atom.workspace.getPaneItems()
                     if pane instanceof LunaEditorTab
-                        panePath = pane.uri
-                        if panePath.startsWith(arg2)
-                            pane.setUri(arg1 + panePath.slice(arg2.length))
-                atom.project.setPaths [arg1]
+                        newUri = moveUri pane.uri
+                        pane.setUri newUri if newUri?
+                    else if pane instanceof LunaStudioTab
+                        newUri = moveUri pane.uri
+                        if newUri?
+                            pane.uri = newUri
 
         codeEditor.statusListener actStatus
         atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)
@@ -95,13 +102,17 @@ module.exports = LunaStudio =
         @statusBarTile?.destroy()
         @statusBarTile = null
 
-    setNodeEditorUri: (uri) =>
-        for i in atom.workspace.getPaneItems()
-            i.uri = uri if i instanceof LunaStudioTab
+    setNodeEditorUri: (uri) ->
+        nodeEditorTab = @getNodeEditorTab()
+        nodeEditorTab.uri = uri if nodeEditorTab?
         if uri?
             nodeEditor.pushEvent(tag: "SetFile", path: uri)
         else
             nodeEditor.pushEvent(tag: "UnsetFile")
+
+    getNodeEditorTab: =>
+        for i in atom.workspace.getPaneItems()
+            return i if i instanceof LunaStudioTab
 
     handleItemChange: (item) ->
         if item instanceof LunaEditorTab
@@ -129,7 +140,11 @@ module.exports = LunaStudio =
         if projectPath?
             projects.recent.add projectPath
             codeEditor.pushInternalEvent(tag: "SetProject", _path: projectPath)
-        @setNodeEditorUri null
+
+        if @moving
+            @moving = false
+        else
+            @setNodeEditorUri null
 
     config:
         showWelcomeScreen:
