@@ -87,7 +87,7 @@ import qualified Data.Aeson.Text                  as Aeson
 import           Data.Coerce                      (coerce)
 import           Data.Char                        (isSeparator)
 import           Data.Foldable                    (toList)
-import           Data.List                        (elemIndex, find, group, partition, sortOn, nub)
+import           Data.List                        (elemIndex, find, group, partition, sortOn, nub, head)
 import qualified Data.List.Split                  as Split
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
@@ -131,7 +131,7 @@ import qualified Empire.Data.Graph                as Graph
 import           Empire.Data.Layers               (Marker, SpanLength, SpanOffset)
 import qualified Empire.Data.Library              as Library
 import           Empire.Empire
-import           Empire.Prelude                   hiding (toList)
+import           Empire.Prelude                   hiding (head, toList)
 import qualified Luna.Builtin.Data.Class          as IR
 import qualified Luna.Builtin.Data.Module         as Module
 import qualified Luna.Compilation                 as Compilation
@@ -1365,6 +1365,18 @@ indent offset (Text.lines -> header:rest) =
     Text.unlines $ header : map (\line -> Text.concat [Text.replicate offset " ", line]) rest
 indent _      code = code
 
+data B = Break | NoBreak deriving Show
+
+exprBreaker :: [Text] -> [B] -> [Text]
+exprBreaker _  []     = []
+exprBreaker [] _      = []
+exprBreaker (l:ls) bs = go [l] ls bs
+    where
+        go acc [] _ = reverse acc
+        go (acc:accs) (ln:lns) (b:breaks) = case b of
+            Break -> go (ln:acc:accs) lns breaks
+            NoBreak -> go ((Text.stripEnd $ Text.unlines [acc, ln]):accs) lns breaks
+
 paste :: GraphLocation -> Position -> String -> Empire ()
 paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
     let funs = map (Text.stripEnd . Text.unlines)
@@ -1389,18 +1401,17 @@ paste loc position (Text.pack -> text) = do
         fm          <- forM (Safe.headMay [metaLine]) parseMetadata
         let metas   =  maybe [] (\(FileMetadata fm') -> moveToOrigin fm') fm
         indentation <- fromIntegral <$> runASTOp Code.getCurrentIndentationLength
-        let exprs = map (Text.stripEnd . Text.unlines)
-                 $ Split.split (Split.dropInitBlank $ Split.keepDelimsL $ Split.whenElt (\a -> maybe False (not . isSeparator . fst) $ Text.uncons a))
-                 $ Text.lines
-                 $ Code.removeMarkers $ convert withoutMeta
-        forM exprs $ \(Text.strip -> expr) -> do
+        let exprs' = Text.lines $ Code.removeMarkers $ convert withoutMeta
+            cut    = snd $ foldl' (\(initialIndent, acc) e -> let indent' = Text.length (Text.takeWhile isSeparator e) in (initialIndent, if indent' <= initialIndent then Break:acc else NoBreak:acc)) (Text.length (Text.takeWhile isSeparator (head exprs')), []) exprs'
+        forM (exprBreaker exprs' cut) $ \(Text.strip -> expr) -> do
             let (marker, rest) = Text.breakOn "»" expr & both %~ Text.drop 1
                 mark           = Safe.readMay (Text.unpack marker) :: Maybe Word64
                 newMeta        = case mark of
                     Just marker -> fromMaybe def $ fmap meta $ find (\(MarkerNodeMeta m me) -> m == marker) metas
                     _           -> def
                 movedMeta      = newMeta & NodeMeta.position %~ Position.move (coerce position)
-                indented       = indent indentation $ if Text.null rest then expr else rest
+                code           = if Text.null rest then expr else rest
+                indented       = indent indentation code
                 nodeCode       = Code.removeMarkers indented
             when (not $ Text.null expr) $ do
                 uuid <- liftIO UUID.nextRandom
@@ -1408,12 +1419,19 @@ paste loc position (Text.pack -> text) = do
     autolayout loc
     resendCode loc
 
+includeWhitespace :: Text -> (Delta, Delta) -> (Delta, Delta)
+includeWhitespace c (s, e) = (newStart, e)
+    where
+        prefix = Text.take (fromIntegral s) c
+        whitespaceBefore = Text.takeWhileEnd isSeparator prefix
+        newStart = s - fromIntegral (if Text.length whitespaceBefore `rem` 4 == 0 then Text.length whitespaceBefore else 0)
+
 copyText :: GraphLocation -> [Range] -> Empire Text
 copyText loc@(GraphLocation file _) ranges = do
     allMetadata <- dumpMetadata file
     withUnit (GraphLocation file (Breadcrumb [])) $ do
         oldCode <- use Graph.code
-        let markedRanges = map (rangeToMarked oldCode) ranges
+        let markedRanges = map (includeWhitespace oldCode . rangeToMarked oldCode) ranges
         codes <- forM markedRanges $ uncurry Code.getAt
         let code                   = Text.concat codes
             markers                = Code.extractMarkers code
@@ -1452,7 +1470,8 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
         metaLine     = Text.drop (Text.length $ convert withoutMeta) text
     (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         code <- use Graph.code
-        let markedRanges   = map (rangeToMarked code) ranges
+        liftIO $ print withoutMeta >> print ranges
+        let markedRanges   = map ({-includeWhitespace code .-} rangeToMarked code) ranges
             rangesReversed = reverse $ sortOn (view _1) markedRanges
         FileMetadata m <- parseMetadata metaLine
         updatedMetas   <- runASTOp $ forM rangesReversed $ \(start, end) -> do

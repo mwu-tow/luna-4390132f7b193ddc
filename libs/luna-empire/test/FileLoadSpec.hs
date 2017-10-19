@@ -1815,6 +1815,7 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 code <- Graph.copyText loc [Range 50 60]
                 Graph.pasteText loc [Range 50 60] [code]
+                Graph.substituteCode "/TestPath" 55 59 "" (Nothing)
         it "pastes code with meta" $ let
             initialCode = [r|
                 def main:
