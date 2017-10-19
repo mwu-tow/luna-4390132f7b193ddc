@@ -19,6 +19,8 @@ import           System.Exit
 import           System.Process.Typed         as Process
 
 import           Luna.Manager.Command.Options (Options)
+import qualified Luna.Manager.Logger          as Logger
+import           Luna.Manager.Logger          (LoggerMonad)
 import qualified Luna.Manager.Shell.Shelly    as Shelly
 import           Luna.Manager.Shell.Shelly    (MonadSh, MonadShControl)
 import           Luna.Manager.System.Env
@@ -79,36 +81,34 @@ instance Exception UnrecognizedShellException where
 unrecognizedShellError :: SomeException
 unrecognizedShellError = toException UnrecognizedShellException
 
-exportPath' :: MonadIO m => FilePath -> m ()
-exportPath' pathToExport = case currentHost of
-    Windows -> exportPathWindows pathToExport
-    _       -> do
-        shellType <- checkShell
-        flip handleAll (exportPath (parent pathToExport) shellType) $ \_ -> print "Unrecognized shell. Please add ~/.local/bin to your exports." --"error occured, TODO[WD]"
+-- exportPath' :: (MonadIO m, LoggerMonad m) => FilePath -> m ()
+-- exportPath' pathToExport = case currentHost of
+--     Windows -> exportPathWindows pathToExport
+--     _       -> exportPath (parent pathToExport)
     -- | e == unrecognizedShellError  -> error "d"
     -- | e == bashConfigNotFoundError -> error "x"
     -- UnrecognizedShellException ->
     -- `catches` [Handler (\ (ex :: UnrecognizedShellException) -> liftIO $ putStrLn $ displayException ex),
     --                                                                               Handler (\ (ex :: BashConfigNotFoundError) -> liftIO $ putStrLn $ displayException ex)]
 
+getShExportFile :: MonadIO m => [FilePath] -> m (Maybe FilePath)
+getShExportFile files = do
+    checkedFiles <- mapM runControlCheck files
+    return $ listToMaybe $ catMaybes checkedFiles
+
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
-exportPath :: (MonadException SomeException m, MonadIO m) => FilePath -> Shell -> m ()
-exportPath pathToExport shellType = do
+exportPathUnix :: (MonadIO m, LoggerMonad m) => FilePath -> m ()
+exportPathUnix pathToExport = do
+    shellType <- checkShell
+    file      <- getShExportFile $ case shellType of
+                Bash -> [".bashrc", ".bash_profile", ".profile"]
+                Zsh  -> [".zshrc",  ".zprofile",     ".profile"]
+                _    -> [".profile"]
     let pathToExportText = convert $ encodeString pathToExport
-    case shellType of
-        Bash    -> do
-            filesAvailable <- mapM runControlCheck [".bashrc", ".bash_profile", ".profile"]
-            let justFiles = catMaybes filesAvailable
-                exportToAppend = Text.concat ["export PATH=", pathToExportText, ":$PATH"]
-            file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
-            liftIO $ appendFile (encodeString file) exportToAppend
-        Zsh     -> do
-            filesAvailable <- mapM runControlCheck [".zshrc", ".zprofile"]
-            let justFiles = catMaybes filesAvailable
-                exportToAppend = Text.concat ["path+=", pathToExportText]
-            file <- maybe (raise' bashConfigNotFoundError) return (listToMaybe justFiles)
-            liftIO $ appendFile (encodeString file) exportToAppend
-        Unknown -> raise' unrecognizedShellError
+        exportToAppend   = Text.concat ["\nexport PATH=", pathToExportText, ":$PATH\n"]
+    case file of
+        Just f  -> liftIO $ appendFile (encodeString f) exportToAppend
+        Nothing -> Logger.warning "Unable to export Luna path. Please add ~/.local/bin to your PATH"
 
 exportPathWindows :: MonadIO m => FilePath -> m ()
 exportPathWindows path = liftIO $ do

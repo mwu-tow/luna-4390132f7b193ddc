@@ -41,3 +41,13 @@ log msg = do
     let verb = opts ^. verbose
         gui  = opts ^. guiInstaller
     if verb && (not gui) then liftIO $ logToStdout msg else logToTmpFile msg
+
+warning :: LoggerMonad m => Text -> m ()
+warning msg = do
+    opts <- view globals <$> get @Options
+    let verb = opts ^. verbose
+        gui  = opts ^. guiInstaller
+        m    = "WARNING: " <> msg
+    if   gui     then liftIO $ print $ "{\"message\": \"" <> m <> "\"}"
+    else if verb then liftIO $ logToStdout m
+    else              logToTmpFile m

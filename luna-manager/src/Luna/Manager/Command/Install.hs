@@ -12,7 +12,7 @@ import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (Options, InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
 import Luna.Manager.System.Path
-import Luna.Manager.System (makeExecutable, exportPath', checkShell, runServicesWindows, stopServicesWindows, exportPathWindows)
+import Luna.Manager.System (makeExecutable, exportPathUnix, exportPathWindows, checkShell, runServicesWindows, stopServicesWindows, exportPathWindows)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -261,15 +261,11 @@ linkingLocalBin currentBin appName = do
     home          <- getHomePath
     installConfig <- get @InstallConfig
     case currentHost of
-        Linux -> do
+        Windows -> exportPathWindows currentBin
+        _       -> do
             localBin <- expand $ (installConfig ^. localBinPath) </> convert appName
             linking currentBin localBin
-            exportPath' localBin
-        Darwin -> do
-            localBin <- expand $ (installConfig ^. localBinPath) </> convert appName
-            linking currentBin localBin
-            exportPath' localBin
-        Windows -> exportPath' currentBin
+            exportPathUnix localBin
 
 -- === Windows specific === --
 
