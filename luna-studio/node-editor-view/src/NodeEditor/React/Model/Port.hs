@@ -103,7 +103,7 @@ instance Convertible InPort  EitherPort where convert = convert . fmap InPortId'
 instance Convertible OutPort EitherPort where convert = convert . fmap OutPortId'
 
 instance Convertible AnyPort EitherPort where
-    convert (Port (InPortId'  i) n nt s m) = Left $ Port i n nt s m
+    convert (Port (InPortId'  i) n nt s m) = Left  $ Port i n nt s m
     convert (Port (OutPortId' i) n nt s m) = Right $ Port i n nt s m
 
 instance Convertible EitherPort AnyPort where

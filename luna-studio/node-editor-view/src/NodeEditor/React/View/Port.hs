@@ -260,7 +260,7 @@ portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p 
         n        = if isInput then 1 else 0
         color    = convert $ p ^. Port.color
         px       = jsShow2 (if isInput then (-nodePropertiesWidth/2) else nodePropertiesWidth/2)
-        py       = jsShow2 (lineHeight * fromIntegral (num + n))
+        py       = jsShow2 (lineHeight * fromIntegral num)
         classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1)] <> modeClass (p ^. Port.mode)
                               else [ "port", "port--o", "port--o--" <> show (num + 1)] <> modeClass (p ^. Port.mode)
     g_
@@ -291,10 +291,10 @@ portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p 
               ]
             ) mempty
 
-argumentConstructor_ :: IsRef r => r -> NodeLoc -> Int -> Bool -> ReactElementM ViewEventHandler ()
-argumentConstructor_ ref nl numOfPorts isConnectionSource = do
+argumentConstructor_ :: IsRef r => r -> NodeLoc -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
+argumentConstructor_ ref nl numOfPorts isConnectionSource hasAlias hasSelf = do
     let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
-        offsetY   = argumentConstructorOffsetY numOfPorts
+        offsetY   = argumentConstructorOffsetY $ max 0 $ numOfPorts - if hasAlias then 0 else 1
         highlight = if isConnectionSource then ["port--highlighted"] else []
     g_
         [ "key"       $= "argument-constructor"
@@ -303,14 +303,14 @@ argumentConstructor_ ref nl numOfPorts isConnectionSource = do
         circle_
             [ "className" $= Style.prefix "port__shape"
             , "key"       $= "shape"
-            , "r"         $= jsShow2 3
             , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY <> "px") ]
+            , "r"         $= jsShow2 3
             ] mempty
         circle_
             ( handlers ref portRef <>
-              [ "className" $= Style.prefix "port__select"
-              , "key"       $= "select"
-              , "r"         $= jsShow2 (lineHeight/1.5)
-              , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY <> "px") ]
-              ]
+                [ "className" $= Style.prefix "port__select"
+                , "key"       $= "select"
+                , "r"         $= jsShow2 (lineHeight/1.5)
+                , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY <> "px") ]
+                ]
             ) mempty

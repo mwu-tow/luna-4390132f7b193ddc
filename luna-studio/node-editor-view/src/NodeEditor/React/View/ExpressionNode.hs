@@ -133,7 +133,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
                         --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
                         --  && (not $ any Port.isHighlighted (inPortsList n))
                         --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
-            ifPortConstructor = if elem (n ^. Node.argConstructorMode) [Port.Normal, Port.Highlighted] then ["has-port-constructor"] else []
+            hasArgConstructor = elem (n ^. Node.argConstructorMode) [Port.Normal, Port.Highlighted] 
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
@@ -144,7 +144,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
                                                                        <> (if hasSelf then ["node--has-self"] else ["node--no-self"])
                                                                        <> (if hasAlias then ["node--has-alias"] else ["node--no-alias"])
                                                                        <> highlight
-                                                                       <> ifPortConstructor)
+                                                                       <> if hasArgConstructor then ["has-arg-constructor"] else [])
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
@@ -160,7 +160,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
                 nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_  ref n
             when showValue $ nodeValue_ ref n
-            nodePorts_ ref n
+            nodePorts_ ref n hasAlias hasSelf
 
 nodeDynamicStyles_ :: Matrix Double -> ExpressionNode -> ReactElementM ViewEventHandler ()
 nodeDynamicStyles_ camera n = React.viewWithSKey nodeDynamicStyles (jsShow $ n ^. Node.nodeId) (camera, n) mempty
@@ -195,11 +195,11 @@ nodeBody = React.defineView objNameBody $ \(ref, n) -> do
                 & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
             _                           -> ""
 
-nodePorts_ :: IsRef ref => ref -> ExpressionNode -> ReactElementM ViewEventHandler ()
-nodePorts_ ref model = React.viewWithSKey nodePorts objNamePorts (ref, model) mempty
+nodePorts_ :: IsRef ref => ref -> ExpressionNode -> Bool -> Bool -> ReactElementM ViewEventHandler ()
+nodePorts_ ref model hasAlias hasSelf = React.viewWithSKey nodePorts objNamePorts (ref, model, hasAlias, hasSelf) mempty
 
-nodePorts :: IsRef ref => ReactView (ref, ExpressionNode)
-nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
+nodePorts :: IsRef ref => ReactView (ref, ExpressionNode, Bool, Bool)
+nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
     let nodeId     = n ^. Node.nodeId
         nodeLoc    = n ^. Node.nodeLoc
         nodePorts' = Node.portsList n
@@ -239,7 +239,8 @@ nodePorts = React.defineView objNamePorts $ \(ref, n) -> do
                 ports $ filter (      isSelf . (^. Port.portId)) nodePorts'
 
                 forM_  (filter (not . isSelf . (^. Port.portId)) nodePorts') $ portExpanded_ ref nodeLoc
-            argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted)
+                
+            argumentConstructor_ ref nodeLoc (countArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
 
 nodeContainer_ :: IsRef ref => ref -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs =

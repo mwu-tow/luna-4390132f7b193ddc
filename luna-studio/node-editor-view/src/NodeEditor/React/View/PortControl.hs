@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.React.View.PortControl
-    ( portLabel_
-    , portControl_
+    ( portControl_
     ) where
 
 import           Common.Prelude              hiding (group)
@@ -63,27 +62,42 @@ portControlId = Mount.prefix "focus-portcontrol"
 labelPrefix   = Mount.prefix "label-"
 controlPrefix = Mount.prefix "control-"
 
-portLabel_ :: InPort -> ReactElementM ViewEventHandler ()
-portLabel_ port = case port ^. Port.portId of
-    [Arg _] -> div_
-                   [ "key"       $= (labelPrefix <> jsShow (port ^. Port.portId))
-                   , "className" $= Style.prefix "node__label"
-                   ] $ elemString . convert $ port ^. Port.name
-    []      -> div_
-                   [ "key"       $= (labelPrefix <> "alias")
-                   , "className" $= Style.prefixFromList ["node__label","node__label--alias"]
-                   ] $ elemString "alias"
-    _       -> return ()
-
 portControl_ :: IsRef r => r -> NodeLoc -> InPort -> ReactElementM ViewEventHandler ()
 portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. Port.portId) (ref', nl', port') mempty
+
+portControl :: IsRef r => ReactView (r, NodeLoc, InPort)
+portControl = React.defineView "portControl" $ \(ref, nl, port) -> 
+    
+    case port ^. Port.portId of
+        [Arg _] -> row ["node__control"] $ do
+                        div_
+                           [ "key"       $= (labelPrefix <> jsShow (port ^. Port.portId))
+                           , "className" $= Style.prefix "node__label"
+                           ] $ elemString . convert $ port ^. Port.name
+                        portCtrl ref nl port False
+
+        []      -> row ["node__control", "node__control--alias"] $ do
+                        div_
+                           [ "key"       $= "alias-label"
+                           , "className" $= Style.prefix "node__label"
+                           ] $ elemString "alias"
+                        portCtrl ref nl port True
+        _       -> row ["node__control", "node__control--self"] $ do
+                        div_
+                           [ "key"       $= "self-label"
+                           , "className" $= Style.prefix "node__label"
+                           ] $ elemString "self"
+                        return ()
+
     where
-        mkPortControl ref nl port isAlias = do
+        row classList = div_ [ "className" $= Style.prefixFromList classList ]
+
+        portCtrl ref nl port isAlias = do
             let valueClass  = case port ^. Port.state of
                     PortAPI.NotConnected  -> "node__ctrl--not-connected"
                     PortAPI.Connected     -> "node__ctrl--connected"
                     PortAPI.WithDefault _ -> "node__ctrl--with-default"
-                portRef     = InPortRef nl $ port ^. Port.portId
+                portRef = InPortRef nl $ port ^. Port.portId
             div_
                 [ "key"       $= (controlPrefix <> jsShow (port ^. Port.portId))
                 , "className" $= Style.prefixFromList [ "node__ctrl", valueClass, if isAlias then "node__ctrl--alias" else "" ]
@@ -139,10 +153,4 @@ portControl_ ref' nl' port' = React.viewWithSKey portControl (jsShow $ port' ^. 
                                 ] mempty
                         _ -> elemString ""
 
-        portControl = React.defineView "portControl" $ \(ref, nl, port) -> case port ^. Port.portId of
-            [Arg {}] -> mkPortControl ref nl port False
-            []       -> mkPortControl ref nl port True
-            _        -> div_
-                [ "key"       $= "self-ctrl"
-                , "className" $= Style.prefixFromList ["node__ctrl", "node__ctrl--self"]
-                ] $ elemString ""
+
