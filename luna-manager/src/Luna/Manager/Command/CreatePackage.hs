@@ -185,8 +185,10 @@ runPkgBuildScript repoPath = do
     Logger.log "Running package build script"
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-    Shelly.chdir (parent buildPath) $ Shelly.switchVerbosity
-        $ Shelly.cmd buildPath "--release"
+    Shelly.chdir (parent buildPath) $ Shelly.switchVerbosity $ do
+        case currentHost of
+            Windows -> Shelly.cmd buildPath
+            _       -> Shelly.cmd buildPath "--release"
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
