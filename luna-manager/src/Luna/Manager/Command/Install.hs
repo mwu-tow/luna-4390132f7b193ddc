@@ -109,7 +109,6 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
 instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & defaultBinPathGuiApp   .~ "/Applications"
-                           & localBinPath           .~ "/usr/local/bin"
                            & logoFileName           .~ "logo.icns"
                            & infoFileName           .~ "Info.plist"
 
@@ -269,6 +268,7 @@ linkingLocalBin currentBin appName = do
         Darwin -> do
             localBin <- expand $ (installConfig ^. localBinPath) </> convert appName
             linking currentBin localBin
+            exportPath' localBin
         Windows -> exportPath' currentBin
 
 -- === Windows specific === --
