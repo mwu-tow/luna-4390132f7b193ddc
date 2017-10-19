@@ -2,12 +2,19 @@
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TupleSections       #-}
 
 module FileLoadSpec (spec) where
 
+import           Control.Concurrent.MVar
+import           Control.Concurrent.STM          (atomically)
+import           Control.Concurrent.STM.TChan    (tryReadTChan)
+import           Control.Exception.Safe          (finally)
 import           Control.Monad                   (forM)
+import           Control.Monad.Loops             (unfoldM)
+import           Control.Monad.Reader            (ask)
 import           Data.Coerce
 import           Data.List                       (find, maximum)
 import qualified Data.Map                        as Map
@@ -17,6 +24,7 @@ import qualified Data.Text                       as Text
 import qualified Data.Text.IO                    as Text
 import           Data.Text.Span                  (LeftSpacedSpan (..), SpacedSpan (..))
 import           Empire.ASTOp                    (runASTOp)
+import qualified Empire.ASTOps.Builder           as ASTBuilder
 import qualified Empire.ASTOps.Modify            as ASTModify
 import qualified Empire.ASTOps.Parse             as ASTParse
 import qualified Empire.ASTOps.Print             as ASTPrint
@@ -26,11 +34,16 @@ import qualified Empire.Commands.Code            as Code
 import qualified Empire.Commands.Graph           as Graph
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import qualified Empire.Commands.Library         as Library
+import qualified Empire.Commands.Typecheck       as Typecheck (Scope(..), createStdlib, run)
 import           Empire.Data.AST                 (SomeASTException)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import qualified Empire.Data.Graph               as Graph (breadcrumbHierarchy, code, codeMarkers)
-import           Empire.Empire                   (CommunicationEnv (..), Empire)
+import qualified Empire.Data.Library             as Library (body)
+import           Empire.Empire                   (CommunicationEnv (..), InterpreterEnv(..), Empire, modules)
+import qualified Language.Haskell.TH             as TH
 import qualified Luna.Syntax.Text.Parser.Parser  as Parser (ReparsingChange (..), ReparsingStatus (..))
+import           LunaStudio.API.AsyncUpdate      (AsyncUpdate(ResultUpdate))
+import qualified LunaStudio.API.Graph.NodeResultUpdate as NodeResult
 import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
@@ -45,8 +58,12 @@ import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
+import           LunaStudio.Data.NodeValue
 import           LunaStudio.Data.Vector2         (Vector2 (..))
 import qualified LunaStudio.Data.LabeledTree     as LabeledTree
+import           System.Directory                (canonicalizePath, getCurrentDirectory)
+import           System.Environment              (lookupEnv, setEnv)
+import           System.FilePath                 ((</>), takeDirectory)
 
 import           Empire.Prelude                  hiding (maximum)
 import           Luna.Prelude                    (normalizeQQ)
@@ -103,11 +120,11 @@ specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> Communicatio
 specifyCodeChange initialCode expectedCode act env = do
     let normalize = Text.pack . normalizeQQ . Text.unpack
     actualCode <- evalEmp env $ do
-        Library.createLibrary Nothing "TestPath"
-        let loc = GraphLocation "TestPath" $ Breadcrumb []
+        Library.createLibrary Nothing "/TestPath"
+        let loc = GraphLocation "/TestPath" $ Breadcrumb []
         Graph.loadCode loc $ normalize initialCode
         [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
-        let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+        let loc' = GraphLocation "/TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
         (nodeIds, toplevel) <- Graph.withGraph loc' $ do
             markers  <- fmap fromIntegral . Map.keys <$> use Graph.codeMarkers
             ids      <- runASTOp $ forM markers $ \i -> (i,) <$> Graph.getNodeIdForMarker i
@@ -533,8 +550,8 @@ spec = around withChannels $ parallel $ do
         it "adds one node to code" $ \env -> do
             u1 <- mkUUID
             code <- evalEmp env $ do
-                [main] <- Graph.getNodes (GraphLocation "TestFile" (Breadcrumb []))
-                let loc' = GraphLocation "TestFile" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                [main] <- Graph.getNodes (GraphLocation "/TestFile" (Breadcrumb []))
+                let loc' = GraphLocation "/TestFile" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Graph.addNode top u1 "4" (atXPos (-20.0))
                 Graph.getCode top
             code `shouldBe` "def main:\n    number1 = 4\n    None"
@@ -1985,7 +2002,6 @@ spec = around withChannels $ parallel $ do
                 let Just id1 = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "id1") nodes
                 (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.addPortWithConnections loc' (outPortRef input [Port.Projection 1]) Nothing [InPortRef' $ inPortRef id1 [Port.Arg 0]]
-                Graph.withGraph loc' $ runASTOp $ AST.dumpGraphViz "a"
                 Graph.removePort loc' (outPortRef input [Port.Projection 1])
         xit "add port updates lambda length - core bug" $ let
             initialCode = [r|
@@ -2024,3 +2040,44 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
                 Graph.addNode loc u1 "first" (atXPos 300)
+        it "interprets Fibonacci program" $ \env -> do
+            (res, st) <- runEmp env $ do
+                let initialCode = [r|
+                        import Std.Base
+                        def fib n:
+                            if n < 2 then 1 else fib (n-1) + fib (n-2)
+
+                        def main:
+                            a = fib 10
+                            a
+                        |]
+                Library.createLibrary Nothing "/TestPath"
+                let loc = GraphLocation "/TestPath" $ Breadcrumb []
+                let normalize = Text.pack . normalizeQQ . Text.unpack
+                Graph.loadCode loc $ normalize initialCode
+                [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
+                let loc' = GraphLocation "/TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                [fib] <- filter (\n -> n ^. Node.name == Just "fib") <$> Graph.getNodes loc
+                let loc'' = GraphLocation "/TestPath" $ Breadcrumb [Definition (fib ^. Node.nodeId)]
+                (loc',) <$> Library.withLibrary "/TestPath" (use Library.body)
+            withResult res $ \(loc, g) -> do
+                let imports = env ^. modules
+                let thisFilePath = $(do
+                        dir <- TH.runIO getCurrentDirectory
+                        filename <- TH.loc_filename <$> TH.location
+                        TH.litE $ TH.stringL $ dir </> filename)
+                liftIO $ do
+                    lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
+                    oldLunaRoot <- fromMaybe "" <$> lookupEnv "LUNAROOT"
+                    flip finally (setEnv "LUNAROOT" oldLunaRoot) $ do
+                        setEnv "LUNAROOT" lunaroot
+                        (cleanup, std) <- Typecheck.createStdlib $ lunaroot <> "/Std/"
+                        putMVar imports $ unwrap std
+                        runEmpire env (InterpreterEnv def def def def g def def) $ Typecheck.run imports loc True
+            let updates = env ^. to _updatesChan
+            ups <- atomically $ unfoldM (tryReadTChan updates)
+            let _ResultUpdate = prism ResultUpdate $ \n -> case n of
+                    ResultUpdate a -> Right a
+                    _              -> Left n
+            let [fibUpdate] = ups ^.. traverse . _ResultUpdate . NodeResult.value
+            fibUpdate `shouldBe` NodeValue "89" (Just (Value "89.0"))

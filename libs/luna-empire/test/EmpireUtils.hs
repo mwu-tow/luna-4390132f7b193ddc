@@ -6,7 +6,7 @@
 module EmpireUtils (
       runEmp
     , evalEmp
-    -- , runEmp'
+    , runEmp'
     , runEmpire
     , graphIDs
     , extractGraph
@@ -48,15 +48,15 @@ import           Empire.Data.Graph             (AST (..), Graph, ClsGraph)
 import qualified Empire.Data.Library           as Library (body, path)
 import           Empire.Empire                 (CommunicationEnv (..), Empire, Env, Error, InterpreterEnv (..), runEmpire)
 import           Luna.IR                       (AnyExpr, Link')
-import           Prologue                      hiding (mapping, toList, (|>))
+import           Empire.Prelude                hiding (mapping, toList, (|>))
 
 import           Test.Hspec                    (expectationFailure)
 
 
 runEmp :: CommunicationEnv -> (Given GraphLocation => Empire a) -> IO (a, Env)
 runEmp env act = runEmpire env def $ do
-    _ <- createLibrary (Just "TestFile") "TestFile"
-    let toLoc = GraphLocation "TestFile"
+    _ <- createLibrary (Just "/TestFile") "/TestFile"
+    let toLoc = GraphLocation "/TestFile"
     Graph.loadCode (toLoc (Breadcrumb [])) "def main:\n    None"
     [node] <- Graph.getNodes (toLoc (Breadcrumb []))
     give (toLoc $ Breadcrumb [Definition (node ^. Node.nodeId)]) act
@@ -64,13 +64,14 @@ runEmp env act = runEmpire env def $ do
 evalEmp :: CommunicationEnv -> (Given GraphLocation => Empire a) -> IO a
 evalEmp env act = fst <$> runEmp env act
 
--- runEmp' :: CommunicationEnv -> Env -> Graph ->
---               (Given GraphLocation => Empire a) -> IO (a, Env)
--- runEmp' env st newGraph act = runEmpire env st $ do
---     lib <- head <$> listLibraries
---     withLibrary (lib ^. Library.path) $ Library.body .= newGraph
---     let toLoc = GraphLocation (lib ^. Library.path)
---     give (toLoc $ Breadcrumb []) act
+runEmp' :: CommunicationEnv -> Env -> ClsGraph ->
+              (Given GraphLocation => Empire a) -> IO (a, Env)
+runEmp' env st newGraph act = runEmpire env st $ do
+    lib <- head <$> listLibraries
+    let path = lib ^. Library.path
+    withLibrary path $ Library.body .= newGraph
+    let toLoc = GraphLocation path
+    give (toLoc $ Breadcrumb []) act
 
 graphIDs :: GraphLocation -> Empire [NodeId]
 graphIDs loc = do

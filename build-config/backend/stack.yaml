@@ -34,7 +34,7 @@ packages:
 - {location: ../../tools/batch/plugins/luna-empire}
 - {location: ../../tools/batch/plugins/request-monitor}
 - extra-dep: true
-  location: {commit: 487173adbc069060be69b4639b4958b5faef2f1e, git: 'git@github.com:luna/luna.git'}
+  location: {commit: 5f8dfc1ab7ae850c13814f9ab9f91519690ffdbf, git: 'git@github.com:luna/luna.git'}
   subdirs: [core, passes, syntax/text/parser, syntax/text/lexer, stdlib, project]
 - extra-dep: true
   location: {commit: 61ff909efd466735cd4820f9ab2c564e324b5546, git: 'git@github.com:luna/container.git'}
@@ -85,7 +85,7 @@ packages:
 - extra-dep: true
   location: {commit: cbcd88c87e8888ebfeacd258cca96b3d6d489d35, git: 'git@github.com:luna/parsert'}
 - extra-dep: true
-  location: {commit: ed546316cdd896467276913a45073a0cb9e447b2, git: 'git@github.com:luna/vector-text'}
+  location: {commit: be6907da96975af1c5ca09555797a9891689cdb3, git: 'git@github.com:luna/vector-text'}
 - extra-dep: true
   location: {commit: a7f6158465aaa9998fcb094d74906f608ce385c5, git: 'git@github.com:luna/terminal-text'}
 - extra-dep: true

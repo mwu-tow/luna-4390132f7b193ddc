@@ -15,9 +15,12 @@ tests:
         dependencies:
             - luna-empire
             - hspec
+            - monad-loops
             - QuickCheck
             - reflection
             - raw-strings-qq
+            - template-haskell
+            - safe-exceptions
 
 benchmarks:
     bench:
