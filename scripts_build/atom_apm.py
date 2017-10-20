@@ -139,13 +139,14 @@ def list_packages():
 
 
 def apm_package(package_name, package_version):
-    print("Installing Atom package: {} (version: {})".format(package_name, package_version))
+    print("Installing Atom package: {} (version: {}) to {}".format(package_name, package_version, os.getcwd()))
     output = run_apm('install', package_name + '@' + package_version)
     print(output)
 
 
 def apm_packages():
     installed_packages = list_packages()
+    print('Installed packages: ', installed_packages)
     with open(package_config_path) as f:
         packages_list = f.read().splitlines()
         for package in packages_list:
