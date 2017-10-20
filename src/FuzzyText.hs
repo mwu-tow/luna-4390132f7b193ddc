@@ -44,8 +44,7 @@ data RawEntry = RawEntry { _rName       :: Text
                          } deriving (Show, Eq)
 makeLenses ''RawEntry
 
-data Scoring = Scoring { _perfectMatchBonus :: Bonus
-                       , _mismatchPenalty :: Bonus
+data Scoring = Scoring { _mismatchPenalty :: Bonus
                        , _skipPenalty     :: Bonus
                        , _prefixBonus     :: Bonus
                        , _sequenceBonus   :: Bonus
@@ -72,8 +71,7 @@ data Match = Match { _entry      :: RawEntry
                    } deriving (Show, Eq)
 makeLenses ''Match
 
-instance Default Scoring where def = Scoring 100  -- perfectMatchBonus
-                                             (-4) -- mismatchPenalty
+instance Default Scoring where def = Scoring (-4) -- mismatchPenalty
                                              (-4) -- skipPenalty
                                              12   -- prefixBonus
                                              10   -- sequenceBonus
@@ -132,7 +130,7 @@ lookupQueryChar i ms = ms ^. query ^? ix i
 currentScore :: Getter MatchState Int
 currentScore = to currentScore' where
     currentScore' = sum . map toScore . IntMap.elems . view charsScoring
-    toScore (Scoring b1 b2 b3 b4 b5 b6 b7 b8) = b1 + b2 + b3 + b4 + b5 + b6 + b7 + b8
+    toScore (Scoring b1 b2 b3 b4 b5 b6 b7) = b1 + b2 + b3 + b4 + b5 + b6 + b7
 
 appendRange :: Range -> [Range] -> [Range]
 appendRange i [] = [i]
@@ -182,10 +180,7 @@ matchChars ms = maybe (convert ms) (matchNext . uncurry updatedState) $ mayCurre
                             & charsScoring . at eci ?~ score' qc ec
                             & matched %~ match' qc ec
     match' qc ec r = if qc `matches` ec then appendRange (toRange eci) r else r
-    score' qc ec = Scoring perfectMatchBonus' (mismatchPenalty' qc ec) skipPenalty' (prefixBonus' qc ec) (sequenceBonus' qc ec) (suffixBonus' qc ec) (wordPrefixBonus' qc ec) (wordSuffixBonus' qc ec)
-    perfectMatchBonus' = if isNothing (lookupQueryChar (succ qci) ms)
-                         && isNothing (lookupEntryChar (succ eci) ms)
-                         && ms ^. name == ms ^. query then ms ^. scoring . perfectMatchBonus else 0
+    score' qc ec = Scoring (mismatchPenalty' qc ec) skipPenalty' (prefixBonus' qc ec) (sequenceBonus' qc ec) (suffixBonus' qc ec) (wordPrefixBonus' qc ec) (wordSuffixBonus' qc ec)
     mismatchPenalty' qc ec = if qc == ec then 0 else ms ^. scoring . mismatchPenalty
     skipPenalty' = def
     prefixBonus' qc ec = if qc /= ec then 0 else case ms ^. matched of
@@ -220,93 +215,4 @@ matchChars ms = maybe (convert ms) (matchNext . uncurry updatedState) $ mayCurre
 skipChar :: MatchState -> Match
 skipChar ms = matchNext updatedState where
     updatedState = ms & positionInEntry %~ succ
-                      & charsScoring . at (ms ^. positionInEntry) ?~ Scoring def def (ms ^. scoring . skipPenalty) def def def def def
-
--- calculateBonus q (c, ind) entryMaxInd wordBeg isWordSuffix (_, inds) bonuses = sum activeBonuses where
---     activeBonuses = [ mismatchPenalty' 
---                     , omittedLettersPenalty'
---                     , prefixBonus'
---                     , sequenceBonus'
---                     , suffixBonus'
---                     , wordPrefixBonus'
---                     ]
---     getBonus :: Text -> (Int -> Int) -> Int
---     getBonus bonusName calc = maybe 0 calc $ Map.lookup bonusName bonuses
---     wordPrefixBonus'       = getBonus "wordPrefixBonus"       $ \b -> let (beg, end) = List.head inds in
---         if null inds || ind == 0 then b
---         else if not (null inds) && end + 1 == ind && beg <= lastCapIndex then (ind - lastCapIndex + 1) * b
---         else 0
---     sequenceBonus'         = getBonus "sequenceBonus"         $ \b -> let (beg, end) = List.head inds in 
---         if null inds || end + 1 /= ind then 0 else (ind - beg) * b
---     prefixBonus'   = getBonus "prefixBonus"   $ \b -> let (beg, end) = List.head inds in
---         if mismatchPenalty' /= 0                              then 0
---         else if null inds && ind == 0                         then b
---         else if not (null inds) && beg == 0 && end + 1 == ind then (ind + 1) * b
---         else 0
---     suffixBonus'           = getBonus "suffixBonus"           $ \b -> if Text.length q == 1 && entryMaxInd == ind then b else 0
---     omittedLettersPenalty' = getBonus "omittedLettersPenalty" $ \p -> let end = snd $ List.head inds in
---         if null inds then ind * p else (ind - end - 1) * p
---     mismatchPenalty'        = getBonus "mismatchPenalty"      $ \p -> if Text.null q || Text.head q == c then 0 else p
---     wordSuffixBonus         = getBonus "wordSuffix"           $ \p -> if Text.null q then 0 else 0
-
-
-
--- matchEntry :: Query -> RawEntry -> Match
--- matchEntry q re = max (matchChars es) (skipChar es) where
---     es = toMatchState q re
-
-
--- processEntry :: Query -> [(Char, Int)] -> (Score, [Range]) -> Int -> (Score, [Range])
--- processEntry q e prevRes@(prevScore, prevMatch) wordBeg = if Text.null q then (prevScore + 1, prevMatch) else if null e then prevRes else bestMatch e wordBeg where
---     bestMatch :: [(Char, Int)] -> Int -> (Score, [Range])
---     bestMatch e' wordBeg = if null e' then prevRes else do
---         let (c, i)                    = List.head e'
---             newLastCapIndex           = if isUpper c then i else lastCapIndex
---         if not $ firstLettersMatch q e' then bestMatch (List.tail e') newLastCapIndex else do
---             let useFirstLetterResult      = processEntry (Text.tail q) (List.tail e') (getScore q e' prevRes newLastCapIndex bonusMap, appendRange (i, i) prevMatch) newLastCapIndex
---                 doNotUseFirstLetterResult = bestMatch (List.tail e') newLastCapIndex
---             if fst useFirstLetterResult >= fst doNotUseFirstLetterResult 
---                 then useFirstLetterResult
---                 else doNotUseFirstLetterResult
-
--- firstLettersMatch :: Query -> [(Char, Int)] -> Bool
--- firstLettersMatch q t = toLower (Text.head q) == toLower (fst $ List.head t)
-
-
--- getScore :: Query -> [(Char, Int)] -> (Score, [Range]) -> Int -> Map Text Bonus -> Score
--- getScore q t (s, inds) lastCapIndex bonuses = if Text.null q then s + 1
---     else if null t || not (firstLettersMatch q t)     then s
---     else s + 1 + (calculateBonus q (List.head t) (snd $ List.last t) lastCapIndex (s, inds) bonuses)
-
--- calculateBonus :: Query -> [(Char, Int)] -> Int -> Int -> Bool -> (Score, [Range]) -> Map Text Bonus -> Bonus
--- calculateBonus q (c, ind) entryMaxInd wordBeg isWordSuffix (_, inds) bonuses = sum activeBonuses where
---     activeBonuses = [ mismatchPenalty' 
---                     , omittedLettersPenalty'
---                     , prefixBonus'
---                     , sequenceBonus'
---                     , suffixBonus'
---                     , wordPrefixBonus'
---                     ]
---     getBonus :: Text -> (Int -> Int) -> Int
---     getBonus bonusName calc = maybe 0 calc $ Map.lookup bonusName bonuses
---     wordPrefixBonus'       = getBonus "wordPrefixBonus"       $ \b -> let (beg, end) = List.head inds in
---         if null inds || ind == 0 then b
---         else if not (null inds) && end + 1 == ind && beg <= lastCapIndex then (ind - lastCapIndex + 1) * b
---         else 0
---     sequenceBonus'         = getBonus "sequenceBonus"         $ \b -> let (beg, end) = List.head inds in 
---         if null inds || end + 1 /= ind then 0 else (ind - beg) * b
---     prefixBonus'   = getBonus "prefixBonus"   $ \b -> let (beg, end) = List.head inds in
---         if mismatchPenalty' /= 0                              then 0
---         else if null inds && ind == 0                         then b
---         else if not (null inds) && beg == 0 && end + 1 == ind then (ind + 1) * b
---         else 0
---     suffixBonus'           = getBonus "suffixBonus"           $ \b -> if Text.length q == 1 && entryMaxInd == ind then b else 0
---     omittedLettersPenalty' = getBonus "omittedLettersPenalty" $ \p -> let end = snd $ List.head inds in
---         if null inds then ind * p else (ind - end - 1) * p
---     mismatchPenalty'        = getBonus "mismatchPenalty"      $ \p -> if Text.null q || Text.head q == c then 0 else p
---     wordSuffixBonus         = getBonus "wordSuffix"           $ \p -> if Text.null q then 0 else 0
-
-
--- -- reverse omittedLettersPenalty on suffix and word suffix (in this case maybe part of it)
-
--- -- Jak jest pust to cofamy penalty * waga, jak nie jest to cofamy penalty * waga dla tego slowa
+                      & charsScoring . at (ms ^. positionInEntry) ?~ Scoring def (ms ^. scoring . skipPenalty) def def def def def
