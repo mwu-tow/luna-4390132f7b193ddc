@@ -37,7 +37,6 @@ module.exports = LunaStudio =
                 if rootPath? and rootPath != ""
                     projects.recent.add rootPath
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
-                atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: arg1)
             if act == 'ProjectMove'
@@ -60,6 +59,7 @@ module.exports = LunaStudio =
         atom.workspace.observeTextEditors (editor) => @handleSaveAsLuna(editor)
         atom.workspace.onDidAddPaneItem (pane)   => @handleItemChange(pane.item)
         atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
+        atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
         atom.packages.onDidActivateInitialPackages =>
             if atom.config.get('luna-studio.showWelcomeScreen') and atom.project.getPaths().length == 0
                 @welcome.attach()
