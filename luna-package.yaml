@@ -52,7 +52,7 @@ packages:
                   deps: []
           0.0.4.dev:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/supervisord/4.0.0dev/supervisord.tar.gz
+                  path: https://s3-eu-west-1.amazonaws.com/supervisord-bin-packages/one-file/supervisord.tar.gz
                   deps: []
               darwin.x64:
                   path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/supervisord/supervisord.zip
