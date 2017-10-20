@@ -15,6 +15,10 @@ topResultNameShouldBe :: [Match] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
 topResultNameShouldBe (h:_) r = h ^. name `shouldBe` r
 
+topResultEntryShouldBe :: [Match] -> RawEntry -> Expectation
+topResultEntryShouldBe [] _ = expectationFailure "Result is empty"
+topResultEntryShouldBe (h:_) e = h ^. entry `shouldBe` e
+
 topResultShouldHaveBestScore :: [Match] -> Expectation
 topResultShouldHaveBestScore []      = expectationFailure "Result is empty"
 topResultShouldHaveBestScore [_]     = def
@@ -71,6 +75,18 @@ spec = do
         it "exact match has better score" $ do
             let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
             topResultShouldHaveBestScore res
+        it "methods matching class are first for empty query" $ do
+            let bestEntry = RawEntry "%" (Method "Int") 0.7
+                entries = [ RawEntry "+" (Method "Int") 0.7
+                          , RawEntry "+" (Method "Text") 0.5
+                          , RawEntry "%" (Method "Text") 0.5
+                          , RawEntry "+" Function 0.3
+                          , RawEntry "%" Function 0.3
+                          , RawEntry "+" Function 0.2
+                          , bestEntry
+                          ]
+                res = fuzzySearch "" entries
+            res `topResultEntryShouldBe` bestEntry
           
     describe "matched letters" $ do
         it "match should be eager" $ do

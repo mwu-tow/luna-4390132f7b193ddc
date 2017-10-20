@@ -113,7 +113,10 @@ instance Ord Match where
     m1 `compare` m2 = let 
         m1score = fromIntegral (m1 ^. score) * (m1 ^. weight)
         m2score = fromIntegral (m2 ^. score) * (m2 ^. weight)
-        compareScore = if m1 ^. score < 0 && m2 ^. score < 0 then (1/m2score) `compare` (1/m1score) else m2score `compare` m1score
+        compareScore = 
+            if m1 ^. score == 0 && m2 ^. score == 0 then (m2 ^. weight) `compare` (m1 ^. weight)
+            else if m1 ^. score < 0 && m2 ^. score < 0 then (1/m2score) `compare` (1/m1score)
+            else m2score `compare` m1score
         in 
             if m1 ^. exactMatch && not (m2 ^. exactMatch) then LT
             else if not (m1 ^. exactMatch) && m2 ^. exactMatch then GT
