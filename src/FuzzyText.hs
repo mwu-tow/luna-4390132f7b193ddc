@@ -112,11 +112,15 @@ instance Entry MatchState where
     entryType = msEntry . entryType
 
 instance Ord Match where
-    m1 `compare` m2 = let compareScore = (fromIntegral (m2 ^. score) * (m2 ^. weight)) `compare` (fromIntegral (m1 ^. score) * (m1 ^. weight)) in
-        if m1 ^. exactMatch && not (m2 ^. exactMatch) then LT
-        else if not (m1 ^. exactMatch) && m2 ^. exactMatch then GT
-        else if compareScore /= EQ then compareScore
-        else (m1 ^. name) `compare` (m2 ^. name)
+    m1 `compare` m2 = let 
+        m1score = fromIntegral (m1 ^. score) * (m1 ^. weight)
+        m2score = fromIntegral (m2 ^. score) * (m2 ^. weight)
+        compareScore = if m1 ^. score < 0 && m2 ^. score < 0 then (1/m2score) `compare` (1/m1score) else m2score `compare` m1score
+        in 
+            if m1 ^. exactMatch && not (m2 ^. exactMatch) then LT
+            else if not (m1 ^. exactMatch) && m2 ^. exactMatch then GT
+            else if compareScore /= EQ then compareScore
+            else (m1 ^. name) `compare` (m2 ^. name)
 
 
 lookupEntryChar :: Int -> MatchState -> Maybe Char
