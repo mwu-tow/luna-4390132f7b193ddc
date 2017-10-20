@@ -24,6 +24,21 @@ setFile path = do
         modifyApp $ workspace ?= newWorkspace
         loadGraph (newWorkspace ^. currentLocation) $ (, settings) <$> mayCurrentLocation
 
+
+updateFilePath :: FilePath -> Command State ()
+updateFilePath path = do
+    mayWorkspace <- getWorkspace
+    let mayOldLocation = mayWorkspace ^? _Just . currentLocation
+        mayOldFilePath = view filePath <$> mayOldLocation
+    when (Just path /= mayOldFilePath) $ do
+        let newWorkspace = Workspace.mk path
+            newLocation = newWorkspace ^. currentLocation
+        modifyApp $ workspace ?= newWorkspace
+        saveSettings
+        settings <- getSettings
+        loadGraph newLocation $ Just (newLocation, settings)
+
+
 unsetFile :: Command State ()
 unsetFile = do
     saveSettings

@@ -112,5 +112,5 @@ class LunaNodeEditorTab extends View
         if @uri?
             @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
             oldPath = atom.project.getPaths()[0]
-            projects.temporaryProject.save (newUri) =>
-                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)
+            projects.temporaryProject.save (newPath) =>
+                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newPath)

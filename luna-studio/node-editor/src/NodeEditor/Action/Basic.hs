@@ -96,6 +96,7 @@ module NodeEditor.Action.Basic
     , updateClient
     , updateCollaboration
     , updateConnection
+    , updateFilePath
     , updateGraph
     , updateNodeZOrder
     , updateScene
@@ -108,7 +109,7 @@ import           NodeEditor.Action.Basic.AddConnection       (connect, localAddC
 import           NodeEditor.Action.Basic.AddNode             (createNode, localAddExpressionNode)
 import           NodeEditor.Action.Basic.AddPort             (addPort, localAddPort)
 import           NodeEditor.Action.Basic.AddSubgraph         (addSubgraph, localAddSubgraph, localUpdateSubgraph)
-import           NodeEditor.Action.Basic.Atom                (setFile, unsetFile)
+import           NodeEditor.Action.Basic.Atom                (setFile, updateFilePath, unsetFile)
 import           NodeEditor.Action.Basic.CollapseToFunction  (collapseToFunction)
 import           NodeEditor.Action.Basic.CreateGraph         (createGraph, updateGraph)
 import           NodeEditor.Action.Basic.EnterBreadcrumb     (enterBreadcrumb, enterBreadcrumbs, enterNode, exitBreadcrumb)

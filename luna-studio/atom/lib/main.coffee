@@ -52,6 +52,7 @@ module.exports = LunaStudio =
                         newUri = moveUri pane.uri
                         if newUri?
                             pane.uri = newUri
+                            nodeEditor.pushEvent(tag: "UpdateFilePath", path: newUri)
 
         codeEditor.statusListener actStatus
         atom.workspace.onDidChangeActivePaneItem (item) => @handleItemChange(item)

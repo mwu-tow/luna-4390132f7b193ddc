@@ -149,10 +149,10 @@ module.exports =
             @setModified(false)
             e.preventDefault()
             e.stopImmediatePropagation()
-            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: atom.workspace.getActivePaneItem().uri)
+            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
             oldPath = atom.project.getPaths()[0]
-            projects.temporaryProject.save (newUri) =>
-                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newUri)
+            projects.temporaryProject.save (newPath) =>
+                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newPath)
 
         insertCode: (uri, start, end, text, cursor) =>
             if @uri == uri
