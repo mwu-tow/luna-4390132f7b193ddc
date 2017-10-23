@@ -1470,7 +1470,6 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
         metaLine     = Text.drop (Text.length $ convert withoutMeta) text
     (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         code <- use Graph.code
-        liftIO $ print withoutMeta >> print ranges
         let markedRanges   = map ({-includeWhitespace code .-} rangeToMarked code) ranges
             rangesReversed = reverse $ sortOn (view _1) markedRanges
         FileMetadata m <- parseMetadata metaLine

@@ -819,5 +819,4 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
                 clipboard <- Graph.copyText loc [Range 14 36]
-                liftIO $ print clipboard
                 Graph.paste loc (Position.fromTuple (1000, 0)) $ Text.unpack clipboard

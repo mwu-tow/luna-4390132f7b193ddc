@@ -55,6 +55,7 @@ import           LunaStudio.Data.Point           (Point (Point))
 import qualified LunaStudio.Data.Port            as Port
 import qualified LunaStudio.Data.PortDefault     as PortDefault
 import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
+import qualified LunaStudio.Data.PortRef         as PortRef
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.Range           (Range (..))
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
@@ -2082,3 +2083,12 @@ spec = around withChannels $ parallel $ do
                     _              -> Left n
             let [fibUpdate] = ups ^.. traverse . _ResultUpdate . NodeResult.value
             fibUpdate `shouldBe` NodeValue "89" (Just (Value "89.0"))
+        it "does not display connection to itself on anonymous nodes" $ let
+            initialCode = [r|
+                def main:
+                    4
+            |]
+            in specifyCodeChange initialCode initialCode $ \loc -> do
+                [node] <- Graph.getNodes loc
+                selfConn <- filter (\(o,i) -> o ^. PortRef.srcNodeId == i ^. PortRef.dstNodeId) <$> Graph.getConnections loc
+                liftIO $ selfConn `shouldBe` []

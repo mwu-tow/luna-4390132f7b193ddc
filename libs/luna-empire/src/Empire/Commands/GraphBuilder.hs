@@ -494,14 +494,15 @@ deepResolveInputs nid ref portRef@(InPortRef loc id) = do
     currentPortResolution <- toList <$> resolveInput ref
     let currentPortConn    = (, portRef) <$> (filter ((/= nid) . view srcNodeId) currentPortResolution)
         unfilteredPortConn = (, portRef) <$> currentPortResolution
-    args      <- ASTDeconstruct.extractAppPorts ref
-    argsConns <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id <> [Arg i]))
-    head      <- ASTDeconstruct.extractFun ref
-    self      <- ASTDeconstruct.extractSelf head
+    args       <- ASTDeconstruct.extractAppPorts ref
+    argsConns  <- forM (zip args [0..]) $ \(arg, i) -> deepResolveInputs nid arg (InPortRef loc (id <> [Arg i]))
+    head       <- ASTDeconstruct.extractFun ref
+    self       <- ASTDeconstruct.extractSelf head
+    firstRun   <- (== ref) <$> ASTRead.getASTTarget nid
     headConns <- case (self, head == ref) of
         (Just s, _) -> deepResolveInputs nid s    (InPortRef loc (id <> [Self]))
         (_, False)  -> deepResolveInputs nid head (InPortRef loc (id <> [Head]))
-        (_, True)   -> pure $ if null currentPortConn then unfilteredPortConn else []
+        (_, True)   -> pure $ if null currentPortConn && not firstRun then unfilteredPortConn else []
         _           -> pure []
     pure $ concat [currentPortConn, headConns, concat argsConns]
 
