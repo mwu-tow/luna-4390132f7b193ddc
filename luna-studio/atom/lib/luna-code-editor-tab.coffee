@@ -67,10 +67,9 @@ module.exports =
         constructor: (@uri, @codeEditor) ->
             super
             @setModified(false)
+            @setUri(@uri)
             @diffToOmit = new Set()
-            @getBuffer().setPath(@uri)
             @setPlaceholderText 'Please wait'
-            @getBuffer().subscribeToFileOverride(@codeEditor)
             @codeEditor.pushInternalEvent(tag: 'OpenFile', _path: @uri)
 
             @codeEditor.onSetBuffer @setBuffer
@@ -103,6 +102,7 @@ module.exports =
 
         setUri: (uri) =>
             @getBuffer().setPath(uri)
+            @getBuffer().subscribeToFileOverride(@codeEditor)
             @uri = uri
         deactivate: -> @subscribe.dispose()
 
