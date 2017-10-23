@@ -8,6 +8,7 @@ module NodeEditor.React.Model.Port
 
 import           Common.Prelude                   hiding (set)
 import           Data.Convert                     (Convertible (convert))
+import qualified Data.Text                        as Text
 import           LunaStudio.Data.Angle            (Angle)
 import           LunaStudio.Data.LabeledTree      (LabeledTree (LabeledTree))
 import qualified LunaStudio.Data.LabeledTree      as LabeledTree
@@ -15,12 +16,12 @@ import           LunaStudio.Data.Port             as X hiding (InPort, OutPort, 
 import qualified LunaStudio.Data.Port             as Empire
 import           LunaStudio.Data.PortDefault      as X (PortDefault (..))
 import           LunaStudio.Data.PortRef          as X (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef),
-                                                       OutPortRef (OutPortRef))
+                                                        OutPortRef (OutPortRef))
 import           LunaStudio.Data.Position         (Position)
 import           LunaStudio.Data.TypeRep          (TypeRep (..))
 import           NodeEditor.Data.Color            (Color)
 import qualified NodeEditor.Data.Color            as Color
-import           NodeEditor.React.Model.Constants (nodeRadius, lineHeight)
+import           NodeEditor.React.Model.Constants (lineHeight, nodeRadius)
 
 type IsAlias = Bool
 type IsSelf  = Bool
@@ -86,7 +87,7 @@ getPositionInSidebar p = case p ^. mode of
     _         -> Nothing
 
 visibleOutPorts :: OutPortTree (Port i) -> [Port i]
-visibleOutPorts (LabeledTree (OutPorts []) p) = [p]
+visibleOutPorts (LabeledTree (OutPorts []) p) = if Text.null (p ^. name) || not (isUpper . Text.head $ p ^. name) then [p] else []
 visibleOutPorts (LabeledTree (OutPorts ps) _) = concatMap visibleOutPorts ps
 
 visibleInPorts :: InPortTree (Port i) -> [Port i]
