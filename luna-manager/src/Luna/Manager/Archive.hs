@@ -80,7 +80,6 @@ unpack totalProgress progressFieldName file = do
 
 unzipUnix :: UnpackContext m => FilePath -> m FilePath
 unzipUnix file = do
-    Logger.log $ "Unzipping file: " <> plainTextPath file
     let dir = directory file
         name = basename file
     Shelly.chdir dir $ do
@@ -111,7 +110,6 @@ directProgressLogger progressFieldName totalProgress actualProgress = do
 unpackTarGzUnix :: UnpackContext m => Double -> Text.Text -> FilePath -> m FilePath
 unpackTarGzUnix totalProgress progressFieldName file = do
     guiInstaller <- Opts.guiInstallerOpt
-    Logger.log $ "Ungzipping file: " <> plainTextPath file
     let dir = directory file
         name = basename file
     Shelly.chdir dir $ do
