@@ -171,9 +171,10 @@ module.exports =
                     if child.id == 'luna_logo-spinner'
                         @element.removeChild child
                         break
-                @omitDiff(text)
-                @getBuffer().setText(text)
-                console.log "setBuffer"
+                unless @getBuffer().getText() is text
+                    @omitDiff(text)
+                    @getBuffer().setText(text)
+                    console.log "setBuffer"
 
         setModified: (modified) =>
             @getBuffer().setModified(modified)
