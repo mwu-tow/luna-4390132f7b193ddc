@@ -78,10 +78,7 @@ port = React.defineView name $ \(ref, nl, num, numOfPorts, isOnly, p) ->
         _                  -> portIO_ ref nl p num numOfPorts
 
 portExpanded :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
-portExpanded = React.defineView name $ \(ref, nl, p, num) ->
-    case p ^. Port.portId of
-        InPortId' (Self:_) -> portSelf_       ref nl p
-        _                  -> portIOExpanded_ ref nl p num
+portExpanded = React.defineView name $ \(ref, nl, p, num) -> portIOExpanded_ ref nl p num
 
 port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
 port_ ref nl p num numOfPorts isOnly =
@@ -250,12 +247,11 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfPorts) -> do
             ) mempty
 
 portIOExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
-portIOExpanded_ ref nl p num = if isSelf $ p ^. Port.portId then portSelf_ ref nl p else do
+portIOExpanded_ ref nl p num = do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
         portType = toString $ p ^. Port.valueType
         isInput  = isInPort portId
-        n        = if isInput then 1 else 0
         color    = convert $ p ^. Port.color
         px       = jsShow2 (if isInput then (-nodePropertiesWidth/2) else nodePropertiesWidth/2)
         py       = jsShow2 (lineHeight * fromIntegral num)
@@ -292,7 +288,7 @@ portIOExpanded_ ref nl p num = if isSelf $ p ^. Port.portId then portSelf_ ref n
 argumentConstructor_ :: IsRef r => r -> NodeLoc -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
 argumentConstructor_ ref nl numOfPorts isConnectionSource hasAlias hasSelf = do
     let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
-        offsetY   = argumentConstructorOffsetY $ max 0 $ numOfPorts - if hasAlias then 0 else 1
+        offsetY   = argumentConstructorOffsetY $ max 0 $ numOfPorts - 1
         highlight = if isConnectionSource then ["port--highlighted"] else []
     g_
         [ "key"       $= "argument-constructor"
