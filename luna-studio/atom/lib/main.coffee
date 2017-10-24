@@ -37,6 +37,8 @@ module.exports = LunaStudio =
                 if rootPath? and rootPath != ""
                     projects.recent.add rootPath
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
+            if act == 'ProjectSet'
+                projects.openMainIfExists()
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: arg1)
             if act == 'ProjectMove'
