@@ -8,7 +8,7 @@ import qualified Shelly.Lifted as Shelly
 import Shelly.Lifted (MonadSh, (</>), shelly, liftIO)
 import qualified System.Directory as System
 import Control.Monad.Catch (throwM, MonadThrow)
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Control.Monad.IO.Class ( MonadIO)
 import Control.Exception (Exception)
 import Data.Maybe (fromMaybe)
@@ -43,7 +43,7 @@ currentPath = do
 data System = Linux
             | Darwin
             | Windows
-            deriving (Show)
+            deriving (Show, Eq)
 
 
 -- === System discovery === --
@@ -77,14 +77,22 @@ installPython = do
     let pythonFolder = current </> tools </> "python"
     Shelly.chdir_p pythonFolder $ do
         pyenvPresent <- Shelly.test_d "pyenv"
-        if not pyenvPresent then Shelly.cmd "git" ["clone", "https://github.com/pyenv/pyenv.git"] else return ()
+        unless pyenvPresent $ Shelly.cmd "git" "clone" "https://github.com/pyenv/pyenv.git"
+
         Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pythonFolder </> "pyenv"
         Shelly.prependToPath $ pythonFolder </> "pyenv" </> "bin"
         Shelly.prependToPath $ pythonFolder </> "pyenv" </> "shims"
-        Shelly.cmd "pyenv" ["init", "-"]
+        Shelly.cmd "pyenv" "init" "-"
+
         pythonSuppertedVersionPresent <- Shelly.test_d $ "pyenv/versions" </> supportedPythonVersion
-        if not pythonSuppertedVersionPresent then Shelly.cmd "pyenv" ["install", supportedPythonVersion] else return ()
-        Shelly.cmd "pyenv" ["local", supportedPythonVersion]
+        unless pythonSuppertedVersionPresent $ do
+            -- we need this because of https://github.com/pyenv/pyenv/issues/950
+            when (currentHost == Darwin) $ do
+                opensslPath <- Shelly.cmd "brew" "--prefix" "openssl"
+                Shelly.setenv "CFLAGS"  $ "-I" <> opensslPath <> "/include"
+                Shelly.setenv "LDFLAGS" $ "-L" <> opensslPath <> "/lib"
+            Shelly.cmd "pyenv" "install" supportedPythonVersion
+        Shelly.cmd "pyenv" "local" supportedPythonVersion
         Shelly.cmd "pip" $ "install" : pythonLibs
 
 installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
@@ -92,17 +100,17 @@ installNode = do
     Shelly.echo "installing node locally"
     current <- currentPath
     let nodeFolder = current </> tools </> "node"
+        arch       = if currentHost == Darwin then "darwin" else "linux" :: Text
+        nodeVer    = Shelly.toTextIgnore supportedNodeVersion
+        nodeTar    = "node-v" <> nodeVer <> "-" <> arch <> "-x64.tar.gz"
+        nodeUrl    = "https://nodejs.org/dist/v" <> nodeVer <> "/" <> nodeTar
+    Shelly.echo $ "NodeTar: " <> nodeTar
+    Shelly.echo $ "NodeUrl: " <> nodeUrl
     Shelly.chdir_p nodeFolder $ do
         Shelly.mkdir_p supportedNodeVersion
-        case currentHost of
-            Linux  -> do
-                Shelly.cmd "wget" ["https://nodejs.org/dist/v6.11.3/node-v6.11.3-linux-x64.tar.xz"]
-                Shelly.cmd  "tar" "-xpJf" "./node-v6.11.3-linux-x64.tar.xz" "--strip=1" "-C" supportedNodeVersion
-                Shelly.rm "./node-v6.11.3-linux-x64.tar.xz"
-            Darwin -> do
-                Shelly.cmd "wget" ["https://nodejs.org/dist/v6.11.3/node-v6.11.3-darwin-x64.tar.gz"]
-                Shelly.cmd  "tar" "-xpzf" "./node-v6.11.3-darwin-x64.tar.gz" "--strip=1" "-C" supportedNodeVersion
-                Shelly.rm "./node-v6.11.3-darwin-x64.tar.gz"
+        Shelly.cmd "wget" nodeUrl
+        Shelly.cmd "tar" "-xpzf" nodeTar "--strip=1" "-C" supportedNodeVersion
+        Shelly.rm $ Shelly.fromText nodeTar
 
 nodeModules :: [T.Text]
 nodeModules = ["less"]
@@ -132,17 +140,13 @@ downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 downloadLibs = do
     Shelly.echo "downloading libraries"
     current <- currentPath
-    let libsFolder = current </> libs
+    let libsFolder    = current </> libs
+        arch          = if currentHost == Darwin then "darwin" else "linux"
+        lunaStudioUrl = "https://s3-us-west-2.amazonaws.com/packages-luna/" <> arch <> "/studio/libs/luna-studio-libs.tar.gz"
     Shelly.chdir_p (parent libsFolder) $ do
-        case currentHost of
-            Linux  -> do
-                Shelly.cmd "wget" ["https://s3-us-west-2.amazonaws.com/packages-luna/linux/studio/libs/luna-studio-libs.tar.gz"]
-                Shelly.cmd  "tar" "-xpzf" "./luna-studio-libs.tar.gz" "--strip=1"
-                Shelly.rm "./luna-studio-libs.tar.gz"
-            Darwin -> do
-                Shelly.cmd "wget" ["https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/libs/luna-studio-libs.tar.gz"]
-                Shelly.cmd  "tar" "-xpzf" "./luna-studio-libs.tar.gz" "--strip=1"
-                Shelly.rm "./luna-studio-libs.tar.gz"
+        Shelly.cmd "wget" lunaStudioUrl
+        Shelly.cmd  "tar" "-xpzf" "./luna-studio-libs.tar.gz" "--strip=1"
+        Shelly.rm "./luna-studio-libs.tar.gz"
 
 bashLogin :: MonadSh m => Shelly.FilePath -> [T.Text] -> m T.Text
 bashLogin command params = do
