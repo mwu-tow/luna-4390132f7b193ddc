@@ -4,7 +4,7 @@ import           Common.Action.Command         (Command)
 import           Common.Prelude
 import           Data.UUID.Types               (UUID)
 import           LunaStudio.Data.GraphLocation (GraphLocation)
-import           LunaStudio.Data.Point         (Point)
+import           LunaStudio.Data.Diff          (Diff)
 import           LunaStudio.Data.Range         (Range)
 import           TextEditor.Action.UUID        (registerRequest)
 import qualified TextEditor.Batch.Commands     as BatchCmd
@@ -41,8 +41,8 @@ moveProject = withUUID .: BatchCmd.moveProject
 setProject :: FilePath -> Command State ()
 setProject = withUUID . BatchCmd.setProject
 
-substitute :: GraphLocation -> Point -> Point -> Text -> Maybe Point -> Command State ()
-substitute = withUUID .::. BatchCmd.substitute
+substitute :: GraphLocation -> [Diff] -> Command State ()
+substitute = withUUID .: BatchCmd.substitute
 
 copy :: FilePath -> [Range] -> Command State ()
 copy = withUUID .: BatchCmd.copy

@@ -8,16 +8,18 @@ module JS.Atom
     , pushStatus
     , setBuffer
     , setClipboard
-    , subscribeDiff
+    , subscribeDiffs
     , subscribeEventListenerInternal
     ) where
 
 import           Common.Data.JSON              (fromJSONVal)
-import           Common.Prelude
+import           Common.Prelude                hiding (toList)
 import           Control.Monad.Trans.Maybe     (MaybeT (MaybeT), runMaybeT)
 import qualified Data.Text                     as Text
 import           GHCJS.Foreign.Callback
 import           GHCJS.Marshal.Pure            (PFromJSVal (pFromJSVal), PToJSVal (pToJSVal))
+import           LunaStudio.Data.Diff          (Diff (Diff))
+import qualified LunaStudio.Data.Diff          as Diff
 import           LunaStudio.Data.GraphLocation (GraphLocation)
 import           LunaStudio.Data.Point         (Point (Point))
 import qualified LunaStudio.Data.Point         as Point
@@ -47,11 +49,11 @@ foreign import javascript safe "atomCallbackTextEditor.subscribeEventListenerInt
 foreign import javascript safe "($1).unsubscribeEventListenerInternal()"
     unsubscribeEventListenerInternal' :: Callback (JSVal -> IO ()) -> IO ()
 
-foreign import javascript safe "atomCallbackTextEditor.subscribeDiff($1)"
-    subscribeDiff' :: Callback (JSVal -> IO ()) -> IO ()
+foreign import javascript safe "atomCallbackTextEditor.subscribeDiffs($1)"
+    subscribeDiffs' :: Callback (JSVal -> IO ()) -> IO ()
 
-foreign import javascript safe "($1).unsubscribeDiff()"
-    unsubscribeDiff' :: Callback (JSVal -> IO ()) -> IO ()
+foreign import javascript safe "($1).unsubscribeDiffs()"
+    unsubscribeDiffs' :: Callback (JSVal -> IO ()) -> IO ()
 
 foreign import javascript safe "$1.uri"    getPath   :: JSVal -> JSVal
 foreign import javascript safe "$1.start"  getStart  :: JSVal -> JSVal
@@ -69,35 +71,40 @@ instance PFromJSVal Point where
 instance PToJSVal Point where
     pToJSVal point = mkPoint (point ^. Point.column) (point ^. Point.row)
 
+instance FromJSVal Diff where
+    fromJSVal jsval = return $ Just $ Diff
+        (pFromJSVal $ getStart  jsval)
+        (pFromJSVal $ getEnd    jsval)
+        (pFromJSVal $ getText   jsval)
+        (pFromJSVal $ getCursor jsval)
+
 instance FromJSVal GraphLocation where fromJSVal = fromJSONVal
 instance FromJSVal InternalEvent where fromJSVal = fromJSONVal
 
 instance FromJSVal TextEvent where
     fromJSVal jsval = runMaybeT $ do
         location <- MaybeT $ fromJSVal $ getPath jsval
-        let start    = pFromJSVal $ getStart jsval
-            end      = pFromJSVal $ getEnd jsval
-            text     = pFromJSVal $ getText jsval
-            cursor   = pFromJSVal $ getCursor jsval
-            result   = TextEvent location start end text $ Just cursor
-        return result
+        diffs    <- MaybeT $ fromJSVal jsval
+        return $ TextEvent location diffs
 
 activeLocation :: MonadIO m => m (Maybe GraphLocation)
 activeLocation = liftIO $ fromJSVal =<< activeLocation'
 
-subscribeDiff :: (TextEvent -> IO ()) -> IO (IO ())
-subscribeDiff callback = do
+subscribeDiffs :: (TextEvent -> IO ()) -> IO (IO ())
+subscribeDiffs callback = do
     wrappedCallback <- syncCallback1 ContinueAsync $ \js -> withJustM_ (fromJSVal js) callback
-    subscribeDiff' wrappedCallback
-    return $ unsubscribeDiff' wrappedCallback >> releaseCallback wrappedCallback
+    subscribeDiffs' wrappedCallback
+    return $ unsubscribeDiffs' wrappedCallback >> releaseCallback wrappedCallback
 
 insertCode :: TextEvent -> IO ()
-insertCode = do
-    uri   <- view TextEvent.filePath
-    start <- pToJSVal . view TextEvent.start
-    end   <- pToJSVal . view TextEvent.end
-    text  <- view TextEvent.text
-    return $ insertCode' (convert uri) start end $ convert $ Text.unpack text
+insertCode textEvent = do
+    let uri   = textEvent ^. TextEvent.filePath . to convert
+        diffs = textEvent ^. TextEvent.diffs
+    forM_ diffs $ \diff -> do
+        let start = diff ^. Diff.start . to pToJSVal
+            end   = diff ^. Diff.end   . to pToJSVal
+            text  = diff ^. Diff.newText . to Text.unpack . to convert
+        insertCode' uri start end text
 
 subscribeEventListenerInternal :: (InternalEvent -> IO ()) -> IO (IO ())
 subscribeEventListenerInternal callback = do

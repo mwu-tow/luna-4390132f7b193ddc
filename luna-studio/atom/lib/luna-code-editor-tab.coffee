@@ -79,6 +79,7 @@ module.exports =
 
             @subscribe = new SubAtom
             @subscribe.add @getBuffer().onDidStopChanging (event) =>
+                diffs = []
                 for change in event.changes
                     if @diffToOmit.has(change.newText)
                         @diffToOmit.delete(change.newText)
@@ -90,7 +91,9 @@ module.exports =
                             text:  change.newText
                             cursor: @.getCursorBufferPosition()
                           #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
-                        @codeEditor.pushDiff(diff)
+                        diffs.push diff
+                if diffs.length > 0
+                    @codeEditor.pushDiffs(diffs)
             spinner = new Spinner(progress = 0, overlap = true)
             @spinnerElement = @element.appendChild(spinner.element)
 
