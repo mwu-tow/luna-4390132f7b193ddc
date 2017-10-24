@@ -217,6 +217,9 @@ visibleOutPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId =
 visibleInPortNumber :: ExpressionNode -> InPortId -> Int
 visibleInPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . Port.visibleInPorts $ n ^. inPorts
 
+visibleArgPortNumber :: ExpressionNode -> InPortId -> Int
+visibleArgPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . filter isArg . Port.visibleInPorts $ n ^. inPorts
+
 countVisibleOutPorts :: ExpressionNode -> Int
 countVisibleOutPorts n = length . Port.visibleOutPorts $ n ^. outPorts
 
