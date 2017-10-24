@@ -160,7 +160,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
                 ] $ do
                 nodeName_ ref nodeLoc (n ^. Node.name) mayVisVisible maySearcher
                 nodeExpression_ ref nodeLoc expression maySearcher
-            nodeBody_  ref n
+            nodeBody_ ref n
             when showValue $ nodeValue_ ref n
             nodePorts_ ref n hasAlias hasSelf
 
@@ -240,14 +240,11 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
             [ "key" $= "nodeTransform"
             ] $ do
             if isCollapsed n then do
+                ports inPorts
                 ports outPorts
-                ports $ filter (not . isSelf . (^. _1 . Port.portId)) inPorts
-                ports $ filter       (isSelf . (^. _1 . Port.portId)) inPorts
             else do
-                ports outPorts
-                ports $ filter (      isSelf . (^. _1 . Port.portId)) inPorts
-
-                forM_  (filter (not . isSelf . (^. _1 . Port.portId)) inPorts) $ uncurry (portExpanded_ ref nodeLoc)
+                forM_ inPorts  $ uncurry (portExpanded_ ref nodeLoc)
+                forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)
 
             argumentConstructor_ ref nodeLoc (countVisibleArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
 
