@@ -351,6 +351,9 @@ svg.luna-node__ports {
             cy: -16px;
         }
     }
+    .luna-node__control--self {
+        display: none;
+    }
 }
 
 .luna-node__ctrl {
@@ -370,7 +373,7 @@ svg.luna-node__ports {
     .color(5);
     cursor:        pointer;
     text-align:    center;
-    line-height:   12rem;
+    line-height:   11rem;
     width:         100%;
 }
 
@@ -384,7 +387,6 @@ svg.luna-node__ports {
 }
 
 .luna-ctrl--set {
-    display: block;
     &:hover {
         color: #fff;
         .background(3);
