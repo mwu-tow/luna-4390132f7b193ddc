@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedStrings    #-}
 module Luna.Manager.Command.Develop where
 
 import Prologue hiding (FilePath)
@@ -20,6 +21,9 @@ import Luna.Manager.Component.Version
 import Luna.Manager.System.Host
 import Luna.Manager.System.Path (expand)
 import Control.Monad.Trans.Resource ( MonadBaseControl)
+
+import qualified Data.Text as T
+default (T.Text)
 
 -- hardcodedRepo :: Repo
 -- hardcodedRepo = Repo defpkgs ["studio"] where
@@ -66,18 +70,27 @@ instance Exception PathException where
 
 downloadAndUnpackStack :: MonadDevelop m => FilePath -> m ()
 downloadAndUnpackStack path = do
-    developConfig <- get @DevelopConfig
-    let stackURL = developConfig ^. stackPath
-        totalProgress = 1.0
-        progressFielsdName = ""
-    putStrLn "Downloading stack"
-    stackArch <- downloadWithProgressBar stackURL
-    stackArch' <- Archive.unpack totalProgress progressFielsdName stackArch
-    Shelly.mv stackArch' path
+    stackPresent <- not . null <$> Shelly.ls path
+    if stackPresent
+        then liftIO $ putStrLn "Stack is already installed, skipping"
+        else do
+            developConfig <- get @DevelopConfig
+            let stackURL           = developConfig ^. stackPath
+                totalProgress      = 1.0
+                progressFielsdName = ""
+            putStrLn "Downloading stack"
+            stackArch <- downloadWithProgressBar stackURL
+            stackArch' <- Archive.unpack totalProgress progressFielsdName stackArch
+            Shelly.whenM (Shelly.test_d path) $ Shelly.rm_rf path
+            Shelly.mv stackArch' path
 
-cloneRepo :: MonadDevelop m => Text -> FilePath -> m Text
-cloneRepo appName appPath = Shelly.run "git" ["clone", repoPath, Shelly.toTextIgnore appPath] where
-    repoPath = "git@github.com:luna/" <> appName <> ".git"
+getLatestRepo :: MonadDevelop m => Text -> FilePath -> m Text
+getLatestRepo appName appPath = do
+    let repoPath = "git@github.com:luna/" <> appName <> ".git"
+    repoExists <- Shelly.test_d appPath
+    if repoExists
+        then Shelly.chdir appPath $ Shelly.cmd "git" "pull" "origin" "master"
+        else Shelly.cmd "git" "clone" repoPath appPath
 
 downloadDeps :: MonadDevelop m => Text -> FilePath -> m ()
 downloadDeps appName appPath = do
@@ -105,7 +118,7 @@ run opts = do
         stackFolderPath <- expand  $ convert workingPath </> (developCfg ^. devPath) </> (developCfg ^. toolsPath) </> (developCfg ^. stackLocalPath)
         Shelly.mkdir_p $ parent stackFolderPath
         downloadAndUnpackStack stackFolderPath
-        cloneRepo appName appPath
+        getLatestRepo appName appPath
         Shelly.prependToPath stackFolderPath
         Shelly.setenv "APP_PATH" $ Shelly.toTextIgnore appPath
         let bootstrapPath      = Shelly.toTextIgnore $ appPath </> (developCfg ^. bootstrapFile)
