@@ -117,7 +117,7 @@ portControl = React.defineView "portControl" $ \(ref, nl, port) ->
                     PortAPI.Connected -> elemString "" -- TODO get current value from the connected port
                     PortAPI.WithDefault defVal -> void $ case port ^. Port.valueType of
                         TCons "Int" _ -> do
-                            let value       = fromMaybe 0 $ defVal ^? PortDefault._Constant . PortDefault._IntValue
+                            let value = fromMaybe 0 $ defVal ^? PortDefault._Constant . PortDefault._IntValue
                             div_
                                 [ "className" $= Style.prefixFromList [ "ctrl--slider", "ctrl--slider--int" ]
                                 --TODO[react]: +1 with Q and up key, -1 with W and down key, edit on double click
