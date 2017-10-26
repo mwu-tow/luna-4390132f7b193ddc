@@ -22,7 +22,7 @@ import           NodeEditor.React.IsRef                               (IsRef, di
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countVisibleArgPorts,
                                                                       countVisibleInPorts, countVisibleOutPorts, isAnyPortHighlighted, 
-                                                                      isCollapsed, returnsError, visibleInPortNumber, visibleOutPortNumber)
+                                                                      isCollapsed, returnsError, visibleArgPortNumber, visibleInPortNumber, visibleOutPortNumber)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
@@ -204,17 +204,17 @@ nodePorts :: IsRef ref => ReactView (ref, ExpressionNode, Bool, Bool)
 nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
     let nodeId       = n ^. Node.nodeId
         nodeLoc      = n ^. Node.nodeLoc
-        inPortNum p  = visibleInPortNumber n $ p ^. Port.portId
+        argPortNum p = visibleArgPortNumber n $ p ^. Port.portId
         outPortNum p = visibleOutPortNumber n $ p ^. Port.portId
-        inPorts      = map (convert &&& inPortNum)  $ Node.inPortsList n
+        argPorts     = map (convert &&& argPortNum)  $ Node.inPortsList n
         outPorts     = map (convert &&& outPortNum) $ Node.outPortsList n
         nodePorts'   = Node.portsList n
         ports p      = forM_ p $ \(port, num) -> port_ ref
-                                                 nodeLoc
-                                                 port
-                                                 num
-                                                 (if isInPort $ port ^. Port.portId then countVisibleArgPorts n else countVisibleOutPorts n)
-                                                 (withOut isAll (port ^. Port.portId) && countVisibleArgPorts n + countVisibleOutPorts n == 1)
+                                                       nodeLoc
+                                                       port
+                                                       num
+                                                       (if isInPort $ port ^. Port.portId then countVisibleArgPorts n else countVisibleOutPorts n)
+                                                       (withOut isAll (port ^. Port.portId) && countVisibleArgPorts n + countVisibleOutPorts n == 1)
     svg_
         [ "viewBox"   $= "-20 -20 40 40"
         , "key"       $= "nodePorts"
@@ -240,10 +240,10 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
             [ "key" $= "nodeTransform"
             ] $ do
             if isCollapsed n then do
-                ports inPorts
+                ports argPorts
                 ports outPorts
             else do
-                forM_ inPorts  $ uncurry (portExpanded_ ref nodeLoc)
+                forM_ argPorts $ uncurry (portExpanded_ ref nodeLoc)
                 forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)
 
             argumentConstructor_ ref nodeLoc (countVisibleInPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf

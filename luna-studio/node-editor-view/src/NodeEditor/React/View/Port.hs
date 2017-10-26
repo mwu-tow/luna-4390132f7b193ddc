@@ -70,20 +70,20 @@ handleMouseLeave :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeSt
 handleMouseLeave ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseLeave portRef)
 
 port :: IsRef r => ReactView (r, NodeLoc, Int, Int, IsOnly, AnyPort)
-port = React.defineView name $ \(ref, nl, num, numOfPorts, isOnly, p) ->
+port = React.defineView name $ \(ref, nl, num, numOfArgs, isOnly, p) ->
     case p ^. Port.portId of
         InPortId' []       -> portAlias_ ref nl p
         InPortId' (Self:_) -> portSelf_  ref nl p
         OutPortId' []      -> if isOnly then portSingle_ ref nl p
-                                        else portIO_ ref nl p num numOfPorts
-        _                  -> portIO_ ref nl p num numOfPorts
+                                        else portIO_ ref nl p num numOfArgs
+        _                  ->                portIO_ ref nl p num numOfArgs
 
 portExpanded :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
 portExpanded = React.defineView name $ \(ref, nl, p, num) -> portIOExpanded_ ref nl p num
 
 port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
-port_ ref nl p num numOfPorts isOnly =
-    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, num, numOfPorts, isOnly, p) mempty
+port_ ref nl p num numOfArgs isOnly =
+    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, num, numOfArgs, isOnly, p) mempty
 
 portExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
 portExpanded_ ref nl p num =
@@ -107,7 +107,7 @@ portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHand
 portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
 
 portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> ReactElementM ViewEventHandler ()
-portIO_ ref nl p num numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, num, numOfPorts) mempty
+portIO_ ref nl p num numOfArgs = React.viewWithSKey portIO "port-io" (ref, nl, p, num, numOfArgs) mempty
 
 portAlias :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portAlias = React.defineView "port-alias" $ \(ref, nl, p) -> do
@@ -189,7 +189,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
             ]) mempty
 
 portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int, Int)
-portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfPorts) -> do
+portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs) -> do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
         portType = toString $ p ^. Port.valueType
@@ -201,14 +201,14 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfPorts) -> do
         svgFlag2 = if isInput then "0"  else "1"
         mode     = if isInput then -1.0 else 1.0
         adjust
-            | numOfPorts == 1 = typeOffsetY1
-            | numOfPorts == 2 = typeOffsetY2
-            | numOfPorts == 3 = typeOffsetY3
+            | numOfArgs == 1 = typeOffsetY1
+            | numOfArgs == 2 = typeOffsetY2
+            | numOfArgs == 3 = typeOffsetY3
             | otherwise       = typeOffsetY
-        startPortArcX isShape r = r * sin(portAngleStart isShape num numOfPorts r * mode)
-        startPortArcY isShape r = r * cos(portAngleStart isShape num numOfPorts r * mode)
-        stopPortArcX  isShape r = r * sin(portAngleStop  isShape num numOfPorts r * mode)
-        stopPortArcY  isShape r = r * cos(portAngleStop  isShape num numOfPorts r * mode)
+        startPortArcX isShape r = r * sin(portAngleStart isShape num numOfArgs r * mode)
+        startPortArcY isShape r = r * cos(portAngleStart isShape num numOfArgs r * mode)
+        stopPortArcX  isShape r = r * sin(portAngleStop  isShape num numOfArgs r * mode)
+        stopPortArcY  isShape r = r * cos(portAngleStop  isShape num numOfArgs r * mode)
         ax isShape = jsShow2 . startPortArcX isShape . (+) nodeRadius
         ay isShape = jsShow2 . startPortArcY isShape . (+) nodeRadius
         bx isShape = jsShow2 . stopPortArcX  isShape . (+) nodeRadius
