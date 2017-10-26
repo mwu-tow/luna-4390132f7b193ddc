@@ -21,8 +21,8 @@ import qualified NodeEditor.React.Event.Visualization                 as Visuali
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countVisibleArgPorts,
-                                                                       countVisibleOutPorts, isAnyPortHighlighted, isCollapsed,
-                                                                       returnsError, visibleInPortNumber, visibleOutPortNumber)
+                                                                      countVisibleInPorts, countVisibleOutPorts, isAnyPortHighlighted, 
+                                                                      isCollapsed, returnsError, visibleInPortNumber, visibleOutPortNumber)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
@@ -246,7 +246,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
                 forM_ inPorts  $ uncurry (portExpanded_ ref nodeLoc)
                 forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)
 
-            argumentConstructor_ ref nodeLoc (countVisibleArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
+            argumentConstructor_ ref nodeLoc (countVisibleInPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
 
 nodeContainer_ :: IsRef ref => ref -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref performConnect maySearcher nodesWithVis subgraphs =

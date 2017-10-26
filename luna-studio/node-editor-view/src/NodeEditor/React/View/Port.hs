@@ -10,10 +10,10 @@ import qualified NodeEditor.Event.Mouse           as Mouse
 import qualified NodeEditor.Event.UI              as UI
 import qualified NodeEditor.React.Event.Port      as Port
 import           NodeEditor.React.IsRef           (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight, nodeRadius, nodeRadius', portAliasRadius, 
-                                                   portRadius)
+import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight, nodeRadius, nodeRadius', 
+                                                   portAliasRadius, portRadius)
 import           NodeEditor.React.Model.Node      (NodeLoc)
-import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), 
+import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self),
                                                    IsOnly, Mode (..), argumentConstructorOffsetY, getPortNumber, 
                                                    isInPort, isInvisible, isSelf, portAngleStart, portAngleStop)
 import qualified NodeEditor.React.Model.Port      as Port

@@ -211,14 +211,21 @@ isAnyPortHighlighted n = (any Port.isHighlighted $ inPortsList n)
                       || (any Port.isHighlighted $ outPortsList n)
                       || Port.Highlighted == n ^. argConstructorMode
 
+
 visibleOutPortNumber :: ExpressionNode -> OutPortId -> Int
 visibleOutPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . Port.visibleOutPorts $ n ^. outPorts
 
 visibleInPortNumber :: ExpressionNode -> InPortId -> Int
 visibleInPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . Port.visibleInPorts $ n ^. inPorts
 
+visibleArgPortNumber :: ExpressionNode -> InPortId -> Int
+visibleArgPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . filter (Port.isArg . view Port.portId) . Port.visibleInPorts $ n ^. inPorts
+
 countVisibleOutPorts :: ExpressionNode -> Int
 countVisibleOutPorts n = length . Port.visibleOutPorts $ n ^. outPorts
+
+countVisibleInPorts :: ExpressionNode -> Int
+countVisibleInPorts n = length . Port.visibleInPorts $ n ^. inPorts
 
 countVisibleArgPorts :: ExpressionNode -> Int
 countVisibleArgPorts n = length . filter (Port.isArg . view Port.portId) . Port.visibleInPorts $ n ^. inPorts
