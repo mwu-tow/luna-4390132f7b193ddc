@@ -65,7 +65,7 @@ handleMouseDown ref nodeLoc e m =
     else []
 
 nodeName_ :: IsRef ref => ref -> NodeLoc -> Maybe Text -> Maybe Bool -> Maybe Searcher -> ReactElementM ViewEventHandler ()
-nodeName_ ref nl name' visualizationVisible mayS = React.viewWithSKey nodeName  "node-name" (ref, nl, name', visualizationVisible, mayS) mempty
+nodeName_ ref nl name' visVisible mayS = React.viewWithSKey nodeName  "node-name" (ref, nl, name', visVisible, mayS) mempty
 
 nodeName :: IsRef ref => ReactView (ref, NodeLoc, Maybe Text, Maybe Bool, Maybe Searcher)
 nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisible, mayS) -> do
@@ -114,12 +114,12 @@ nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> 
         ) nameElement
 
 node_ :: IsRef ref => ref -> ExpressionNode -> Bool -> Maybe Searcher -> Set NodeLoc -> ReactElementM ViewEventHandler ()
-node_ ref model performingConnect s relatedNodesWithVis =
-    React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, performingConnect, s, relatedNodesWithVis) mempty
+node_ ref model performConnect s relatedNodesWithVis =
+    React.viewWithSKey node (jsShow $ model ^. Node.nodeId) (ref, model, performConnect, s, relatedNodesWithVis) mempty
 
 node :: IsRef ref => ReactView (ref, ExpressionNode, Bool, Maybe Searcher, Set NodeLoc)
-node = React.defineView name $ \(ref, n, performingConnect, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
-    Node.Expanded (Node.Function fs) -> nodeContainer_ ref performingConnect maySearcher relatedNodesWithVis $ Map.elems fs
+node = React.defineView name $ \(ref, n, performConnect, maySearcher, relatedNodesWithVis) -> case n ^. Node.mode of
+    Node.Expanded (Node.Function fs) -> nodeContainer_ ref performConnect maySearcher relatedNodesWithVis $ Map.elems fs
     _ -> do
         let nodeId        = n ^. Node.nodeId
             nodeLoc       = n ^. Node.nodeLoc
@@ -131,7 +131,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
             mayVisVisible = const (n ^. Node.visualizationsEnabled) <$> n ^. Node.defaultVisualizer
             showValue     = not $ n ^. Node.visualizationsEnabled && Set.member nodeLoc relatedNodesWithVis
             expression    = n ^. Node.expression
-            highlight     = if n ^. Node.isMouseOver && (not performingConnect || not (isAnyPortHighlighted n)) then ["hover"] else []
+            highlight     = if n ^. Node.isMouseOver && (not performConnect || not (isAnyPortHighlighted n)) then ["hover"] else []
                         --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
                         --  && (not $ any Port.isHighlighted (inPortsList n))
                         --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
@@ -142,7 +142,7 @@ node = React.defineView name $ \(ref, n, performingConnect, maySearcher, related
             , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
                                                                        <> (if returnsError n then ["node--error"] else [])
                                                                        <> (if n ^. Node.isSelected then ["node--selected"] else [])
-                                                                       <> (if n ^. Node.isMouseOver && not performingConnect then ["show-ctrl-icon"] else [] )
+                                                                       <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"] else [] )
                                                                        <> (if hasSelf then ["node--has-self"] else ["node--no-self"])
                                                                        <> (if hasAlias then ["node--has-alias"] else ["node--no-alias"])
                                                                        <> highlight
@@ -249,11 +249,11 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
             argumentConstructor_ ref nodeLoc (countVisibleArgPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
 
 nodeContainer_ :: IsRef ref => ref -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
-nodeContainer_ ref performingConnect maySearcher nodesWithVis subgraphs =
-    React.viewWithSKey nodeContainer "node-container" (ref, performingConnect, maySearcher, nodesWithVis, subgraphs) mempty
+nodeContainer_ ref performConnect maySearcher nodesWithVis subgraphs =
+    React.viewWithSKey nodeContainer "node-container" (ref, performConnect, maySearcher, nodesWithVis, subgraphs) mempty
 
 nodeContainer :: IsRef ref => ReactView (ref, Bool, Maybe Searcher, Set NodeLoc, [Subgraph])
-nodeContainer = React.defineView name $ \(ref, performingConnect, maySearcher, nodesWithVis, subgraphs) -> do
+nodeContainer = React.defineView name $ \(ref, performConnect, maySearcher, nodesWithVis, subgraphs) -> do
     div_
         [ "className" $= Style.prefix "subgraphs"
         ] $ forM_ subgraphs $ \subgraph -> do
@@ -266,7 +266,7 @@ nodeContainer = React.defineView name $ \(ref, performingConnect, maySearcher, n
             ] $ do
             forM_ nodes $ \n -> node_ ref
                                       n
-                                      performingConnect
+                                      performConnect
                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maySearcher)
                                       (Set.filter (Node.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
             planeMonads_ $ monads_ monads
