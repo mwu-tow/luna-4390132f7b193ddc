@@ -151,7 +151,7 @@ filePathToQualName :: MonadIO m => FilePath -> m QualName
 filePathToQualName path = liftIO $ do
     path' <- Path.parseAbsFile path
     root  <- fromMaybe (error (path <> " is not in a project")) <$> Project.findProjectRootForFile path'
-    file  <- Path.stripProperPrefix root path'
+    file  <- Path.stripProperPrefix (root Path.</> $(Path.mkRelDir "src")) path'
     return $ Project.mkQualName file
 
 recomputeCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports

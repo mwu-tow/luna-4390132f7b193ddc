@@ -36,6 +36,7 @@ import           Control.Monad.Catch  (MonadCatch(..))
 import           Control.Monad.State  (MonadState, StateT, evalStateT, runStateT, get, gets, put)
 import qualified Control.Monad.State.Dependent as DepState
 import qualified Data.Map             as Map
+import qualified Data.Set             as Set
 import           Data.Foldable        (toList)
 import           Empire.Data.Graph    (AST(..), ClsGraph, Graph, withVis)
 import qualified Empire.Data.Graph    as Graph
@@ -275,7 +276,8 @@ runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
                 IR.Unit _ _ c -> IR.source c
             UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
             return impNames
-        result <- liftIO $ Compilation.requestModules sources impNames cmpMods
+        let impNamesWithBase = Set.toList $ Set.insert "Std.Base" $ Set.fromList impNames
+        result <- liftIO $ Compilation.requestModules sources impNamesWithBase cmpMods
         case result of
             Right (imports, newCmpMods) -> do
                 let imps = unionsImports $ prims : Map.elems imports
