@@ -20,8 +20,6 @@ import qualified LunaStudio.API.Graph.SetPortDefault   as SetPortDefault
 import qualified LunaStudio.API.Graph.TypeCheck        as TypeCheck
 import qualified LunaStudio.API.Library.CreateLibrary  as CreateLibrary
 import qualified LunaStudio.API.Library.ListLibraries  as ListLibraries
-import qualified LunaStudio.API.Project.CreateProject  as CreateProject
-import qualified LunaStudio.API.Project.ListProjects   as ListProjects
 import           LunaStudio.API.Request                (Request (..))
 import qualified LunaStudio.API.Topic                  as Topic
 import qualified LunaStudio.Data.Breadcrumb            as Breadcrumb
@@ -98,16 +96,11 @@ main = do
     when (args `isPresent` command "getProgram") $ do
         file      <- args `getArgOrExit` argument "file"
         getProgram endPoints (toGraphLocation file)
-    when (args `isPresent` command "createProject") $ do
-        name      <- args `getArgOrExit` argument "name"
-        createProject endPoints name
     when (args `isPresent` command "createLibrary") $ do
         pid       <- args `getArgOrExit` argument "pid"
         path      <- args `getArgOrExit` argument "path"
         let name   = args `getArg`       argument "name"
         createLibrary endPoints (unsafeRead pid) name path
-    when (args `isPresent` command "projects") $
-        listProjects endPoints
     when (args `isPresent` command "libraries") $ do
         pid       <- args `getArgOrExit` argument "pid"
         listLibraries endPoints $ unsafeRead pid
@@ -144,12 +137,6 @@ setPortValue endPoints graphLocation nodeId portId value = sendToBus endPoints $
 
 getProgram :: EP.BusEndPoints -> GraphLocation -> IO ()
 getProgram endPoints graphLocation = sendToBus endPoints $ GetProgram.Request graphLocation def
-
-createProject :: EP.BusEndPoints -> String -> IO ()
-createProject endPoints name = sendToBus endPoints $ CreateProject.Request name
-
-listProjects :: EP.BusEndPoints -> IO ()
-listProjects endPoints = sendToBus endPoints ListProjects.Request
 
 createLibrary :: EP.BusEndPoints -> ProjectId -> Maybe String -> String -> IO ()
 createLibrary endPoints pid name path = sendToBus endPoints $ CreateLibrary.Request pid name path

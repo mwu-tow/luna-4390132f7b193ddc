@@ -36,11 +36,6 @@ import qualified LunaStudio.API.Graph.SetNodesMeta          as SetNodesMeta
 import qualified LunaStudio.API.Graph.SetPortDefault        as SetPortDefault
 import qualified LunaStudio.API.Graph.TypeCheck             as TypeCheck
 import qualified LunaStudio.API.Graph.Undo                  as Undo
-import qualified LunaStudio.API.Project.CreateProject       as CreateProject
-import qualified LunaStudio.API.Project.ExportProject       as ExportProject
-import qualified LunaStudio.API.Project.ImportProject       as ImportProject
-import qualified LunaStudio.API.Project.ListProjects        as ListProjects
-import qualified LunaStudio.API.Project.OpenProject         as OpenProject
 
 data Event = UnknownEvent                             String
            | AddConnectionResponse             AddConnection.Response
@@ -63,14 +58,7 @@ data Event = UnknownEvent                             String
            | NodeResultUpdate               NodeResultUpdate.Update
            | NodeTypecheckerUpdate              NodeTCUpdate.Update
            | PasteResponse                             Paste.Response
-           | ProjectCreated                    CreateProject.Response
-           | ProjectCreatedUpdate              CreateProject.Update
-           | ProjectExported                   ExportProject.Response
-           | ProjectImported                   ImportProject.Response
            | ProjectMoved                        MoveProject.Response
-           | ProjectList                        ListProjects.Response
-           | ProjectOpened                       OpenProject.Response
-           | ProjectOpenedUpdate                 OpenProject.Update
            | RedoResponse                               Redo.Response
            | RemoveConnectionResponse       RemoveConnection.Response
            | RemoveNodesResponse                 RemoveNodes.Response
