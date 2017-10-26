@@ -136,10 +136,11 @@ module.exports = LunaStudio =
     handleSaveAsLuna: (editor) ->
         editor.getSaveDialogOptions = ->
             projectPath = atom.project.getPaths()[0]
-            srcPath = if projectPath? then projectPath + '/src' else undefined
+            unless projectPath? then return {}
+            srcPath = projectPath + '/src'
             unless fs.isDirectorySync srcPath
                 srcPath = projectPath
-            { defaultPath: srcPath }
+            return { defaultPath: srcPath }
         editor.onDidSave (e) =>
             if path.extname(e.path) is ".luna" and not (editor instanceof LunaCodeEditorTab)
                 atom.workspace.destroyActivePaneItem()
