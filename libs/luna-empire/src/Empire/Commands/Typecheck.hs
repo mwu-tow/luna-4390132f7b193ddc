@@ -49,6 +49,7 @@ import qualified Luna.IR                          as IR
 import           Luna.Pass.Data.ExprMapping
 import qualified Luna.Pass.Evaluation.Interpreter as Interpreter
 import qualified Luna.IR.Layer.Errors             as Errors
+import           OCI.IR.Name.Qualified            (QualName)
 
 import           System.Directory                     (canonicalizePath)
 import           System.Environment                   (getEnv)
@@ -146,6 +147,13 @@ getSymbolMap (flattenScope -> Imports clss funcs) = SymbolMap functions classes 
     classes   = processClass <$> Map.mapKeys convert clss
     processClass (Class _ methods) = convert <$> Map.keys methods
 
+filePathToQualName :: MonadIO m => FilePath -> m QualName
+filePathToQualName path = liftIO $ do
+    path' <- Path.parseAbsFile path
+    root  <- fromMaybe (error (path <> " is not in a project")) <$> Project.findProjectRootForFile path'
+    file  <- Path.stripProperPrefix (root Path.</> $(Path.mkRelDir "src")) path'
+    return $ Project.mkQualName file
+
 recomputeCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports
 recomputeCurrentScope imports file = do
     Lifted.modifyMVar imports $ \imps -> do
@@ -157,13 +165,15 @@ recomputeCurrentScope imports file = do
             case t of
                 Right (a, b) -> return (a, b)
                 Left e  -> error $ show e <> " " <> file
-        fileScope ?= f
-        return (nimps, f)
+        qualName <- filePathToQualName file
+        let nimpsF = nimps & Compilation.modules . at qualName ?~ f
+        return (nimpsF, f)
 
 getCurrentScope :: MVar CompiledModules -> FilePath -> Command InterpreterEnv Imports
 getCurrentScope imports file = do
-    fs   <- use fileScope
-    case fs of
+    fs       <- liftIO $ readMVar imports
+    qualName <- filePathToQualName file
+    case fs ^. Compilation.modules . at qualName of
         Just f -> return f
         _      -> recomputeCurrentScope imports file
 
