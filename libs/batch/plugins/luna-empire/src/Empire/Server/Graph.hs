@@ -457,14 +457,12 @@ instance G.GraphRequest GetBuffer.Request where
 
 handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
-    action req@(Substitute.Request location (Diff start end newText cursor:_)) = do
+    action req@(Substitute.Request location diffs) = do
         let file = location ^. GraphLocation.filePath
         prevImports <- Graph.getAvailableImports location
-        res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file start end newText cursor
+        res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file diffs
         newImports  <- Graph.getAvailableImports location
         return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then def else return newImports
-
-
 
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()

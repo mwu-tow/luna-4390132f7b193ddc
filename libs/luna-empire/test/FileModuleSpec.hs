@@ -391,7 +391,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.substituteCode "TestPath" 13 14 "10" (Just 14)
+                Graph.substituteCode "TestPath" [(13, 14, "10")]
         it "shows proper function offsets without imports" $ \env -> do
             offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
