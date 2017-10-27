@@ -83,7 +83,7 @@ instance FromJSVal InternalEvent where fromJSVal = fromJSONVal
 
 instance FromJSVal TextEvent where
     fromJSVal jsval = runMaybeT $ do
-        location <- MaybeT $ fromJSVal $ getPath jsval
+        location <- MaybeT activeLocation
         diffs    <- MaybeT $ fromJSVal jsval
         return $ TextEvent location diffs
 
