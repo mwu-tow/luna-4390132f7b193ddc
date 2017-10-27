@@ -1,3 +1,4 @@
+fs       = require 'fs-plus'
 path     = require 'path'
 request  = require 'request'
 yaml     = require 'js-yaml'
@@ -37,6 +38,8 @@ module.exports = LunaStudio =
                 if rootPath? and rootPath != ""
                     projects.recent.add rootPath
                     codeEditor.pushInternalEvent(tag: "SetProject", _path: rootPath)
+            if act == 'ProjectSet'
+                projects.openMainIfExists()
             if act == 'FileOpened'
                 codeEditor.pushInternalEvent(tag: "GetBuffer", _path: arg1)
             if act == 'ProjectMove'
@@ -131,6 +134,13 @@ module.exports = LunaStudio =
                 return codeEditor.pushInternalEvent(tag: "CloseFile", _path: event.item.uri)
 
     handleSaveAsLuna: (editor) ->
+        editor.getSaveDialogOptions = ->
+            projectPath = atom.project.getPaths()[0]
+            unless projectPath? then return {}
+            srcPath = projectPath + '/src'
+            unless fs.isDirectorySync srcPath
+                srcPath = projectPath
+            return { defaultPath: srcPath }
         editor.onDidSave (e) =>
             if path.extname(e.path) is ".luna" and not (editor instanceof LunaCodeEditorTab)
                 atom.workspace.destroyActivePaneItem()

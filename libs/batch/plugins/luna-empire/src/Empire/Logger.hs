@@ -29,11 +29,6 @@ import qualified LunaStudio.API.Graph.SetPortDefault   as SetPortDefault
 import qualified LunaStudio.API.Graph.TypeCheck        as TypeCheck
 import qualified LunaStudio.API.Library.CreateLibrary  as CreateLibrary
 import qualified LunaStudio.API.Library.ListLibraries  as ListLibraries
-import qualified LunaStudio.API.Project.CreateProject  as CreateProject
-import qualified LunaStudio.API.Project.ExportProject  as ExportProject
-import qualified LunaStudio.API.Project.ImportProject  as ImportProject
-import qualified LunaStudio.API.Project.ListProjects   as ListProjects
-import qualified LunaStudio.API.Project.OpenProject    as OpenProject
 import           LunaStudio.API.Request                (Request)
 import qualified LunaStudio.API.Topic                  as Topic
 import qualified Empire.Commands.Library           as Library
@@ -128,16 +123,6 @@ logMessage logMsg topic content = do
 --     , makeHandler (Proxy :: Proxy (GetProgram.Response      ))
 --     , makeHandler (Proxy :: Proxy (NodesUpdate.Update        ))
 --     , makeHandler (Proxy :: Proxy (NodeResultUpdate.Update  ))
---     , makeHandler (Proxy :: Proxy (Request CreateProject.Request    ))
---     , makeHandler (Proxy :: Proxy (CreateProject.Response   ))
---     , makeHandler (Proxy :: Proxy (CreateProject.Update     ))
---     , makeHandler (Proxy :: Proxy (Request ListProjects.Request     ))
---     , makeHandler (Proxy :: Proxy (ListProjects.Response    ))
---     , makeHandler (Proxy :: Proxy (ListProjects.Update    ))
---     , makeHandler (Proxy :: Proxy (Request ExportProject.Request     ))
---     , makeHandler (Proxy :: Proxy (ExportProject.Response    ))
---     , makeHandler (Proxy :: Proxy (Request ImportProject.Request     ))
---     , makeHandler (Proxy :: Proxy (ImportProject.Response    ))
 --     , makeHandler (Proxy :: Proxy (Request CreateLibrary.Request    ))
 --     , makeHandler (Proxy :: Proxy (CreateLibrary.Response   ))
 --     , makeHandler (Proxy :: Proxy (CreateLibrary.Update     ))

@@ -3,19 +3,19 @@ apps:
 packages:
   luna-studio:
     versions:
-      0.0.19:
+      0.9.1:
         darwin.x64:
           path: ./
           deps:
           - zmq-1.0.0
-          - supervisord-1.0.0
+          - supervisord-0.0.4
           - atom-1.18.0
           - kill-1.0.0
         linux.x64:
           path: ./
           deps:
           - zmq-1.0.0
-          - supervisord-0.0.4.dev
+          - supervisord-0.0.4
           - atom-1.18.0
           - kill-1.0.0
         windows.x64:

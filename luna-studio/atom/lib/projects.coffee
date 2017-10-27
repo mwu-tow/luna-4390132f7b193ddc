@@ -76,6 +76,7 @@ openMainIfExists = ->
     mainLocation = projectPath + '/src/Main.luna'
     if fs.existsSync mainLocation
         atom.workspace.open(mainLocation, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
+
 isTemporary = (projectPath) -> projectPath.startsWith temporaryPath
 
 module.exports =
@@ -87,7 +88,6 @@ module.exports =
             closeAllFiles()
             createTemporary =>
                 atom.project.setPaths [temporaryProject.path]
-                openMainIfExists()
                 callback?()
         isOpen: =>
             return isTemporary atom.project.getPaths()[0]
@@ -163,7 +163,6 @@ module.exports =
             fse.remove dstPath, (err) =>
                 clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then((repo) =>
                             atom.project.setPaths [dstPath]
-                            openMainIfExists()
                             finalize())
 
 

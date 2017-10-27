@@ -52,7 +52,9 @@ logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
 
 handleSetProject :: Request SetProject.Request -> StateT Env BusT ()
-handleSetProject a = liftIO $ putStrLn $ "OPEN PROJECT" <> show a
+handleSetProject req = do
+    liftIO $ putStrLn $ "OPEN PROJECT" <> show req
+    replyOk req ()
 
 replaceDir :: FilePath -> FilePath -> FilePath -> FilePath
 replaceDir oldPath newPath path = case stripPrefix (addTrailingPathSeparator oldPath) path of

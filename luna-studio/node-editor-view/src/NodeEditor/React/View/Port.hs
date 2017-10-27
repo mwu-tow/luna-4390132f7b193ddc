@@ -3,23 +3,23 @@
 module NodeEditor.React.View.Port where
 
 import           Common.Prelude
-import qualified Data.Aeson                       as Aeson
-import           LunaStudio.Data.Constants        (nodePropertiesWidth)
-import           LunaStudio.Data.PortRef          (AnyPortRef, toAnyPortRef)
-import qualified NodeEditor.Event.Mouse           as Mouse
-import qualified NodeEditor.Event.UI              as UI
-import qualified NodeEditor.React.Event.Port      as Port
-import           NodeEditor.React.IsRef           (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight, nodeRadius, nodeRadius', portAliasRadius, portRadius)
-import           NodeEditor.React.Model.Node      (NodeLoc)
-import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsOnly, Mode (..),
-                                                   argumentConstructorOffsetY, getPortNumber, isInPort, isInvisible, isSelf, portAngleStart,
-                                                   portAngleStop)
-import qualified NodeEditor.React.Model.Port      as Port
-import qualified NodeEditor.React.View.Style      as Style
-import           Numeric                          (showFFloat)
-import           React.Flux                       hiding (view)
-import qualified React.Flux                       as React
+import qualified Data.Aeson                         as Aeson
+import           LunaStudio.Data.Constants          (nodePropertiesWidth)
+import qualified NodeEditor.Event.Mouse             as Mouse
+import qualified NodeEditor.Event.UI                as UI
+import           LunaStudio.Data.PortRef            (AnyPortRef, toAnyPortRef)
+import qualified NodeEditor.React.Event.Port        as Port
+import           NodeEditor.React.Model.Constants   (lineHeight, nodeRadius, nodeRadius', portRadius, portAliasRadius, connectionWidth)
+import           NodeEditor.React.Model.Node        (NodeLoc)
+import           NodeEditor.React.Model.Port        (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self),
+                                                    IsOnly, Mode (..), getPortNumber, isInPort, isInvisible, isSelf,
+                                                    portAngleStart, portAngleStop, argumentConstructorOffsetY)
+import qualified NodeEditor.React.Model.Port        as Port
+import           NodeEditor.React.IsRef             (IsRef, dispatch)
+import qualified NodeEditor.React.View.Style        as Style
+import           Numeric                            (showFFloat)
+import           React.Flux                         hiding (view)
+import qualified React.Flux                         as React
 
 
 name :: JSString
@@ -68,28 +68,28 @@ handleMouseEnter ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseEnter 
 handleMouseLeave :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseLeave ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseLeave portRef)
 
-port :: IsRef r => ReactView (r, NodeLoc, Int, Int, IsOnly, AnyPort)
-port = React.defineView name $ \(ref, nl, num, numOfPorts, isOnly, p) ->
+port :: IsRef r => ReactView (r, NodeLoc, Int, IsOnly, AnyPort)
+port = React.defineView name $ \(ref, nl, numOfPorts, isOnly, p) ->
     case p ^. Port.portId of
         InPortId' []       -> portAlias_ ref nl p
         InPortId' (Self:_) -> portSelf_  ref nl p
         OutPortId' []      -> if isOnly then portSingle_ ref nl p
-                                        else portIO_ ref nl p num numOfPorts
-        _                  -> portIO_ ref nl p num numOfPorts
+                                        else portIO_ ref nl p numOfPorts
+        _                  -> portIO_ ref nl p numOfPorts
 
-portExpanded :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
-portExpanded = React.defineView name $ \(ref, nl, p, num) ->
+portExpanded :: IsRef r => ReactView (r, NodeLoc, AnyPort)
+portExpanded = React.defineView name $ \(ref, nl, p) ->
     case p ^. Port.portId of
         InPortId' (Self:_) -> portSelf_       ref nl p
-        _                  -> portIOExpanded_ ref nl p num
+        _                  -> portIOExpanded_ ref nl p
 
-port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
-port_ ref nl p num numOfPorts isOnly =
-    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, num, numOfPorts, isOnly, p) mempty
+port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
+port_ ref nl p numOfPorts isOnly =
+    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, numOfPorts, isOnly, p) mempty
 
-portExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
-portExpanded_ ref nl p num =
-    React.viewWithSKey portExpanded (jsShow $ p ^. Port.portId) (ref, nl, p, num) mempty
+portExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portExpanded_ ref nl p =
+    React.viewWithSKey portExpanded (jsShow $ p ^. Port.portId) (ref, nl, p) mempty
 
 handlers :: IsRef r => r -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
 handlers ref portRef = [ onMouseDown  $ handleMouseDown  ref portRef
@@ -108,8 +108,8 @@ portSelf_ ref nl p = React.viewWithSKey portSelf "port-self" (ref, nl, p) mempty
 portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
 portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
 
-portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> ReactElementM ViewEventHandler ()
-portIO_ ref nl p num numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, num, numOfPorts) mempty
+portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
+portIO_ ref nl p numOfPorts = React.viewWithSKey portIO "port-io" (ref, nl, p, numOfPorts) mempty
 
 portAlias :: IsRef r => ReactView (r, NodeLoc, AnyPort)
 portAlias = React.defineView "port-alias" $ \(ref, nl, p) -> do
@@ -190,12 +190,13 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
             , "d"         $= (svgPath 20 0 1 <> svgPath 20 1 0)
             ]) mempty
 
-portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int, Int)
-portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfPorts) -> do
+portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
+portIO = React.defineView "port-io" $ \(ref, nl, p, numOfPorts) -> do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
         portType = toString $ p ^. Port.valueType
         isInput  = isInPort portId
+        num      = getPortNumber portId
         color    = convert $ p ^. Port.color
         classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
@@ -249,12 +250,13 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfPorts) -> do
               ]
             ) mempty
 
-portIOExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
-portIOExpanded_ ref nl p num = if isSelf $ p ^. Port.portId then portSelf_ ref nl p else do
+portIOExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
+portIOExpanded_ ref nl p = if isSelf $ p ^. Port.portId then portSelf_ ref nl p else do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
         portType = toString $ p ^. Port.valueType
         isInput  = isInPort portId
+        num      = getPortNumber portId
         n        = if isInput then 1 else 0
         color    = convert $ p ^. Port.color
         px       = jsShow2 (if isInput then (-nodePropertiesWidth/2) else nodePropertiesWidth/2)

@@ -33,11 +33,6 @@ import qualified LunaStudio.API.Graph.SetPortDefault      as SetPortDefault
 import qualified LunaStudio.API.Graph.Undo                as Undo
 import qualified LunaStudio.API.Library.CreateLibrary     as CreateLibrary
 import qualified LunaStudio.API.Library.ListLibraries     as ListLibraries
-import qualified LunaStudio.API.Project.CreateProject     as CreateProject
-import qualified LunaStudio.API.Project.ExportProject     as ExportProject
-import qualified LunaStudio.API.Project.ImportProject     as ImportProject
-import qualified LunaStudio.API.Project.ListProjects      as ListProjects
-import qualified LunaStudio.API.Project.OpenProject       as OpenProject
 import           LunaStudio.Data.Connection               (Connection)
 import           LunaStudio.Data.GraphLocation            (GraphLocation)
 import qualified LunaStudio.Data.GraphLocation            as GraphLocation
@@ -64,22 +59,6 @@ createLibrary name path _workspace uuid guiID = sendRequest $ Message uuid guiID
 
 listLibraries :: ProjectId -> UUID -> Maybe UUID -> IO ()
 listLibraries pid uuid guiID = sendRequest $ Message uuid guiID $ ListLibraries.Request pid
-
-
-createProject :: Text -> UUID -> Maybe UUID -> IO ()
-createProject name uuid guiID = sendRequest $ Message uuid guiID $ CreateProject.Request $ Text.unpack name
-
-exportProject :: ProjectId -> UUID -> Maybe UUID -> IO ()
-exportProject pid uuid guiID = sendRequest $ Message uuid guiID $ ExportProject.Request pid
-
-importProject :: Text -> UUID -> Maybe UUID -> IO ()
-importProject payload uuid guiID = sendRequest $ Message uuid guiID $ ImportProject.Request payload
-
-listProjects :: UUID -> Maybe UUID -> IO ()
-listProjects uuid guiID = sendRequest $ Message uuid guiID ListProjects.Request
-
-openProject :: FilePath -> UUID -> Maybe UUID -> IO ()
-openProject path uuid guiID = sendRequest $ Message uuid guiID $ OpenProject.Request path
 
 openFile :: FilePath -> UUID -> Maybe UUID -> IO ()
 openFile path uuid guiID = sendRequest $ Message uuid guiID $ OpenFile.Request path

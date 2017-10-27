@@ -32,7 +32,9 @@ handle (Batch (Batch.FileOpened  response))   = Just $ handleResponse response s
             status = "ok"
         liftIO $ pushStatus (convert "FileOpened") (convert uri) (convert status)
 
-handle (Batch (Batch.ProjectSet  response))   = Just $ handleResponse response doNothing doNothing
+handle (Batch (Batch.ProjectSet  response))   = Just $ handleResponse response success doNothing where
+    success _ = liftIO $ pushStatus (convert "ProjectSet") def def
+
 handle (Batch (Batch.ProjectMove response))   = Just $ handleResponse response success doNothing where
     success _ = do
         let newUri = response ^. Response.request . MoveProject.newPath

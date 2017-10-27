@@ -69,7 +69,6 @@ instance Show CommunicationEnv where
 data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _nodesCache  :: Map NodeId ExpressionNode
                                      , _errorsCache :: Map NodeId APIError.Error
-                                     , _fileScope   :: Maybe Imports
                                      , _graph       :: ClsGraph
                                      , _cleanUp     :: IO ()
                                      , _listeners   :: [ThreadId]

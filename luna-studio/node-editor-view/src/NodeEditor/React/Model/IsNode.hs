@@ -58,6 +58,8 @@ class HasNodeLoc node => HasPorts node where
     argumentConstructorRef :: node -> AnyPortRef
     argumentConstructorRef n = InPortRef' (InPortRef (n ^. nodeLoc) [Arg $ countArgPorts n])
 
+
+
 class HasPort portId where
     hasPort :: HasPorts node =>  portId -> node -> Bool
 instance HasPort AnyPortId where

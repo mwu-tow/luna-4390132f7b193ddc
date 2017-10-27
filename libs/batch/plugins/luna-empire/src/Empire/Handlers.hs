@@ -14,7 +14,6 @@ import           Empire.Env            (Env)
 import qualified Empire.Server.Atom    as Atom
 import qualified Empire.Server.Graph   as Graph
 import qualified Empire.Server.Library as Library
-import qualified Empire.Server.Project as Project
 import qualified LunaStudio.API.Topic  as Topic
 import           ZMQ.Bus.Trans         (BusT (..))
 
@@ -47,11 +46,6 @@ handlersMap = Map.fromList
     , makeHandler Graph.handleInterpreterControl
     , makeHandler Library.handleCreateLibrary
     , makeHandler Library.handleListLibraries
-    , makeHandler Project.handleCreateProject
-    , makeHandler Project.handleExportProject
-    , makeHandler Project.handleImportProject
-    , makeHandler Project.handleListProjects
-    , makeHandler Project.handleOpenProject
     , makeHandler Atom.handleIsSaved
     , makeHandler Atom.handleMoveProject
     , makeHandler Atom.handleSetProject

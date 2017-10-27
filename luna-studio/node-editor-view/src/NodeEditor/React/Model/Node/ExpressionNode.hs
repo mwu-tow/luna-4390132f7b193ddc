@@ -17,6 +17,7 @@ import           Data.Map.Lazy                            (Map)
 import           Data.Time.Clock                          (UTCTime)
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import           LunaStudio.Data.Breadcrumb               (BreadcrumbItem)
+import           NodeEditor.Data.Color                    (Color)
 import           LunaStudio.Data.Error                    (Error)
 import           LunaStudio.Data.MonadPath                (MonadPath)
 import           LunaStudio.Data.Node                     (NodeId)
@@ -30,12 +31,10 @@ import qualified LunaStudio.Data.PortRef                  as PortRef
 import           LunaStudio.Data.Position                 (Position, move)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           LunaStudio.Data.Vector2                  (Vector2 (Vector2))
-import           NodeEditor.Data.Color                    (Color)
 import           NodeEditor.React.Model.Constants         (nodeRadius)
 import           NodeEditor.React.Model.IsNode            as X
 import           NodeEditor.React.Model.Node.SidebarNode  (InputNode, OutputNode)
-import           NodeEditor.React.Model.Port              (AnyPortId (InPortId', OutPortId'), InPort, InPortId, InPortTree, OutPort,
-                                                           OutPortId, OutPortTree)
+import           NodeEditor.React.Model.Port              (AnyPortId (InPortId', OutPortId'), InPort, InPortTree, OutPort, OutPortTree)
 import qualified NodeEditor.React.Model.Port              as Port
 
 
@@ -210,15 +209,3 @@ isAnyPortHighlighted :: ExpressionNode -> Bool
 isAnyPortHighlighted n = (any Port.isHighlighted $ inPortsList n)
                       || (any Port.isHighlighted $ outPortsList n)
                       || Port.Highlighted == n ^. argConstructorMode
-
-visibleOutPortNumber :: ExpressionNode -> OutPortId -> Int
-visibleOutPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . Port.visibleOutPorts $ n ^. outPorts
-
-visibleInPortNumber :: ExpressionNode -> InPortId -> Int
-visibleInPortNumber n pid = fromMaybe def $ findIndex (\p -> p ^. Port.portId == pid) . Port.visibleInPorts $ n ^. inPorts
-
-countVisibleOutPorts :: ExpressionNode -> Int
-countVisibleOutPorts n = length . Port.visibleOutPorts $ n ^. outPorts
-
-countVisibleArgPorts :: ExpressionNode -> Int
-countVisibleArgPorts n = length . filter (Port.isArg . view Port.portId) . Port.visibleInPorts $ n ^. inPorts

@@ -18,16 +18,14 @@ import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position, move, x, y)
 import           LunaStudio.Data.Vector2                    (Vector2 (Vector2))
 import           NodeEditor.Data.Color                      (Color)
-import           NodeEditor.React.Model.Constants           (lineHeight, nodeExpandedWidth, portAliasRadius, portRadius)
+import           NodeEditor.React.Model.Constants           (lineHeight, nodeExpandedWidth, portRadius, portAliasRadius)
 import           NodeEditor.React.Model.Layout              (Layout, inputSidebarPortPosition, outputSidebarPortPosition)
 import           NodeEditor.React.Model.Node                (ExpressionNode, Node (Expression), NodeLoc)
 import qualified NodeEditor.React.Model.Node                as Node
-import           NodeEditor.React.Model.Node.ExpressionNode (countVisibleArgPorts, countVisibleOutPorts, inPorts, isCollapsed, position,
-                                                             visibleInPortNumber, visibleOutPortNumber)
+import           NodeEditor.React.Model.Node.ExpressionNode (countArgPorts, countOutPorts, inPorts, isCollapsed, position)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import           NodeEditor.React.Model.Port                (EitherPort, InPort, InPortId, IsAlias, IsOnly, IsSelf, OutPort, OutPortId,
-                                                             argumentConstructorOffsetY, isSelf, portAngleStart, portAngleStop, portGap,
-                                                             portId)
+                                                             getPortNumber, isSelf, portAngleStart, portAngleStop, portGap, portId, argumentConstructorOffsetY)
 import qualified NodeEditor.React.Model.Port                as Port
 
 
@@ -164,7 +162,7 @@ instance Convertible Connection Empire.Connection where
 argumentConstructorPosition :: ExpressionNode -> Position
 argumentConstructorPosition n = if n ^. ExpressionNode.mode == ExpressionNode.Collapsed
     then n ^. position & y %~ (+ portRadius)
-    else move (Vector2 (-nodeExpandedWidth/2) (argumentConstructorOffsetY $ countVisibleArgPorts n)) $ n ^. position
+    else move (Vector2 (-nodeExpandedWidth/2) (argumentConstructorOffsetY $ countArgPorts n)) $ n ^. position
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of
@@ -185,16 +183,16 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
             dstPos'    = dstNode ^. position
             isSrcExp   = not . isCollapsed $ srcNode
             isDstExp   = not . isCollapsed $ dstNode
-            srcPortNum = visibleOutPortNumber srcNode $ srcPort ^. portId
-            dstPortNum = visibleInPortNumber  dstNode $ dstPort ^. portId
-            numOfSrcOutPorts = countVisibleOutPorts srcNode
-            numOfDstInPorts  = countVisibleArgPorts dstNode
+            srcPortNum = getPortNumber $ srcPort ^. portId
+            dstPortNum = getPortNumber $ dstPort ^. portId
+            numOfSrcOutPorts = countOutPorts srcNode
+            numOfDstInPorts  = countArgPorts dstNode
             srcConnPos = connectionSrc  srcPos'
                                         dstPos'
                                         isSrcExp
                                         isDstExp
                                         srcPortNum
-                                        numOfSrcOutPorts $ countVisibleOutPorts srcNode + countVisibleArgPorts srcNode == 1
+                                        numOfSrcOutPorts $ countOutPorts srcNode + countArgPorts srcNode == 1
             dstConnPos = connectionDst  srcPos'
                                         dstPos'
                                         isSrcExp
@@ -229,20 +227,20 @@ halfConnectionSrcPosition (Expression node) eport mousePos _ =
                                     mousePos
                                     isExp
                                     False
-                                    (visibleOutPortNumber node $ port ^. portId)
+                                    (getPortNumber $ port ^. portId)
                                     numOfSameTypePorts
-                                    $ countVisibleOutPorts node + countVisibleArgPorts node == 1
+                                    $ countOutPorts node + countArgPorts node == 1
         Left  port -> connectionDst mousePos
                                     pos
                                     False
                                     isExp
-                                    (visibleInPortNumber node $ port ^. portId)
+                                    (getPortNumber $ port ^. portId)
                                     numOfSameTypePorts (isSelf $ port ^. portId)
                                     $ has (inPorts . LT.value . Port.state . Port._Connected) node
     where
         pos                = node ^. position
         isExp              = not . isCollapsed $ node
-        numOfSameTypePorts = if isLeft eport then countVisibleArgPorts node else countVisibleOutPorts node
+        numOfSameTypePorts = if isLeft eport then countArgPorts node else countOutPorts node
 halfConnectionSrcPosition _ _ _ _ = def
 
 connectionAngle :: Position -> Position -> Int -> Int -> Double

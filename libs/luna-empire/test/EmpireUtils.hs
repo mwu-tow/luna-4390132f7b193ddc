@@ -80,7 +80,7 @@ graphIDs loc = do
     return ids
 
 extractGraph :: InterpreterEnv -> ClsGraph
-extractGraph (InterpreterEnv _ _ _ _ g _ _) = g
+extractGraph (InterpreterEnv _ _ _ g _ _) = g
 
 withResult :: a -> (a -> IO b) -> IO b
 withResult res act = act res

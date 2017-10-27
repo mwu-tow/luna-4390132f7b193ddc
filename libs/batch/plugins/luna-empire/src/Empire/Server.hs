@@ -126,7 +126,7 @@ startTCWorker env = liftIO $ do
     putMVar scopeVar symbolMap
     putMVar modules $ unwrap std
     pmState <- Graph.defaultPMState
-    let interpreterEnv = Empire.InterpreterEnv def def def Nothing undefined cleanup def
+    let interpreterEnv = Empire.InterpreterEnv def def def undefined cleanup def
     void $ Empire.runEmpire env interpreterEnv $ forever $ do
         Empire.TCRequest loc g flush interpret <- liftIO $ takeMVar reqs
         when flush

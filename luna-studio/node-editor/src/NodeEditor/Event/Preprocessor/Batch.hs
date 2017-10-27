@@ -39,14 +39,7 @@ handlers = Map.fromList [ handle AddConnectionResponse
                         , handle NodeResultUpdate
                         , handle NodeTypecheckerUpdate
                         , handle PasteResponse
-                        , handle ProjectCreated
-                        , handle ProjectCreatedUpdate
-                        , handle ProjectExported
-                        , handle ProjectImported
                         , handle ProjectMoved
-                        , handle ProjectList
-                        , handle ProjectOpened
-                        , handle ProjectOpenedUpdate
                         , handle RedoResponse
                         , handle RemoveConnectionResponse
                         , handle RemoveNodesResponse
