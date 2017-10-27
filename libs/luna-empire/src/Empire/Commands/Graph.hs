@@ -152,6 +152,7 @@ import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbIt
 import qualified LunaStudio.Data.Breadcrumb       as Breadcrumb
 import           LunaStudio.Data.Constants        (gapBetweenNodes)
 import           LunaStudio.Data.Connection       (Connection (..))
+import           LunaStudio.Data.Diff             (Diff (..))
 import qualified LunaStudio.Data.Graph            as APIGraph
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
 import           LunaStudio.Data.Node             (ExpressionNode (..), InputSidebar (..), NodeId)
@@ -915,21 +916,22 @@ openFile path = do
 typecheck :: GraphLocation -> Empire ()
 typecheck loc = withTC' loc False (return ()) (return ())
 
-substituteCodeFromPoints :: FilePath -> Point -> Point -> Text -> Maybe Point -> Empire ()
-substituteCodeFromPoints path start end code cursor = do
+substituteCodeFromPoints :: FilePath -> [Diff] -> Empire ()
+substituteCodeFromPoints path diffs = do
     let loc = GraphLocation path (Breadcrumb [])
-    (s, e) <- withUnit loc $ do
+    changes <- withUnit loc $ do
         oldCode   <- use Graph.code
         let noMarkers  = Code.removeMarkers oldCode
-            deltas     = (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers)
-            realDeltas = Code.viewDeltasToReal oldCode deltas
+            deltas     = map (\(Diff start end code cursor) ->
+                (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers, code)) diffs
+            realDeltas = map (\(a,b,c) -> let (a', b') = Code.viewDeltasToReal oldCode (a,b) in (a', b', c)) deltas
         return realDeltas
-    substituteCode path s e code Nothing
+    substituteCode path changes
 
-substituteCode :: FilePath -> Delta -> Delta -> Text -> Maybe Delta -> Empire ()
-substituteCode path start end code cursor = do
+substituteCode :: FilePath -> [(Delta, Delta, Text)] -> Empire ()
+substituteCode path changes = do
     let loc = GraphLocation path (Breadcrumb [])
-    newCode <- withUnit loc $ Code.applyDiff start end code
+    newCode <- withUnit loc $ Code.applyMany changes
     handle (\(e :: SomeException) -> withUnit loc $ Graph.clsParseError ?= e) $ do
         withUnit loc $ do
             Graph.code .= newCode

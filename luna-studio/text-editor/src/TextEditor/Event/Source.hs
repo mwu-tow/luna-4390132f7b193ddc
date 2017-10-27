@@ -23,7 +23,7 @@ data AddHandler a = AddHandler ((a -> IO ()) -> IO (IO ()))
 
 textHandler :: AddHandler Event
 textHandler = AddHandler $ \h ->
-    Atom.subscribeDiff $ h . Text
+    Atom.subscribeDiffs $ h . Text
 
 fileHandler :: AddHandler Event
 fileHandler = AddHandler $ \h -> do
@@ -37,8 +37,7 @@ webSocketHandler conn = AddHandler $ \h -> do
     void $ WebSocket.onMessage conn $ \event -> do
         payloadJS <- WebSocket.getData event
         let payload = fromJSString payloadJS
-        -- liftIO $ putStrLn $ "payload len " <> show (length payload)
-        let frame = BatchConnection.deserialize payload
+            frame = BatchConnection.deserialize payload
         mapM_ (h . Connection . Connection.Message) $ frame ^. BatchConnection.messages
     void $ WebSocket.onClose conn $ \event -> do
         code <- WebSocket.getCode event

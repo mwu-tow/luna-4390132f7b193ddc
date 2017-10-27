@@ -20,7 +20,7 @@ return { connect             : function(connector) { connector(globalRegistry); 
        , onInterpreterUpdate : function(callback) { atomCallbackTextEditor.onInterpreterUpdate(callback); }
        , onSetBuffer         : function(callback) { atomCallbackTextEditor.onSetBuffer(callback); }
        , onSetClipboard      : function(callback) { atomCallbackTextEditor.onSetClipboard(callback); }
-       , pushDiff            : function(data) { data.uri = globalRegistry.activeLocation; atomCallbackTextEditor.pushDiff(data); }
+       , pushDiffs           : function(diffs) { atomCallbackTextEditor.pushDiffs(diffs); }
        , pushInternalEvent   : function(data) { atomCallbackTextEditor.pushInternalEvent(data); }
        , statusListener      : function(callback) { atomCallbackTextEditor.statusListener(callback); }
        }

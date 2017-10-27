@@ -9,6 +9,7 @@ import           Empire.Data.Graph                          (Graph, ClsGraph)
 import           Empire.Empire
 import           Empire.Prelude
 import           LunaStudio.API.AsyncUpdate                 (AsyncUpdate (..))
+import           LunaStudio.Data.Diff                       (Diff(..))
 import           LunaStudio.Data.GraphLocation              (GraphLocation)
 import           LunaStudio.Data.MonadPath                  (MonadPath)
 import           LunaStudio.Data.Node                       (NodeId, NodeTypecheckerUpdate)
@@ -36,7 +37,7 @@ notifyResultUpdate loc nid v t =
 
 notifyCodeUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => FilePath -> Point -> Point -> Text -> Maybe Point -> m ()
 notifyCodeUpdate path start end code cursor =
-    sendUpdate $ CodeUpdate $ Substitute.Update path start end code cursor
+    sendUpdate $ CodeUpdate $ Substitute.Update path [Diff start end code cursor]
 
 notifyInterpreterUpdate :: (MonadReader CommunicationEnv m, MonadIO m) => Text -> m ()
 notifyInterpreterUpdate msg =

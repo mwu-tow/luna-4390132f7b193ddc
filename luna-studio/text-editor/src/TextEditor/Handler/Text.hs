@@ -20,7 +20,7 @@ import           TextEditor.State.Global           (State)
 
 
 handle :: Event -> Maybe (Command State ())
-handle (Text (TextEvent location start end text cursor)) = Just $ ActBatch.substitute location start end text cursor
+handle (Text (TextEvent location diffs)) = Just $ ActBatch.substitute location diffs
 handle (Atom (GetBuffer filepath)) = Just $ ActBatch.getBuffer filepath
 handle (Atom (FileChanged filepath)) = Just $ ActBatch.fileChanged filepath
 handle (Atom (Copy filepath selections)) = Just $ ActBatch.copy filepath $ convert selections
@@ -40,8 +40,8 @@ handle (Batch (CopyResponse  response)) = Just $ handleResponse response success
             code = result ^. Copy.code
         liftIO $ JS.setClipboard (convert uri) (convert code)
 
-handle (Batch (SubstituteUpdate (Substitute.Update path start end text cursor))) =
-    Just $ liftIO $ JS.insertCode $ TextEvent (GraphLocation path def) start end text cursor
+handle (Batch (SubstituteUpdate (Substitute.Update path diffs))) =
+    Just $ liftIO $ JS.insertCode $ TextEvent (GraphLocation path def) diffs
 
 
 handle _ = Nothing

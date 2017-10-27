@@ -86,6 +86,7 @@ import           LunaStudio.Data.Breadcrumb              (Breadcrumb (..))
 import qualified LunaStudio.Data.Breadcrumb              as Breadcrumb
 import qualified LunaStudio.Data.CameraTransformation    as Camera
 import           LunaStudio.Data.Connection              as Connection
+import           LunaStudio.Data.Diff                    (Diff (..))
 import           LunaStudio.Data.Graph                   (Graph (..))
 import qualified LunaStudio.Data.Graph                   as GraphAPI
 import           LunaStudio.Data.GraphLocation           (GraphLocation (..))
@@ -456,14 +457,12 @@ instance G.GraphRequest GetBuffer.Request where
 
 handleSubstitute :: Request Substitute.Request -> StateT Env BusT ()
 handleSubstitute = modifyGraph defInverse action replyResult where
-    action req@(Substitute.Request location start end newText cursor) = do
+    action req@(Substitute.Request location diffs) = do
         let file = location ^. GraphLocation.filePath
         prevImports <- Graph.getAvailableImports location
-        res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file start end newText cursor
+        res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file diffs
         newImports  <- Graph.getAvailableImports location
         return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then def else return newImports
-
-
 
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()

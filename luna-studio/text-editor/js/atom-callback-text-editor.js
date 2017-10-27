@@ -12,7 +12,7 @@ module.exports = function () {
         setClipboardListener: [],
         insertonInsertCode: [],
         eventListenerInternal: [],
-        diffListener: [],
+        diffsListener: [],
         statusListener: [],
         interpreterUpdateListener: [],
         lexer: null,
@@ -76,15 +76,15 @@ module.exports = function () {
             });
         },
 
-        subscribeDiff: function(listener) {
-            listeners.diffListener.push(listener);
+        subscribeDiffs: function(listener) {
+            listeners.diffsListener.push(listener);
         },
-        unsubscribeDiff: function(listener) {
-            removeFromArray(listeners.diffListener, listener);
+        unsubscribeDiffs: function(listener) {
+            removeFromArray(listeners.diffsListener, listener);
         },
-        pushDiff: function(data) {
-            listeners.diffListener.forEach(function(listener) {
-                listener(data);
+        pushDiffs: function(diffs) {
+            listeners.diffsListener.forEach(function(listener) {
+                listener(diffs);
             });
         },
         setLexer: function(fun) {

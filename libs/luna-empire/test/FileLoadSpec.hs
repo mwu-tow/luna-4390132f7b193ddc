@@ -45,6 +45,7 @@ import qualified Luna.Syntax.Text.Parser.Parser  as Parser (ReparsingChange (..)
 import           LunaStudio.API.AsyncUpdate      (AsyncUpdate(ResultUpdate))
 import qualified LunaStudio.API.Graph.NodeResultUpdate as NodeResult
 import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
+import           LunaStudio.Data.Diff            (Diff (..))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
 import qualified LunaStudio.Data.Node            as Node
@@ -222,7 +223,7 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainFile
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
+                Graph.substituteCode "TestPath" [(68, 68, "3")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
@@ -242,8 +243,8 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainFile
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
+                Graph.substituteCode "TestPath" [(68, 68, "3")]
+                Graph.substituteCode "TestPath" [(68, 68, "3")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
@@ -265,8 +266,8 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainFile
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 68 68 "3" (Just 69)
-                Graph.substituteCode "TestPath" 88 88 "1" (Just 88)
+                Graph.substituteCode "TestPath" [(68, 68, "3")]
+                Graph.substituteCode "TestPath" [(88, 88, "1")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
@@ -289,7 +290,7 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainCondensed
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 89 89 "    d = 10\n" (Just 89)
+                Graph.substituteCode "TestPath" [(89, 89, "    d = 10\n")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
@@ -309,8 +310,8 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc mainCondensed
                 [main] <- Graph.getNodes loc
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-                Graph.substituteCode "TestPath" 22 26 ")" (Just 26)
-                Graph.substituteCode "TestPath" 22 23 "5" (Just 23)
+                Graph.substituteCode "TestPath" [(22, 26, ")")]
+                Graph.substituteCode "TestPath" [(22, 23, "5")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
                 let Graph.Graph nodes connections _ _ _ = graph
@@ -380,7 +381,7 @@ spec = around withChannels $ parallel $ do
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
                 previousGraph <- Graph.getGraph (loc' |> foo)
-                Graph.substituteCode "TestPath" 65 66 "5" (Just 66)
+                Graph.substituteCode "TestPath" [(65, 66, "5")]
                 Just newFoo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
                 newGraph <- Graph.getGraph (loc' |> foo)
                 return (previousGraph, newGraph, foo, newFoo)
@@ -399,7 +400,7 @@ spec = around withChannels $ parallel $ do
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 Just foo <- Graph.withGraph loc' $ runASTOp (Graph.getNodeIdForMarker 1)
                 Graph.setNodeMeta loc' foo (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
-                Graph.substituteCode "TestPath" 63 64 "5" (Just 64)
+                Graph.substituteCode "TestPath" [(63, 64, "5")]
                 Graph.getNodeMeta loc' foo
             meta `shouldBe` Just (NodeMeta (Position.Position (Vector2 15.3 99.2)) True Nothing)
         xit "changing order of ports twice does nothing" $ \env -> do
@@ -1816,7 +1817,7 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 code <- Graph.copyText loc [Range 50 60]
                 Graph.pasteText loc [Range 50 60] [code]
-                Graph.substituteCode "/TestPath" 55 59 "" (Nothing)
+                Graph.substituteCode "/TestPath" [(55, 59, "")]
         it "pastes code with meta" $ let
             initialCode = [r|
                 def main:
@@ -2092,3 +2093,22 @@ spec = around withChannels $ parallel $ do
                 [node] <- Graph.getNodes loc
                 selfConn <- filter (\(o,i) -> o ^. PortRef.srcNodeId == i ^. PortRef.dstNodeId) <$> Graph.getConnections loc
                 liftIO $ selfConn `shouldBe` []
+        it "moves lines in a file" $ let
+            initialCode = [r|
+                def main:
+                    «0»pi = 3.14
+                    «1»foo = a: b: «4»a + b
+                    «2»c = 4
+                    «3»bar = foo 8 c
+                |]
+            expectedCode = [r|
+def main:
+    pi = 3.14
+    c = 4
+    foo = a: b: a + b
+    bar = foo 8 c
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.substituteCodeFromPoints "/TestPath" [ Diff (Point 0 2) (Point 0 3) "" Nothing
+                                                           , Diff (Point 0 4) (Point 0 4) "    foo = a: b: a + b\n" Nothing
+                                                           ]
