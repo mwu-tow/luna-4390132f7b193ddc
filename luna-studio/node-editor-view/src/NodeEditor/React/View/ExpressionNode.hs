@@ -205,8 +205,10 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
     let nodeId       = n ^. Node.nodeId
         nodeLoc      = n ^. Node.nodeLoc
         argPortNum p = visibleArgPortNumber n $ p ^. Port.portId
+        inPortNum  p = visibleInPortNumber  n $ p ^. Port.portId
         outPortNum p = visibleOutPortNumber n $ p ^. Port.portId
-        argPorts     = map (convert &&& argPortNum)  $ Node.inPortsList n
+        argPorts     = map (convert &&& argPortNum) $ Node.inPortsList n
+        inPorts      = map (convert &&& inPortNum)  $ Node.inPortsList n
         outPorts     = map (convert &&& outPortNum) $ Node.outPortsList n
         nodePorts'   = Node.portsList n
         ports p      = forM_ p $ \(port, num) -> port_ ref
@@ -243,7 +245,8 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
                 ports argPorts
                 ports outPorts
             else do
-                forM_ argPorts $ uncurry (portExpanded_ ref nodeLoc)
+                forM_ inPorts
+                 $ uncurry (portExpanded_ ref nodeLoc)
                 forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)
 
             argumentConstructor_ ref nodeLoc (countVisibleInPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
