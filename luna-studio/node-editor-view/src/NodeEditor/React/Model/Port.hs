@@ -8,6 +8,7 @@ module NodeEditor.React.Model.Port
 
 import           Common.Prelude                   hiding (set)
 import           Data.Convert                     (Convertible (convert))
+import qualified Data.Text                        as Text
 import           LunaStudio.Data.Angle            (Angle)
 import           LunaStudio.Data.LabeledTree      (LabeledTree (LabeledTree))
 import qualified LunaStudio.Data.LabeledTree      as LabeledTree
@@ -15,12 +16,12 @@ import           LunaStudio.Data.Port             as X hiding (InPort, OutPort, 
 import qualified LunaStudio.Data.Port             as Empire
 import           LunaStudio.Data.PortDefault      as X (PortDefault (..))
 import           LunaStudio.Data.PortRef          as X (AnyPortRef (InPortRef', OutPortRef'), InPortRef (InPortRef),
-                                                       OutPortRef (OutPortRef))
+                                                        OutPortRef (OutPortRef))
 import           LunaStudio.Data.Position         (Position)
 import           LunaStudio.Data.TypeRep          (TypeRep (..))
 import           NodeEditor.Data.Color            (Color)
 import qualified NodeEditor.Data.Color            as Color
-import           NodeEditor.React.Model.Constants (nodeRadius, lineHeight)
+import           NodeEditor.React.Model.Constants (lineHeight, nodeRadius)
 
 type IsAlias = Bool
 type IsSelf  = Bool
@@ -86,13 +87,13 @@ getPositionInSidebar p = case p ^. mode of
     _         -> Nothing
 
 visibleOutPorts :: OutPortTree (Port i) -> [Port i]
-visibleOutPorts (LabeledTree (OutPorts []) p) = [p]
+visibleOutPorts (LabeledTree (OutPorts []) p) = if Text.null (p ^. name) || not (isUpper . Text.head $ p ^. name) then [p] else []
 visibleOutPorts (LabeledTree (OutPorts ps) _) = concatMap visibleOutPorts ps
 
 visibleInPorts :: InPortTree (Port i) -> [Port i]
 visibleInPorts root@(LabeledTree (InPorts maySelf _ args') _) = findSelfAndOrHead <> map (view LabeledTree.value) args' where
-    h                 = findHead root
-    findSelfAndOrHead = (if h ^. state == Connected then [h] else []) <> maybeToList (findSelf <$> maySelf)
+    h                                                = findHead root
+    findSelfAndOrHead                                = (if h ^. state == Connected then [h] else []) <> maybeToList (findSelf <$> maySelf)
     findHead (LabeledTree (InPorts _ mayHead' _) p') = if p' ^. state == Connected then p' else maybe p' findHead mayHead'
     findSelf (LabeledTree (InPorts maySelf' _ _) p') = if p' ^. state == Connected then p' else maybe p' findSelf maySelf'
 
@@ -112,18 +113,18 @@ instance Convertible EitherPort AnyPort where
 
 instance Convertible (Empire.Port i) (Port i) where
     convert p = Port
-        {- portId    -} (p ^. Empire.portId)
-        {- name      -} (p ^. Empire.name)
-        {- nodeType  -} (p ^. Empire.valueType)
-        {- state     -} (p ^. Empire.state)
-        {- mode      -} Normal
+        {- portId   -} (p ^. Empire.portId)
+        {- name     -} (p ^. Empire.name)
+        {- nodeType -} (p ^. Empire.valueType)
+        {- state    -} (p ^. Empire.state)
+        {- mode     -} Normal
 
 instance Convertible (Port i) (Empire.Port i) where
     convert p = Empire.Port
-        {- portId    -} (p ^. portId)
-        {- name      -} (p ^. name)
-        {- nodeType  -} (p ^. valueType)
-        {- state     -} (p ^. state)
+        {- portId   -} (p ^. portId)
+        {- name     -} (p ^. name)
+        {- nodeType -} (p ^. valueType)
+        {- state    -} (p ^. state)
 
 
 portGap :: Double -> Angle
@@ -133,20 +134,18 @@ portAngle :: Int -> Angle
 portAngle numOfPorts = pi / fromIntegral numOfPorts
 
 portAngleStart :: Bool -> Int -> Int -> Double -> Angle
-portAngleStart isShape num numOfPorts r =
-    let number = fromIntegral num + 1
-        gap    = if isShape then (portGap r)/2 else 0
-        t      = portAngle numOfPorts
-    in  pi - number * t + gap
+portAngleStart isShape num numOfPorts r = pi - number * t + gap
+    where number = fromIntegral num + 1
+          gap    = if isShape then (portGap r)/2 else 0
+          t      = portAngle numOfPorts
 
 portAngleStop :: Bool -> Int -> Int -> Double -> Angle
-portAngleStop isShape num numOfPorts r =
-    let number = fromIntegral num + 1
-        gap    = if isShape then (portGap r)/2 else 0
-        t      = portAngle numOfPorts
-    in  pi - number * t + t - gap
+portAngleStop isShape num numOfPorts r = pi - number * t + t - gap
+    where number = fromIntegral num + 1
+          gap    = if isShape then (portGap r)/2 else 0
+          t      = portAngle numOfPorts
 
 argumentConstructorOffsetY :: Int -> Double
-argumentConstructorOffsetY numOfPorts = (fromIntegral numOfPorts + 1) * lineHeight
+argumentConstructorOffsetY numOfPorts = (fromIntegral $ max 1 numOfPorts) * lineHeight
 
 
