@@ -146,6 +146,6 @@ portAngleStop isShape num numOfPorts r = pi - number * t + t - gap
           t      = portAngle numOfPorts
 
 argumentConstructorOffsetY :: Int -> Double
-argumentConstructorOffsetY numOfPorts = (fromIntegral numOfPorts + 1) * lineHeight
+argumentConstructorOffsetY numOfPorts = (fromIntegral $ max 1 numOfPorts) * lineHeight
 
 

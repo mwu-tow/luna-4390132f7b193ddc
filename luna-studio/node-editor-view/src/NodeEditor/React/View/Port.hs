@@ -204,7 +204,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs) -> do
             | numOfArgs == 1 = typeOffsetY1
             | numOfArgs == 2 = typeOffsetY2
             | numOfArgs == 3 = typeOffsetY3
-            | otherwise       = typeOffsetY
+            | otherwise      = typeOffsetY
         startPortArcX isShape r = r * sin(portAngleStart isShape num numOfArgs r * mode)
         startPortArcY isShape r = r * cos(portAngleStart isShape num numOfArgs r * mode)
         stopPortArcX  isShape r = r * sin(portAngleStop  isShape num numOfArgs r * mode)
@@ -289,7 +289,7 @@ portIOExpanded_ ref nl p num = do
 argumentConstructor_ :: IsRef r => r -> NodeLoc -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
 argumentConstructor_ ref nl numOfPorts isConnectionSource hasAlias hasSelf = do
     let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
-        offsetY   = argumentConstructorOffsetY $ max 0 $ numOfPorts - 1
+        offsetY   = argumentConstructorOffsetY numOfPorts
         highlight = if isConnectionSource then ["port--highlighted"] else []
     g_
         [ "key"       $= "argument-constructor"
