@@ -139,14 +139,6 @@ flattenScope (Scope (CompiledModules mods prims)) = unionsImports $ prims : Map.
 createStdlib :: String -> IO (IO (), Scope)
 createStdlib = fmap (id *** Scope) . Compilation.prepareStdlib . Map.singleton "Std"
 
-getSymbolMap :: Scope -> SymbolMap
-getSymbolMap (flattenScope -> Imports clss funcs) = SymbolMap functions classes where
-    functions = conses <> (convert <$> Map.keys funcs)
-    conses    = getConses =<< Map.elems clss
-    getConses (Class conses _) = convert <$> Map.keys conses
-    classes   = processClass <$> Map.mapKeys convert clss
-    processClass (Class _ methods) = convert <$> Map.keys methods
-
 filePathToQualName :: MonadIO m => FilePath -> m QualName
 filePathToQualName path = liftIO $ do
     path' <- Path.parseAbsFile path

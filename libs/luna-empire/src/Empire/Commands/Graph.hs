@@ -133,6 +133,7 @@ import qualified Empire.Data.Library              as Library
 import           Empire.Empire
 import           Empire.Prelude                   hiding (head, toList)
 import qualified Luna.Builtin.Data.Class          as IR
+import qualified Luna.Builtin.Data.Function       as IR
 import qualified Luna.Builtin.Data.Module         as Module
 import qualified Luna.Compilation                 as Compilation
 import qualified Luna.IR                          as IR
@@ -1519,15 +1520,15 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
 classToHints :: IR.Class -> ClassHints
 classToHints (IR.Class constructors methods) = ClassHints cons' meth'
     where
-        cons' = map convert $ Map.keys constructors
-        meth' = map convert $ Map.keys methods
+        cons' = convert <$> Map.keys constructors
+        meth' = convert <$> Map.keys methods
 
 importsToHints :: Module.Imports -> ModuleHints
 importsToHints (Module.Imports classes functions) = ModuleHints funHints classHints
     where
         funHints   = map convert $ Map.keys functions
         classes'   = Map.mapKeys convert classes
-        classHints = Map.map classToHints classes'
+        classHints = classToHints . view IR.documentedItem <$> classes'
 
 data ModuleCompilationException = ModuleCompilationException Compilation.ModuleCompilationError
     deriving (Show)

@@ -233,8 +233,7 @@ handleAddNode = modifyGraph defInverse action replyResult where
         for_ connectTo $ \nid -> do
             handle (\(e :: SomeASTException) -> return ()) $ do
                 let firstWord = unsafeHead $ Text.words expression
-                symbolMap <- liftIO . readMVar =<< view Empire.scopeVar
-                let shouldConnectToArg w = elem w (symbolMap ^. Empire.functions) || isUpper (Text.head w)
+                let shouldConnectToArg w = isUpper (Text.head w)
                     ports = node ^.. Node.inPorts . traverse . Port.portId
                     selfs = filter (\a -> all (== Self) a) ports
                     longestSelfChain = Safe.headDef [Self] $ reverse $ sortBy (compare `on` length) selfs

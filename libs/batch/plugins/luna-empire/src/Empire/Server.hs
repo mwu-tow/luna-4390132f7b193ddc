@@ -109,21 +109,19 @@ runBus formatted projectRoot = do
     createDefaultState
     forever handleMessage
 
-prepareStdlib :: IO (Scope, Empire.SymbolMap, IO ())
+prepareStdlib :: IO (Scope, IO ())
 prepareStdlib = do
     lunaroot       <- canonicalizePath =<< getEnv "LUNAROOT"
     (cleanup, std) <- Typecheck.createStdlib $ lunaroot <> "/Std/"
-    return (std, Typecheck.getSymbolMap std, cleanup)
+    return (std, cleanup)
 
 startTCWorker :: Empire.CommunicationEnv -> Bus ()
 startTCWorker env = liftIO $ do
     let reqs = env ^. Empire.typecheckChan
-        scopeVar = env ^. Empire.scopeVar
         modules = env ^. Empire.modules
     writeIORef minCapabilityNumber 1
     updateCapabilities
-    (std, symbolMap, cleanup) <- prepareStdlib
-    putMVar scopeVar symbolMap
+    (std, cleanup) <- prepareStdlib
     putMVar modules $ unwrap std
     pmState <- Graph.defaultPMState
     let interpreterEnv = Empire.InterpreterEnv def def def undefined cleanup def

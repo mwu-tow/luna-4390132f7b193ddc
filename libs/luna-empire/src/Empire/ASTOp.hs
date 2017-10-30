@@ -281,7 +281,7 @@ runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
         case result of
             Right (imports, newCmpMods) -> do
                 let imps = unionsImports $ prims : Map.elems imports
-                res <- snd <$> ModuleTC.processModule' imps def "<<interactive>>" (IR.unsafeGeneralize unit)
+                res <- ModuleTC.processModule imps "<<interactive>>" (IR.unsafeGeneralize unit)
                 return $ Right (res, newCmpMods)
             Left err -> return $ Left err
     return res

@@ -1,6 +1,10 @@
+## Class representing integer numbers of arbitrary size.
 native class Int:
+    ## Integer addition.
     def +  that: primIntAdd      self that
+    ## Integer multiplication.
     def *  that: primIntMultiply self that
+    ## Integer subtraction.
     def -  that: primIntSubtract self that
     def /  that: primIntDivide   self that
     def %  that: primIntModulo   self that
