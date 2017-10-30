@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from . import atom_prepare as ap
+import atom_prepare as ap
 
 import os
 from distutils import dir_util
@@ -13,8 +13,8 @@ import requests
 import zipfile
 import io
 import sys
-from . import system as system
-from .common import working_directory
+import system as system
+from common import working_directory
 
 #########################################################
 #                     PATHS                             #
