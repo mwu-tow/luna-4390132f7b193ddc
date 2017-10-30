@@ -31,31 +31,24 @@ packages:
       versions:
           1.0.0:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/studio/zmq/zmq.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/zmq/zmq.tar.gz
                   deps: []
               windows.x64:
                 path: https://s3-us-west-2.amazonaws.com/packages-luna/windows/zmq/zmq1.zip
                 deps: []
               darwin.x64:
-                path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/zmq/zmq.zip
+                path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/zmq/zmq.zip
                 deps: []
       appType: Lib
       synopsis: zmq synopsis
   supervisord:
       versions:
-          1.0.0:
-              linux.x64:
-                  path: https://s3-eu-west-1.amazonaws.com/supervisord-bin-packages/supervisord.tar.gz
-                  deps: []
-              darwin.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/supervisord/supervisord.zip
-                  deps: []
           0.0.4.dev:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/supervisord/4.0.0dev/supervisord.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/supervisord/0.0.4.dev/supervisord.tar.gz
                   deps: []
               darwin.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/supervisord/supervisord.zip
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/supervisord/0.0.4.dev/supervisord.tar.gz
                   deps: []
       appType: BatchApp
       synopsis: supervisord synopsis
@@ -63,7 +56,7 @@ packages:
       versions:
           1.18.0:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/studio/atom/1.18.0/atom-linux.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/atom/1.18.0/atom-linux.tar.gz
                   deps: []
               windows.x64:
                 path: https://github.com/atom/atom/releases/download/v1.18.0/atom-windows.zip
@@ -77,10 +70,10 @@ packages:
       versions:
           1.0.0:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/studio/kill-supervisor/kill.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/kill-supervisor/kill.tar.gz
                   deps: []
               darwin.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/studio/kill_supervisor/kill.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/darwin/kill_supervisor/kill.tar.gz
                   deps: []
       appType: BatchApp
       synopsis: studio synopsis
