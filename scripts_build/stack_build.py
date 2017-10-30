@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from . import atom_prepare as ap
+import atom_prepare as ap
 from glob import glob
 import os
 import subprocess
-from . import system as system
-from .common import working_directory
+import system as system
+from common import working_directory
 
 app_dir      = ap.prep_path('..')
 backend_dir  = ap.prep_path('../build-config/backend')

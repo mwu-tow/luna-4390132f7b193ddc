@@ -7,10 +7,10 @@ import sys
 
 sys.path.append(os.getcwd())
 
-from scripts_build import atom_prepare
-from scripts_build import atom_apm
-from scripts_build import copy_configs
-from scripts_build import stack_build
+import atom_prepare
+import atom_apm
+import copy_configs
+import stack_build
 
 app_dir      = atom_prepare.prep_path('..')
 backend_dir  = atom_prepare.prep_path('../build-config/backend')

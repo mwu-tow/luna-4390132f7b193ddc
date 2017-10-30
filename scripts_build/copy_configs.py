@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from . import atom_prepare as ap
+import atom_prepare as ap
 import os
 from distutils import dir_util
 from glob import glob
 import shutil
 import subprocess
-from . import system as system
-from .common import working_directory
+import system as system
+from common import working_directory
 
 
 resources_dir = ap.prep_path('../resources')

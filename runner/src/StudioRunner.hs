@@ -27,7 +27,7 @@ import qualified Data.Text                     as T
 import           Filesystem.Path
 import           Filesystem.Path.CurrentOS     (decodeString, encodeString, fromText)
 import           Options.Applicative
-import           System.Directory              (doesDirectoryExist, setCurrentDirectory, getHomeDirectory, getCurrentDirectory, createDirectoryIfMissing)
+import           System.Directory              (doesDirectoryExist, setCurrentDirectory, getHomeDirectory, getCurrentDirectory, createDirectoryIfMissing, getTemporaryDirectory)
 import           System.Exit                   (ExitCode)
 import           System.Process.Typed          (shell, runProcess, runProcess_, setWorkingDir, readProcess_)
 import           System.Environment            (getExecutablePath, getArgs)
@@ -62,6 +62,9 @@ data RunnerConfig = RunnerConfig { _versionFile            :: FilePath
                                  , _supervisorKillFolder   :: FilePath
                                  , _supervisorKillBin      :: FilePath
                                  , _atomBinPath            :: FilePath
+                                 , _mainTmpDirectory       :: FilePath
+                                 , _lunaProjects           :: FilePath
+                                 , _tutorialsDirectory     :: FilePath
                                  }
 
 makeLenses ''RunnerConfig
@@ -93,6 +96,9 @@ instance Monad m => MonadHostConfig RunnerConfig 'Linux arch m where
         , _supervisorKillFolder   = "kill"
         , _supervisorKillBin      = "kill"
         , _atomBinPath            = "atom" </> "usr" </> "bin" </> "atom"
+        , _mainTmpDirectory       = "luna"
+        , _lunaProjects           = "luna" </> "projects"
+        , _tutorialsDirectory     = "tutorials"
         }
 
 instance Monad m => MonadHostConfig RunnerConfig 'Darwin arch m where
@@ -130,6 +136,7 @@ backendBinsPath, configPath, atomAppPath, backendDir                   :: MonadR
 supervisordBinPath, supervisorctlBinPath, killSupervisorBinPath        :: MonadRun m => m FilePath
 packageStudioAtomHome, userStudioAtomHome, localLogsDirectory          :: MonadRun m => m FilePath
 userLogsDirectory, userdataStorageDirectory, localdataStorageDirectory :: MonadRun m => m FilePath
+lunaTmpPath, lunaProjectsPath, lunaTutorialsPath                       :: MonadRun m => m FilePath
 
 backendBinsPath           = relativeToMainDir [binsFolder, backendBinsFolder]
 configPath                = relativeToMainDir [configFolder]
@@ -147,7 +154,18 @@ userStudioAtomHome = do
     runnerCfg <- get @RunnerConfig
     baseDir   <- relativeToHomeDir [configHomeFolder, appName] >>= (\p -> (fmap (p </>) version))
     return $ baseDir </> (runnerCfg ^. studioHome)
-
+lunaTmpPath       = do
+    runnerCfg <- get @RunnerConfig
+    tmp       <- liftIO getTemporaryDirectory
+    return $ (decodeString tmp) </> (runnerCfg ^. mainTmpDirectory)
+lunaProjectsPath  = do
+    runnerCfg <- get @RunnerConfig
+    home      <- liftIO getHomeDirectory
+    return $ (decodeString home) </> (runnerCfg ^. lunaProjects)
+lunaTutorialsPath = do
+    runnerCfg <- get @RunnerConfig
+    lunaTmp   <- lunaTmpPath
+    return $ lunaTmp </> (runnerCfg ^. tutorialsDirectory)
 
 atomHomeDir, logsDir, dataStorageDirectory :: MonadRun m => Bool -> m FilePath
 atomHomeDir          develop = if develop then packageStudioAtomHome     else userStudioAtomHome
@@ -239,6 +257,9 @@ runFrontend args = do
     liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
     setEnv "ATOM_HOME"             =<< packageStudioAtomHome
     setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory True
+    setEnv "LUNA_TMP"              =<< lunaTmpPath
+    setEnv "LUNA_PROJECT"          =<< lunaProjectsPath
+    setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
     unixOnly $ Shelly.shelly $ Shelly.run_ atom $ "-w" : maybeToList args
 
 runBackend :: MonadRun m => Bool -> m ()
@@ -256,6 +277,9 @@ runPackage develop forceRun = case currentHost of
         checkLunaHome
         setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory develop
         setEnv "ATOM_HOME"             =<< userStudioAtomHome
+        setEnv "LUNA_TMP"              =<< lunaTmpPath
+        setEnv "LUNA_PROJECT"          =<< lunaProjectsPath
+        setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
         createStorageDataDirectory develop
         Shelly.shelly $ Shelly.cmd atom
 
@@ -270,6 +294,9 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_STUDIO_GUI_PATH"        =<< atomAppPath
         setEnv "LUNA_STUDIO_CONFIG_PATH"     =<< configPath
         setEnv "LUNA_STUDIO_KILL_PATH"       =<< killSupervisorBinPath
+        setEnv "LUNA_TMP"              =<< lunaTmpPath
+        setEnv "LUNA_PROJECT"          =<< lunaProjectsPath
+        setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
         when develop   $ liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
         createStorageDataDirectory develop
         unless develop $ checkLunaHome
