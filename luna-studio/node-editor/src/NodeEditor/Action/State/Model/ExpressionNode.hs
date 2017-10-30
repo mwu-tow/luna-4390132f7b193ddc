@@ -127,9 +127,9 @@ calculatePortSelfMode node = do
                                                       ( \src -> ( canConnect src . toAnyPortRef nl $ InPortId' [Self]
                                                                 , src ^. PortRef.nodeLoc == nl && isSelf (src ^. PortRef.portId) ) )
                                                       mayConnectSrc
-    return $ if notCollapsed || penConnecting || isConnDst then Normal
+    return $ if isConnectSrc                               then Highlighted
+        else if notCollapsed || penConnecting || isConnDst then Normal
         else if connectToSelfPossible                      then TypeNotMatched
-        else if isConnectSrc                               then Highlighted
                                                            else Invisible
 
 isArgConstructorConnectSrc :: NodeLoc -> Command State Bool
