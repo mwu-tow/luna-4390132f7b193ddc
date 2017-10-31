@@ -22,8 +22,9 @@ import           NodeEditor.React.Model.Constants           (lineHeight, nodeExp
 import           NodeEditor.React.Model.Layout              (Layout, inputSidebarPortPosition, outputSidebarPortPosition)
 import           NodeEditor.React.Model.Node                (ExpressionNode, Node (Expression), NodeLoc)
 import qualified NodeEditor.React.Model.Node                as Node
-import           NodeEditor.React.Model.Node.ExpressionNode (countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts, inPorts, isCollapsed, position,
-                                                             visibleInPortNumber, visibleArgPortNumber, visibleOutPortNumber)
+import           NodeEditor.React.Model.Node.ExpressionNode (countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts, inPorts,
+                                                             isCollapsed, position, visibleArgPortNumber, visibleInPortNumber,
+                                                             visibleOutPortNumber)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import           NodeEditor.React.Model.Port                (EitherPort, InPort, InPortId, IsAlias, IsOnly, IsSelf, OutPort, OutPortId,
                                                              argumentConstructorOffsetY, isSelf, portAngleStart, portAngleStop, portGap,
@@ -215,13 +216,16 @@ toConnection srcRef dstRef srcNode dstNode = Connection srcRef dstRef sidebarCon
 
 toHalfConnection :: AnyPortRef -> Node -> Position -> HalfConnection
 toHalfConnection portRef n pos = HalfConnection portRef pos sidebarConn' mode' where
-    sidebarConn' = has Node._Input n || has Node._Output n
-    mode' = if Node.argumentConstructorRef n == portRef then Normal else case portRef of
+    sidebarConn'  = has Node._Input n || has Node._Output n
+    mode' = case portRef of
         OutPortRef' {}    -> Normal
-        InPortRef' dstRef -> if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList n then Normal else Internal
+        InPortRef' dstRef -> let isPortVisible = elem (dstRef ^. PortRef.dstPortId) . (Node.argumentConstructorRef n ^. PortRef.dstPortId :) . map (view portId) $ Node.inPortsList n in
+            if isPortVisible then Normal else Internal
 
 getConnectionMode :: InPortRef -> Node -> Mode
-getConnectionMode dstRef dstNode = if elem (dstRef ^. PortRef.dstPortId) . map (view portId) $ Node.inPortsList dstNode then Normal else Internal
+getConnectionMode dstRef dstNode = if isPortVisible then Normal else Internal where
+    isPortVisible = elem (dstRef ^. PortRef.dstPortId) . (Node.argumentConstructorRef dstNode ^. PortRef.dstPortId :) . map (view portId) $ Node.inPortsList dstNode
+
 
 halfConnectionSrcPosition :: Node -> EitherPort -> Position -> Layout -> Maybe Position
 halfConnectionSrcPosition (Node.Input  _  ) (Right port) _ layout = inputSidebarPortPosition  port layout

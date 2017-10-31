@@ -55,8 +55,8 @@ class HasNodeLoc node => HasPorts node where
     countArgPorts = length .  filter (Port.isArg . view Port.portId) . inPortsList
     countProjectionPorts :: node -> Int
     countProjectionPorts = length .  filter (Port.isProjection . view Port.portId) . outPortsList
-    argumentConstructorRef :: node -> AnyPortRef
-    argumentConstructorRef n = InPortRef' (InPortRef (n ^. nodeLoc) [Arg $ countArgPorts n])
+    argumentConstructorRef :: node -> InPortRef
+    argumentConstructorRef n = InPortRef (n ^. nodeLoc) [Arg $ countArgPorts n]
 
 class HasPort portId where
     hasPort :: HasPorts node =>  portId -> node -> Bool

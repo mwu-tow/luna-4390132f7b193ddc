@@ -5,7 +5,7 @@ module NodeEditor.React.View.Port where
 import           Common.Prelude
 import qualified Data.Aeson                       as Aeson
 import           LunaStudio.Data.Constants        (nodePropertiesWidth)
-import           LunaStudio.Data.PortRef          (AnyPortRef, toAnyPortRef)
+import           LunaStudio.Data.PortRef          (AnyPortRef (InPortRef'), InPortRef, toAnyPortRef)
 import qualified NodeEditor.Event.Mouse           as Mouse
 import qualified NodeEditor.Event.UI              as UI
 import qualified NodeEditor.React.Event.Port      as Port
@@ -285,7 +285,7 @@ portIOExpanded_ ref nl p num = do
               ]
             ) mempty
 
-argumentConstructor_ :: IsRef r => r -> AnyPortRef -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
+argumentConstructor_ :: IsRef r => r -> InPortRef -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
 argumentConstructor_ ref portRef numOfPorts isConnectionSource hasAlias hasSelf = do
     let offsetY   = argumentConstructorOffsetY numOfPorts
         highlight = if isConnectionSource then ["port--highlighted"] else []
@@ -300,7 +300,7 @@ argumentConstructor_ ref portRef numOfPorts isConnectionSource hasAlias hasSelf 
             , "r"         $= jsShow2 3
             ] mempty
         circle_
-            ( handlers ref portRef <>
+            ( handlers ref (InPortRef' portRef) <>
                 [ "className" $= Style.prefix "port__select"
                 , "key"       $= "select"
                 , "r"         $= jsShow2 (lineHeight/1.5)

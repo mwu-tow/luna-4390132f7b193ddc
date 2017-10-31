@@ -138,7 +138,7 @@ instance HasPorts ExpressionNode where
     outPortsList   = Port.visibleOutPorts . view outPorts
     inPortAt   pid = inPorts . ix pid
     outPortAt  pid = outPorts . ix pid
-    portModeAt pid = \f n -> if argumentConstructorRef n ^. PortRef.portId == pid
+    portModeAt pid = \f n -> if (PortRef.InPortRef' $ argumentConstructorRef n) ^. PortRef.portId == pid
         then argConstructorMode f n
         else case pid of
             OutPortId' outpid -> (outPortAt outpid . Port.mode) f n

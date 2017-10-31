@@ -5,7 +5,7 @@ import           Common.Prelude
 import           Control.Monad                              (filterM)
 import qualified JS.Node                                    as JS
 import           LunaStudio.Data.Geometry                   (isPointInCircle, isPointInRectangle)
-import           LunaStudio.Data.PortRef                    (AnyPortRef, toAnyPortRef)
+import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef'), toAnyPortRef)
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           LunaStudio.Data.Position                   (Position)
 import           LunaStudio.Data.TypeRep                    (TypeRep, matchTypes)
@@ -135,5 +135,5 @@ calculatePortSelfMode node = do
 isArgConstructorConnectSrc :: NodeLoc -> Command State Bool
 isArgConstructorConnectSrc nl = do
     mayConnectSrc <- view connectSourcePort `fmap2` use (actions . currentConnectAction)
-    mayPortRef    <- argumentConstructorRef `fmap2` getExpressionNode nl
+    mayPortRef    <- (InPortRef' . argumentConstructorRef) `fmap2` getExpressionNode nl
     return $ isJust mayConnectSrc && mayConnectSrc == mayPortRef
