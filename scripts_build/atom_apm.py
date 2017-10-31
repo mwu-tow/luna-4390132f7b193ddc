@@ -78,7 +78,7 @@ def run_process(*pargs):
     return output.decode('utf-8')
 
 
-def run_apm(command, path, *args):
+def run_apm(command, *args):
     """Run: apm <command> [args], wait for it to finish and return the result
 
     Sets the ATOM_HOME env variable to the global `atom_home_path`.
