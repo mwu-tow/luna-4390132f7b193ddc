@@ -790,7 +790,9 @@ setPortDefault loc port Nothing = do
 
 disconnect :: GraphLocation -> InPortRef -> Empire ()
 disconnect loc@(GraphLocation file _) port@(InPortRef (NodeLoc _ nid) _) = do
-    withTC loc False $ runASTOp $ disconnectPort port
+    withTC loc False $ do
+        runASTOp $ disconnectPort port
+        runAliasAnalysis
     resendCode loc
 
 getNodeMeta :: GraphLocation -> NodeId -> Empire (Maybe NodeMeta)

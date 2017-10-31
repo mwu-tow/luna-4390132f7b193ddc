@@ -45,6 +45,7 @@ import qualified Luna.Syntax.Text.Parser.Parser  as Parser (ReparsingChange (..)
 import           LunaStudio.API.AsyncUpdate      (AsyncUpdate(ResultUpdate))
 import qualified LunaStudio.API.Graph.NodeResultUpdate as NodeResult
 import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
+import           LunaStudio.Data.Connection      (Connection (..))
 import           LunaStudio.Data.Diff            (Diff (..))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
@@ -1916,6 +1917,28 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [(outRef, inRef)] <- Graph.getConnections loc
                 Graph.disconnect loc inRef
+        it "shows connection for alias after disconnecting self" $ let
+            initialCode = [r|
+                def main:
+                    «0»x = 10
+                    «2»c = "foo"
+                    «1»y = x
+                |]
+            expectedCode = [r|
+                def main:
+                    x = 10
+                    c = "foo"
+                    y = x
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Just x <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 0
+                Just y <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+                Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
+                connsBefore <- Graph.getConnections loc
+                Connection outRef inRef <- Graph.connect loc (outPortRef c []) (InPortRef' $ inPortRef y [Port.Self])
+                Graph.disconnect loc inRef
+                connsAfter <- Graph.getConnections loc
+                liftIO $ connsAfter `shouldBe` connsBefore
         it "connects pattern-matched variable from list to output" $ let
             initialCode = [r|
                 def main:
