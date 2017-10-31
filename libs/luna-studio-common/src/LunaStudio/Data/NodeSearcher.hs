@@ -9,6 +9,7 @@ module LunaStudio.Data.NodeSearcher
     , Query
     , Score
     , name
+    , doc
     , entryType
     , weight
     , score
@@ -24,7 +25,7 @@ import qualified Data.Map         as Map
 import           Data.Set         (Set)
 import qualified Data.Set         as Set
 import           Data.Text        (Text)
-import           FuzzyText        (ClassName, EntryType (..), Match (..), Query, Range, RawEntry (..), Score, className, entryType,
+import           FuzzyText        (ClassName, EntryType (..), Match (..), Query, Range, RawEntry (..), Score, className, doc, entryType,
                                    exactMatch, fuzzySearch, match, name, score, weight)
 import           Prologue         hiding (Item)
 

@@ -75,7 +75,7 @@ module Empire.Commands.Graph
     , setInterpreterState
     ) where
 
-import           Control.Arrow                    ((&&&))
+import           Control.Arrow                    ((&&&), (***))
 import           Control.Concurrent               (putMVar, readMVar, takeMVar)
 import qualified Control.Concurrent.MVar.Lifted   as Lifted
 import           Control.Monad                    (forM)
@@ -1520,13 +1520,15 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
 classToHints :: IR.Class -> ClassHints
 classToHints (IR.Class constructors methods) = ClassHints cons' meth'
     where
-        cons' = ((, def) . convert) <$> Map.keys constructors
-        meth' = ((, def) . convert) <$> Map.keys methods
+        getDoc = maybe def convert . view IR.documentation
+        cons'  = ((, def) . convert) <$> Map.keys constructors
+        meth'  = (convert *** getDoc) <$> Map.toList methods
 
 importsToHints :: Module.Imports -> ModuleHints
 importsToHints (Module.Imports classes functions) = ModuleHints funHints classHints
     where
-        funHints   = ((,def) . convert) <$> Map.keys functions
+        getDoc     = maybe def convert . view IR.documentation
+        funHints   = (convert *** getDoc) <$> Map.toList functions
         classes'   = Map.mapKeys convert classes
         classHints = classToHints . view IR.documentedItem <$> classes'
 
