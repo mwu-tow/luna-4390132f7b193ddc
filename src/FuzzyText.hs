@@ -12,6 +12,7 @@ module FuzzyText
     , Bonus
     , Query
     , name
+    , doc
     , entry
     , exactMatch
     , score
