@@ -9,7 +9,7 @@ import           Test.Hspec
 
 makeEntries :: [Text] -> [RawEntry]
 makeEntries = map makeEntry where
-    makeEntry func = RawEntry func Function 1
+    makeEntry func = RawEntry func def Function 1
 
 topResultNameShouldBe :: [Match] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
@@ -76,13 +76,13 @@ spec = do
             let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
             topResultShouldHaveBestScore res
         it "methods matching class are first for empty query" $ do
-            let bestEntry = RawEntry "%" (Method "Int") 0.7
-                entries = [ RawEntry "+" (Method "Int") 0.7
-                          , RawEntry "+" (Method "Text") 0.5
-                          , RawEntry "%" (Method "Text") 0.5
-                          , RawEntry "+" Function 0.3
-                          , RawEntry "%" Function 0.3
-                          , RawEntry "+" Function 0.2
+            let bestEntry = RawEntry "%" def (Method "Int") 0.7
+                entries = [ RawEntry "+" def (Method "Int") 0.7
+                          , RawEntry "+" def (Method "Text") 0.5
+                          , RawEntry "%" def (Method "Text") 0.5
+                          , RawEntry "+" def Function 0.3
+                          , RawEntry "%" def Function 0.3
+                          , RawEntry "+" def Function 0.2
                           , bestEntry
                           ]
                 res = fuzzySearch "" entries

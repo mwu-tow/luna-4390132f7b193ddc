@@ -39,6 +39,7 @@ type Query     = Text
 data EntryType = Function | Method ClassName | Constructor ClassName | Command deriving (Show, Eq)
 
 data RawEntry = RawEntry { _rName       :: Text
+                         , _rDoc        :: Text
                          , _rEntryType  :: EntryType
                          , _rWeight     :: Double 
                          } deriving (Show, Eq)
@@ -84,6 +85,7 @@ matchState q mayS e = MatchState q e (fromJust def mayS) def def def def
 
 class Entry a where
     name      :: Getter a Text
+    doc       :: Getter a Text
     weight    :: Getter a Double
     entryType :: Getter a EntryType
     className :: Getter a Text
@@ -96,16 +98,19 @@ class Entry a where
 
 instance Entry RawEntry where
     name      = rName
+    doc       = rDoc
     weight    = rWeight
     entryType = rEntryType
 
 instance Entry Match where
     name      = entry . name
+    doc       = entry . doc
     weight    = entry . weight
     entryType = entry . entryType
 
 instance Entry MatchState where
     name      = msEntry . name
+    doc       = msEntry . doc
     weight    = msEntry . weight
     entryType = msEntry . entryType
 
