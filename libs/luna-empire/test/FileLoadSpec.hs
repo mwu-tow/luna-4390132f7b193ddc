@@ -1819,6 +1819,21 @@ spec = around withChannels $ parallel $ do
                 code <- Graph.copyText loc [Range 50 60]
                 Graph.pasteText loc [Range 50 60] [code]
                 Graph.substituteCode "/TestPath" [(55, 59, "")]
+        it "sends update with proper code points after paste" $ \env -> do
+            let initialCode = "def main:\n\n    print 3.14"
+                expectedCode = "def main:\n3.14\n    print 3.14"
+            (start, end, code) <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc initialCode
+                code <- Graph.copyText loc [Range 21 25]
+                Graph.pasteText loc [Range 10 10] [code]
+                codeAfter <- Graph.getCode loc
+                return (Code.deltaToPoint 0 codeAfter, Code.deltaToPoint (fromIntegral $ Text.length codeAfter) codeAfter, codeAfter)
+            liftIO $ do
+                start `shouldBe` Point 0 0
+                end `shouldBe` Point 13 2
+                code `shouldBe` expectedCode
         it "pastes code with meta" $ let
             initialCode = [r|
                 def main:
