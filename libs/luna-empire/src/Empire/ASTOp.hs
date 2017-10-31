@@ -58,7 +58,7 @@ import qualified OCI.Pass.Manager     as Pass (PassManager, Cache, setAttr, Stat
 
 import           System.Log                                   (Logger, DropLogger, dropLogs)
 import           Luna.Pass.Data.ExprRoots                     (ExprRoots(..))
-import qualified Luna.Pass.Transform.Desugaring.PatternTransformation as PatternTransformation
+import qualified Empire.Pass.PatternTransformation            as PatternTransformation
 import           Luna.Pass.Resolution.Data.UnresolvedVars     (UnresolvedVars(..))
 import           Luna.Pass.Resolution.Data.UnresolvedConses   (UnresolvedConses(..), NegativeConses(..))
 import qualified Luna.Pass.Resolution.AliasAnalysis           as AliasAnalysis

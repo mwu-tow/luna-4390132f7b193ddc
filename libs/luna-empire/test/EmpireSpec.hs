@@ -22,8 +22,8 @@ import           Empire.Commands.Library         (createLibrary, withLibrary)
 import qualified Empire.Commands.Typecheck       as Typecheck (run)
 import           Empire.Data.BreadcrumbHierarchy (BreadcrumbDoesNotExistException)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               (breadcrumbHierarchy)
 import           Empire.Data.Graph               (ast, breadcrumbHierarchy)
+import qualified Empire.Data.Graph               as Graph (code)
 import qualified Empire.Data.Library             as Library (body)
 import qualified Empire.Data.Library             as Library (body)
 import           Empire.Empire                   (InterpreterEnv (..))
@@ -1029,6 +1029,37 @@ spec = around withChannels $ parallel $ do
             withResult res $ \idSeq -> do
                 idSeq    `shouldBe` []
     describe "pattern match" $ do
+        it "adds a node pattern-matching on a value" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ Graph.addNode top u1 "Just a = Just 1" def
+            res ^. Node.code `shouldBe` "Just 1"
+            res ^. Node.name `shouldBe` Just "Just a"
+        it "adds a node pattern-matching on a value 2" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ Graph.addNode top u1 "(Just (Just (Foo a b c)), Nothing, (Bar x y)) = foo" def
+            res ^. Node.code `shouldBe` "foo"
+            res ^. Node.name `shouldBe` Just "(Just (Just (Foo a b c)), Nothing, (Bar x y))"
+        it "renames a node to pattern-matching on a value" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "a = Just 1" def
+                Graph.renameNode top u1 "Just a"
+                [n] <- Graph.getNodes top
+                return n
+            res ^. Node.code `shouldBe` "Just 1"
+            res ^. Node.name `shouldBe` Just "Just a"
+        it "adds a marker in a proper place in lambda pattern-matching on an argument" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = (Just x): y: z: x + y" def
+                Graph.withGraph top $ use Graph.code
+            res `shouldBe` "def main:\n    «0»foo = (Just x): y: z: «1»x + y\n    None"
+        it "adds a marker in a proper place in lambda pattern-matching on an argument 2" $ \env -> do
+            u1 <- mkUUID
+            res <- evalEmp env $ do
+                Graph.addNode top u1 "foo = (Just (Just (Foo x b c))): y: z: x + y" def
+                Graph.withGraph top $ use Graph.code
+            res `shouldBe` "def main:\n    «0»foo = (Just (Just (Foo x b c))): y: z: «1»x + y\n    None"
         it "connects two outputs when one of them is pattern match" $ \env -> do
             u1 <- mkUUID
             u2 <- mkUUID
