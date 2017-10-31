@@ -20,9 +20,10 @@ import qualified NodeEditor.React.Event.Node                          as Node
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
 import qualified NodeEditor.React.Model.Field                         as Field
-import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, countVisibleArgPorts,
-                                                                      countVisibleInPorts, countVisibleOutPorts, isAnyPortHighlighted, 
-                                                                      isCollapsed, returnsError, visibleArgPortNumber, visibleInPortNumber, visibleOutPortNumber)
+import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
+                                                                       countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,
+                                                                       isAnyPortHighlighted, isCollapsed, returnsError,
+                                                                       visibleArgPortNumber, visibleInPortNumber, visibleOutPortNumber)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
 import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
@@ -249,7 +250,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
                  $ uncurry (portExpanded_ ref nodeLoc)
                 forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)
 
-            argumentConstructor_ ref nodeLoc (countVisibleInPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
+            argumentConstructor_ ref (argumentConstructorRef n) (countVisibleInPorts n) (n ^. Node.argConstructorMode == Port.Highlighted) hasAlias hasSelf
 
 nodeContainer_ :: IsRef ref => ref -> Bool -> Maybe Searcher -> Set NodeLoc -> [Subgraph] -> ReactElementM ViewEventHandler ()
 nodeContainer_ ref performConnect maySearcher nodesWithVis subgraphs =

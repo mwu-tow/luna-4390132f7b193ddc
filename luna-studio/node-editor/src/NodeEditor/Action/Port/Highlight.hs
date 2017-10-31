@@ -24,12 +24,8 @@ handleMouseEnter portRef = do
         pid = portRef ^. portId
         updateMode m = case m of
             Normal         -> Highlighted
-            Invisible      -> Invisible
-            Inactive       -> Inactive
             TypeNotMatched -> Highlighted
-            Highlighted    -> Highlighted
-            Moved pos      -> Moved pos
-            NameEdit       -> NameEdit
+            _              -> m
         notBlocked = Set.null (Set.intersection actions actionsBlockingPortHighlight)
     when notBlocked $ do
         modifyExpressionNode nl $ portModeAt pid %= updateMode

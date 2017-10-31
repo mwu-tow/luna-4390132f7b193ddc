@@ -10,12 +10,11 @@ import qualified NodeEditor.Event.Mouse           as Mouse
 import qualified NodeEditor.Event.UI              as UI
 import qualified NodeEditor.React.Event.Port      as Port
 import           NodeEditor.React.IsRef           (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight, nodeRadius, nodeRadius', 
-                                                   portAliasRadius, portRadius)
+import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight, nodeRadius, nodeRadius', portAliasRadius, portRadius)
 import           NodeEditor.React.Model.Node      (NodeLoc)
-import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self),
-                                                   IsOnly, Mode (..), argumentConstructorOffsetY, getPortNumber, 
-                                                   isInPort, isInvisible, isSelf, portAngleStart, portAngleStop)
+import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsOnly, Mode (..),
+                                                   argumentConstructorOffsetY, getPortNumber, isInPort, isInvisible, isSelf, portAngleStart,
+                                                   portAngleStop)
 import qualified NodeEditor.React.Model.Port      as Port
 import qualified NodeEditor.React.View.Style      as Style
 import           Numeric                          (showFFloat)
@@ -286,10 +285,9 @@ portIOExpanded_ ref nl p num = do
               ]
             ) mempty
 
-argumentConstructor_ :: IsRef r => r -> NodeLoc -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
-argumentConstructor_ ref nl numOfPorts isConnectionSource hasAlias hasSelf = do
-    let portRef   = toAnyPortRef nl $ InPortId' [Arg numOfPorts]
-        offsetY   = argumentConstructorOffsetY numOfPorts
+argumentConstructor_ :: IsRef r => r -> AnyPortRef -> Int -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
+argumentConstructor_ ref portRef numOfPorts isConnectionSource hasAlias hasSelf = do
+    let offsetY   = argumentConstructorOffsetY numOfPorts
         highlight = if isConnectionSource then ["port--highlighted"] else []
     g_
         [ "key"       $= "argument-constructor"
