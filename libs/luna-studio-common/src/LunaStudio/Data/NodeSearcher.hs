@@ -28,12 +28,14 @@ import           FuzzyText        (ClassName, EntryType (..), Match (..), Query,
                                    exactMatch, fuzzySearch, match, name, score, weight)
 import           Prologue         hiding (Item)
 
+type Name = Text
+type Doc  = Text
 
-data ClassHints = ClassHints { _constructors :: [Text]
-                             , _methods      :: [Text]
+data ClassHints = ClassHints { _constructors :: [(Name, Doc)]
+                             , _methods      :: [(Name, Doc)]
                              } deriving (Eq, Generic, Show)
 
-data ModuleHints = ModuleHints { _functions    :: [Text]
+data ModuleHints = ModuleHints { _functions    :: [(Name, Doc)]
                                , _classes      :: Map Text ClassHints
                                } deriving (Eq, Generic, Show)
 
@@ -75,7 +77,7 @@ makeLenses ''TypePreferation
 instance Default TypePreferation where def = TypePreferation 1 1 (def, 1) 1 1
 
 searchCommands :: Query -> [Text] -> [Match]
-searchCommands q = fuzzySearch q . map (\c -> RawEntry c Command 1)
+searchCommands q = fuzzySearch q . map (\c -> RawEntry c def Command 1)
 
 search :: Query -> Map ImportName ModuleHints -> Maybe TypePreferation -> [Match]
 search q h tp = fuzzySearch q $ toEntries h (fromJust def tp)
@@ -89,18 +91,18 @@ toEntries ih tPref = concat . Map.elems $ Map.mapWithKey moduleHintsToEntries ih
     classesToEntries impName = concat . Map.elems . Map.mapWithKey (classToEntries impName)
     classToEntries :: ImportName -> ClassName -> ClassHints -> [RawEntry]
     classToEntries impName cName c = methodsToEntries impName cName (c ^. methods) <> constructorsToEntries impName cName (c ^. constructors)
-    methodsToEntries :: ImportName -> ClassName -> [Text] -> [RawEntry]
-    methodsToEntries impName cName = map (methodToEntry impName cName)
-    methodToEntry :: ImportName -> ClassName -> Text -> RawEntry
-    methodToEntry impName cName m = let et = Method cName in RawEntry m et $ getWeight impName cName et
-    constructorsToEntries :: ImportName -> ClassName -> [Text] -> [RawEntry]
-    constructorsToEntries impName cName = map (constructorToEntry impName cName)
-    constructorToEntry :: ImportName -> ClassName -> Text -> RawEntry
-    constructorToEntry impName cName c = let et = Constructor cName in RawEntry c et $ getWeight impName cName et
-    functionsToEntries :: ImportName -> [Text] -> [RawEntry]
-    functionsToEntries impName = map (functionToEntry impName)
-    functionToEntry :: ImportName -> Text -> RawEntry
-    functionToEntry impName f = RawEntry f Function $ getWeight impName def Function
+    methodsToEntries :: ImportName -> ClassName -> [(Name, Doc)] -> [RawEntry]
+    methodsToEntries impName cName = map (uncurry $ methodToEntry impName cName)
+    methodToEntry :: ImportName -> ClassName -> Name -> Doc -> RawEntry
+    methodToEntry impName cName m d = let et = Method cName in RawEntry m d et $ getWeight impName cName et
+    constructorsToEntries :: ImportName -> ClassName -> [(Name, Doc)] -> [RawEntry]
+    constructorsToEntries impName cName = map (uncurry $ constructorToEntry impName cName)
+    constructorToEntry :: ImportName -> ClassName -> Name -> Doc -> RawEntry
+    constructorToEntry impName cName c d = let et = Constructor cName in RawEntry c d et $ getWeight impName cName et
+    functionsToEntries :: ImportName -> [(Name, Doc)] -> [RawEntry]
+    functionsToEntries impName = map (uncurry $ functionToEntry impName)
+    functionToEntry :: ImportName -> Name -> Doc -> RawEntry
+    functionToEntry impName f d = RawEntry f d Function $ getWeight impName def Function
     getWeight :: ImportName -> ClassName -> EntryType -> Double
     getWeight moduleName cName et = case et of
         Function      -> if moduleName == "Local" then tPref ^. localFunctionsWeight else tPref ^. globalFunctionsWeight

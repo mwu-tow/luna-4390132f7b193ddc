@@ -1520,13 +1520,13 @@ getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Bread
 classToHints :: IR.Class -> ClassHints
 classToHints (IR.Class constructors methods) = ClassHints cons' meth'
     where
-        cons' = convert <$> Map.keys constructors
-        meth' = convert <$> Map.keys methods
+        cons' = ((, def) . convert) <$> Map.keys constructors
+        meth' = ((, def) . convert) <$> Map.keys methods
 
 importsToHints :: Module.Imports -> ModuleHints
 importsToHints (Module.Imports classes functions) = ModuleHints funHints classHints
     where
-        funHints   = map convert $ Map.keys functions
+        funHints   = ((,def) . convert) <$> Map.keys functions
         classes'   = Map.mapKeys convert classes
         classHints = classToHints . view IR.documentedItem <$> classes'
 

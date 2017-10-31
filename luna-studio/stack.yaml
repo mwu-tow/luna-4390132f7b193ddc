@@ -44,7 +44,7 @@ packages:
 - extra-dep: true
   location: {commit: 1c6a4fd165e4b15cad114b0a554e0974fd119223, git: 'git@github.com:luna/functor-utils.git'}
 - extra-dep: true
-  location: {commit: aa07ae336a586f315a4da62dfa160c323c789f65, git: 'git@github.com:luna/fuzzy-text.git'}
+  location: {commit: 720efd567d4d70fc920315163c723bf0abc5fe75, git: 'git@github.com:luna/fuzzy-text.git'}
 - extra-dep: true
   location: {commit: 7917cc1d84e421823b6291bb4c5ec065a29e9c42, git: 'git@github.com:luna/hsprocessing.git'}
 - extra-dep: true

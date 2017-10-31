@@ -62,7 +62,7 @@ localUpdateSearcherHints :: Command State ()
 localUpdateSearcherHints = do
     nsData'        <- getNodeSearcherData
     localFunctions <- getLocalFunctions
-    let nsData = Map.insert "Local" (ModuleHints localFunctions def) nsData'
+    let nsData = Map.insert "Local" (ModuleHints ((,def) <$> localFunctions) def) nsData'
     modifySearcher $ do
         mayQuery <- preuse $ Searcher.input . Searcher._Divided
         m        <- use Searcher.mode
@@ -78,7 +78,7 @@ localUpdateSearcherHints = do
                                 let query'     = q ^. Searcher.query
                                     weights    = Just $ getWeights (isFirstQuery q) (searchForMethodsOnly q) nmi query'
                                     searchRes' = NS.search query' nsData weights
-                                    searchRes  = if query' == "_" then (Match (RawEntry query' Function 1000000) True 1000000 [(0, 1)]) : searchRes' else searchRes'
+                                    searchRes  = if query' == "_" then (Match (RawEntry query' def Function 1000000) True 1000000 [(0, 1)]) : searchRes' else searchRes'
                                 if Text.strip (q ^. Searcher.prefix) == "def"
                                     then def
                                     else takeWhile (view NS.exactMatch) searchRes
