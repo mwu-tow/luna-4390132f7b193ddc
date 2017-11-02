@@ -85,11 +85,14 @@ module.exports =
                         @diffToOmit.delete(change.newText)
                     else
                         @setModified(true)
+                        start = change.oldRange.start
+                        end   = change.oldRange.end
+                        cursor = @.getCursorBufferPosition()
                         diff =
-                            start: change.oldRange.start
-                            end:   change.oldRange.end
-                            text:  change.newText
-                            cursor: @.getCursorBufferPosition()
+                            _range:   [{_column: start.column, _row: start.row },
+                                       {_column: end.column  , _row: end.row}]
+                            _newText: change.newText
+                            _cursor:  {_column: cursor.column, _row: cursor.row}
                           #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
                         diffs.push diff
                 if diffs.length > 0
@@ -157,11 +160,14 @@ module.exports =
             projects.temporaryProject.save (newPath) =>
                 @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newPath)
 
-        insertCode: (uri, start, end, text, cursor) =>
+        insertCode: (uri, range, text, cursor) =>
             if @uri == uri
                 @omitDiff(text)
                 selections = @getSelectedBufferRanges()
-                @setTextInBufferRange([start, end], text)
+                if range?
+                    @setTextInBufferRange([start, end], text)
+                else
+                    @setText(text)
                 @setSelectedBufferRanges(selections)
 
         setClipboard: (uri, text) =>
