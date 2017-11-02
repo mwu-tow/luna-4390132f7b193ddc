@@ -119,12 +119,12 @@ module.exports =
                 'core:paste': (e) => @handlePaste(e)
                 'core:save':  (e) => @handleSave(e)
 
-        spans: =>
+        spans: (markWholeLines) =>
             buffer = @getBuffer()
             for s in @getSelections()
                 head = s.marker.oldHeadBufferPosition
                 tail = s.marker.oldTailBufferPosition
-                if head.isEqual tail
+                if markWholeLines and head.isEqual tail
                     head.column = 0
                     tail.column = 0
                     tail.row += 1
@@ -134,10 +134,10 @@ module.exports =
         handleCopy: (e) =>
             e.preventDefault()
             e.stopImmediatePropagation()
-            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans(true))
 
         handleCut: (e) =>
-            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans())
+            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans(true))
 
         handlePaste: (e) =>
             cbd = atom.clipboard.readWithMetadata()
