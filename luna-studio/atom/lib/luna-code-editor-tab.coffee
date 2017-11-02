@@ -160,7 +160,9 @@ module.exports =
         insertCode: (uri, start, end, text, cursor) =>
             if @uri == uri
                 @omitDiff(text)
-                @getBuffer().setText(text)
+                selections = @getSelectedBufferRanges()
+                @setTextInBufferRange([start, end], text)
+                @setSelectedBufferRanges(selections)
 
         setClipboard: (uri, text) =>
             if @uri == uri
@@ -176,7 +178,9 @@ module.exports =
                         break
                 unless @getBuffer().getText() is text
                     @omitDiff(text)
+                    selections = @getSelectedBufferRanges()
                     @getBuffer().setText(text)
+                    @setSelectedBufferRanges(selections)
                     console.log "setBuffer"
 
         setModified: (modified) =>
