@@ -684,13 +684,16 @@ updateExprMap new old = do
     setExprMap updated
 
 resendCode :: GraphLocation -> Empire ()
-resendCode loc@(GraphLocation file _) = do
+resendCode loc = resendCodeWithCursor loc Nothing
+
+resendCodeWithCursor :: GraphLocation -> Maybe Point -> Empire ()
+resendCodeWithCursor loc@(GraphLocation file _) cursor = do
     code <- getCode loc
     Publisher.notifyCodeUpdate file
                                (Code.deltaToPoint 0 code)
                                (Code.deltaToPoint (fromIntegral $ Text.length code) code)
                                code
-                               Nothing
+                               cursor
 
 setNodeMetaGraph :: GraphOp m => NodeId -> NodeMeta -> m ()
 setNodeMetaGraph nodeId newMeta = do
@@ -1473,17 +1476,20 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
         textTree     = SpanTree.buildSpanTree (convert text) code
         withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
         metaLine     = Text.drop (Text.length $ convert withoutMeta) text
-    (code, updatedMeta) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+    (code, updatedMeta, cursors) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         code <- use Graph.code
         let markedRanges   = map ({-includeWhitespace code .-} rangeToMarked code) ranges
             rangesReversed = reverse $ sortOn (view _1) markedRanges
         FileMetadata m <- parseMetadata metaLine
-        updatedMetas   <- runASTOp $ forM rangesReversed $ \(start, end) -> do
+        (updatedMetas, cursors) <- unzip <$> (runASTOp $ forM rangesReversed $ \(start, end) -> do
             (snippet, metas) <- remarkerSnippet m $ convert withoutMeta
             Code.applyDiff start end snippet
-            return metas
+            code <- use Graph.code
+            let endPosition = start + fromIntegral (Text.length snippet)
+                cursorPos   = Code.deltaToPoint endPosition code
+            return (metas, cursorPos))
         code           <- use Graph.code
-        return (code, concat updatedMetas)
+        return (code, concat updatedMetas, cursors)
     reloadCode (GraphLocation file (Breadcrumb [])) code `catch` \(e::ASTParse.SomeParserException) ->
         withUnit (GraphLocation file (Breadcrumb [])) (Graph.code .= code)
     funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
@@ -1493,7 +1499,7 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
         forM updatedMeta $ \(MarkerNodeMeta marker meta) -> do
             nodeid <- getNodeIdForMarker $ fromIntegral marker
             forM nodeid $ \nid -> setNodeMetaGraph nid meta
-    resendCode (GraphLocation file (Breadcrumb []))
+    resendCodeWithCursor (GraphLocation file (Breadcrumb [])) (Safe.lastMay cursors)
     return code
 
 nativeModuleName :: Text
