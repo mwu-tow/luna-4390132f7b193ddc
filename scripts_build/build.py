@@ -43,6 +43,7 @@ def build_frontend (frontend_args, dev_mode=False):
     try:
         stack_build.create_bin_dirs()
         stack_build.build_ghcjs(frontend_args)
+        atom_prepare.run()
         atom_apm.run(dev_mode)
         copy_configs.run()
 
