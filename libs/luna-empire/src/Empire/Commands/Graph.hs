@@ -690,8 +690,6 @@ resendCodeWithCursor :: GraphLocation -> Maybe Point -> Empire ()
 resendCodeWithCursor loc@(GraphLocation file _) cursor = do
     code <- getCode loc
     Publisher.notifyCodeUpdate file
-                               (Code.deltaToPoint 0 code)
-                               (Code.deltaToPoint (fromIntegral $ Text.length code) code)
                                code
                                cursor
 
@@ -928,8 +926,10 @@ substituteCodeFromPoints path diffs = do
     changes <- withUnit loc $ do
         oldCode   <- use Graph.code
         let noMarkers  = Code.removeMarkers oldCode
-            deltas     = map (\(Diff start end code cursor) ->
-                (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers, code)) diffs
+            deltas     = map (\(Diff range code cursor) -> case range of
+                Just (start, end) -> (Code.pointToDelta start noMarkers, Code.pointToDelta end noMarkers, code)
+                _                 -> (0, fromIntegral (Text.length noMarkers), code))
+                        diffs
             realDeltas = map (\(a,b,c) -> let (a', b') = Code.viewDeltasToReal oldCode (a,b) in (a', b', c)) deltas
         return realDeltas
     substituteCode path changes
