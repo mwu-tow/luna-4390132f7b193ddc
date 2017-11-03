@@ -165,7 +165,11 @@ class LunaWelcomeTab extends View
             @privateContainer.append(privateItem.element)
 
         @tutorialsContainer.empty()
-        for tutorialItem in @tutorialItems
+        if @tutorialItems.length == 0
+            @tutorialsContainer[0].innerText = @noTutorialsMsg
+        else for tutorialItem in @tutorialItems
+            if @tutorialsContainer[0].innerText is @noTutorialsMsg
+                @tutorialsContainer[0].innerText = ''
             @tutorialsContainer.append(tutorialItem.element)
 
         @communityContainer.empty()
