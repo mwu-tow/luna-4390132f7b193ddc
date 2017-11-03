@@ -15,66 +15,69 @@ class LunaWelcomeTab extends View
     constructor: (@codeEditor) ->
         super
 
-    @content: ->
-    	@div class: 'luna-welcome-background', =>
-	        @div class: 'luna-welcome-scroll', =>
+    @content: -> @div =>
+        @div
+            class: 'luna-welcome-background'
+            outlet: 'background'
+            =>
+                @div class: 'luna-welcome-scroll', outlet: 'fooo', =>
 
-	            @div class: 'luna-welcome', =>
+                    @div class: 'luna-welcome', =>
 
-	                @div class: 'luna-welcome__header', =>
+                        @div class: 'luna-welcome__header', =>
 
-	                    @h1 class: 'luna-welcome__title', 'Welcome to Luna Studio'
+                            @h1 class: 'luna-welcome__title', 'Welcome to Luna Studio'
 
-	                    @div class: 'luna-welcome__header__menu', =>
+                            @div class: 'luna-welcome__header__menu', =>
 
-	                        @input
-	                            class: 'luna-input luna-input--search luna-welcome-search native-key-bindings'
-	                            type: 'search'
-	                            placeholder: 'Search'
-	                            outlet: 'searchInput'
+                                @input
+                                    class: 'luna-input luna-input--search luna-welcome-search native-key-bindings'
+                                    type: 'search'
+                                    placeholder: 'Search'
+                                    outlet: 'searchInput'
 
-	                        @div class: 'luna-welcome__header__menu__links', =>
-	                            @a
-	                                class: 'luna-welcome-link luna-welcome-link--forum'
-	                                href: 'http://luna-lang.org'
-	                                title: 'Forum'
-	                                'Forum'
-	                            @a
-	                                class: 'luna-welcome-link luna-welcome-link--chat'
-	                                href: 'http://luna-lang.org'
-	                                title: 'Chat'
-	                                'Chat'
+                                @div class: 'luna-welcome__header__menu__links', =>
+                                    @a
+                                        class: 'luna-welcome-link luna-welcome-link--forum'
+                                        href: 'http://luna-lang.org'
+                                        title: 'Forum'
+                                        'Forum'
+                                    @a
+                                        class: 'luna-welcome-link luna-welcome-link--chat'
+                                        href: 'http://luna-lang.org'
+                                        title: 'Chat'
+                                        'Chat'
 
-	                @div class: 'luna-welcome__body', =>
+                        @div class: 'luna-welcome__body', =>
 
-	                    @div class: 'luna-welcome__block luna-welcome__block--projects', =>
-	                        @div
-	                            class: 'luna-welcome__section luna-welcome__section--search-results'
-	                            outlet: 'searchResultsSection'
-	                            =>
-	                                @h2 class: 'luna-welcome__section__title icon icon-search', 'Search results'
-	                                @div class: 'luna-welcome__section__container', outlet: 'searchResultsContainer', =>
+                            @div class: 'luna-welcome__block luna-welcome__block--projects', =>
+                                @div
+                                    class: 'luna-welcome__section luna-welcome__section--search-results'
+                                    outlet: 'searchResultsSection'
+                                    =>
+                                        @h2 class: 'luna-welcome__section__title icon icon-search', 'Search results'
+                                        @div class: 'luna-welcome__section__container', outlet: 'searchResultsContainer', =>
 
-	                        @div
-	                            class: 'luna-welcome__section luna-welcome__section--tutorials'
-	                            outlet: 'tutorialsSection'
-	                            =>
-	                                @h2 class: 'luna-welcome__section__title icon icon-book', 'Tutorials'
-	                                @div class: 'luna-welcome__section__container', outlet: 'tutorialsContainer', =>
+                                @div
+                                    class: 'luna-welcome__section luna-welcome__section--tutorials'
+                                    outlet: 'tutorialsSection'
+                                    =>
+                                        @h2 class: 'luna-welcome__section__title icon icon-book', 'Tutorials'
+                                        @div class: 'luna-welcome__section__container', outlet: 'tutorialsContainer', =>
 
-	                        @div
-	                            class: 'luna-welcome__section luna-welcome__section--private',
-	                            outlet: 'privateSection'
-	                            =>
-	                                @h2 class: 'luna-welcome__section__title icon icon-person', 'Private'
-	                                @div class: 'luna-welcome__section__container', outlet: 'privateContainer', =>
+                                @div
+                                    class: 'luna-welcome__section luna-welcome__section--private',
+                                    outlet: 'privateSection'
+                                    =>
+                                        @h2 class: 'luna-welcome__section__title icon icon-person', 'Private'
+                                        @div class: 'luna-welcome__section__container', outlet: 'privateContainer', =>
 
-	                        @div
-	                            class: 'luna-welcome__section luna-welcome__section--community'
-	                            outlet: 'communitySection'
-	                            =>
-	                                @h2 class: 'luna-welcome__section__title icon icon-organization',  'Community'
-	                                @div  class: 'luna-welcome__section__container', outlet: 'communityContainer', =>
+                                @div
+                                    class: 'luna-welcome__section luna-welcome__section--community'
+                                    outlet: 'communitySection'
+                                    =>
+                                        @h2 class: 'luna-welcome__section__title icon icon-organization',  'Community'
+                                        @div  class: 'luna-welcome__section__container', outlet: 'communityContainer', =>
 
     initialize: =>
         @tutorialItems = []
@@ -93,6 +96,7 @@ class LunaWelcomeTab extends View
                     Ok: -> )
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
+        @background.on 'click', @detach
 
         @hideSearchResults()
         projects.recent.load (recentProjectPath) =>
