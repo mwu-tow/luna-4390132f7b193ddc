@@ -5,6 +5,7 @@ yaml     = require 'js-yaml'
 
 stats = require './stats'
 analytics = require './gen/analytics'
+VisualGuide        = require './guide'
 LunaCodeEditorTab  = require './luna-code-editor-tab'
 LunaNodeEditorTab  = require './luna-node-editor-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
@@ -32,6 +33,7 @@ module.exports = LunaStudio =
         codeEditor.connect(nodeEditor.connector)
         @welcome = new LunaWelcomeTab(codeEditor)
         @toolbar = new LunaToolbar(codeEditor)
+        @guide   = new VisualGuide()
         @moving = false
 
         actStatus = (act, arg1, arg2) =>
@@ -75,12 +77,15 @@ module.exports = LunaStudio =
                 @openProjectInBackground = true
                 projects.temporaryProject.open (err) =>
                     if err then throw err
+            if atom.config.get('luna-studio.showWelcomeGuide')
+                @guide.attach()
         atom.commands.add 'atom-workspace',
             'application:add-project-folder': projects.selectLunaProject
             'application:open':               projects.selectLunaProject
             'application:open-folder':        projects.selectLunaProject
         atom.commands.add 'body',
             'luna-studio:welcome': => @welcome.attach()
+            'luna-studio:guide':   => @guide.attach()
             'core:cancel': => @welcome.detach()
         codeEditor.start()
 
@@ -173,6 +178,11 @@ module.exports = LunaStudio =
         showWelcomeScreen:
             title: 'Welcome screen'
             description: 'Show welcome screen on start up'
+            type: 'boolean'
+            default: true
+        showWelcomeGuide:
+            title: 'Welcome guide'
+            description: 'Show welcome guide on start up'
             type: 'boolean'
             default: true
         preferredNodeEditorPosition:
