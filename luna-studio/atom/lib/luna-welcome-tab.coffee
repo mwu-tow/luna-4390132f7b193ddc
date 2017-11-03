@@ -104,17 +104,21 @@ class LunaWelcomeTab extends View
             @privateItems.push(item)
             @privateContainer.append(item.element)
 
-        noTutorialsMsg = 'Internet connection required.'
-        @tutorialsContainer[0].innerText = noTutorialsMsg
+        @noTutorialsMsg ?= 'Fetching tutorials list...'
+        @tutorialsContainer[0].innerText = @noTutorialsMsg
         projects.tutorial.list (tutorial) =>
-            if @tutorialsContainer[0].innerText is noTutorialsMsg
-                @tutorialsContainer[0].innerText = ''
-            item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
-                projects.tutorial.open(tutorial, progress, =>
-                    finalize()
-                    @detach()))
-            @tutorialItems.push(item)
-            @tutorialsContainer.append(item.element)
+            if tutorial.error?
+                @noTutorialsMsg = tutorial.error
+                @tutorialsContainer[0].innerText = @noTutorialsMsg
+            else
+                if @tutorialsContainer[0].innerText is @noTutorialsMsg
+                    @tutorialsContainer[0].innerText = ''
+                item = new ProjectItem(tutorial, tutorialClasses, (progress, finalize) =>
+                    projects.tutorial.open(tutorial, progress, =>
+                        finalize()
+                        @detach()))
+                @tutorialItems.push(item)
+                @tutorialsContainer.append(item.element)
 
     getFilterKey: ->
         return 'name'
@@ -160,7 +164,11 @@ class LunaWelcomeTab extends View
             @privateContainer.append(privateItem.element)
 
         @tutorialsContainer.empty()
-        for tutorialItem in @tutorialItems
+        if @tutorialItems.length == 0
+            @tutorialsContainer[0].innerText = @noTutorialsMsg
+        else for tutorialItem in @tutorialItems
+            if @tutorialsContainer[0].innerText is @noTutorialsMsg
+                @tutorialsContainer[0].innerText = ''
             @tutorialsContainer.append(tutorialItem.element)
 
         @communityContainer.empty()

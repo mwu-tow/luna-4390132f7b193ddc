@@ -144,6 +144,9 @@ module.exports =
                                         description: repo.description
                                         uri: repo.html_url
                                         thumb: 'data:image/png;base64,' + parsed.content
+                    else
+                        callback
+                            error: 'Cannot download tutorial list.'
             catch error
                 atom.confirm
                     message: "Error while getting tutorials"
