@@ -79,6 +79,9 @@ searcher =  React.defineView name $ \(ref, s) -> do
 searcher_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
 searcher_ ref model = React.viewWithSKey searcher name (ref, model) mempty
 
+searcherDoc_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
+searcherDoc_ ref model = React.viewWithSKey searcherDoc name (ref, model) mempty
+
 results_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
 results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx, result) -> do
     let resultClasses i = Style.prefixFromList $ "searcher__results__item" : (if selected > 0 && i == 0 then [ "searcher__results__item--selected" ] else [])
@@ -114,3 +117,9 @@ highlighted_ result = prefixElem >> highlighted_' 0 highlights where
                   , "className" $= Style.prefix "searcher__hl" ]
                 $ elemString highlighted
             highlighted_' (start + len) rest
+
+searcherDoc :: IsRef ref => ReactView (ref, Searcher)
+searcherDoc =  React.defineView name $ \(ref, s) -> do
+	let className = Style.prefix "searcher__doc"
+	div_ [ "className" $= className ] $ elemString "Hello"
+

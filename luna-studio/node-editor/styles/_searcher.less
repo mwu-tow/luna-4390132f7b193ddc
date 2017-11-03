@@ -1,15 +1,19 @@
 @import '_variables';
+@import '_mixins';
+
+@a:      1;
+@border: 2px;
 
 /////////////////////////////
 //         searcher        //
 /////////////////////////////
 
-@searcherWidth:      460px;
+@searcherWidth:      400px;
 @searcherLineHeight: 24px;
 
 .luna-node__name,
 .luna-node__expression {
-    min-height: calc(@ui ~'*' 16px);
+    min-height: calc(@ui ~'*' @luna-line-height);
 }
 
 .luna-searcher {
@@ -38,16 +42,10 @@
         display: none;
     }
     .luna-searcher__input {
-        background: @luna-syntax-background-color;
+        .background(@a); //@luna-syntax-background-color;
         border:     calc(@ui ~'*' 2px) solid @luna-graph-background-color;
         top:        calc(@ui ~'*' -7px);
         position:   relative;
-
-        // .graphBackground;
-        // height:        14px;
-        // line-height:   14px;
-        // padding:       0 4px 2px;
-        // margin-bottom: 16px;
     }
 }
 
@@ -76,16 +74,17 @@
 
 .luna-node__expression {
     .luna-searcher__input {
+    	@padding: 6px;
         .outlineStroke;
-        background: @luna-syntax-background-color;
-        padding:    0 6px;
+        .background(@a);
+        padding:    0 @padding;
         transform:  translate(-50%,calc(@ui ~'*' -4px));
-        width:      calc(@ui ~'*' 448px);
+        width:      calc(@ui ~'*' @searcherWidth - 2*@padding);
     }
 }
 
 .luna-searcher__results {
-    bottom:         calc(@ui ~'*' 30px);
+    bottom:         calc(@ui ~'*' 28px);
     display:        flex;
     flex-direction: column-reverse;
     position:       absolute;
@@ -95,17 +94,18 @@
     border-radius:  @borderRadius;
     overflow:       hidden;
     padding:        0;
-    background:     @colorSearcherResultsBackground;
+    .background(@a);
     max-height:     calc(@ui ~'*' (@searcherLineHeight*10));
-    transform:      translateY(calc(@ui ~'*' -2px));
+    border:         calc(@ui ~'*' @border) solid @luna-graph-background-color;
+    transform:      translateX(-@border);
 }
 
 .luna-searcher__results__item {
     line-height: calc(@ui ~'*' @searcherLineHeight);
 }
 .luna-searcher__results__item--selected {
-    background: @colorSearcherResultsSelected;
-    color: #9ab;
+    .background(@a+1);
+    @color(@a+5);
     .luna-searcher__hl {
         color: #fff;
         opacity: 1;
@@ -125,7 +125,7 @@
 .luna-searcher__results__item:nth-of-type(7)::before { content: "⌘7" }
 .luna-searcher__results__item:nth-of-type(8)::before { content: "⌘8" }
 .luna-searcher__results__item:nth-of-type(9)::before { content: "⌘9" }
-.luna-searcher__results__item:nth-of-type(10)::before { content: "⌘0" }
+.luna-searcher__results__item:nth-of-type(10)::before{ content: "⌘0" }
 
 .luna-searcher__pre,
 .luna-searcher__pre + span {
