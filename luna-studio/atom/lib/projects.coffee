@@ -79,9 +79,18 @@ openMainIfExists = ->
 
 isTemporary = (projectPath) -> projectPath.startsWith temporaryPath
 
+pickFolder = ->
+    atom.pickFolder (paths) =>
+        closeAllFiles()
+        atom.project.setPaths paths
+        openMainIfExists()
+
+
 module.exports =
     closeAllFiles: closeAllFiles
     openMainIfExists: openMainIfExists
+    pickFolder: pickFolder
+
     temporaryProject:
         path: temporaryProject.path
         open: (callback) =>

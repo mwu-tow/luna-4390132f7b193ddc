@@ -70,6 +70,11 @@ module.exports = LunaStudio =
             if atom.config.get('luna-studio.resetProjects') and atom.project.getPaths().length == 0
                 projects.temporaryProject.open (err) =>
                     if err then throw err
+        atom.commands.add 'atom-workspace',
+            'application:open-folder': (e) =>
+                e.stopImmediatePropagation()
+                e.preventDefault()
+                projects.pickFolder()
         atom.commands.add 'body',
             'luna-studio:welcome': => @welcome.attach()
             'core:cancel': => @welcome.detach()

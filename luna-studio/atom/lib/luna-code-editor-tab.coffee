@@ -163,7 +163,7 @@ module.exports =
         insertCode: (uri, diffs) =>
             if @uri == uri
                 selections = []
-                for {_newText: text, _range: range, _cursor: cursor}  in diffs
+                for {_newText: text, _range: range, _cursor: cursor} in diffs
                     @omitDiff(text)
                     if range?
                         @setTextInBufferRange(range, text)
