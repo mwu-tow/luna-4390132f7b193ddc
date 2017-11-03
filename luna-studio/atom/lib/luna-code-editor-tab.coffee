@@ -160,15 +160,19 @@ module.exports =
             projects.temporaryProject.save (newPath) =>
                 @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newPath)
 
-        insertCode: (uri, range, text, cursor) =>
+        insertCode: (uri, diffs) =>
             if @uri == uri
-                @omitDiff(text)
-                selections = @getSelectedBufferRanges()
-                if range?
-                    @setTextInBufferRange([start, end], text)
-                else
-                    @setText(text)
-                @setSelectedBufferRanges(selections)
+                selections = []
+                for {_newText: text, _range: range, _cursor: cursor}  in diffs
+                    @omitDiff(text)
+                    if range?
+                        @setTextInBufferRange(range, text)
+                    else
+                        @setText(text)
+                    if cursor?
+                        selections.push([[cursor._row, cursor._column], [cursor._row, cursor._column]])
+                if selections.length > 0
+                    @setSelectedBufferRanges(selections)
 
         setClipboard: (uri, text) =>
             if @uri == uri

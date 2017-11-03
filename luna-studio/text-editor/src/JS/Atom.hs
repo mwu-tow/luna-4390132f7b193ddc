@@ -27,8 +27,8 @@ import           TextEditor.Event.Text         (TextEvent (TextEvent))
 import qualified TextEditor.Event.Text         as TextEvent
 
 
-foreign import javascript safe "atomCallbackTextEditor.insertCode($1, $2, $3)"
-    insertCode' :: JSString -> JSVal -> JSString -> IO ()
+foreign import javascript safe "atomCallbackTextEditor.insertCode($1, $2)"
+    insertCode' :: JSString -> JSVal -> IO ()
 
 foreign import javascript safe "atomCallbackTextEditor.setBuffer($1, $2)"
     setBuffer :: JSString -> JSString -> IO ()
@@ -54,11 +54,13 @@ foreign import javascript safe "atomCallbackTextEditor.subscribeDiffs($1)"
 foreign import javascript safe "($1).unsubscribeDiffs()"
     unsubscribeDiffs' :: Callback (JSVal -> IO ()) -> IO ()
 
-foreign import javascript safe "globalRegistry.activeLocation" activeLocation' :: IO JSVal
+foreign import javascript safe "globalRegistry.activeLocation"
+    activeLocation' :: IO JSVal
 
 
-instance FromJSVal Diff where fromJSVal = fromJSONVal
 instance ToJSVal Point where toJSVal = toJSONVal
+instance ToJSVal Diff  where toJSVal = toJSONVal
+instance FromJSVal Diff where fromJSVal = fromJSONVal
 
 instance FromJSVal GraphLocation where fromJSVal = fromJSONVal
 instance FromJSVal InternalEvent where fromJSVal = fromJSONVal
@@ -82,10 +84,7 @@ insertCode :: TextEvent -> IO ()
 insertCode textEvent = do
     let uri   = textEvent ^. TextEvent.filePath . to convert
         diffs = textEvent ^. TextEvent.diffs
-    forM_ diffs $ \diff -> do
-        range <- toJSVal $ diff ^. Diff.range
-        let text  = diff ^. Diff.newText . to Text.unpack . to convert
-        insertCode' uri range text
+    insertCode' uri =<< toJSVal diffs
 
 subscribeEventListenerInternal :: (InternalEvent -> IO ()) -> IO (IO ())
 subscribeEventListenerInternal callback = do
