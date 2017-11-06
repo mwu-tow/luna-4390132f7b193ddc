@@ -87,17 +87,21 @@ searcher_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
 searcher_ ref model = React.viewWithSKey searcher name (ref, model) mempty
 
 results_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
-results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx, result) -> do
-    let resultClasses i = Style.prefixFromList $ "searcher__results__item" : (if selected > 0 && i == 0 then [ "searcher__results__item--selected" ] else [])
+results_ ref selected results = 
     div_
-        [ "key"       $= jsShow idx
-        , "className" $= resultClasses idx
-        , onClick     $ \e _ -> stopPropagation e : (dispatch ref $ UI.SearcherEvent $ AcceptWithHint (idx + 1))
-        ] $ do
-        div_
-            ["key" $= "name"
-            ,"className" $= Style.prefix "searcher__results__item__name"
-            ] $ highlighted_ result
+        [ "key"       $= "searcherResultsList"
+        , "className" $= Style.prefix "searcher__results__list"
+        ] $ forKeyed_ (drop (selected - 1) results) $ \(idx, result) -> do
+            let resultClasses i = Style.prefixFromList $ "searcher__results__item" : (if selected > 0 && i == 0 then [ "searcher__results__item--selected" ] else [])
+            div_
+                [ "key"       $= jsShow idx
+                , "className" $= resultClasses idx
+                , onClick     $ \e _ -> stopPropagation e : (dispatch ref $ UI.SearcherEvent $ AcceptWithHint (idx + 1))
+                ] $ do
+                div_
+                    ["key" $= "name"
+                    ,"className" $= Style.prefix "searcher__results__item__name"
+                    ] $ highlighted_ result
 
 highlighted_ :: Match -> ReactElementM ViewEventHandler ()
 highlighted_ result = prefixElem >> highlighted_' 0 highlights where
@@ -127,7 +131,9 @@ resultDoc_ ref selected results = do
     let r   = drop (selected - 1) results
         doc' = case r of
                    []    -> ""
-                   (x:_) -> Text.unpack $ x ^. NS.doc
+                   (x:_) -> case Text.unpack $ x ^. NS.doc of
+                                 [] -> "No documentation."
+                                 _  -> Text.unpack $ x ^. NS.doc
     div_
         [ "key"       $= "doc"
         , "className" $= Style.prefix "searcher__doc"
