@@ -20,7 +20,7 @@ class LunaWelcomeTab extends View
             class: 'luna-welcome-background'
             outlet: 'background'
             =>
-                @div class: 'luna-welcome-scroll', outlet: 'fooo', =>
+                @div class: 'luna-welcome-scroll', outlet: 'welcomePanel', =>
 
                     @div class: 'luna-welcome', =>
 
@@ -94,6 +94,7 @@ class LunaWelcomeTab extends View
                 detailedMessage: "Community projects are not supported yet."
                 buttons:
                     Ok: -> )
+        @welcomePanel.on 'click', (e) -> e.stopPropagation()
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
         @background.on 'click', @detach
