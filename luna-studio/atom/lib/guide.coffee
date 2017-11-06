@@ -3,10 +3,13 @@
 tmpSteps = [
         title: 'Step1'
         description: 'Step1 description'
+        target: { className: 'luna-welcome-search'}
     ,
         title: 'Step2'
         description: 'Step2 description'
 ]
+
+focusClass = 'luna-guide-focus'
 
 module.exports =
     class VisualGuide extends View
@@ -14,8 +17,9 @@ module.exports =
             super
 
         @content: ->
-            @div class: 'luna-guide-background', =>
-                @div class: 'luna-guide-message', =>
+            @div =>
+            # @div class: 'luna-guide-background', =>
+                @div class: 'luna-guide-message', outlet: 'messageBox', =>
                     @div
                         class: 'luna-guide-title'
                         outlet: 'guideTitle'
@@ -23,12 +27,18 @@ module.exports =
                         class: 'luna-guide-description'
                         outlet: 'guideDescription'
                     @button
-                        class: 'luna-guide-dismiss'
-                        'Dismiss'
-
+                        outlet: 'buttonHide'
+                        class: 'luna-guide-hide'
+                        'Hide'
+                    @button
+                        outlet: 'buttonDisable'
+                        class: 'luna-guide-disable'
+                        'Do not show again'
 
         initialize: =>
             @steps = tmpSteps
+            @buttonHide.on 'click', => @detach()
+            @buttonDisable.on 'click', => @disable()
 
         nextStep: =>
             @currentStepNo ?= 0
@@ -36,7 +46,15 @@ module.exports =
 
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerText = @currentStep.description
-            console.log @currentStep
+            target = @currentStep.target
+            focus = null
+            if target.className
+                focus = document.getElementsByClassName(target.className)[0]
+            if focus?
+                focus.classList.add focusClass
+                focusRect = focus.getBoundingClientRect()
+                @messageBox[0].style.top = focusRect.top + 'px'
+                @messageBox[0].style.left = (focusRect.left - 100) + 'px'
             @currentStepNo++
 
 
@@ -48,3 +66,7 @@ module.exports =
         detach: =>
             if @panel.isVisible()
                 @panel.hide()
+
+        disable: =>
+            atom.config.set('luna-studio.showWelcomeGuide', false)
+            @detach()
