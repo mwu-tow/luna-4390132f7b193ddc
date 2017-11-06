@@ -2,6 +2,7 @@
 module NodeEditor.React.View.Searcher where
 
 import           Common.Prelude
+import qualified Data.Text                       as Text
 import           JS.Searcher                     (searcherId)
 import           LunaStudio.Data.NodeSearcher    (Match, Range)
 import qualified LunaStudio.Data.NodeSearcher    as NS
@@ -66,10 +67,16 @@ searcher =  React.defineView name $ \(ref, s) -> do
             -- TODO [LJK, PM]: Refactor this piece of code:
             let selected = s ^. Searcher.selected
             case s ^. Searcher.mode of
-                Searcher.Command    results -> results_ ref selected results
-                Searcher.Node   _ _ results -> results_ ref selected results
-                Searcher.NodeName _ results -> results_ ref selected results
-                Searcher.PortName _ results -> results_ ref selected results
+                Searcher.Command    results -> do results_   ref selected results
+                                                  resultDoc_ ref selected results
+                Searcher.Node   _ _ results -> do results_   ref selected results
+                                                  resultDoc_ ref selected results
+                Searcher.NodeName _ results -> do results_   ref selected results
+                                                  resultDoc_ ref selected results
+                Searcher.PortName _ results -> do results_   ref selected results
+                                                  resultDoc_ ref selected results
+                
+
     -- div_
         --     [ "key"       $= "searcherPreview"
         --     , "className" $= Style.prefix "searcher__preview"
@@ -78,9 +85,6 @@ searcher =  React.defineView name $ \(ref, s) -> do
 
 searcher_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
 searcher_ ref model = React.viewWithSKey searcher name (ref, model) mempty
-
-searcherDoc_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
-searcherDoc_ ref model = React.viewWithSKey searcherDoc name (ref, model) mempty
 
 results_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
 results_ ref selected results = forKeyed_ (drop (selected - 1) results) $ \(idx, result) -> do
@@ -118,8 +122,13 @@ highlighted_ result = prefixElem >> highlighted_' 0 highlights where
                 $ elemString highlighted
             highlighted_' (start + len) rest
 
-searcherDoc :: IsRef ref => ReactView (ref, Searcher)
-searcherDoc =  React.defineView name $ \(ref, s) -> do
-	let className = Style.prefix "searcher__doc"
-	div_ [ "className" $= className ] $ elemString "Hello"
-
+resultDoc_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
+resultDoc_ ref selected results = do
+    let r   = drop (selected - 1) results
+        doc' = case r of
+                   []    -> ""
+                   (x:_) -> Text.unpack $ x ^. NS.doc
+    div_
+        [ "key"       $= "doc"
+        , "className" $= Style.prefix "searcher__doc"
+        ] $ elemString doc'

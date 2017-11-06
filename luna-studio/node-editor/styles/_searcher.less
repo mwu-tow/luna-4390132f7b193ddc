@@ -92,7 +92,7 @@
     width:          calc(@ui ~'*' @searcherWidth);
     text-align:     center;
     border-radius:  @borderRadius;
-    overflow:       hidden;
+    //overflow:       hidden; fix this
     padding:        0;
     .background(@a);
     max-height:     calc(@ui ~'*' (@searcherLineHeight*10));
@@ -146,4 +146,15 @@
 .luna-searcher__hl {
     color: #dff;
     opacity: 0.7;
+}
+
+// doc
+
+.luna-searcher__doc {
+	background: red;
+	position:   absolute;
+	top:        0;
+	left:       calc(@ui ~'*' @searcherWidth + 2px);
+	height:     calc(@ui ~'*' @searcherLineHeight*10);
+	width:      calc(@ui ~'*' @searcherWidth/2);
 }
