@@ -1,6 +1,11 @@
 {View} = require 'atom-space-pen-views'
+fs     = require 'fs-plus'
+path   = require 'path'
+yaml   = require 'js-yaml'
 
-tmpSteps = [
+
+tmpGuide =
+    steps: [
         title: 'Step 0'
         description: 'Hello guide'
     ,
@@ -31,6 +36,7 @@ tmpSteps = [
         description: 'Guide finished'
 ]
 
+encoding = 'utf8'
 focusClass = 'luna-guide-focus'
 
 module.exports =
@@ -62,22 +68,19 @@ module.exports =
                         'Do not show again'
 
         initialize: =>
-            @steps = tmpSteps
             @buttonHide.on 'click', => @detach()
             @buttonDisable.on 'click', => @disable()
             @buttonContinue.on 'click', =>
                 @nextStep()
                 @buttonContinue.hide()
             @buttonContinue.hide()
-
             @storage = {}
 
         nextStep: =>
             if @currentStep? and @currentStep.after?
                 @currentStep.after @storage
 
-            @currentStepNo ?= 0
-            @currentStep = @steps[@currentStepNo]
+            @currentStep = @guide.steps[@currentStepNo]
             @currentStepNo++
 
             unless @currentStep?
@@ -141,12 +144,40 @@ module.exports =
         attach: =>
             @panel ?= atom.workspace.addHeaderPanel({item: this, visible: false})
             @panel.show()
-            @nextStep()
 
         detach: =>
             if @panel.isVisible()
                 @panel.hide()
 
         disable: =>
-            atom.config.set('luna-studio.showWelcomeGuide', false)
+            @disableGuide()
             @detach()
+
+        startProject: =>
+            projectPath = atom.project.getPaths()[0]
+            if projectPath?
+                guidePath = path.join projectPath, 'guide.yml'
+                fs.readFile guidePath, encoding, (err, data) =>
+                    if err
+                        console.error err
+                    else
+                        parsed = yaml.load data
+                        if parsed? && not parsed.disabled?
+                            @start parsed, guidePath
+
+        disableGuide: =>
+            if @guidePath?
+                @guide.disabled = null
+                data = yaml.dump(@guide)
+                fs.writeFile @guidePath, data, encoding, (err) =>
+                if err?
+                    console.error err
+            else
+                atom.config.set('luna-studio.showWelcomeGuide', false)
+
+
+        start: (@guide, @guidePath) =>
+            @guide ?= tmpGuide
+            @currentStepNo = 0
+            @attach()
+            @nextStep()
