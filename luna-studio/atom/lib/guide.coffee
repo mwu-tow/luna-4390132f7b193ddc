@@ -124,16 +124,17 @@ module.exports =
             if focus?
                 focus.classList.add focusClass
                 focusRect = focus.getBoundingClientRect()
-                if focusRect.left > msgBoxWidth
-                    msgBoxLeft = focusRect.left - msgBoxWidth
-                    msgBoxTop = focusRect.top
-                else if focusRect.right + msgBoxWidth < windowRect.width
-                    msgBoxLeft = focusRect.right
-                    msgBoxTop = focusRect.top
-                else if focusRect.top > msgBoxHeight
-                    msgBoxTop = focusRect.top - msgBoxHeight
-                else if focusRect.bottom + msgBoxHeight < windowRect.height
-                    top = focusRect.bottom
+                if focusRect.width != 0 and focusRect.height != 0
+                    if focusRect.left > msgBoxWidth
+                        msgBoxLeft = focusRect.left - msgBoxWidth
+                        msgBoxTop = focusRect.top
+                    else if focusRect.right + msgBoxWidth < windowRect.width
+                        msgBoxLeft = focusRect.right
+                        msgBoxTop = focusRect.top
+                    else if focusRect.top > msgBoxHeight
+                        msgBoxTop = focusRect.top - msgBoxHeight
+                    else if focusRect.bottom + msgBoxHeight < windowRect.height
+                        top = focusRect.bottom
 
             @messageBox[0].style.width = msgBoxWidth + 'px'
             @messageBox[0].style.height = msgBoxHeight + 'px'
@@ -158,9 +159,7 @@ module.exports =
             if projectPath?
                 guidePath = path.join projectPath, 'guide.yml'
                 fs.readFile guidePath, encoding, (err, data) =>
-                    if err
-                        console.error err
-                    else
+                    unless err
                         parsed = yaml.load data
                         if parsed? && not parsed.disabled?
                             @start parsed, guidePath
