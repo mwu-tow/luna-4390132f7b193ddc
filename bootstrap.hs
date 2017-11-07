@@ -90,7 +90,7 @@ installPython = do
                 Shelly.setenv "LDFLAGS" $ "-L" <> opensslPath <> "/lib"
             Shelly.cmd "pyenv" "install" supportedPythonVersion
         Shelly.cmd "pyenv" "local" supportedPythonVersion
-        Shelly.cmd "pip" "install" "requirements.txt"
+        Shelly.cmd "pip" "install" "-r" "requirements.txt"
 
 installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installNode = do
