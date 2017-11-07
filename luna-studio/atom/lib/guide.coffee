@@ -1,11 +1,14 @@
 {View} = require 'atom-space-pen-views'
 
 tmpSteps = [
+        title: 'Step 0'
+        description: 'Hello guide'
+    ,
         title: 'Step 1'
         description: 'Use search bar to search for projects'
         target:
             className: 'luna-welcome-search'
-            action: 'click'
+            action: 'onclick'
 
         after: (storage) ->
             storage.lastItem = 'test'
@@ -15,13 +18,16 @@ tmpSteps = [
         description: 'Type some keywords'
         target:
             className: 'luna-welcome-search'
-            action: 'keydown'
+            action: 'onkeydown'
     ,
         title: 'Step 3'
         description: 'Click on forum button'
         target:
             className: 'luna-welcome-link--forum'
-            action: 'click'
+            action: 'onclick'
+    ,
+        title: 'Step 4'
+        description: 'Guide finished'
 ]
 
 focusClass = 'luna-guide-focus'
@@ -42,6 +48,10 @@ module.exports =
                         class: 'luna-guide-description'
                         outlet: 'guideDescription'
                     @button
+                        outlet: 'buttonContinue'
+                        class: 'luna-guide-continue'
+                        'Continue'
+                    @button
                         outlet: 'buttonHide'
                         class: 'luna-guide-hide'
                         'Hide'
@@ -54,6 +64,10 @@ module.exports =
             @steps = tmpSteps
             @buttonHide.on 'click', => @detach()
             @buttonDisable.on 'click', => @disable()
+            @buttonContinue.on 'click', =>
+                @nextStep()
+                @buttonContinue.hide()
+            @buttonContinue.hide()
 
             @storage = {}
 
@@ -72,6 +86,9 @@ module.exports =
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerText = @currentStep.description
             target = @currentStep.target
+            target ?= {}
+            target.action ?= 'proceed'
+
             focus = null
             if target.className
                 focus = document.getElementsByClassName(target.className)[0]
@@ -80,23 +97,20 @@ module.exports =
             else if target.custom
                 focus = target.custom @storage
 
+            if target.action is 'proceed'
+                @buttonContinue.show()
+            else if focus?
+                oldHandlers = focus[target.action]
+                focus[target.action] = =>
+                    focus[target.action] = oldHandlers
+                    @nextStep()
+
             if focus?
                 focus.classList.add focusClass
                 focusRect = focus.getBoundingClientRect()
                 @messageBox[0].style.top = focusRect.top + 'px'
                 @messageBox[0].style.left = (focusRect.left - 100) + 'px'
 
-                target.action ?= 'click'
-                if target.action is 'click'
-                    oldHandlers = focus.onclick
-                    focus.onclick = =>
-                        focus.onclick = oldHandlers
-                        @nextStep()
-                else if target.action is 'keydown'
-                    oldHandlers = focus.onkeydown
-                    focus.onkeydown = =>
-                        focus.onkeydown = oldHandlers
-                        @nextStep()
 
         attach: =>
             @panel ?= atom.workspace.addHeaderPanel({item: this, visible: false})
