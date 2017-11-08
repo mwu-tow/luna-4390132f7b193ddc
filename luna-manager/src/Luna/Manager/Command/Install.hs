@@ -5,7 +5,7 @@ import Prologue hiding (txt, FilePath, toText)
 import Luna.Manager.System.Host
 import Luna.Manager.System.Env
 import Luna.Manager.Component.Repository as Repo
-import Luna.Manager.Component.Version
+import Luna.Manager.Component.Version    as Version
 import Luna.Manager.Network
 import Luna.Manager.Component.Pretty
 import Luna.Manager.Shell.Question
@@ -381,9 +381,6 @@ readVersion v = case readPretty v of
     Left e  -> throwM $ VersionException v
     Right v -> return $ v
 
-isRelease :: Version -> Bool
-isRelease v = isNothing $ v ^. info
-
 
 -- === Running === --
 
@@ -418,7 +415,7 @@ run opts = do
                 & defArg .~ maybeHead (repo ^. apps)
 
             let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
-                vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter isRelease . sort . Map.keys $ vmap
+                vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter (not . Version.isDev) . sort . Map.keys $ vmap
 
             (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedVersion)
                 $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)

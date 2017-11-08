@@ -29,6 +29,11 @@ data Version = Version { _major :: !Word64
 makeLenses ''Version
 makeLenses ''VersionInfo
 
+isRelease, isNightly, isDev :: Version -> Bool
+isRelease   = isNothing . (view info)
+isDev       = isJust . preview (info . traverse . buildNumber . traverse)
+isNightly v = (not $ isRelease v) && (not $ isDev v)
+
 cShow = convert . show
 
 -- === Instances === --
