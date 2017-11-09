@@ -2,7 +2,8 @@
 fs     = require 'fs-plus'
 path   = require 'path'
 yaml   = require 'js-yaml'
-{VM}   = require('vm2')
+{VM}   = require 'vm2'
+
 vm     = new VM
             timeout: 1000
             sandbox:
@@ -42,7 +43,6 @@ tmpGuide =
 ]
 
 encoding = 'utf8'
-focusClass = 'luna-guide-focus'
 
 module.exports =
     class VisualGuide extends View
@@ -50,8 +50,8 @@ module.exports =
             super
 
         @content: ->
-            @div =>
-            # @div class: 'luna-guide-background', =>
+            @div class: 'luna-guide-background', =>
+                @div class: 'luna-guide-container', outlet: 'container'
                 @div class: 'luna-guide-message', outlet: 'messageBox', =>
                     @div
                         class: 'luna-guide-title'
@@ -87,6 +87,12 @@ module.exports =
                 catch error
                     console.error error
 
+            @copyFocus ?= false
+            if @focusClone?
+                @copyFocus = document.activeElement == @focusClone
+                @container.empty()
+                @focusClone = null
+
             @currentStep = @guide.steps[@currentStepNo]
             @currentStepNo++
 
@@ -100,6 +106,12 @@ module.exports =
             target ?= {}
             target.action ?= 'proceed'
 
+            msgBoxWidth = 200
+            msgBoxHeight = 50
+            windowRect = document.body.getBoundingClientRect()
+            msgBoxLeft = (windowRect.width - msgBoxWidth)/2
+            msgBoxTop  = (windowRect.height - msgBoxHeight)/2
+
             focus = null
             if target.className
                 focus = document.getElementsByClassName(target.className)[0]
@@ -110,28 +122,27 @@ module.exports =
 
             if target.action is 'proceed'
                 @buttonContinue.show()
-            else if target.action is 'value'
-                oldHandlers = focus.onkeyup
-                focus.onkeyup = =>
-                    if focus.value is target.value
-                        focus.onkeyup = oldHandlers
-                        @nextStep()
-            else if focus?
-                oldHandlers = focus[target.action]
-                focus[target.action] = =>
-                    focus[target.action] = oldHandlers
-                    @nextStep()
-
-            msgBoxWidth = 200
-            msgBoxHeight = 50
-            windowRect = document.body.getBoundingClientRect()
-            msgBoxLeft = (windowRect.width - msgBoxWidth)/2
-            msgBoxTop  = (windowRect.height - msgBoxHeight)/2
 
             if focus?
-                focus.classList.add focusClass
                 focusRect = focus.getBoundingClientRect()
                 if focusRect.width != 0 and focusRect.height != 0
+                    @focusClone = focus.cloneNode(true)
+                    @container.append @focusClone
+                    if @copyFocus
+                        @focusClone.focus()
+
+                    if target.action is 'value'
+                        oldHandlers = @focusClone.onkeyup
+                        @focusClone.onkeyup = =>
+                            if @focusClone.value is target.value
+                                @focusClone.onkeyup = oldHandlers
+                                @nextStep()
+                    else if @focusClone?
+                        oldHandlers = @focusClone[target.action]
+                        @focusClone[target.action] = =>
+                            @focusClone[target.action] = oldHandlers
+                            @nextStep()
+
                     if focusRect.left > msgBoxWidth
                         msgBoxLeft = focusRect.left - msgBoxWidth
                         msgBoxTop = focusRect.top
@@ -142,6 +153,10 @@ module.exports =
                         msgBoxTop = focusRect.top - msgBoxHeight
                     else if focusRect.bottom + msgBoxHeight < windowRect.height
                         top = focusRect.bottom
+
+                    @focusClone.style.top = focusRect.top + 'px'
+                    @focusClone.style.left = focusRect.left + 'px'
+                    @focusClone.style.position = 'fixed'
 
             @messageBox[0].style.width = msgBoxWidth + 'px'
             @messageBox[0].style.height = msgBoxHeight + 'px'
@@ -167,14 +182,14 @@ module.exports =
                 guidePath = path.join projectPath, 'guide.yml'
                 fs.readFile guidePath, encoding, (err, data) =>
                     unless err
-                        parsed = yaml.load data
-                        if parsed? && not parsed.disabled?
+                        parsed = yaml.safeLoad data
+                        if parsed? && not parsed.disabled
                             @start parsed, guidePath
 
         disableGuide: =>
             if @guidePath?
-                @guide.disabled = null
-                data = yaml.dump(@guide)
+                @guide.disabled = true
+                data = yaml.safeDump(@guide)
                 fs.writeFile @guidePath, data, encoding, (err) =>
                 if err?
                     console.error err
