@@ -2,7 +2,12 @@
 fs     = require 'fs-plus'
 path   = require 'path'
 yaml   = require 'js-yaml'
-
+{VM}   = require('vm2')
+vm     = new VM
+            timeout: 1000
+            sandbox:
+                window: window
+                storage: {}
 
 tmpGuide =
     steps: [
@@ -74,11 +79,13 @@ module.exports =
                 @nextStep()
                 @buttonContinue.hide()
             @buttonContinue.hide()
-            @storage = {}
 
         nextStep: =>
             if @currentStep? and @currentStep.after?
-                @currentStep.after @storage
+                try
+                    vm.run @currentStep.after
+                catch error
+                    console.error error
 
             @currentStep = @guide.steps[@currentStepNo]
             @currentStepNo++
@@ -99,7 +106,7 @@ module.exports =
             else if target.id
                 focus = document.getElementById(target.id)[0]
             else if target.custom
-                focus = target.custom @storage
+                focus = vm.run target.custom
 
             if target.action is 'proceed'
                 @buttonContinue.show()
