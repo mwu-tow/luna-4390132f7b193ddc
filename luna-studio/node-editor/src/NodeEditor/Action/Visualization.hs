@@ -20,7 +20,7 @@ import           NodeEditor.React.Model.Node.ExpressionNode (nodeLoc, visualizat
 import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (StreamBackup, ValueBackup), nodeVisualizations)
 import           NodeEditor.React.Model.Visualization       (IdleVisualization (IdleVisualization),
                                                              RunningVisualization (RunningVisualization), VisualizationId,
-                                                             VisualizationMode (Focused, FullScreen, Preview),
+                                                             VisualizationMode (Focused, FullScreen, Preview), VisualizationParent (Node),
                                                              VisualizationStatus (Outdated, Ready), idleVisualizations, idleVisualizer,
                                                              runningVisualizer, stopVisualizations, visualizationId, visualizationMode,
                                                              visualizationStatus, visualizations, visualizers)
@@ -50,14 +50,14 @@ instance Action (Command State) VisualizationActive where
                                                                             & visualizationActiveTriggeredByVis .~ False
 
 
-focusVisualization :: NodeLoc -> VisualizationId -> Command State ()
-focusVisualization nl visId = begin $ VisualizationActive nl visId Focused False
+focusVisualization :: VisualizationParent -> VisualizationId -> Command State ()
+focusVisualization (Node nl) visId = begin $ VisualizationActive nl visId Focused False
 
 exitVisualizationMode :: VisualizationActive -> Command State ()
 exitVisualizationMode = end
 
-selectVisualizer :: NodeLoc -> VisualizationId -> VisualizerName -> Command State ()
-selectVisualizer nl visId visName = withJustM (getNodeVisualizations nl) $ \nodeVis ->
+selectVisualizer :: VisualizationParent -> VisualizationId -> VisualizerName -> Command State ()
+selectVisualizer (Node nl) visId visName = withJustM (getNodeVisualizations nl) $ \nodeVis ->
     withJust ((,) <$> Map.lookup visId (nodeVis ^. visualizations) <*> Map.lookup visName (nodeVis ^. visualizers)) $ \(prevVis, visPath) -> do
         continue (end :: VisualizationActive -> Command State ())
         let visualizer' = (visName, visPath)
@@ -114,8 +114,8 @@ enterVisualizationMode visMode = do
     fromVis <- maybe False (\action -> action ^. visualizationActiveSelectedMode == Focused || action ^. visualizationActiveTriggeredByVis) <$> checkAction visualizationActiveAction
     withJust visLoc $ \(nl, visId) -> begin $ VisualizationActive nl visId visMode fromVis
 
-toggleVisualizations :: NodeLoc -> Command State ()
-toggleVisualizations nl = do
+toggleVisualizations :: VisualizationParent -> Command State ()
+toggleVisualizations (Node nl) = do
     modifyExpressionNode nl $ visualizationsEnabled %= not
     mayNodeMeta <- getNodeMeta nl
     withJust mayNodeMeta $ setNodeMeta . (nl,)

@@ -117,7 +117,7 @@ openWith input mode = do
     let action   = Searcher
         inputLen = Text.length input
     begin action
-    modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False
+    modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False def
     modifyInput input inputLen inputLen action
     renderIfNeeded
     Searcher.focus

@@ -30,8 +30,8 @@ handleKeyDown ref e k = prevent $ stopPropagation e : dispatch' where
             UI.AppEvent $ App.KeyDown k
         else UI.SearcherEvent $ KeyDown k
 
-searcher :: IsRef ref => ReactView (ref, Searcher)
-searcher =  React.defineView name $ \(ref, s) -> do
+searcher :: IsRef ref => ReactView (ref, Searcher, FilePath)
+searcher =  React.defineView name $ \(ref, s, visLibPath) -> do
     let mode        = s ^. Searcher.mode
         -- nodePos     = s ^. Searcher.position
         -- nodePreview = convert . (NodeLoc.empty,) <$> (s ^. Searcher.selectedNode)
@@ -68,14 +68,11 @@ searcher =  React.defineView name $ \(ref, s) -> do
             let selected = s ^. Searcher.selected
             case s ^. Searcher.mode of
                 Searcher.Command    results -> do results_   ref selected results
-                                                  resultDoc_ ref selected results
                 Searcher.Node   _ _ results -> do results_   ref selected results
-                                                  resultDoc_ ref selected results
+                                                  withJust (s ^? Searcher.selectedMatch . _Just . NS.doc) $ \d -> unless (Text.null d) $ resultDoc_ ref d
                 Searcher.NodeName _ results -> do results_   ref selected results
-                                                  resultDoc_ ref selected results
                 Searcher.PortName _ results -> do results_   ref selected results
-                                                  resultDoc_ ref selected results
-                
+
 
     -- div_
         --     [ "key"       $= "searcherPreview"
@@ -83,11 +80,11 @@ searcher =  React.defineView name $ \(ref, s) -> do
         --     ] $ withJust nodePreview $ nodeBody_ ref . (Node.position .~ nodePos)
                                               -- . (Node.isExpandedControls .~ True)
 
-searcher_ :: IsRef ref => ref -> Searcher -> ReactElementM ViewEventHandler ()
-searcher_ ref model = React.viewWithSKey searcher name (ref, model) mempty
+searcher_ :: IsRef ref => ref -> Searcher -> FilePath -> ReactElementM ViewEventHandler ()
+searcher_ ref model visLibPath = React.viewWithSKey searcher name (ref, model, visLibPath) mempty
 
 results_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
-results_ ref selected results = 
+results_ ref selected results =
     div_
         [ "key"       $= "searcherResultsList"
         , "className" $= Style.prefix "searcher__results__list"
@@ -126,15 +123,9 @@ highlighted_ result = prefixElem >> highlighted_' 0 highlights where
                 $ elemString highlighted
             highlighted_' (start + len) rest
 
-resultDoc_ :: IsRef ref => ref -> Int -> [Match] -> ReactElementM ViewEventHandler ()
-resultDoc_ ref selected results = do
-    let r   = drop (selected - 1) results
-        doc' = case r of
-                   []    -> ""
-                   (x:_) -> case Text.unpack $ x ^. NS.doc of
-                                 [] -> "No documentation."
-                                 _  -> Text.unpack $ x ^. NS.doc
+resultDoc_ :: IsRef ref => ref -> Text -> ReactElementM ViewEventHandler ()
+resultDoc_ ref doc = do
     div_
         [ "key"       $= "doc"
         , "className" $= Style.prefix "searcher__doc"
-        ] $ elemString doc'
+        ] $ elemString $ convert doc
