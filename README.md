@@ -21,7 +21,7 @@ TODO: GHC reqs
   * Your luna-studio build environment `$LUNA_STUDIO_DEV` is a `git` repository and you can use it just as a regular source code repository.
   * If you use `git clean -x` git will remove the `$LUNA_STUDIO_DEV/dist` directory content, which contains dependencies needed for building `luna-studio`, which were downloaded there by `luna-manager`. To setup them again again call `luna-manager develop luna-studio --path $LUNA_STUDIO_DEV --download-dependencies`.
   
-## Common problems and fixes
+## Troubleshooting
   * If this problem occurs during build:
     ```text
     Initializing APM in: PATH_TO_LUNA_STUDIO/dist/user-config/atom/packages/luna-studio
