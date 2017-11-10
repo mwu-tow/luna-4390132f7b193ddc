@@ -20,8 +20,10 @@ handle (UI (VisualizationEvent (Visualization.SelectVisualizer visParent visId v
 handle (UI (VisualizationEvent (Visualization.ToggleVisualizations visParent)))           = Just $ Visualization.toggleVisualizations visParent
 handle (Shortcut (Shortcut.Event Shortcut.ZoomVisualization _))                           = Just $ Visualization.handleZoomVisualization
 handle (Shortcut (Shortcut.Event Shortcut.OpenVisualizationPreview _))                    = Just $ Visualization.enterVisualizationMode Preview
-handle (Shortcut (Shortcut.Event Shortcut.CloseVisualizationPreview _))                   = Just $ continue $ Visualization.exitPreviewMode
-handle (UI (AppEvent (App.Wheel _ _)))                                                    = Just $ continue $ Visualization.exitVisualizationMode
+handle (Shortcut (Shortcut.Event Shortcut.CloseVisualizationPreview _))                   = Just $ continue Visualization.exitPreviewMode
+                                                                                                >> continue Visualization.exitDocPreviewMode
+handle (UI (AppEvent (App.Wheel _ _)))                                                    = Just $ continue Visualization.exitVisualizationMode
+                                                                                                >> continue Visualization.exitDocVisualizationMode
 handle _                                                                                  = Nothing
 
 -- handle :: Event -> Maybe (Command State ())

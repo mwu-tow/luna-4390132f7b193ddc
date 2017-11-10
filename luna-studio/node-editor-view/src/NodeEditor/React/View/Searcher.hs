@@ -2,20 +2,22 @@
 module NodeEditor.React.View.Searcher where
 
 import           Common.Prelude
-import qualified Data.Text                       as Text
-import           JS.Searcher                     (searcherId)
-import           LunaStudio.Data.NodeSearcher    (Match, Range)
-import qualified LunaStudio.Data.NodeSearcher    as NS
-import qualified NodeEditor.Event.Keys           as Keys
-import qualified NodeEditor.Event.UI             as UI
-import qualified NodeEditor.React.Event.App      as App
+import qualified Data.Text                           as Text
+import           JS.Searcher                         (searcherId)
+import           LunaStudio.Data.NodeSearcher        (Match, Range)
+import qualified LunaStudio.Data.NodeSearcher        as NS
+import qualified NodeEditor.Event.Keys               as Keys
+import qualified NodeEditor.Event.UI                 as UI
+import qualified NodeEditor.React.Event.App          as App
 import           NodeEditor.React.Event.Searcher
-import           NodeEditor.React.IsRef          (IsRef, dispatch)
-import           NodeEditor.React.Model.Searcher (Searcher)
-import qualified NodeEditor.React.Model.Searcher as Searcher
-import qualified NodeEditor.React.View.Style     as Style
+import           NodeEditor.React.IsRef              (IsRef, dispatch)
+import           NodeEditor.React.Model.Searcher     (Searcher)
+import qualified NodeEditor.React.Model.Searcher     as Searcher
+import qualified NodeEditor.React.View.Style         as Style
+import           NodeEditor.React.View.Visualization (docVisualization_)
 import           React.Flux
-import qualified React.Flux                      as React
+import qualified React.Flux                          as React
+
 
 name :: JSString
 name = "searcher"
@@ -41,6 +43,7 @@ searcher =  React.defineView name $ \(ref, s, visLibPath) -> do
             Searcher.NodeName {} -> [ "searcher--node-name"]
             Searcher.PortName {} -> [ "searcher--port-name"]))
         mayCustomInput = if s ^. Searcher.replaceInput then ["value" $= convert (s ^. Searcher.inputText)] else []
+        docPresent = maybe False (not . Text.null) $ s ^? Searcher.selectedMatch . _Just . NS.doc
     div_
         [ "key"       $= name
         , "className" $= className
@@ -68,8 +71,8 @@ searcher =  React.defineView name $ \(ref, s, visLibPath) -> do
             let selected = s ^. Searcher.selected
             case s ^. Searcher.mode of
                 Searcher.Command    results -> do results_   ref selected results
-                Searcher.Node   _ _ results -> do results_   ref selected results
-                                                  withJust (s ^? Searcher.selectedMatch . _Just . NS.doc) $ \d -> unless (Text.null d) $ resultDoc_ ref d
+                Searcher.Node _ nmi results -> do results_   ref selected results
+                                                  withJust (s ^. Searcher.docVis) $ docVisualization_ ref docPresent visLibPath
                 Searcher.NodeName _ results -> do results_   ref selected results
                 Searcher.PortName _ results -> do results_   ref selected results
 
@@ -122,10 +125,3 @@ highlighted_ result = prefixElem >> highlighted_' 0 highlights where
                   , "className" $= Style.prefix "searcher__hl" ]
                 $ elemString highlighted
             highlighted_' (start + len) rest
-
-resultDoc_ :: IsRef ref => ref -> Text -> ReactElementM ViewEventHandler ()
-resultDoc_ ref doc = do
-    div_
-        [ "key"       $= "doc"
-        , "className" $= Style.prefix "searcher__doc"
-        ] $ elemString $ convert doc

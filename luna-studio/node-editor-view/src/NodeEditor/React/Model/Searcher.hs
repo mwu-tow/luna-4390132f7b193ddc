@@ -34,6 +34,7 @@ data NewNode = NewNode { _position    :: Position
 data NodeModeInfo = NodeModeInfo { _className   :: Maybe Text
                                  , _newNodeData :: Maybe NewNode
                                  , _argNames    :: [Text]
+                                 , _docVisInfo  :: Maybe RunningVisualization
                                  } deriving (Eq, Generic, Show)
 makeLenses ''NewNode
 makeLenses ''NodeModeInfo
@@ -60,7 +61,6 @@ data Searcher = Searcher
               , _input         :: Input
               , _replaceInput  :: Bool
               , _rollbackReady :: Bool
-              , _docVis        :: Maybe RunningVisualization
               } deriving (Eq, Generic, Show)
 
 makeLenses ''Searcher
@@ -72,7 +72,13 @@ instance Default Input where def = Raw def
 
 predNl :: Getter Searcher (Maybe NodeLoc)
 predNl = to predNl' where
-  predNl' s = s ^? mode . _Node . _2 . newNodeData . _Just . predPortRef . _Just . PortRef.nodeLoc
+    predNl' s = s ^? mode . _Node . _2 . newNodeData . _Just . predPortRef . _Just . PortRef.nodeLoc
+
+docVis :: Getter Searcher (Maybe RunningVisualization)
+docVis = to docVis' where
+    docVis' s = case s ^. mode of
+      Node _ nmi _ -> nmi ^. docVisInfo
+      _            -> Nothing
 
 inputText :: Getter Searcher Text
 inputText = to (toText . view input)
@@ -137,7 +143,7 @@ findLambdaArgsAndEndOfLambdaArgs input' tokens = findRecursive tokens (0 :: Int)
         _             -> findRecursive t openParanthesisNumber        (endPos + tokenLength h) args res
 
 mkDef :: Mode -> Searcher
-mkDef mode' = Searcher def mode' (Divided $ DividedInput def def def) False False def
+mkDef mode' = Searcher def mode' (Divided $ DividedInput def def def) False False
 
 defCommand :: Searcher
 defCommand = mkDef $ Command def
@@ -183,7 +189,7 @@ updateNodeResult r (Node nl nmi _) = Node nl nmi r
 updateNodeResult _ m               = m
 
 updateNodeArgs :: [Text] -> Mode -> Mode
-updateNodeArgs args (Node nl (NodeModeInfo cn nnd _) r) = (Node nl (NodeModeInfo cn nnd args) r)
+updateNodeArgs args (Node nl (NodeModeInfo cn nnd _ vis) r) = (Node nl (NodeModeInfo cn nnd args vis) r)
 updateNodeArgs _ m                                      = m
 
 updateCommandsResult :: [Match] -> Mode -> Mode

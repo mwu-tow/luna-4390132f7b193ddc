@@ -96,6 +96,7 @@ module NodeEditor.Action.Basic
     , updateClient
     , updateCollaboration
     , updateConnection
+    , updateDocs
     , updateFilePath
     , updateGraph
     , updateNodeZOrder
@@ -109,7 +110,7 @@ import           NodeEditor.Action.Basic.AddConnection       (connect, localAddC
 import           NodeEditor.Action.Basic.AddNode             (createNode, localAddExpressionNode)
 import           NodeEditor.Action.Basic.AddPort             (addPort, localAddPort)
 import           NodeEditor.Action.Basic.AddSubgraph         (addSubgraph, localAddSubgraph, localUpdateSubgraph)
-import           NodeEditor.Action.Basic.Atom                (setFile, updateFilePath, unsetFile)
+import           NodeEditor.Action.Basic.Atom                (setFile, unsetFile, updateFilePath)
 import           NodeEditor.Action.Basic.CollapseToFunction  (collapseToFunction)
 import           NodeEditor.Action.Basic.CreateGraph         (createGraph, updateGraph)
 import           NodeEditor.Action.Basic.EnterBreadcrumb     (enterBreadcrumb, enterBreadcrumbs, enterNode, exitBreadcrumb)
@@ -144,6 +145,6 @@ import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpress
                                                               localUpdateOrAddInputNode, localUpdateOrAddOutputNode, localUpdateOutputNode)
 import           NodeEditor.Action.Basic.UpdateNodeValue     (setNodeProfilingData, updateNodeValueAndVisualization)
 import           NodeEditor.Action.Basic.UpdateSearcherHints (localAddSearcherHints, localClearSearcherHints, localUpdateSearcherHints,
-                                                              selectHint, setCurrentImports)
+                                                              selectHint, setCurrentImports, updateDocs)
 import           NodeEditor.Action.State.Model               (isArgConstructorConnectSrc, updateAllPortsMode, updateArgConstructorMode,
                                                               updatePortMode, updatePortsModeForNode)
