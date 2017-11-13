@@ -51,11 +51,11 @@ searcher =  React.defineView name $ \(ref, s, visLibPath) -> do
         , onMouseUp     $ \e _ -> [stopPropagation e]
         , onClick       $ \e _ -> [stopPropagation e]
         , onDoubleClick $ \e _ -> [stopPropagation e]
-        ] $ do
-        div_ [] $ elemString $ show $ s ^. Searcher.selected
+        ] $ do 
+        let inputClasses = Style.prefixFromList $ "searcher__input" : (if s ^. Searcher.selected == 0 then ["searcher__input--selected"] else [])
         input_ (
             [ "key"         $= "searchInput"
-            , "className"   $= Style.prefix "searcher__input"
+            , "className"   $= inputClasses
             , "id"          $= searcherId
             , onKeyDown     $ handleKeyDown ref
             , onKeyUp       $ \_ k -> dispatch ref $ UI.SearcherEvent $ KeyUp k

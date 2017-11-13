@@ -81,6 +81,9 @@
         width:     calc(@ui ~'*' @searcherWidth - 2*@padding);
     }
 }
+.luna-searcher__input--selected {
+    .background(@a+1) !important;
+}
 
 .luna-searcher__results {
     display:        flex;
@@ -89,7 +92,7 @@
     position:       absolute;
     left:           calc(@ui ~'*' (-@searcherWidth/2));
     width:          calc(@ui ~'*' @searcherWidth*1.5+2px);
-    border:         calc(@ui ~'*' @border) solid transparent; // TODO: Add that border to list and documentation separately (@luna-graph-background-color)
+    border:         calc(@ui ~'*' @border) solid transparent; //TODO: add this border to children instead (with proper color)
     transform:      translateX(-@border);
     height:         calc(@ui ~'*' (@searcherLineHeight*10));
     overflow:       hidden;
@@ -148,7 +151,7 @@
 }
 .luna-searcher__results__item::before {
     position: absolute;
-    left:     calc(@ui ~'*' 5px);
+    left:     calc(@ui ~'*' 6px);
     opacity:  .5;
 }
 .luna-searcher__results__item:nth-of-type(1)::before { content: "⌘1" }
