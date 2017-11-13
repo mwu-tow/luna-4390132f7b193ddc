@@ -88,23 +88,28 @@ data Searcher = Searcher deriving (Eq, Generic, Show, Typeable)
 
 makeLenses ''Searcher
 
-data VisualizationDrag = VisualizationDrag
-    { _visNodeLoc :: NodeLoc
-    , _visIdx     :: Int
-    , _visPos     :: Position
-    } deriving (Eq, Show, Generic, Typeable)
+data VisualizationDrag = VisualizationDrag { _visNodeLoc :: NodeLoc
+                                           , _visIdx     :: Int
+                                           , _visPos     :: Position
+                                           } deriving (Eq, Show, Generic, Typeable)
 
 makeLenses ''VisualizationDrag
 
 
-data VisualizationActive = VisualizationActive
-    { _visualizationActiveNodeLoc         :: NodeLoc
-    , _visualizationActiveVisualizationId :: VisualizationId
-    , _visualizationActiveSelectedMode    :: VisualizationMode
-    , _visualizationActiveTriggeredByVis  :: Bool
-    } deriving (Eq, Show, Generic, Typeable)
+data VisualizationActive = VisualizationActive { _visualizationActiveNodeLoc         :: NodeLoc
+                                               , _visualizationActiveVisualizationId :: VisualizationId
+                                               , _visualizationActiveSelectedMode    :: VisualizationMode
+                                               , _visualizationActiveTriggeredByVis  :: Bool
+                                               } deriving (Eq, Show, Generic, Typeable)
 
 makeLenses ''VisualizationActive
+
+data DocVisualizationActive = DocVisualizationActive { _docVisualizationActiveSelectedMode    :: VisualizationMode
+                                                     , _docVisualizationActiveTriggeredByVis  :: Bool
+                                                     } deriving (Eq, Show, Generic, Typeable)
+
+makeLenses ''DocVisualizationActive
+
 
 data SidebarAddRemoveMode = SidebarAddRemoveMode { _sidebarAddRemoveModeNodeLoc :: NodeLoc
                                                  } deriving (Eq, Show, Generic, Typeable)
@@ -138,20 +143,21 @@ fromSomeAction (SomeAction d _) = fromDynamic d
 
 newtype ActionRep = ActionRep TypeRep deriving (Show, Eq, Ord)
 
-nodeDragAction, multiSelectionAction, visualizationDragAction, panDragAction, zoomDragAction, sidebarAddRemoveModeAction, sliderDragAction, penConnectAction, penDisconnectAction, connectAction, portDragAction, searcherAction, visualizationActiveAction :: ActionRep
-nodeDragAction             = ActionRep (typeOf NodeDrag)
-multiSelectionAction       = ActionRep (typeOf MultiSelection)
-panDragAction              = ActionRep (typeOf PanDrag)
-zoomDragAction             = ActionRep (typeOf ZoomDrag)
-sliderDragAction           = ActionRep (typeOf SliderDrag)
-penConnectAction           = ActionRep (typeOf PenConnect)
-penDisconnectAction        = ActionRep (typeOf PenDisconnect)
-connectAction              = ActionRep (typeOf Connect)
-portDragAction             = ActionRep (typeOf PortDrag)
-sidebarAddRemoveModeAction = ActionRep (typeOf SidebarAddRemoveMode)
-searcherAction             = ActionRep (typeOf Searcher)
-visualizationDragAction    = ActionRep (typeOf VisualizationDrag)
-visualizationActiveAction  = ActionRep (typeOf VisualizationActive)
+nodeDragAction, multiSelectionAction, visualizationDragAction, panDragAction, zoomDragAction, sidebarAddRemoveModeAction, sliderDragAction, penConnectAction, penDisconnectAction, connectAction, portDragAction, searcherAction, visualizationActiveAction, docVisualizationActiveAction :: ActionRep
+docVisualizationActiveAction = ActionRep (typeOf DocVisualizationActive)
+nodeDragAction               = ActionRep (typeOf NodeDrag)
+multiSelectionAction         = ActionRep (typeOf MultiSelection)
+panDragAction                = ActionRep (typeOf PanDrag)
+zoomDragAction               = ActionRep (typeOf ZoomDrag)
+sliderDragAction             = ActionRep (typeOf SliderDrag)
+penConnectAction             = ActionRep (typeOf PenConnect)
+penDisconnectAction          = ActionRep (typeOf PenDisconnect)
+connectAction                = ActionRep (typeOf Connect)
+portDragAction               = ActionRep (typeOf PortDrag)
+sidebarAddRemoveModeAction   = ActionRep (typeOf SidebarAddRemoveMode)
+searcherAction               = ActionRep (typeOf Searcher)
+visualizationDragAction      = ActionRep (typeOf VisualizationDrag)
+visualizationActiveAction    = ActionRep (typeOf VisualizationActive)
 
 overlappingActions :: [Set ActionRep]
 overlappingActions = [ Set.fromList [ connectAction
@@ -165,6 +171,18 @@ overlappingActions = [ Set.fromList [ connectAction
                                     , visualizationDragAction
                                     , portDragAction
                                     , visualizationActiveAction
+                                    ]
+                     , Set.fromList [ connectAction
+                                    , multiSelectionAction
+                                    , nodeDragAction
+                                    , penConnectAction
+                                    , penDisconnectAction
+                                    , sidebarAddRemoveModeAction
+                                    , sliderDragAction
+                                    , visualizationDragAction
+                                    , portDragAction
+                                    , visualizationActiveAction
+                                    , docVisualizationActiveAction
                                     ]
                      , Set.fromList [ panDragAction
                                     , zoomDragAction
@@ -196,4 +214,5 @@ actionsClosingOnMouseLeave = Set.fromList [ nodeDragAction
                                           , penDisconnectAction
                                           , portDragAction
                                           , visualizationDragAction
+                                          , docVisualizationActiveAction
                                           ]
