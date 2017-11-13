@@ -70,6 +70,7 @@ module.exports = LunaStudio =
             if atom.config.get('luna-studio.resetProjects') and atom.project.getPaths().length == 0
                 projects.temporaryProject.open (err) =>
                     if err then throw err
+        atom.reopenProjectMenuManager.open = projects.openLunaProject
         atom.commands.add 'atom-workspace',
             'application:add-project-folder': projects.selectLunaProject
             'application:open':               projects.selectLunaProject
