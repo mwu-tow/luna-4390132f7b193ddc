@@ -52,6 +52,7 @@ searcher =  React.defineView name $ \(ref, s, visLibPath) -> do
         , onClick       $ \e _ -> [stopPropagation e]
         , onDoubleClick $ \e _ -> [stopPropagation e]
         ] $ do
+        div_ [] $ elemString $ show $ s ^. Searcher.selected
         input_ (
             [ "key"         $= "searchInput"
             , "className"   $= Style.prefix "searcher__input"
