@@ -61,6 +61,7 @@ module NodeEditor.Action.Basic
     , moveNodes
     , movePort
     , navigateToGraph
+    , redo
     , removeConnection
     , removeConnections
     , removeConnectionsBetweenNodes
@@ -89,6 +90,7 @@ module NodeEditor.Action.Basic
     , toggleSelect
     , toggleSelectedNodesMode
     , toggleSelectedNodesUnfold
+    , undo
     , unselectAll
     , unsetFile
     , updateAllPortsMode
@@ -137,6 +139,7 @@ import           NodeEditor.Action.Basic.SetNodeMeta         (localMoveNode, loc
 import           NodeEditor.Action.Basic.SetNodeMode         (toggleSelectedNodesMode, toggleSelectedNodesUnfold)
 import           NodeEditor.Action.Basic.SetPortDefault      (localSetPortDefault, setPortDefault)
 import           NodeEditor.Action.Basic.SetPortMode         (setInputSidebarPortMode, setOutputSidebarPortMode)
+import           NodeEditor.Action.Basic.Undo                (redo, undo)
 import           NodeEditor.Action.Basic.UpdateCollaboration (updateClient, updateCollaboration)
 import           NodeEditor.Action.Basic.UpdateConnection    (localUpdateConnection, updateConnection)
 import           NodeEditor.Action.Basic.UpdateNode          (localUpdateExpressionNode, localUpdateExpressionNodePreventingPorts,

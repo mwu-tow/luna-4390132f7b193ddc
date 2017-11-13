@@ -25,7 +25,8 @@ import           NodeEditor.React.Model.Visualization       (VisualizationMode (
                                                              visPropVisualization, visualizationMode)
 import           NodeEditor.React.View.Connection           (connection_, halfConnection_)
 import           NodeEditor.React.View.ConnectionPen        (connectionPen_)
-import           NodeEditor.React.View.ExpressionNode       (filterOutSearcherIfNotRelated, nodeDynamicStyles_, node_)
+import           NodeEditor.React.View.ExpressionNode       (filterOutEditedTextControlIfNotRelated, filterOutSearcherIfNotRelated,
+                                                             nodeDynamicStyles_, node_)
 import           NodeEditor.React.View.Monad                (monads_)
 import           NodeEditor.React.View.Plane                (planeCanvas_, planeConnections_, planeMonads_, planeNewConnection_,
                                                              planeNodes_)
@@ -89,6 +90,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
         isAnyFullscreen  = any (\visProp -> elem (visProp ^. visPropVisualization . visualizationMode) [Preview, FullScreen]) visualizations
         nodesWithVis     = Set.fromList $ map (^. visPropNodeLoc) visualizations
         visWithSelection = map (\vis -> (vis, NodeEditor.isVisualizationNodeSelected vis ne)) visualizations
+        mayEditedTextPortControlPortRef = ne ^. NodeEditor.textControlEditedPortRef
     case ne ^. NodeEditor.graphStatus of
         GraphLoaded ->
             div_ [ "className" $= Style.prefixFromList ( ["studio-window"]
@@ -114,6 +116,7 @@ nodeEditor = React.defineView name $ \(ref, ne') -> do
                                                       n
                                                       (not . null $ ne ^. NodeEditor.posHalfConnections)
                                                       (filterOutSearcherIfNotRelated (n ^. Node.nodeLoc) maybeSearcher)
+                                                      (filterOutEditedTextControlIfNotRelated (n ^. Node.nodeLoc) mayEditedTextPortControlPortRef)
                                                       (Set.filter (ExpressionNode.containsNode (n ^. Node.nodeLoc)) nodesWithVis)
                             planeConnections_ $ do
                                 forM_ (ne ^. NodeEditor.posConnections ) $ connection_ ref

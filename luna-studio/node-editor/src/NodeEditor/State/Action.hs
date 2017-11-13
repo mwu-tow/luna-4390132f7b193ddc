@@ -116,6 +116,12 @@ data SidebarAddRemoveMode = SidebarAddRemoveMode { _sidebarAddRemoveModeNodeLoc 
 
 makeLenses ''SidebarAddRemoveMode
 
+data TextPortControlEdit = TextPortControlEdit { _textPortControlEditPortRef :: InPortRef
+                                               , _textPortControlEditValue   :: Text
+                                               } deriving (Eq, Show, Generic, Typeable)
+
+makeLenses ''TextPortControlEdit
+
 data SomeAction m = forall a. (Action m a, Show a, Typeable a) => SomeAction Dynamic a deriving (Typeable)
 
 instance Show (SomeAction m) where
@@ -143,7 +149,7 @@ fromSomeAction (SomeAction d _) = fromDynamic d
 
 newtype ActionRep = ActionRep TypeRep deriving (Show, Eq, Ord)
 
-nodeDragAction, multiSelectionAction, visualizationDragAction, panDragAction, zoomDragAction, sidebarAddRemoveModeAction, sliderDragAction, penConnectAction, penDisconnectAction, connectAction, portDragAction, searcherAction, visualizationActiveAction, docVisualizationActiveAction :: ActionRep
+nodeDragAction, multiSelectionAction, visualizationDragAction, panDragAction, zoomDragAction, sidebarAddRemoveModeAction, sliderDragAction, penConnectAction, penDisconnectAction, connectAction, portDragAction, searcherAction, textPortControlEditAction, visualizationActiveAction, docVisualizationActiveAction :: ActionRep
 docVisualizationActiveAction = ActionRep (typeOf DocVisualizationActive)
 nodeDragAction               = ActionRep (typeOf NodeDrag)
 multiSelectionAction         = ActionRep (typeOf MultiSelection)
@@ -156,6 +162,7 @@ connectAction                = ActionRep (typeOf Connect)
 portDragAction               = ActionRep (typeOf PortDrag)
 sidebarAddRemoveModeAction   = ActionRep (typeOf SidebarAddRemoveMode)
 searcherAction               = ActionRep (typeOf Searcher)
+textPortControlEditAction    = ActionRep (typeOf TextPortControlEdit)
 visualizationDragAction      = ActionRep (typeOf VisualizationDrag)
 visualizationActiveAction    = ActionRep (typeOf VisualizationActive)
 
@@ -171,6 +178,7 @@ overlappingActions = [ Set.fromList [ connectAction
                                     , visualizationDragAction
                                     , portDragAction
                                     , visualizationActiveAction
+                                    , textPortControlEditAction
                                     ]
                      , Set.fromList [ connectAction
                                     , multiSelectionAction
