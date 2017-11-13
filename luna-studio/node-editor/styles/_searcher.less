@@ -56,7 +56,7 @@
 .luna-searcher__input,
 .luna-node__name--input {
     background:     transparent;
-    border-radius:  @borderRadius;
+    border-radius:  @borderRadiusPx;
     color:          @luna-syntax-text-color;
     font-family:    @fontDefault;
     font-size:      calc(@ui ~'*' 12px);
@@ -100,7 +100,7 @@
         display:        flex;
         flex-direction: column-reverse;
         text-align:     center;
-        border-radius:  @borderRadius;
+        border-radius:  @borderRadiusPx;
         padding:        0;
         width:          calc(@ui ~'*' @searcherWidth);
         max-height:     calc(@ui ~'*' (@searcherLineHeight*10));  
@@ -110,7 +110,7 @@
         @y: calc(@ui ~'*' @searcherLineHeight*10);
         .background(@a);
         font-size:     calc(@ui ~'*' 10px);
-        border-radius: @borderRadius;
+        border-radius: @borderRadiusPx;
         box-sizing:    border-box;
         //padding:       calc(@ui ~'*' 4px) calc(@ui ~'*' 8px);
         position:      absolute;

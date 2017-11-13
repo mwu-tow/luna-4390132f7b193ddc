@@ -222,7 +222,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
     svg_
         [ "viewBox"   $= "-20 -20 40 40"
         , "key"       $= "nodePorts"
-        , "className" $= Style.prefixFromList [ "node__ports", "node-transform" ]
+        , "className" $= Style.prefix "node__ports"
         ] $ do
         defs_
             [ "key" $= "defs" ] $ do
@@ -241,7 +241,8 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
                     [ "className" $= Style.prefix "port-io-select-mask"
                     ] mempty
         g_
-            [ "key" $= "nodeTransform"
+            [ "key"       $= "nodeTransform"
+            , "className" $= Style.prefix "node-transform"
             ] $ do
             if isCollapsed n then do
                 ports argPorts
