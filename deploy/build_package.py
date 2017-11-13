@@ -40,7 +40,7 @@ def upload_to_s3(luna_studio_path):
         package = package_name(luna_studio_path)
         tarball_path = package_path(luna_studio_path)
         s3_key_path = '/'.join([osname, name, version, package])
-        s3.Object('packages-luna', s3_key_path).put(Body=open(tarball_path, 'rb'))
+        s3.Object('packages-luna', s3_key_path).put(Body=open(tarball_path, 'rb'), ACL='public-read')
     except:
         fail('Status: failed to upload the tarball to S3')
 
@@ -48,7 +48,7 @@ def upload_to_s3(luna_studio_path):
 def upload_config_to_s3(luna_studio_path):
     try:
         config_path = os.path.join(luna_studio_path, 'config.yaml')
-        s3.Object('packages-luna', 'config.yaml').put(Body=open(config_path, 'rb'))
+        s3.Object('packages-luna', 'config.yaml').put(Body=open(config_path, 'rb'), ACL='public-read')
     except:
         fail('Status: failed to upload the config to S3')
 
