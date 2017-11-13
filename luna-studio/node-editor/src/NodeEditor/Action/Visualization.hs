@@ -131,7 +131,7 @@ handleZoomVisualization = do
             if mayDocMode == Just FullScreen
                 then continue exitDocVisualizationMode
                 else enterVisualizationMode FullScreen
-    if searcherActive then handleZoomDocVis else handleZoomVis
+    if searcherActive then return () else handleZoomVis
 
 exitPreviewMode :: VisualizationActive -> Command State ()
 exitPreviewMode action = when (Preview == action ^. visualizationActiveSelectedMode) $
@@ -154,7 +154,7 @@ enterVisualizationMode visMode = do
                 _   -> return Nothing
             fromVis <- maybe False (\action -> action ^. visualizationActiveSelectedMode == Focused || action ^. visualizationActiveTriggeredByVis) <$> checkAction visualizationActiveAction
             withJust visLoc $ \(nl, visId) -> begin $ VisualizationActive nl visId visMode fromVis
-    if searcherActive then enterDocVisMode else enterVisMode
+    if searcherActive then return () else enterVisMode
 
 toggleVisualizations :: VisualizationParent -> Command State ()
 toggleVisualizations (Node nl) = do
