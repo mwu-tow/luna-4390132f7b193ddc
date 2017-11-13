@@ -43,6 +43,7 @@ tmpGuide =
 ]
 
 encoding = 'utf8'
+highlightClass = 'luna-guide-highlight'
 
 module.exports =
     class VisualGuide extends View
@@ -50,8 +51,7 @@ module.exports =
             super
 
         @content: ->
-            @div class: 'luna-guide-background', =>
-                @div class: 'luna-guide-container', outlet: 'container'
+            @div =>
                 @div class: 'luna-guide-message', outlet: 'messageBox', =>
                     @div
                         class: 'luna-guide-title'
@@ -86,25 +86,29 @@ module.exports =
                     vm.run @currentStep.after
                 catch error
                     console.error error
-
-            @copyFocus ?= false
-            if @focusClone?
-                @copyFocus = document.activeElement == @focusClone
-                @container.empty()
-                @focusClone = null
+            if @highlightedElem?
+                @highlightedElem.classList.remove highlightClass
 
             @currentStep = @guide.steps[@currentStepNo]
             @currentStepNo++
 
-            unless @currentStep?
+            if @currentStep?
+                @display()
+            else
                 @detach()
-                return
 
-            @guideTitle[0].innerText = @currentStep.title
-            @guideDescription[0].innerText = @currentStep.description
+        display: =>
             target = @currentStep.target
             target ?= {}
             target.action ?= 'proceed'
+
+            @highlightedElem = null
+            if target.className
+                @highlightedElem = document.getElementsByClassName(target.className)[0]
+            else if target.id
+                @highlightedElem = document.getElementById(target.id)[0]
+            else if target.custom
+                @highlightedElem = vm.run target.custom
 
             msgBoxWidth = 200
             msgBoxHeight = 50
@@ -112,51 +116,50 @@ module.exports =
             msgBoxLeft = (windowRect.width - msgBoxWidth)/2
             msgBoxTop  = (windowRect.height - msgBoxHeight)/2
 
-            focus = null
-            if target.className
-                focus = document.getElementsByClassName(target.className)[0]
-            else if target.id
-                focus = document.getElementById(target.id)[0]
-            else if target.custom
-                focus = vm.run target.custom
-
             if target.action is 'proceed'
                 @buttonContinue.show()
+            else if not @highlightedElem?
+                @guideTitle[0].innerText = @currentStep.title
+                @guideDescription[0].innerText = 'Please wait...'
+                @messageBox[0].style.width = msgBoxWidth + 'px'
+                @messageBox[0].style.height = msgBoxHeight + 'px'
+                @messageBox[0].style.top = msgBoxTop + 'px'
+                @messageBox[0].style.left = msgBoxLeft + 'px'
 
-            if focus?
-                focusRect = focus.getBoundingClientRect()
-                if focusRect.width != 0 and focusRect.height != 0
-                    @focusClone = focus.cloneNode(true)
-                    @container.append @focusClone
-                    if @copyFocus
-                        @focusClone.focus()
+                setTimeout(@display, 300)
+                return
+
+            @guideTitle[0].innerText = @currentStep.title
+            @guideDescription[0].innerText = @currentStep.description
+
+            if @highlightedElem?
+                @highlightedElem.classList.add highlightClass
+                highlightedRect = @highlightedElem.getBoundingClientRect()
+                if highlightedRect.width != 0 and highlightedRect.height != 0
 
                     if target.action is 'value'
-                        oldHandlers = @focusClone.onkeyup
-                        @focusClone.onkeyup = =>
-                            if @focusClone.value is target.value
-                                @focusClone.onkeyup = oldHandlers
+                        oldHandlers = @highlightedElem.onkeyup
+                        @highlightedElem.onkeyup = =>
+                            if @highlightedElem.value is target.value
+                                @highlightedElem.onkeyup = oldHandlers
                                 @nextStep()
-                    else if @focusClone?
-                        oldHandlers = @focusClone[target.action]
-                        @focusClone[target.action] = =>
-                            @focusClone[target.action] = oldHandlers
+                    else if @highlightedElem?
+                        oldHandlers = @highlightedElem[target.action]
+                        @highlightedElem[target.action] = =>
+                            @highlightedElem[target.action] = oldHandlers
                             @nextStep()
 
-                    if focusRect.left > msgBoxWidth
-                        msgBoxLeft = focusRect.left - msgBoxWidth
-                        msgBoxTop = focusRect.top
-                    else if focusRect.right + msgBoxWidth < windowRect.width
-                        msgBoxLeft = focusRect.right
-                        msgBoxTop = focusRect.top
-                    else if focusRect.top > msgBoxHeight
-                        msgBoxTop = focusRect.top - msgBoxHeight
-                    else if focusRect.bottom + msgBoxHeight < windowRect.height
-                        top = focusRect.bottom
+                    if highlightedRect.left > msgBoxWidth
+                        msgBoxLeft = highlightedRect.left - msgBoxWidth
+                        msgBoxTop = highlightedRect.top
+                    else if highlightedRect.right + msgBoxWidth < windowRect.width
+                        msgBoxLeft = highlightedRect.right
+                        msgBoxTop = highlightedRect.top
+                    else if highlightedRect.top > msgBoxHeight
+                        msgBoxTop = highlightedRect.top - msgBoxHeight
+                    else if highlightedRect.bottom + msgBoxHeight < windowRect.height
+                        msgBoxTop = highlightedRect.bottom
 
-                    @focusClone.style.top = focusRect.top + 'px'
-                    @focusClone.style.left = focusRect.left + 'px'
-                    @focusClone.style.position = 'fixed'
 
             @messageBox[0].style.width = msgBoxWidth + 'px'
             @messageBox[0].style.height = msgBoxHeight + 'px'

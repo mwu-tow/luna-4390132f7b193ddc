@@ -11,6 +11,7 @@ import           Data.Set                                             (Set)
 import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
 import qualified JS.Mount                                             as Mount
+import           JS.Name                                              (toName)
 import qualified JS.UI                                                as UI
 import           LunaStudio.Data.Constants                            (gridSize)
 import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
@@ -98,10 +99,10 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
                     , onDoubleClick $ \e _ -> [stopPropagation e]
                     , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.ToggleVisualizations (Vis.Node nl)
                     ] $ if isVisualization
-                        then path_ [ "d"         $= Style.iconEye 
+                        then path_ [ "d"         $= Style.iconEye
                                    , "className" $= Style.prefix "icon--on"
                                    ] mempty
-                        else path_ [ "d"         $= Style.iconEyeDisabled 
+                        else path_ [ "d"         $= Style.iconEyeDisabled
                                    , "className" $= Style.prefixFromList ["icon--off"]
                                    ] mempty
 
@@ -152,9 +153,11 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
-            , "className" $= Style.prefixFromList 
-                            ( [ "node", "noselect",
-                                (if isCollapsed n                               then "node--collapsed"                    else "node--expanded") ]
+            , "className" $= Style.prefixFromList
+                            ( [ "node"
+                              , "noselect"
+                              , convert $ "node-name" <> maybe "" (\a -> "-" <> toName a) (n ^. Node.name)
+                              , (if isCollapsed n                               then "node--collapsed"                    else "node--expanded") ]
                              <> (if returnsError n                              then ["node--error"]                      else [])
                              <> (if n ^. Node.isSelected                        then ["node--selected"]                   else [])
                              <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]                   else [])
@@ -203,7 +206,10 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
     div_
         [ "key"       $= "nodeBody"
         , "id"        $= prefixNode ("body-" <> jsShow (n ^. Node.nodeId))
-        , "className" $= Style.prefixFromList [ "node__body", "node-translate" ]
+        , "className" $= Style.prefixFromList [ "node__body"
+                                              , convert $ "node-name" <> maybe "" (\a -> "-" <> toName a) (n ^. Node.name)
+                                              , "node-translate"
+                                              ]
         ] $ do
         errorMark_
         case n ^. Node.mode of
