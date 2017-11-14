@@ -25,7 +25,7 @@ nodeProperties = React.defineView objName $ \(ref, prop, mayEditedTextPortContro
     div_
         [ "key"       $= "controls"
         , "className" $= Style.prefixFromList [ "node__controls", "noselect" ]
-        , "style"     @= Aeson.object [ "minHeight" Aeson..= ((show $ (toEnum numOfOutputs) * gridSize) <> "px") ]
+        , "style"     @= Aeson.object [ "minHeight" Aeson..= ((show $ (toEnum numOfOutputs) * gridSize) <> "rem") ]
         ] $ forM_ ports $ controls
 
 nodeProperties_ :: IsRef ref => ref -> NodeProperties -> Maybe InPortRef -> Int -> ReactElementM ViewEventHandler ()

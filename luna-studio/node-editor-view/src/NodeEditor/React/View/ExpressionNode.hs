@@ -23,6 +23,7 @@ import qualified NodeEditor.Event.UI                                  as UI
 import qualified NodeEditor.React.Event.Node                          as Node
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
+import           NodeEditor.React.Model.Constants                     (nodeRadius)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
                                                                        countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,
@@ -151,7 +152,7 @@ node = React.defineView name $ \(ref, n, performConnect, maySearcher, mayEditedT
                                                                        <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]      else [] )
                                                                        <> (if hasSelf                                     then ["node--has-self"]      else ["node--no-self"])
                                                                        <> (if hasAlias                                    then ["node--has-alias"]     else ["node--no-alias"])
-                                                                       <> (if hasArgConstructor                           then ["has-arg-constructor"] else [])
+                                                                       <> (if hasArgConstructor                           then ["node--has-arg-constructor"] else [])
                                                                        <> highlight
                                                   )
             , "style"     @= Aeson.object [ "zIndex"    Aeson..= show z ]
@@ -225,7 +226,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
                                                        (if isInPort $ port ^. Port.portId then countVisibleArgPorts n else countVisibleOutPorts n)
                                                        (withOut isAll (port ^. Port.portId) && countVisibleArgPorts n + countVisibleOutPorts n == 1)
     svg_
-        [ "viewBox"   $= "-20 -20 40 40"
+        [ "viewBox"   $= ("-" <> jsShow nodeRadius <> " -" <> jsShow nodeRadius <> " " <> (jsShow $ nodeRadius * 2) <> " " <> (jsShow $ nodeRadius * 2))
         , "key"       $= "nodePorts"
         , "className" $= Style.prefix "node__ports"
         ] $ do
