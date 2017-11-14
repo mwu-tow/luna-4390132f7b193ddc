@@ -164,7 +164,7 @@ instance Convertible Connection Empire.Connection where
 argConstructorConnectionPos :: ExpressionNode -> Position
 argConstructorConnectionPos n = if n ^. ExpressionNode.mode == ExpressionNode.Collapsed
     then n ^. position & y %~ (+ portRadius)
-    else move (Vector2 (-nodeExpandedWidth/2) (argumentConstructorOffsetY $ countVisibleArgPorts n)) $ n ^. position
+    else move (Vector2 (-nodeExpandedWidth/2) (argumentConstructorOffsetY $ countVisibleInPorts n)) $ n ^. position
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of
