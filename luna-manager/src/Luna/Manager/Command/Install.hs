@@ -414,8 +414,11 @@ run opts = do
                 & help   .~ choiceHelp "components" (repo ^. apps)
                 & defArg .~ maybeHead (repo ^. apps)
 
-            let vmap = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
-                vss  = if (opts ^. Opts.nightlyInstallation) then sort . Map.keys $ vmap else filter (not . Version.isDev) . sort . Map.keys $ vmap
+            let vmap       = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
+                filterFunc = if (opts ^. Opts.devInstallation) then const True
+                             else if (opts ^. Opts.nightlyInstallation) then not . Version.isDev
+                             else Version.isRelease
+                vss        = filter filterFunc . sort . Map.keys $ vmap
 
             (appVersion, appPkgDesc) <- askOrUse (opts ^. Opts.selectedVersion)
                 $ question "Select version to be installed" (\t -> choiceValidator "version" t . sequence $ fmap (t,) . flip Map.lookup vmap <$> readPretty t)

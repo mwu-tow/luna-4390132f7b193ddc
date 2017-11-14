@@ -40,6 +40,7 @@ data InstallOpts = InstallOpts
     , _selectedVersion          :: Maybe Text
     , _selectedInstallationPath :: Maybe Text
     , _nightlyInstallation      :: Bool
+    , _devInstallation          :: Bool
     } deriving (Show)
 
 data MakePackageOpts = MakePackageOpts
@@ -77,7 +78,7 @@ guiInstallerOpt = view (globals . guiInstaller) <$> get @Options
 
 -- === Instances === --
 
-instance Default InstallOpts where def = InstallOpts def def def False
+instance Default InstallOpts where def = InstallOpts def def def False False
 
 
 
@@ -96,33 +97,34 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsParser         = info (helper <*> optsProgram) (fullDesc <> header ("Luna ecosystem manager (" <> Info.version <> ")") <> progDesc Info.synopsis)
 
     -- Commands
-    cmdInstall         = Opts.command "install"        . info optsInstall       $ progDesc "Install components"
+    cmdInstall         = Opts.command "install"        . info optsInstall       $ progDesc "Install components. By default displays only the release versions."
     cmdUpdate          = Opts.command "update"         . info (pure Update)     $ progDesc "Update components"
     cmdSwitchVersion   = Opts.command "switch-version" . info optsSwitchVersion $ progDesc "Switch installed component version"
     cmdDevelop         = Opts.command "develop"        . info optsDevelop       $ progDesc "Setup development environment"
     cmdMkpkg           = Opts.command "make-package"   . info optsMkpkg         $ progDesc "Prepare installation package"
-    cmdNextVer         = Opts.command "next-version"   . info optsNextVersion   $ progDesc "Create a newer version of a package"
-    cmdInfo            = Opts.command "info"           . info (pure Info)       $ progDesc "Shows environment information"
+    cmdNextVer         = Opts.command "next-version"   . info optsNextVersion   $ progDesc "Get a newer version of a package, by default incrementing the build number (x.y.z.w)"
+    cmdInfo            = Opts.command "info"           . info (pure Info)       $ progDesc "Show environment information"
 
     -- Options
     optsProgram        = Options           <$> optsGlobal <*> hsubparser commands
-    optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch" <> help "Do not run interactive mode")
-                                           <*> Opts.switch (long "gui" )
-                                           <*> Opts.switch (long "verbose" )
+    optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch"   <> help "Do not run interactive mode")
+                                           <*> Opts.switch (long "gui"     <> help "Used by the graphic installer to instruct the installer it's being run in a graphical mode")
+                                           <*> Opts.switch (long "verbose" <> help "Print more output from the commands ran by the manager.")
     optsMkpkg          = MakePackage       <$> optsMkpkg'
-    optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config file path")
+    optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config (luna-package.yaml) file path, usually found in the Luna Studio repo")
     optsSwitchVersion  = SwitchVersion     <$> optsSwitchVersion'
-    optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version")
+    optsSwitchVersion' = SwitchVersionOpts <$> strArgument (metavar "VERSION" <> help "Target version to switch to")
     optsDevelop        = Develop           <$> optsDevelop'
-    optsDevelop'       = DevelopOpts       <$> (strArgument $ metavar "TARGET" <> help "Config file path")
-                                           <*> (optional . strOption $ long "path"      <> metavar "PATH"      <> help "Repository path" )
-                                           <*> Opts.switch (long "download-dependencies")
+    optsDevelop'       = DevelopOpts       <$> (strArgument $ metavar "CONFIG" <> help "Config (luna-package.yaml) file path, usually found in the Luna Studio repo")
+                                           <*> (optional . strOption $ long "path" <> metavar "PATH" <> help "Path under which the new repository will be created and set up.")
+                                           <*> Opts.switch (long "download-dependencies" <> help "Instead of setting up the fresh repo, just download the external dependencies into the existing repo.")
     optsInstall        = Install           <$> optsInstall'
     optsInstall'       = InstallOpts       <$> (optional . strOption $ long "component" <> metavar "COMPONENT" <> help "Component to install")
-                                           <*> (optional . strOption $ long "version"   <> metavar "VERSION"   <> help "Version to install"  )
-                                           <*> (optional . strOption $ long "path"      <> metavar "PATH"      <> help "Installation path"   )
-                                           <*> Opts.switch (long "nightly")
+                                           <*> (optional . strOption $ long "version"   <> metavar "VERSION"   <> help "Version to install")
+                                           <*> (optional . strOption $ long "path"      <> metavar "PATH"      <> help "Installation path")
+                                           <*> Opts.switch (long "nightly" <> help "Include nightly builds in the list of builds available for installation.")
+                                           <*> Opts.switch (long "dev"     <> help "Include developer builds in the list of builds available for installation.")
     optsNextVersion    = NextVersion       <$> optsNextVersion'
-    optsNextVersion'   = NextVersionOpts   <$> strArgument (metavar "CONFIG" <> help "Config file path")
-                                           <*> Opts.switch (long "nightly")
-                                           <*> Opts.switch (long "release")
+    optsNextVersion'   = NextVersionOpts   <$> strArgument (metavar "CONFIG" <> help "Config (luna-package.yaml) file path, usually found in the Luna Studio repo")
+                                           <*> Opts.switch (long "nightly"   <> help "Get a new nightly version number (x.y.z).")
+                                           <*> Opts.switch (long "release"   <> help "Get a new release version number (x.y).")
