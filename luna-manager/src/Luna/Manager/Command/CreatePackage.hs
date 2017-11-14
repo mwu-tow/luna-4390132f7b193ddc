@@ -20,6 +20,7 @@ import           Luna.Manager.Component.Version (Version)
 import           Luna.Manager.Component.Pretty
 import           Prologue hiding (FilePath)
 import qualified Data.Map as Map
+import           Data.Maybe (maybeToList)
 import qualified Data.Text as Text
 import qualified Data.Yaml as Yaml
 import qualified Luna.Manager.Command.Options as Opts
@@ -84,8 +85,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
 
 instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & buildScriptPath .~ "build.bat"
-                           & defaultPackagePath .~ "C:\\tmp\\luna-package"
+        reconfig cfg = cfg & defaultPackagePath .~ "C:\\tmp\\luna-package"
 
 data AppimageException = AppimageException SomeException deriving (Show)
 instance Exception AppimageException where
@@ -184,15 +184,14 @@ createAppimage appName repoPath = do
 -- === Utils === --
 
 
-runPkgBuildScript :: MonadCreatePackage m => FilePath -> m ()
-runPkgBuildScript repoPath = do
+runPkgBuildScript :: MonadCreatePackage m => FilePath -> Maybe Text -> m ()
+runPkgBuildScript repoPath s3GuiURL = do
     Logger.log "Running package build script"
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-    Shelly.chdir (parent buildPath) $ Shelly.switchVerbosity $ do
-        case currentHost of
-            Windows -> Shelly.cmd buildPath
-            _       -> Shelly.cmd buildPath "--release"
+
+    Shelly.chdir (parent buildPath) $ Shelly.switchVerbosity $
+        Shelly.run_ "python" $ [(Shelly.toTextIgnore buildPath), "--release"] ++ (maybeToList s3GuiURL)
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
@@ -306,8 +305,8 @@ prepareVersion appPath version = Shelly.switchVerbosity $ do
     Shelly.chdir appPath $ Shelly.whenM (tagExists versionTxt)
                          $ Shelly.cmd "git" "checkout" versionTxt
 
-createPkg :: MonadCreatePackage m => FilePath -> ResolvedApplication -> m ()
-createPkg cfgFolderPath resolvedApplication = do
+createPkg :: MonadCreatePackage m => FilePath -> Maybe Text -> ResolvedApplication -> m ()
+createPkg cfgFolderPath s3GuiURL resolvedApplication = do
     pkgConfig <- get @PackageConfig
     let app        = resolvedApplication ^. resolvedApp
         appDesc    = app ^. desc
@@ -327,7 +326,7 @@ createPkg cfgFolderPath resolvedApplication = do
     currBranch <- Shelly.silently $ Text.strip <$> Shelly.cmd "git" "rev-parse" "--abbrev-ref" "HEAD"
     prepareVersion appPath appVersion
 
-    runPkgBuildScript appPath
+    runPkgBuildScript appPath s3GuiURL
     copyFromDistToDistPkg appName appPath
     mainAppDir <- case currentHost of
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
@@ -369,12 +368,14 @@ run :: MonadCreatePackage m => MakePackageOpts -> m ()
 run opts = do
     guiInstaller <- guiInstallerOpt
     config       <- parseConfig $ convert (opts ^. Opts.cfgPath)
+
     let cfgFolderPath = parent $ convert (opts ^. Opts.cfgPath)
         appsToPack    = config ^. apps
+        s3GuiUrl      = opts ^. Opts.guiURL
 
     resolved <- mapM (resolvePackageApp config) appsToPack
 
-    mapM_ (createPkg cfgFolderPath) resolved
+    mapM_ (createPkg cfgFolderPath s3GuiUrl) resolved
     repo <- getRepo
     let updatedConfig = foldl' updateConfig config resolved
     generateConfigYamlWithNewPackage repo updatedConfig $ cfgFolderPath </> "config.yaml"
