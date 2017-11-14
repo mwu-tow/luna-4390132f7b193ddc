@@ -12,6 +12,7 @@ import qualified Data.Set                                             as Set
 import qualified Data.Text                                            as Text
 import qualified JS.Mount                                             as Mount
 import qualified JS.UI                                                as UI
+import           LunaStudio.Data.Constants                            (gridSize)
 import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
 import           LunaStudio.Data.NodeLoc                              (toNodeIdList)
@@ -144,15 +145,16 @@ node = React.defineView name $ \(ref, n, performConnect, maySearcher, mayEditedT
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
-            , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n then "node--collapsed" else "node--expanded") ]
-                                                                       <> (if returnsError n then ["node--error"] else [])
-                                                                       <> (if n ^. Node.isSelected then ["node--selected"] else [])
-                                                                       <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"] else [] )
-                                                                       <> (if hasSelf then ["node--has-self"] else ["node--no-self"])
-                                                                       <> (if hasAlias then ["node--has-alias"] else ["node--no-alias"])
+            , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n                               then "node--collapsed"       else "node--expanded") ]
+                                                                       <> (if returnsError n                              then ["node--error"]         else [])
+                                                                       <> (if n ^. Node.isSelected                        then ["node--selected"]      else [])
+                                                                       <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]      else [] )
+                                                                       <> (if hasSelf                                     then ["node--has-self"]      else ["node--no-self"])
+                                                                       <> (if hasAlias                                    then ["node--has-alias"]     else ["node--no-alias"])
+                                                                       <> (if hasArgConstructor                           then ["has-arg-constructor"] else [])
                                                                        <> highlight
-                                                                       <> if hasArgConstructor then ["has-arg-constructor"] else [])
-            , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
+                                                  )
+            , "style"     @= Aeson.object [ "zIndex"    Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
@@ -196,7 +198,7 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
         errorMark_
         selectionMark_
         case n ^. Node.mode of
-            Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef
+            Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef (countVisibleOutPorts n)
             Node.Expanded Node.Editor   -> multilineField_ [] "editor"
                 $ Field.mk ref (n ^. Node.code)
                 & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
