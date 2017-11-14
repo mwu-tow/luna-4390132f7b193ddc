@@ -60,8 +60,8 @@ def upload_gui():
     try:
         version = application_version()
         name = application_name()
-        tarball_path = os.path.join(luna_studio_path,'dist-package','gui.tar.gz')
-        s3_key_path = '/'.join([name, version, 'gui.tar.gz'])
+        tarball_path = os.path.join(luna_studio_path,'dist-package','gui.zip')
+        s3_key_path = '/'.join([name, version, 'gui.zip'])
         s3.Object('packages-luna', s3_key_path).put(Body=open(tarball_path, 'rb'))
     except:
         fail('Status: failed to upload gui package to S3')
