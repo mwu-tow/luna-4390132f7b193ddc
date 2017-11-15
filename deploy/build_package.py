@@ -22,14 +22,14 @@ s3 = boto3.resource('s3')
 
 def build_package(luna_studio_path):
     config_path = os.path.join(luna_studio_path, 'luna-package.yaml')
-    version = application_version()
-    name = application_name()
+    version = application_version(luna_studio_path)
+    name = application_name(luna_studio_path)
     s3_gui_path = '/'.join(['packages.luna-lang.org', name, version, 'gui.zip'])
     try:
         print('Building Luna Manager...')
         run(['stack', 'install'], check=True)
         print('Running Luna Manager (make-package)...')
-        run(['executables/luna-manager', 'make-package', config_path, s3_gui_path], check=True)
+        run(['executables/luna-manager', 'make-package', config_path, '--gui', s3_gui_path, '--verbose'], check=True)
     except:
         fail('Status: failed to build package')
     else:
