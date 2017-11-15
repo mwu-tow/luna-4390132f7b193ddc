@@ -24,7 +24,7 @@ def build_package(luna_studio_path):
     config_path = os.path.join(luna_studio_path, 'luna-package.yaml')
     version = application_version()
     name = application_name()
-    s3_gui_path = '/'.join(['packages.luna-lang.org', osname, name, version, 'gui.tar.gz'])
+    s3_gui_path = '/'.join(['packages.luna-lang.org', name, version, 'gui.zip'])
     try:
         print('Building Luna Manager...')
         run(['stack', 'install'], check=True)
