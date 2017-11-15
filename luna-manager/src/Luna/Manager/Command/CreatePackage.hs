@@ -191,7 +191,7 @@ runPkgBuildScript repoPath s3GuiURL = do
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
 
     Shelly.chdir (parent buildPath) $ Shelly.switchVerbosity $
-        Shelly.run_ buildPath $ ["--release"] ++ (maybeToList s3GuiURL)
+        Shelly.run_ buildPath $ ["--release"] ++ (maybeToList $ ("--gui_url" <>) <$> s3GuiURL)
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
