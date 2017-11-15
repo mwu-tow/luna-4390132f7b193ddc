@@ -35,7 +35,7 @@
     }
     .luna-searcher__input {
         .background(@a); //@luna-syntax-background-color;
-        border:   calc(@ui ~'*' 2px) solid @luna-graph-background-color;
+        border:   calc(@ui ~'*'  2px) solid @luna-graph-background-color;
         top:      calc(@ui ~'*' -7px);
         position: relative;
     }
@@ -48,7 +48,7 @@
 .luna-searcher__input,
 .luna-node__name--input {
     background:     transparent;
-    border-radius:  @luna-superline-height * 0.5px;
+    border-radius:  @luna-searcher-border-radius * 1px;
     color:          @luna-syntax-text-color;
     font-family:    @fontDefault;
     font-size:      calc(@ui ~'*' 12px);
@@ -95,7 +95,7 @@
         display:        flex;
         flex-direction: column-reverse;
         text-align:     center;
-        border-radius:  @luna-superline-height * 0.5px;
+        border-radius:  @luna-searcher-border-radius * 1px;
         padding:        0;
         width:          calc(@ui ~'*' @searcherWidth);
         max-height:     calc(@ui ~'*' @luna-superline-height * 10px);  
@@ -105,7 +105,7 @@
         @y: calc(@ui ~'*' @luna-superline-height * 10px);
         .background(@a);
         font-size:     calc(@ui ~'*' 10px);
-        border-radius: @luna-superline-height * 0.5px;
+        border-radius: @luna-searcher-border-radius * 1px;
         box-sizing:    border-box;
         //padding:       calc(@ui ~'*' 4px) calc(@ui ~'*' 8px);
         position:      absolute;

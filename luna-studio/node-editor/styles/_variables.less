@@ -99,13 +99,17 @@
 
 @luna-connection-width: 2.2;
 @luna-grid-size:        16;
-@luna-node-radius:      17;
-@luna-border-radius:    @luna-grid-size;
+@luna-node-radius:      20; //17
+@luna-border-radius:    3; //@luna-grid-size;
 
-@luna-superline-height: 1.5 * @luna-grid-size;
+@luna-superline-height:       1.5 * @luna-grid-size;
+
+@luna-searcher-border-radius: @luna-border-radius; // @luna-superline-height/2;
 
 @luna-border-radius-expanded-node:           @luna-border-radius;
-@luna-border-radius-expanded-node-selection: @luna-border-radius-expanded-node * 1.5;
+
+@luna-selection-padding:                          8;
+@luna-border-radius-expanded-node-selection: @luna-border-radius-expanded-node + @luna-selection-padding;
 
 @luna-expanded-node-width:      160;
 @luna-expanded-node-padding:    @luna-grid-size/2;
