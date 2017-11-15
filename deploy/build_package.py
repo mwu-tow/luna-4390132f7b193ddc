@@ -56,9 +56,9 @@ def upload_config_to_s3(luna_studio_path):
         fail('Status: failed to upload the config to S3')
 
 
-def upload_gui():
+def upload_gui(luna_studio_path):
     try:
-        version = application_version()
+        version = application_version(luna_studio_path)
         name = application_name()
         tarball_path = os.path.join(luna_studio_path,'dist-package','gui.zip')
         s3_key_path = '/'.join([name, version, 'gui.zip'])
@@ -83,7 +83,7 @@ def deploy_to_s3(luna_studio_path):
     upload_to_s3(luna_studio_path)
     upload_config_to_s3(luna_studio_path)
     invalidate_config(luna_studio_path)
-    upload_gui()
+    upload_gui(luna_studio_path)
 
 def main():
     global luna_studio_path
