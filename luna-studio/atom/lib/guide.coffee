@@ -106,7 +106,7 @@ module.exports =
             if target.className
                 @highlightedElem = document.getElementsByClassName(target.className)[0]
             else if target.id
-                @highlightedElem = document.getElementById(target.id)[0]
+                @highlightedElem = document.getElementById(target.id)
             else if target.custom
                 @highlightedElem = vm.run target.custom
 
@@ -143,6 +143,12 @@ module.exports =
                             if @highlightedElem.value is target.value
                                 @highlightedElem.onkeyup = oldHandlers
                                 @nextStep()
+                    else if target.action.includes ':'
+                        handler = {}
+                        handler[target.action] = =>
+                            @disposable.dispose()
+                            @nextStep()
+                        @disposable = atom.commands.add @highlightedElem, handler
                     else if @highlightedElem?
                         oldHandlers = @highlightedElem[target.action]
                         @highlightedElem[target.action] = =>
