@@ -143,7 +143,7 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
                         --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
                         --  && (not $ any Port.isHighlighted (inPortsList n))
                         --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
-            hasArgConstructor = elem (n ^. Node.argConstructorMode) [Port.Normal, Port.Highlighted]
+            hasArgConstructor = not isTopLevel && elem (n ^. Node.argConstructorMode) [Port.Normal, Port.Highlighted]
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
