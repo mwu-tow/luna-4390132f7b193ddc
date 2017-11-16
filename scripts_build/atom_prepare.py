@@ -81,7 +81,6 @@ def run(dev_mode=False):
         rm_old()
         create_dirs()
         ghcjs_code()
-        #prepare_css('../atom/styles/app.css', '../node-editor/styles/app.less')
         cp_helper('../luna-studio/node-editor/assets/fonts', '../luna-studio/atom/styles/fonts')
         cp_helper('../luna-studio/node-editor/styles', '../luna-studio/atom/styles/gen')
         cp_files()
