@@ -19,17 +19,18 @@ import           NodeEditor.Action.Basic                    (connect, localMoveN
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.Model              (createConnectionModel, getIntersectingConnections)
-import           NodeEditor.Action.State.NodeEditor         (getConnection, getExpressionNode, getNodeEditor, getSelectedNodes,
+import           NodeEditor.Action.State.NodeEditor         (getConnection, getExpressionNode, getNode, getNodeEditor, getSelectedNodes,
                                                              modifyConnection, modifyExpressionNode, modifyInPort, modifyNodeEditor,
-                                                             modifyOutPort, getNode)
-import           NodeEditor.React.Model.Connection          (Mode (Dimmed, Highlighted), dst, src, getConnectionMode)
+                                                             modifyOutPort)
+import           NodeEditor.React.Model.Connection          (Mode (Dimmed, Highlighted), dst, getConnectionMode, src)
 import qualified NodeEditor.React.Model.Connection          as Connection
 import           NodeEditor.React.Model.Node.ExpressionNode (inPortAt, inPortAt, inPortsList, isSelected, nodeLoc, outPortAt, position)
 import           NodeEditor.React.Model.NodeEditor          (halfConnections, toPosConnection)
 import           NodeEditor.React.Model.Port                (isSelf, mode, portId)
 import qualified NodeEditor.React.Model.Port                as Port
 import           NodeEditor.State.Action                    (Action (begin, continue, end, update), NodeDrag (NodeDrag), nodeDragAction,
-                                                             nodeDragNodeLoc, nodeDragNodesStartPos, nodeDragSnappedConnId, nodeDragStartPos)
+                                                             nodeDragNodeLoc, nodeDragNodesStartPos, nodeDragSnappedConnId,
+                                                             nodeDragStartPos)
 import           NodeEditor.State.Global                    (State)
 import           NodeEditor.State.Mouse                     (workspacePosition)
 import           React.Flux                                 (MouseEvent)
@@ -82,8 +83,8 @@ clearSnappedConnection nodeDrag = do
         modifyConnection connId $ Connection.mode .= maybe Connection.Normal (getConnectionMode connId) mayNode
         updatePortsModeForNode $ connId ^. PortRef.nodeLoc
         withJustM (getConnection connId) $ updatePortsModeForNode . view (src . PortRef.nodeLoc)
-    updatePortsModeForNode nl
-    continue $ \nodeDrag' -> update $ nodeDrag' & nodeDragSnappedConnId .~ Nothing
+        updatePortsModeForNode nl
+        continue $ \nodeDrag' -> update $ nodeDrag' & nodeDragSnappedConnId .~ Nothing
 
 snapConnectionsForNodes :: Position -> [NodeLoc] -> Command State ()
 snapConnectionsForNodes mousePos nodeLocs = when (length nodeLocs == 1) $ forM_ nodeLocs $ \nl -> do

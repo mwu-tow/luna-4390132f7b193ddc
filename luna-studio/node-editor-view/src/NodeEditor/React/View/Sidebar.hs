@@ -158,7 +158,7 @@ sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
         highlight = ["hover" | isHighlighted p || isInNameEditMode p]
         classes   = modeClass (p ^. Port.mode) <> if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
                                                   else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
-        handlers' = if isOutPort portId then portHandlers ref mode isPortDragged canBeRemoved portRef else handlers ref portRef
+        handlers' = if isOutPort portId then portHandlers ref mode isPortDragged canBeRemoved portRef else handlers ref portRef False
     div_
         [ "key"       $= ( jsShow portId <> "-port-" <> jsShow num )
         , "className" $= Style.prefixFromList classes

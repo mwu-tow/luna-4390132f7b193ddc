@@ -171,7 +171,7 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
                 unless (isTopLevel && isDef) $ nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_ ref n mayEditedTextPortControlPortRef
             when showValue $ nodeValue_ ref n
-            nodePorts_ ref n hasAlias hasSelf
+            nodePorts_ ref n hasAlias hasSelf isTopLevel
 
 nodeDynamicStyles_ :: Matrix Double -> ExpressionNode -> ReactElementM ViewEventHandler ()
 nodeDynamicStyles_ camera n = React.viewWithSKey nodeDynamicStyles (jsShow $ n ^. Node.nodeId) (camera, n) mempty
@@ -206,11 +206,11 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
                 & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
             _                           -> ""
 
-nodePorts_ :: IsRef ref => ref -> ExpressionNode -> Bool -> Bool -> ReactElementM ViewEventHandler ()
-nodePorts_ ref model hasAlias hasSelf = React.viewWithSKey nodePorts objNamePorts (ref, model, hasAlias, hasSelf) mempty
+nodePorts_ :: IsRef ref => ref -> ExpressionNode -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
+nodePorts_ ref model hasAlias hasSelf isTopLevel = React.viewWithSKey nodePorts objNamePorts (ref, model, hasAlias, hasSelf, isTopLevel) mempty
 
-nodePorts :: IsRef ref => ReactView (ref, ExpressionNode, Bool, Bool)
-nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
+nodePorts :: IsRef ref => ReactView (ref, ExpressionNode, Bool, Bool, Bool)
+nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf, isTopLevel) -> do
     let nodeId       = n ^. Node.nodeId
         nodeLoc      = n ^. Node.nodeLoc
         argPortNum p = visibleArgPortNumber n $ p ^. Port.portId
@@ -226,6 +226,7 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf) -> do
                                                        num
                                                        (if isInPort $ port ^. Port.portId then countVisibleArgPorts n else countVisibleOutPorts n)
                                                        (withOut isAll (port ^. Port.portId) && countVisibleArgPorts n + countVisibleOutPorts n == 1)
+                                                       isTopLevel
     svg_
         [ "viewBox"   $= ("-" <> jsShow nodeRadius <> " -" <> jsShow nodeRadius <> " " <> (jsShow $ nodeRadius * 2) <> " " <> (jsShow $ nodeRadius * 2))
         , "key"       $= "nodePorts"
