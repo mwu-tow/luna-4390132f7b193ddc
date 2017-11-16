@@ -3,7 +3,7 @@ apps:
 packages:
   luna-studio:
     versions:
-      0.9.7.2:
+      0.9.7.3:
         darwin.x64:
           path: ./
           deps:
@@ -31,7 +31,7 @@ packages:
       versions:
           1.0.0:
               linux.x64:
-                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/zmq/zmq.tar.gz
+                  path: https://s3-us-west-2.amazonaws.com/packages-luna/linux/zmq/lib.tar.gz
                   deps: []
               windows.x64:
                 path: https://s3-us-west-2.amazonaws.com/packages-luna/windows/zmq/zmq1.zip

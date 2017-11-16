@@ -36,14 +36,17 @@ paths = {
     system.systems.WINDOWS: {
         'apm': '/Atom/resources/app/apm/bin/apm.cmd',
         'oniguruma': '/Atom/resources/app/node_modules/oniguruma',
+        'package_json': '', #check it!
     },
     system.systems.LINUX: {
         'apm': '/atom/usr/share/atom/resources/app/apm/bin/apm',
         'oniguruma': '/atom/usr/share/atom/resources/app/node_modules/oniguruma',
+        'package_json': '/atom/usr/share/atom/resources/app/package.json',
     },
     system.systems.DARWIN: {
         'apm': '/Atom.app/Contents/Resources/app/apm/bin/apm',
         'oniguruma': '/Atom.app/Contents/Resources/app/node_modules/oniguruma',
+        'package_json': '/Atom.app/Contents/Resources/app/package.json',
     },
 }
 
@@ -176,6 +179,13 @@ def apm_packages():
             elif (pkg_name + '@' + pkg_ver) not in installed_packages:
                     run_apm('uninstall', pkg_name)
                     apm_package(pkg_name, pkg_ver)
+
+
+def modify_atom_package_json():
+    json = get_path('package_json')
+    json_bak = '.'.join(json, 'bak')
+    run_process('sed -i', json_bak, 's/"name":"atom"/"name":"LunaStudio"/ ; s/"productName":"Atom"/"productName":"LunaStudio"/',json)
+
 
 
 def run(gui_url, frontend_args, link=False):
