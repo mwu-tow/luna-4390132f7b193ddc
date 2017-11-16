@@ -24,3 +24,5 @@ nodeExpandedWidth = X.nodePropertiesWidth
 searcherWidth, searcherHeight :: Double
 searcherWidth  = 460
 searcherHeight = 24
+
+selectionPadding    = gridSize/2

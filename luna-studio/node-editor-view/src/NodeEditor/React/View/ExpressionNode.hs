@@ -23,7 +23,7 @@ import qualified NodeEditor.Event.UI                                  as UI
 import qualified NodeEditor.React.Event.Node                          as Node
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants                     (nodeRadius)
+import           NodeEditor.React.Model.Constants                     (nodeRadius, selectionPadding)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
                                                                        countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,
@@ -147,16 +147,18 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
-            , "className" $= Style.prefixFromList ( [ "node", "noselect", (if isCollapsed n                               then "node--collapsed"       else "node--expanded") ]
-                                                                       <> (if returnsError n                              then ["node--error"]         else [])
-                                                                       <> (if n ^. Node.isSelected                        then ["node--selected"]      else [])
-                                                                       <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]      else [] )
-                                                                       <> (if hasSelf                                     then ["node--has-self"]      else ["node--no-self"])
-                                                                       <> (if hasAlias                                    then ["node--has-alias"]     else ["node--no-alias"])
-                                                                       <> (if hasArgConstructor                           then ["node--has-arg-constructor"] else [])
-                                                                       <> highlight
-                                                  )
-            , "style"     @= Aeson.object [ "zIndex"    Aeson..= show z ]
+            , "className" $= Style.prefixFromList 
+                            ( [ "node", "noselect", 
+                                (if isCollapsed n                               then "node--collapsed"             else "node--expanded") ]
+                             <> (if returnsError n                              then ["node--error"]               else [])
+                             <> (if n ^. Node.isSelected                        then ["node--selected"]            else [])
+                             <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]            else [] )
+                             <> (if hasSelf                                     then ["node--has-self"]            else ["node--no-self"])
+                             <> (if hasAlias                                    then ["node--has-alias"]           else ["node--no-alias"])
+                             <> (if hasArgConstructor                           then ["node--has-arg-constructor"] else [])
+                             <> highlight
+                            )
+            , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
             , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
             , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
@@ -198,9 +200,9 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
         , "className" $= Style.prefixFromList [ "node__body", "node-translate" ]
         ] $ do
         errorMark_
-        selectionMark_
+--        selectionMark_
         case n ^. Node.mode of
-            Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef (countVisibleOutPorts n)
+            Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef (countVisibleInPorts n) (countVisibleOutPorts n)
             Node.Expanded Node.Editor   -> multilineField_ [] "editor"
                 $ Field.mk ref (n ^. Node.code)
                 & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
@@ -253,9 +255,11 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf, isTopLe
             , "className" $= Style.prefix "node-transform"
             ] $ do
             if isCollapsed n then do
+                selectionMark_ $ nodeRadius/gridSize
                 ports argPorts
                 ports outPorts
             else do
+                selectionMark_ 5.0
                 forM_ inPorts
                  $ uncurry (portExpanded_ ref nodeLoc)
                 forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)

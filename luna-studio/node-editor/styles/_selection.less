@@ -4,44 +4,42 @@
 //     selection mark      //
 /////////////////////////////
 
-.basic-styles () {
-    position:       absolute;
-    pointer-events: none;
-    border-radius:  32rem;
-}
-
-.basic-sizing () {
-    width:   auto;
-    height:  auto;
-    left:   -@luna-selection-padding * 1rem;
-    right:  -@luna-selection-padding * 1rem;
-    bottom: -@luna-selection-padding * 1rem;
-    top:    -@luna-selection-padding * 1rem; 
-}
-
 .luna-selection {
-    .basic-styles;
-    width:          100%;
-    height:         100%;
-    border:         1px solid @luna-text-accent-color; //orange
-    left:           0;
-    top:            0;
-    opacity:        0;
-    left:          -1rem;
-    top:           -1rem;
-    right:         -1rem;
-    bottom:        -1rem;
+    stroke:       @luna-text-accent-color;
+    stroke-width: 1;
+    width:        @luna-node-radius * 2px;
+    height:       @luna-node-radius * 2px;
+    opacity:      0;
+    x:            @luna-node-radius * -1px;
+    y:            @luna-node-radius * -1px;
+    rx:           @luna-node-radius;
+    ry:           @luna-node-radius;
+    fill:         none;
+    pointer-events: none;
+}
 
+.luna-node--expanded {
+    .luna-selection {
+        width: @luna-expanded-node-width * 1px;
+        x:     @luna-expanded-node-width * -0.5px;
+    }
 }
 
 .luna-node--selected {
     .luna-selection {
-        .basic-sizing;
         opacity: 1;
+        width:   (@luna-node-radius + @luna-selection-padding) *  2px;
+        height:  (@luna-node-radius + @luna-selection-padding) *  2px;
+        x:       (@luna-node-radius + @luna-selection-padding) * -1px;
+        y:       (@luna-node-radius + @luna-selection-padding) * -1px;
+        rx:       @luna-node-radius + @luna-selection-padding;
+        ry:       @luna-node-radius + @luna-selection-padding;
     }
     &.luna-node--expanded {
         .luna-selection {
-            border-radius: @luna-border-radius-expanded-node-selection * 1rem;
+            width: (@luna-expanded-node-width + 2 * @luna-selection-padding) *  1px;
+            x:     (@luna-expanded-node-width + 2 * @luna-selection-padding) * -0.5px;
+
         }
     }
 }
@@ -52,8 +50,6 @@
 
 .luna-node--error {
     .luna-error {
-        .basic-styles;
-        .basic-sizing;
         opacity:       .3;
         z-index:       -100;
         background:    repeating-linear-gradient(
