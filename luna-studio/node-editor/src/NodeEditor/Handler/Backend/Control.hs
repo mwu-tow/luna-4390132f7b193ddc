@@ -2,13 +2,11 @@ module NodeEditor.Handler.Backend.Control
     ( handle
     ) where
 
+import           Common.Action.Command   (Command)
 import           Common.Prelude
-import           Common.Report
-
+import           Common.Report           (fatal)
 import qualified NodeEditor.Event.Batch  as Batch
 import           NodeEditor.Event.Event  (Event (Batch))
-
-import           Common.Action.Command   (Command)
 import           NodeEditor.State.Global (State)
 
 

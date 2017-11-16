@@ -4,7 +4,7 @@ module NodeEditor.Handler.Backend.Graph
 
 import           Common.Action.Command                       (Command)
 import           Common.Prelude
-import           Common.Report
+import           Common.Report                               (fatal)
 import qualified Data.DateTime                               as DT
 import qualified JS.Clipboard                                as JS
 import qualified LunaStudio.API.Atom.MoveProject             as MoveProject

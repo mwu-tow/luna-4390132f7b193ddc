@@ -7,7 +7,7 @@ module NodeEditor.Handler.Backend.Common
 import           Common.Action.Command   (Command)
 import           Common.Debug            (measureResponseTime)
 import           Common.Prelude
-import           Common.Report
+import           Common.Report           (error)
 import qualified Data.UUID.Types         as UUID (toString)
 import qualified LunaStudio.API.Response as Response
 import qualified LunaStudio.API.Topic    as Topic
@@ -24,7 +24,7 @@ handleResponse resp@(Response.Response uuid _ req inv res) success failure = do
     case res of
         Response.Ok    res' -> success res'
         Response.Error str  -> do
-            error $ Topic.topic resp <> " [" <> UUID.toString uuid <> "]\n\n" <> str <> "\n\n" <> show req
+            error $ str <> "\n\nwhile processing event\n\n" <> Topic.topic resp
             failure inv
     measureResponseTime resp
     whenM (isOwnRequest uuid) $ unregisterRequest uuid
