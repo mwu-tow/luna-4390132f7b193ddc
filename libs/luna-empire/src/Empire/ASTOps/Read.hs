@@ -351,7 +351,7 @@ nodeIsPatternMatch nid = (do
 varIsPatternMatch :: GraphOp m => NodeRef -> m Bool
 varIsPatternMatch expr = do
     var <- getVarNode expr
-    isCons var
+    not <$> isVar var
 
 rhsIsLambda :: GraphOp m => NodeRef -> m Bool
 rhsIsLambda ref = do

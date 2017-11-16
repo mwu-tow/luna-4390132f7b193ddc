@@ -2241,3 +2241,40 @@ def main:
                 let Just b = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "b") nodes
                 Graph.renameNode (top |>= quux) b "baz"
                 Graph.setNodeExpression (top |>= quux) c "400"
+        it "does not autoconnect to tuple literal" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    number1 = 1
+                    tuple1 = (1,2.0)
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode loc u1 "1" def
+                Graph.addNodeWithConnection loc (convert u2) "(1,2.0)" def (Just u1)
+                tuple <- Graph.withGraph loc $ runASTOp $ GraphBuilder.buildNode u2
+                liftIO $ tuple ^. Node.code `shouldBe` "(1,2.0)"
+        it "does not autoconnect to pattern match" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    a=(1,2)
+                    (x,y)=a
+                    succ1 = succ
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                u3 <- mkUUID
+                Graph.addNode loc u1 "a=(1,2)" def
+                Graph.addNode loc u2 "(x,y)=a" def
+                Graph.addNodeWithConnection loc (convert u3) "succ" def (Just u2)

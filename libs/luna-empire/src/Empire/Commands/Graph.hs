@@ -13,6 +13,7 @@
 module Empire.Commands.Graph
     ( addNode
     , addNodeCondTC
+    , addNodeWithConnection
     , addPort
     , addPortWithConnections
     , addSubgraph
@@ -85,9 +86,9 @@ import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
 import qualified Data.Aeson.Text                  as Aeson
 import           Data.Coerce                      (coerce)
-import           Data.Char                        (isSeparator)
+import           Data.Char                        (isSeparator, isUpper)
 import           Data.Foldable                    (toList)
-import           Data.List                        (elemIndex, find, group, partition, sortOn, nub, head)
+import           Data.List                        (elemIndex, find, group, partition, sortBy, sortOn, nub, head)
 import qualified Data.List.Split                  as Split
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
@@ -166,6 +167,7 @@ import           LunaStudio.Data.NodeSearcher     (ImportName, ImportsHints, Cla
 import           LunaStudio.Data.Point            (Point)
 import qualified LunaStudio.Data.Point            as Point
 import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
+import qualified LunaStudio.Data.Port             as Port
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.PortRef          as PortRef
@@ -311,6 +313,24 @@ addNodeNoTC loc uuid input name meta = do
         AST.writeMeta expr meta
         node <- GraphBuilder.buildNode uuid
         return node
+    return node
+
+addNodeWithConnection :: GraphLocation -> NodeLoc -> Text -> NodeMeta -> Maybe NodeId -> Empire ExpressionNode
+addNodeWithConnection location nl@(NodeLoc _ nodeId) expression nodeMeta connectTo = do
+    node <- addNodeCondTC False location nodeId expression nodeMeta
+    for_ connectTo $ \nid -> do
+        handle (\(e :: SomeASTException) -> return ()) $ do
+            pattern <- withGraph location $ runASTOp $ ASTRead.nodeIsPatternMatch nid
+            when pattern $ throwM InvalidConnectionException
+            let firstWord = unsafeHead $ Text.words expression
+            let shouldConnectToArg w = isUpper (Text.head w)
+                ports = node ^.. Node.inPorts . traverse . Port.portId
+                selfs = filter (\a -> all (== Self) a && not (null a)) ports
+                longestSelfChain = Safe.headDef [Self] $ reverse $ sortBy (compare `on` length) selfs
+                port = if shouldConnectToArg firstWord then [Arg 0] else longestSelfChain
+            void $ connectCondTC False location (OutPortRef (NodeLoc def nid) []) (InPortRef' $ InPortRef nl port)
+            withGraph location $ runASTOp $ autolayoutNodes [nodeId]
+    typecheck location
     return node
 
 findPreviousSeq :: GraphOp m => NodeRef -> Set.Set NodeRef -> m (Maybe NodeRef)

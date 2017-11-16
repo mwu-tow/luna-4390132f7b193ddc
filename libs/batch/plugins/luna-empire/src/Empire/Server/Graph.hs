@@ -229,18 +229,7 @@ handleAddConnection = modifyGraph inverse action replyResult where
 handleAddNode :: Request AddNode.Request -> StateT Env BusT ()
 handleAddNode = modifyGraph defInverse action replyResult where
     action (AddNode.Request location nl@(NodeLoc _ nodeId) expression nodeMeta connectTo) = withDefaultResult location $ do
-        node <- Graph.addNodeCondTC False location nodeId expression nodeMeta
-        for_ connectTo $ \nid -> do
-            handle (\(e :: SomeASTException) -> return ()) $ do
-                let firstWord = unsafeHead $ Text.words expression
-                let shouldConnectToArg w = isUpper (Text.head w)
-                    ports = node ^.. Node.inPorts . traverse . Port.portId
-                    selfs = filter (\a -> all (== Self) a) ports
-                    longestSelfChain = Safe.headDef [Self] $ reverse $ sortBy (compare `on` length) selfs
-                    port = if shouldConnectToArg firstWord then [Arg 0] else longestSelfChain
-                void $ Graph.connectCondTC False location (getSrcPortByNodeId nid) (InPortRef' $ InPortRef nl port)
-                Graph.withGraph location $ runASTOp $ Graph.autolayoutNodes [nodeId]
-        Graph.typecheck location
+        Graph.addNodeWithConnection location nl expression nodeMeta connectTo
 
 handleAddPort :: Request AddPort.Request -> StateT Env BusT ()
 handleAddPort = modifyGraph defInverse action replyResult where
