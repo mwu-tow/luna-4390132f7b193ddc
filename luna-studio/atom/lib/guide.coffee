@@ -61,15 +61,15 @@ module.exports =
                         outlet: 'guideDescription'
                     @button
                         outlet: 'buttonContinue'
-                        class: 'luna-guide-continue'
+                        class: 'luna-guide-button luna-guide-continue'
                         'Continue'
                     @button
                         outlet: 'buttonHide'
-                        class: 'luna-guide-hide'
+                        class: 'luna-guide-button luna-guide-hide'
                         'Hide'
                     @button
                         outlet: 'buttonDisable'
-                        class: 'luna-guide-disable'
+                        class: 'luna-guide-button luna-guide-disable'
                         'Do not show again'
 
         initialize: =>
