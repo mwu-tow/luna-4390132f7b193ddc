@@ -18,7 +18,6 @@ import           JS.Visualizers                              (registerVisualizer
 import           LunaStudio.Data.CameraTransformation        (CameraTransformation)
 import           LunaStudio.Data.GraphLocation               (breadcrumb)
 import           LunaStudio.Data.MonadPath                   (MonadPath)
-import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
 import           LunaStudio.Data.NodeSearcher                (ImportName, ModuleHints)
 import qualified LunaStudio.Data.NodeSearcher                as NS

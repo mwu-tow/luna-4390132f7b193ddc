@@ -91,9 +91,9 @@ localUpdateNodeTypecheck path update = do
             SidebarNode.inputSidebarPorts .= convert `fmap2` outPorts
 
 updateSearcherClassName :: ExpressionNode -> Command State ()
-updateSearcherClassName n = do
-    let (className, _) = Searcher.getPredInfo n
+updateSearcherClassName node = do
+    let (className, _) = Searcher.getPredInfo node
         isNodePred n s = s ^. Searcher.predNl == Just (n ^. ExpressionNode.nodeLoc)
-    whenM (maybe False (isNodePred n) <$> NodeEditor.getSearcher) $ do
+    whenM (maybe False (isNodePred node) <$> NodeEditor.getSearcher) $ do
         NodeEditor.modifySearcher $ Searcher.mode . Searcher._Node . _2 . Searcher.className .= className
         localUpdateSearcherHintsPreservingSelection

@@ -8,7 +8,6 @@ import           Common.Action.Command   (Command)
 import           Common.Debug            (measureResponseTime)
 import           Common.Prelude
 import           Common.Report           (error)
-import qualified Data.UUID.Types         as UUID (toString)
 import qualified LunaStudio.API.Response as Response
 import qualified LunaStudio.API.Topic    as Topic
 import           NodeEditor.Action.UUID  (isOwnRequest, unregisterRequest)
@@ -20,7 +19,7 @@ whenOk (Response.Response _ _ _ _ (Response.Ok    res)) handler = handler res
 whenOk (Response.Response _ _ _ _ (Response.Error _  )) _       = return ()
 
 handleResponse :: (Topic.MessageTopic (Response.Response req inv res), Show req) => Response.Response req inv res -> (res -> Command State ()) -> (Response.Status inv -> Command State ()) -> Command State ()
-handleResponse resp@(Response.Response uuid _ req inv res) success failure = do
+handleResponse resp@(Response.Response uuid _ _ inv res) success failure = do
     case res of
         Response.Ok    res' -> success res'
         Response.Error str  -> do

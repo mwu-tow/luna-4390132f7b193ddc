@@ -2,7 +2,6 @@ module NodeEditor.Action.Basic.AddPort where
 
 import           Common.Action.Command                   (Command)
 import           Common.Prelude
-import qualified Data.Text                               as Text
 import           LunaStudio.Data.LabeledTree             (LabeledTree (LabeledTree))
 import           LunaStudio.Data.Port                    (Port (Port))
 import           LunaStudio.Data.PortRef                 (InPortRef, OutPortRef (OutPortRef), srcPortId)

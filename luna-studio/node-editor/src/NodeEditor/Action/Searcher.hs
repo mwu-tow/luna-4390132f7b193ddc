@@ -5,10 +5,9 @@ module NodeEditor.Action.Searcher where
 import           Common.Action.Command                      (Command)
 import           Common.Prelude
 import           Common.Report                              (warning)
-import qualified Data.Map                                   as Map
 import qualified Data.Text                                  as Text
 import qualified JS.Searcher                                as Searcher
-import           JS.Visualizers                             (registerVisualizerFrame, sendVisualizationData)
+import           JS.Visualizers                             (registerVisualizerFrame)
 import           Luna.Syntax.Text.Lexer                     (evalDefLexer)
 import           LunaStudio.Data.Geometry                   (snap)
 import           LunaStudio.Data.Matrix                     (invertedTranslationMatrix, translationMatrix)
@@ -16,7 +15,7 @@ import           LunaStudio.Data.NodeLoc                    (NodeLoc, NodePath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import qualified LunaStudio.Data.NodeSearcher               as NS
 import           LunaStudio.Data.NodeValue                  (getMdVis)
-import           LunaStudio.Data.PortRef                    (OutPortRef (OutPortRef))
+import           LunaStudio.Data.PortRef                    (OutPortRef)
 import           LunaStudio.Data.ScreenPosition             (move, x, y)
 import           LunaStudio.Data.Size                       (height, width)
 import           LunaStudio.Data.TypeRep                    (TypeRep (TCons))
