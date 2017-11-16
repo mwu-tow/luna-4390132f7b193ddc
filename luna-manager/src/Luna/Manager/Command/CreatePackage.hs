@@ -302,8 +302,16 @@ prepareVersion appPath version = Shelly.switchVerbosity $ do
     -- check out to the commit pointed by the version tag, if it exists
     let versionTxt  = showPretty version
         tagExists t = not . T.null <$> Shelly.cmd "git" "tag" "-l" t
-    Shelly.chdir appPath $ Shelly.whenM (tagExists versionTxt)
-                         $ Shelly.cmd "git" "checkout" versionTxt
+    Shelly.chdir appPath $ do
+        exists <- tagExists versionTxt
+        Logger.log $ "Tag " <> versionTxt <> " " <> (if exists then "exists" else "does not exist.")
+        if exists then do
+            Logger.log "Checking out the tag..."
+            Shelly.cmd "git" "checkout" versionTxt
+        else Logger.log "Building from HEAD"
+
+        commitHash <- Shelly.cmd "git" "rev-parse" "--short" "HEAD"
+        Logger.log $ "Building from commit: " <> commitHash
 
 createPkg :: MonadCreatePackage m => FilePath -> Maybe Text -> ResolvedApplication -> m ()
 createPkg cfgFolderPath s3GuiURL resolvedApplication = do
