@@ -102,7 +102,7 @@ def copy_studio (package_path, gui_url, frontend_args):
             z.extractall(package_path)
         except:
             print("Can not download gui from given url")
-            print("Building frontend")
+            print("Building Luna Studio")
             stack_build.build_ghcjs(frontend_args, dev_mode=True)
             atom_prepare.run(dev_mode=True)
             print ("Preparing gui package")
@@ -114,6 +114,7 @@ def copy_studio (package_path, gui_url, frontend_args):
                             zf.write(os.path.join(dirname, filename))
 
     else:
+        print("Building Luna Studio")
         stack_build.build_ghcjs(frontend_args, dev_mode=True)
         atom_prepare.run(dev_mode=True)
     dir_util.copy_tree(studio_atom_source_path, package_path)
@@ -142,8 +143,10 @@ def init_apm(gui_url, frontend_args, link):
     oniguruma_package_path = package_path + '/node_modules/oniguruma'
     if link:
         with working_directory(studio_atom_source_path):
+            print('Installing Luna Studio')
             output = run_apm('install', '.')
             print(output)
+            print('Linking Luna Studio')
             output2 = run_apm('link', '.')
             print(output2)
     else:
@@ -151,6 +154,7 @@ def init_apm(gui_url, frontend_args, link):
         copy_studio(package_path, gui_url, frontend_args)
         dir_util.copy_tree(oniguruma_path, oniguruma_package_path)
         with working_directory(package_path):
+            print('Installing Luna Studio')
             output = run_apm('install', '.')
             print(output)
         dir_util.remove_tree(oniguruma_package_path)

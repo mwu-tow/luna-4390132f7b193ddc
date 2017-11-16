@@ -78,6 +78,7 @@ def cp_files():
 
 def run(dev_mode=False):
     if dev_mode:
+        print('Preparing Luna Studio for installation')
         rm_old()
         create_dirs()
         ghcjs_code()
