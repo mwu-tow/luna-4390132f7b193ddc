@@ -341,14 +341,16 @@ setSeqOffsets node loff roff = do
     IR.putLayer @SpanOffset r roff
 
 insertAfter :: GraphOp m => NodeRef -> Maybe NodeRef -> NodeRef -> Delta -> Text -> m (NodeRef, Bool)
-insertAfter s after new textBeginning code = IR.matchExpr s $ \case
+insertAfter s after new textBeginning code = do
+    indentBy <- Code.getCurrentIndentationLength
+    IR.matchExpr s $ \case
         IR.Seq l r -> do
             rt <- IR.source r
             if Just rt == after
                 then do
-                    indentBy <- Code.getCurrentIndentationLength
                     Code.insertAt (fromIntegral textBeginning) ("\n" <> Text.replicate (fromIntegral indentBy) " " <> code)
                     newSeq <- IR.generalize <$> IR.seq s new
+                    IR.putLayer @SpanLength newSeq =<< IR.getLayer @SpanLength s
                     setSeqOffsets newSeq 0 (indentBy + 1)
                     return (newSeq, True)
                 else do
@@ -359,19 +361,28 @@ insertAfter s after new textBeginning code = IR.matchExpr s $ \case
                     when shouldUpdate (IR.replaceSource res l)
                     return (res, False)
         _ -> do
-            indentBy <- Code.getCurrentIndentationLength
             if after == Just s
                 then do
                     Code.insertAt (fromIntegral textBeginning) ("\n" <> Text.replicate (fromIntegral indentBy) " " <> code)
                     newSeq <- IR.generalize <$> IR.seq s new
+                    IR.putLayer @SpanLength newSeq =<< IR.getLayer @SpanLength s
                     setSeqOffsets newSeq 0 (indentBy + 1)
-                    return $ (newSeq, True)
+                    return (newSeq, True)
                 else do
                     slen <- IR.getLayer @SpanLength s
                     Code.insertAt (fromIntegral $ textBeginning - slen) (code <> "\n" <> Text.replicate (fromIntegral indentBy) " ")
                     newSeq <- IR.generalize <$> IR.seq new s
+                    IR.putLayer @SpanLength newSeq =<< IR.getLayer @SpanLength s
                     setSeqOffsets newSeq 0 (indentBy + 1)
-                    return $ (newSeq, True)
+                    return (newSeq, True)
+
+insertAfterAndUpdate :: GraphOp m => NodeRef -> Maybe NodeRef -> NodeRef -> Delta -> Text -> m ()
+insertAfterAndUpdate s after new textBeginning code = do
+    (newS, shouldUpdate) <- insertAfter s after new textBeginning code
+    when shouldUpdate $ updateGraphSeq $ Just newS
+    indentBy <- Code.getCurrentIndentationLength
+    newLen <- IR.getLayer @SpanLength new
+    Code.gossipLengthsChangedBy (newLen + indentBy + 1) newS
 
 getCurrentFunctionOutput :: GraphOp m => m NodeRef
 getCurrentFunctionOutput = do
@@ -391,9 +402,7 @@ putInSequence ref code meta = do
     currentOutput      <- getCurrentFunctionOutput
     anonOutput         <- ASTRead.isAnonymous currentOutput
     none               <- isNone currentOutput
-    (newS, shouldUpdate) <- insertAfter oldSeq nearestNode ref blockEnd code
-    when shouldUpdate (updateGraphSeq $ Just newS)
-    Code.gossipLengthsChanged newS
+    insertAfterAndUpdate oldSeq nearestNode ref blockEnd code
     when (Just currentOutput == nearestNode && anonOutput && not none) $ do
         Just nid <- GraphBuilder.getNodeIdWhenMarked currentOutput
         ASTBuilder.ensureNodeHasName generateNodeName nid
@@ -436,7 +445,6 @@ setOutputTo out = do
     blockEnd <- Code.getCurrentBlockEnd
     newSeq   <- reconnectOut oldSeq out blockEnd
     traverse_ (updateGraphSeq . Just) newSeq
-    traverse_ Code.gossipUsesChanged  newSeq
 
 updateGraphSeq :: GraphOp m => Maybe NodeRef -> m ()
 updateGraphSeq newOut = do
@@ -444,15 +452,19 @@ updateGraphSeq newOut = do
     Just outLink <- ASTRead.getFirstNonLambdaLink currentTgt
     oldSeq       <- IR.source outLink
     case newOut of
-        Just o  -> IR.replaceSource o outLink
+        Just o  -> do
+            oldSeqLen <- IR.getLayer @SpanLength oldSeq
+            newSeqLen <- IR.getLayer @SpanLength o
+            Code.gossipLengthsChangedBy (newSeqLen - oldSeqLen) =<< IR.readTarget outLink
+            IR.replaceSource o outLink
         Nothing -> do
             none <- IR.generalize <$> IR.cons_ "None"
             let noneLen = fromIntegral $ length ("None"::String)
-            IR.putLayer @SpanLength none noneLen
             IR.replaceSource none outLink
+            Code.gossipLengthsChangedBy noneLen none
             blockEnd <- Code.getCurrentBlockEnd
             Code.insertAt (blockEnd - noneLen) "None"
-            Code.gossipLengthsChanged none
+            return ()
     IR.deepDeleteWithWhitelist oldSeq $ Set.fromList $ maybeToList newOut
     oldRef <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == oldSeq) $ for_ newOut (Graph.breadcrumbHierarchy . BH.self .=)
@@ -591,6 +603,9 @@ removeSequenceElement seq ref = IR.matchExpr seq $ \case
                 recur <- removeSequenceElement lt ref
                 case recur of
                     (Just newRef, True) -> do -- left child changed
+                        len    <- IR.getLayer @SpanLength ref
+                        indent <- Code.getCurrentIndentationLength
+                        Code.gossipLengthsChangedBy (negate $ len + indent + 1) lt
                         IR.replace newRef lt
                         return (Just newRef, False)
                     (Nothing, True)     -> do -- left child removed, right child replaces whole seq
@@ -611,7 +626,6 @@ removeFromSequence ref = do
     oldSeq <- ASTRead.getCurrentBody
     (newS, shouldUpdate) <- removeSequenceElement oldSeq ref
     when shouldUpdate (updateGraphSeq newS)
-    traverse_ Code.gossipLengthsChanged newS
 
 removePort :: GraphLocation -> OutPortRef -> Empire ()
 removePort loc portRef = do
@@ -887,9 +901,10 @@ renameNode loc nid name
                     ref      <- ASTRead.getASTPointer nid
                     Just beg <- Code.getOffsetRelativeToFile ref
                     varLen   <- IR.getLayer @SpanLength v
+                    patLen   <- IR.getLayer @SpanLength pat
                     vEdge    <- ASTRead.getVarEdge nid
                     IR.replaceSource pat vEdge
-                    Code.gossipLengthsChanged pat
+                    Code.gossipLengthsChangedBy (patLen - varLen) ref
                     void $ Code.applyDiff beg (beg + varLen) name
             runAliasAnalysis
         resendCode loc
@@ -1656,8 +1671,9 @@ setToNothing dst = do
         oldLen    <- IR.getLayer @SpanLength dstTarget
         Code.applyDiff dstBeg (dstBeg + oldLen) nothingExpr
         GraphUtils.rewireNode dst nothing
-        dstTarget <- ASTRead.getASTTarget dst
-        Code.gossipLengthsChanged dstTarget
+        let lenDiff = fromIntegral (Text.length nothingExpr) - oldLen
+        dstPointer <- ASTRead.getASTPointer dst
+        Code.gossipLengthsChangedBy lenDiff dstPointer
 
 removeInternalConnection :: GraphOp m => NodeId -> InPortId -> m ()
 removeInternalConnection nodeId port = do
@@ -1682,5 +1698,6 @@ makeWhole srcAst dst = do
         newExpr   <- ASTPrint.printFullExpression srcAst
         Code.applyDiff dstBeg (dstBeg + oldLen) newExpr
         GraphUtils.rewireNode dst srcAst
-        dstTarget <- ASTRead.getASTTarget dst
-        Code.gossipLengthsChanged dstTarget
+        let lenDiff = fromIntegral (Text.length newExpr) - oldLen
+        dstPointer <- ASTRead.getASTPointer dst
+        Code.gossipLengthsChangedBy lenDiff dstPointer

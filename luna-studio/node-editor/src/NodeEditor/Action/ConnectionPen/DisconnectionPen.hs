@@ -17,7 +17,7 @@ import           NodeEditor.Action.ConnectionPen.SmoothLine (addPointToCurve, be
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.Model              (getConnectionsIntersectingSegment, getNodeAtPosition)
-import           NodeEditor.Action.State.NodeEditor         (getConnectionsMap, modifyNodeEditor)
+import           NodeEditor.Action.State.NodeEditor         (getConnectionsMap, inTopLevelBreadcrumb, modifyNodeEditor)
 import           NodeEditor.Data.Color                      (Color (Color))
 import           NodeEditor.React.Model.Connection          (Connection, nodeLocs)
 import           NodeEditor.React.Model.ConnectionPen       (ConnectionPen (ConnectionPen))
@@ -39,7 +39,7 @@ instance Action (Command State) PenDisconnect where
 
 
 startDisconnecting :: MouseEvent -> Timestamp -> Command State ()
-startDisconnecting evt timestamp = do
+startDisconnecting evt timestamp = unlessM inTopLevelBreadcrumb $ do
     pos <- workspacePosition evt
     let curve = beginCurve pos timestamp
     begin $ PenDisconnect curve Nothing Nothing

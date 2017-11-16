@@ -115,13 +115,12 @@ replaceWithLam parent name lam = do
             IR.matchExpr newLam $ \case
                 Lam _ b -> IR.putLayer @SpanOffset b oldEdgeOffset
             IR.putLayer @SpanOffset e 2
-            IR.replaceSource (IR.generalize newLam) e
-        Nothing -> substitute (IR.generalize newLam) lam
+            IR.replaceSource newLam e
+        Nothing -> substitute newLam lam
     IR.replace lam tmpBlank
-    Code.gossipLengthsChanged =<< case parent of
-        Just p -> IR.readTarget p
-        _      -> pure lam
-    Code.gossipLengthsChanged newLam
+    Code.gossipLengthsChangedBy (argLen + 2) $ case parent of
+        Just e -> newLam
+        _      -> lam
     return ()
 
 addLambdaArg' :: GraphOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()
@@ -256,15 +255,8 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
                 landingLenMay <- for landingVar (\l -> IR.source l >>= IR.getLayer @SpanLength)
                 maybe (throwM $ PortDoesNotExistException [Port.Projection newPosition]) pure landingLenMay
             code      <- Code.getAt (initialOffset - ownOff) (initialOffset + ownLen)
-            let changes = if newPosition < port
-                          then [ (initialOffset - ownOff, initialOffset + ownLen, "")
-                               , (newOffset     - ownOff, newOffset - ownOff, code)
-                               ]
-                          else
-                              [ (initialOffset - ownOff , initialOffset + ownLen, "")
-                              , (newOffset     + landingLen, newOffset + landingLen, code)
-                              ]
-            Code.applyMany changes
+            Code.applyDiff (initialOffset - ownOff) (initialOffset + ownLen) ""
+            Code.applyDiff (newOffset     - ownOff) (newOffset - ownOff) code
     _ -> throwM $ NotLambdaException lambda
 
 renameLambdaArg :: GraphOp m => Port.OutPortId -> String -> NodeRef -> m ()

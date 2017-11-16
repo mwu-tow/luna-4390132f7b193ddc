@@ -21,7 +21,8 @@ import           LunaStudio.Data.NodeSearcher         (EntryType (Function), Imp
 import qualified LunaStudio.Data.NodeSearcher         as NS
 import           LunaStudio.Data.TypeRep              (ConstructorRep (ConstructorRep))
 import           NodeEditor.Action.Batch              (searchNodes)
-import           NodeEditor.Action.State.NodeEditor   (getLocalFunctions, getNodeSearcherData, getSearcher, modifySearcher)
+import           NodeEditor.Action.State.NodeEditor   (getLocalFunctions, getNodeSearcherData, getSearcher, inTopLevelBreadcrumb,
+                                                       modifySearcher)
 import           NodeEditor.React.Model.Searcher      (NodeModeInfo, Searcher, allCommands, className, updateCommandsResult,
                                                        updateNodeResult)
 import qualified NodeEditor.React.Model.Searcher      as Searcher
@@ -75,7 +76,7 @@ localUpdateSearcherHints :: Command State ()
 localUpdateSearcherHints = localUpdateSearcherHints' >> updateDocs
 
 localUpdateSearcherHints' :: Command State ()
-localUpdateSearcherHints' = do
+localUpdateSearcherHints' = unlessM inTopLevelBreadcrumb $ do
     nsData'        <- getNodeSearcherData
     localFunctions <- getLocalFunctions
     let nsData = Map.insert "Local" (ModuleHints ((,def) <$> localFunctions) def) nsData'

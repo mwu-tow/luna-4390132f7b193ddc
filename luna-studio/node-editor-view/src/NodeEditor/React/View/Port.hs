@@ -63,53 +63,52 @@ handleMouseEnter ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseEnter 
 handleMouseLeave :: IsRef r => r -> AnyPortRef -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseLeave ref portRef _ _ = dispatch ref (UI.PortEvent $ Port.MouseLeave portRef)
 
-port :: IsRef r => ReactView (r, NodeLoc, Int, Int, IsOnly, AnyPort)
-port = React.defineView name $ \(ref, nl, num, numOfArgs, isOnly, p) ->
+port :: IsRef r => ReactView (r, NodeLoc, Int, Int, IsOnly, AnyPort, Bool)
+port = React.defineView name $ \(ref, nl, num, numOfArgs, isOnly, p, isTopLevel) ->
     case p ^. Port.portId of
-        InPortId' []       -> portAlias_ ref nl p
-        InPortId' (Self:_) -> portSelf_  ref nl p
-        OutPortId' []      -> if isOnly then portSingle_ ref nl p
-                                        else portIO_ ref nl p num numOfArgs
-        _                  ->                portIO_ ref nl p num numOfArgs
+        InPortId' []       -> portAlias_ ref nl p isTopLevel
+        InPortId' (Self:_) -> portSelf_  ref nl p isTopLevel
+        OutPortId' []      -> if isOnly then portSingle_ ref nl p isTopLevel
+                                        else portIO_ ref nl p num numOfArgs isTopLevel
+        _                  ->                portIO_ ref nl p num numOfArgs isTopLevel
 
 portExpanded :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int)
 portExpanded = React.defineView name $ \(ref, nl, p, num) -> portIOExpanded_ ref nl p num
 
-port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> IsOnly -> ReactElementM ViewEventHandler ()
-port_ ref nl p num numOfArgs isOnly =
-    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, num, numOfArgs, isOnly, p) mempty
+port_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> IsOnly -> Bool -> ReactElementM ViewEventHandler ()
+port_ ref nl p num numOfArgs isOnly isTopLevel =
+    React.viewWithSKey port (jsShow $ p ^. Port.portId) (ref, nl, num, numOfArgs, isOnly, p, isTopLevel) mempty
 
 portExpanded_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> ReactElementM ViewEventHandler ()
 portExpanded_ ref nl p num =
     React.viewWithSKey portExpanded (jsShow $ p ^. Port.portId) (ref, nl, p, num) mempty
 
-handlers :: IsRef r => r -> AnyPortRef -> [PropertyOrHandler [SomeStoreAction]]
-handlers ref portRef = [ onMouseDown  $ handleMouseDown  ref portRef
-                       , onMouseUp    $ handleMouseUp    ref portRef
-                       , onClick      $ handleClick      ref portRef
-                       , onMouseEnter $ handleMouseEnter ref portRef
-                       , onMouseLeave $ handleMouseLeave ref portRef
-                       ]
+handlers :: IsRef r => r -> AnyPortRef -> Bool -> [PropertyOrHandler [SomeStoreAction]]
+handlers ref portRef isTopLevel = [ onMouseEnter $ handleMouseEnter ref portRef
+                                  , onMouseLeave $ handleMouseLeave ref portRef] <> handlers' where
+    handlers' = if isTopLevel then [] else  [ onMouseDown  $ handleMouseDown  ref portRef
+                                            , onMouseUp    $ handleMouseUp    ref portRef
+                                            , onClick      $ handleClick      ref portRef ]
 
-portAlias_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portAlias_ ref nl p = React.viewWithSKey portAlias "port-alias" (ref, nl, p) mempty
+portAlias_ :: IsRef r => r -> NodeLoc -> AnyPort -> Bool -> ReactElementM ViewEventHandler ()
+portAlias_ ref nl p isTopLevel = React.viewWithSKey portAlias "port-alias" (ref, nl, p, isTopLevel) mempty
 
-portSelf_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portSelf_ ref nl p = React.viewWithSKey portSelf "port-self" (ref, nl, p) mempty
+portSelf_ :: IsRef r => r -> NodeLoc -> AnyPort -> Bool -> ReactElementM ViewEventHandler ()
+portSelf_ ref nl p isTopLevel = React.viewWithSKey portSelf "port-self" (ref, nl, p, isTopLevel) mempty
 
-portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> ReactElementM ViewEventHandler ()
-portSingle_ ref nl p = React.viewWithSKey portSingle "port-single" (ref, nl, p) mempty
+portSingle_ :: IsRef r => r -> NodeLoc -> AnyPort -> Bool -> ReactElementM ViewEventHandler ()
+portSingle_ ref nl p isTopLevel = React.viewWithSKey portSingle "port-single" (ref, nl, p, isTopLevel) mempty
 
-portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> ReactElementM ViewEventHandler ()
-portIO_ ref nl p num numOfArgs = React.viewWithSKey portIO "port-io" (ref, nl, p, num, numOfArgs) mempty
+portIO_ :: IsRef r => r -> NodeLoc -> AnyPort -> Int -> Int -> Bool -> ReactElementM ViewEventHandler ()
+portIO_ ref nl p num numOfArgs isTopLevel = React.viewWithSKey portIO "port-io" (ref, nl, p, num, numOfArgs, isTopLevel) mempty
 
-portAlias :: IsRef r => ReactView (r, NodeLoc, AnyPort)
-portAlias = React.defineView "port-alias" $ \(ref, nl, p) -> do
+portAlias :: IsRef r => ReactView (r, NodeLoc, AnyPort, Bool)
+portAlias = React.defineView "port-alias" $ \(ref, nl, p, isTopLevel) -> do
     let portId       = p ^. Port.portId
         portRef      = toAnyPortRef nl portId
         color        = convert $ p ^. Port.color
         className    = Style.prefixFromList $ ["port", "port--alias"] <> modeClass (p ^. Port.mode)
-        portHandlers = if isInvisible p then [] else handlers ref portRef
+        portHandlers = if isInvisible p then [] else handlers ref portRef isTopLevel
     g_
         [ "className" $= className ] $ do
         circle_
@@ -127,13 +126,13 @@ portAlias = React.defineView "port-alias" $ \(ref, nl, p) -> do
             , "strokeLocation" $= "outside"
             ]) mempty
 
-portSelf :: IsRef r => ReactView (r, NodeLoc, AnyPort)
-portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
+portSelf :: IsRef r => ReactView (r, NodeLoc, AnyPort, Bool)
+portSelf = React.defineView "port-self" $ \(ref, nl, p, isTopLevel) -> do
     let portId       = p ^. Port.portId
         portRef      = toAnyPortRef nl portId
         color        = convert $ p ^. Port.color
         className    = Style.prefixFromList $ ["port", "port--self"] <> modeClass (p ^. Port.mode)
-        portHandlers = if isInvisible p then [] else handlers ref portRef
+        portHandlers = if isInvisible p then [] else handlers ref portRef isTopLevel
     g_
         [ "className" $= className ] $ do
         circle_
@@ -148,14 +147,15 @@ portSelf = React.defineView "port-self" $ \(ref, nl, p) -> do
             , "r"         $= jsShow2 (portAliasRadius - connectionWidth/2)
             ]) mempty
 
-portSingle :: IsRef r => ReactView (r, NodeLoc, AnyPort)
-portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
+portSingle :: IsRef r => ReactView (r, NodeLoc, AnyPort, Bool)
+portSingle = React.defineView "port-single" $ \(ref, nl, p, isTopLevel) -> do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
         portType = toString $ p ^. Port.valueType
         isInput  = isInPort portId
         color    = convert $ p ^. Port.color
         classes  = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] <> modeClass (p ^. Port.mode)
+        portTypeClass = if isTopLevel then "hide" else "port__type"
         r1 :: Double -> JSString
         r1 = jsShow2 . (+) nodeRadius
         r2 = jsShow2 nodeRadius'
@@ -164,7 +164,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
                        " L0 "  <> r2   <> " A " <> r2   <> " " <> r2   <> " 1 0 " <> jsShow c <> " 0 -" <> r2   <> " Z "
     g_ [ "className" $= classes ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] <> modeClass (p ^. Port.mode))
+            [ "className" $= Style.prefixFromList ([ portTypeClass, "noselect" ] <> modeClass (p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 (-typeOffsetY)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -176,14 +176,14 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p) -> do
             , "d"         $= (svgPath 20 0 1 <> svgPath 20 1 0)
             ] mempty
         path_
-            ( handlers ref portRef <>
+            ( handlers ref portRef isTopLevel <>
             [ "className" $= Style.prefix "port__select"
             , "key"       $= (jsShow portId <> "b")
             , "d"         $= (svgPath 20 0 1 <> svgPath 20 1 0)
             ]) mempty
 
-portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int, Int)
-portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs) -> do
+portIO :: IsRef r => ReactView (r, NodeLoc, AnyPort, Int, Int, Bool)
+portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) -> do
     let portId   = p ^. Port.portId
         portRef  = toAnyPortRef nl portId
         portType = toString $ p ^. Port.valueType
@@ -191,6 +191,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs) -> do
         color    = convert $ p ^. Port.color
         classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
+        portTypeClass = if isTopLevel then "hide" else "port__type"
         svgFlag1 = if isInput then "1"  else "0"
         svgFlag2 = if isInput then "0"  else "1"
         mode     = if isInput then -1.0 else 1.0
@@ -218,7 +219,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs) -> do
         [ "className" $= Style.prefixFromList classes
         ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] <> modeClass (p ^. Port.mode))
+            [ "className" $= Style.prefixFromList ([ portTypeClass, "noselect" ] <> modeClass (p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 ((lineHeight * fromIntegral num) - adjust)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -230,7 +231,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs) -> do
             , "d"         $= svgPath True 20
             ] mempty
         path_
-            ( handlers ref portRef <>
+            ( handlers ref portRef isTopLevel <>
               [ "className" $= Style.prefix "port__select"
               , "key"       $= (jsShow portId <> "-select")
               , "d"         $= svgPath False lineHeight
@@ -267,7 +268,7 @@ portIOExpanded_ ref nl p num = do
             , "cy"        $= (py <> "px")
             ] mempty
         circle_
-            ( handlers ref portRef <>
+            ( handlers ref portRef False <>
               [ "className" $= Style.prefix "port__select"
               , "key"       $= (jsShow portId <> jsShow num <> "-select")
               , "r"         $= jsShow2 (lineHeight/1.5)
@@ -291,7 +292,7 @@ argumentConstructor_ ref portRef numOfPorts isConnectionSource hasAlias hasSelf 
             , "r"         $= jsShow2 3
             ] mempty
         circle_
-            ( handlers ref (InPortRef' portRef) <>
+            ( handlers ref (InPortRef' portRef) False <>
                 [ "className" $= Style.prefix "port__select"
                 , "key"       $= "select"
                 , "r"         $= jsShow2 (lineHeight/1.5)

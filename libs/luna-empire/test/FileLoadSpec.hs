@@ -770,11 +770,13 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     Just a = 4
-                    bar = foo 8 c
+                    bar = foo 7 c
                 |]
             in specifyCodeChange mainCondensed expectedCode $ \loc -> do
                 Just c <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 2
                 Graph.renameNode loc c "Just a"
+                Just bar <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 3
+                Graph.setNodeExpression loc bar "foo 7 c"
         it "renames used node in code to pattern with already used var name" $ let
             mainCondensed = [r|
                 def main:
@@ -1923,15 +1925,19 @@ spec = around withChannels $ parallel $ do
                 def main:
                     «0»x = 10
                     «1»y = x
+                    «2»c = 1000
                 |]
             expectedCode = [r|
                 def main:
                     x = 10
                     y = None
+                    d = 1000
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [(outRef, inRef)] <- Graph.getConnections loc
                 Graph.disconnect loc inRef
+                Just c <- find (\n -> n ^. Node.name == Just "c") <$> Graph.getNodes loc
+                Graph.renameNode loc (c ^. Node.nodeId) "d"
         it "shows connection for alias after disconnecting self" $ let
             initialCode = [r|
                 def main:
@@ -2147,6 +2153,91 @@ def main:
     bar = foo 8 c
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Graph.substituteCodeFromPoints "/TestPath" [ Diff (Point 0 2) (Point 0 3) "" Nothing
-                                                           , Diff (Point 0 4) (Point 0 4) "    foo = a: b: a + b\n" Nothing
+                Graph.substituteCodeFromPoints "/TestPath" [ Diff (Just (Point 0 2, Point 0 3)) "" Nothing
+                                                           , Diff (Just (Point 0 4, Point 0 4)) "    foo = a: b: a + b\n" Nothing
                                                            ]
+        it "rename from tuple to var" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    tuple1 = (1, 2)
+                    x = tuple1
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode loc u1 "(1, 2)" def
+                Graph.addNode loc u2 "tuple1" def
+                Graph.renameNode loc u2 "(x, y)"
+                Graph.renameNode loc u2 "x"
+        it "too long grouped as pattern" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    number1 = 1
+                    x = number1
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode loc u1 "1" def
+                Graph.addNode loc u2 "number1" def
+                Graph.renameNode loc u2 "(  x    )"
+                Graph.renameNode loc u2 "x"
+        it "changes inner output and renames node outside" $ let
+            initialCode = [r|
+                def main:
+                    foo = x: y:
+                        aaa = 1
+                        b = 2
+                        c = 3
+                        aaa
+                    bar = 444
+                    bar
+
+                def quux:
+                    b = 3
+                    c = 4
+                    b
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = x: y:
+                        aaa = 1
+                        b = 2
+                        c = 3
+                        c
+                    pppppp = 444
+                    pppppp
+
+                def quux:
+                    baz = 3
+                    c = 400
+                    baz
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                nodes <- Graph.getNodes loc
+                let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
+                let Just bar = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "bar") nodes
+                let loc' = loc |> foo
+                (_, output) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
+                nodes <- Graph.getNodes loc'
+                let Just c = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "c") nodes
+                Graph.connect loc' (outPortRef c []) (InPortRef' $ inPortRef output [])
+                Graph.renameNode loc bar "pppppp"
+                let top = GraphLocation file def
+                nodes <- Graph.getNodes top
+                let Just quux = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "quux") nodes
+                nodes <- Graph.getNodes (top |>= quux)
+                let Just c = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "c") nodes
+                let Just b = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "b") nodes
+                Graph.renameNode (top |>= quux) b "baz"
+                Graph.setNodeExpression (top |>= quux) c "400"

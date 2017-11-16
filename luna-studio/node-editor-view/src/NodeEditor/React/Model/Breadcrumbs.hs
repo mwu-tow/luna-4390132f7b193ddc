@@ -11,5 +11,5 @@ import           NodeEditor.React.Event.Breadcrumbs as X
 
 type Breadcrumbs = Breadcrumb (Named BreadcrumbItem)
 
-isTopLevel :: Breadcrumbs -> Bool
+isTopLevel :: Breadcrumb a -> Bool
 isTopLevel = null . view items

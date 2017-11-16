@@ -16,6 +16,7 @@ import           Data.Monoid                                 (First (First), get
 import qualified Data.Set                                    as Set
 import           JS.Visualizers                              (registerVisualizerFrame)
 import           LunaStudio.Data.CameraTransformation        (CameraTransformation)
+import           LunaStudio.Data.GraphLocation               (breadcrumb)
 import           LunaStudio.Data.MonadPath                   (MonadPath)
 import qualified LunaStudio.Data.Node                        as Empire
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
@@ -29,11 +30,13 @@ import qualified LunaStudio.Data.PortRef                     as PortRef
 import           LunaStudio.Data.Position                    (Position)
 import           LunaStudio.Data.TypeRep                     (TypeRep (TStar))
 import qualified NodeEditor.Action.Batch                     as Batch
-import           NodeEditor.Action.State.App                 (get, modify, modifyApp)
+import           NodeEditor.Action.State.App                 (get, getWorkspace, modify, modifyApp)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
 import           NodeEditor.Action.UUID                      (getUUID)
+import           NodeEditor.Batch.Workspace                  (currentLocation)
 import           NodeEditor.Data.Graph                       (Graph (Graph))
 import           NodeEditor.React.Model.App                  (nodeEditor)
+import           NodeEditor.React.Model.Breadcrumbs          (isTopLevel)
 import           NodeEditor.React.Model.Connection           (Connection, ConnectionId, ConnectionsMap, HalfConnection, PosConnection,
                                                               connectionId, containsNode, containsPortRef, dstNodeLoc, srcNodeLoc,
                                                               toConnectionsMap)
@@ -59,6 +62,11 @@ getNodeEditor = get nodeEditor
 
 modifyNodeEditor :: M.State NodeEditor r -> Command State r
 modifyNodeEditor = modify nodeEditor
+
+inTopLevelBreadcrumb :: Command State Bool
+inTopLevelBreadcrumb = inTopLevelBreadcrumb' <$> getWorkspace where
+    inTopLevelBreadcrumb' Nothing  = False
+    inTopLevelBreadcrumb' (Just w) = isTopLevel $ w ^. currentLocation . breadcrumb
 
 isGraphLoaded :: Command State Bool
 isGraphLoaded = view NE.isGraphLoaded <$> getNodeEditor
