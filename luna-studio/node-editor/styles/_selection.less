@@ -4,30 +4,39 @@
 //     selection mark      //
 /////////////////////////////
 
+.basic-styles () {
+    position:       absolute;
+    pointer-events: none;
+    border-radius:  32rem;
+}
+
+.basic-sizing () {
+    width:   auto;
+    height:  auto;
+    left:   -@luna-selection-padding * 1rem;
+    right:  -@luna-selection-padding * 1rem;
+    bottom: -@luna-selection-padding * 1rem;
+    top:    -@luna-selection-padding * 1rem; 
+}
+
 .luna-selection {
+    .basic-styles;
     width:          100%;
     height:         100%;
     border:         1px solid @luna-text-accent-color; //orange
     left:           0;
     top:            0;
-    position:       absolute;
-    border-radius:  34rem;
     opacity:        0;
     left:          -1rem;
     top:           -1rem;
     right:         -1rem;
     bottom:        -1rem;
-    pointer-events: none;
+
 }
 
 .luna-node--selected {
     .luna-selection {
-        width:   auto;
-        height:  auto;
-        left:   -@luna-selection-padding * 1rem;
-        right:  -@luna-selection-padding * 1rem;
-        bottom: -@luna-selection-padding * 1rem;
-        top:    -@luna-selection-padding * 1rem;
+        .basic-sizing;
         opacity: 1;
     }
     &.luna-node--expanded {
@@ -43,28 +52,25 @@
 
 .luna-node--error {
     .luna-error {
-        pointer-events: none;
+        .basic-styles;
+        .basic-sizing;
+        opacity:       .3;
         z-index:       -100;
-        opacity:        1;
-        width:          auto;
-        height:         auto;
-        position:       absolute;
-        border-radius:  34px;
-        left:          -11px;
-        top:           -11px;
-        right:         -11px;
-        bottom:        -11px;
-        opacity:        .3;
-        background:     repeating-linear-gradient(
-                            135deg,
-                            rgba(0,0,0,0),
-                            rgba(0,0,0,0) 8rem,
-                            red 8rem,
-                            red 16rem
+        background:    repeating-linear-gradient(
+                           135deg,
+                           rgba(0,0,0,0),
+                           rgba(0,0,0,0) 8rem,
+                           red 8rem,
+                           red 16rem
                         );
         background-position: center center;
     }
-    &.luna-node--expanded .luna-error {
-        border-radius: @luna-border-radius-expanded-node-selection * 1rem;
+    &.luna-node--expanded {
+        .luna-error {
+            border-radius: @luna-border-radius-expanded-node-selection * 1rem;
+        }
+        .luna-node__controls {
+            box-shadow: none;
+        }
     }
 }
