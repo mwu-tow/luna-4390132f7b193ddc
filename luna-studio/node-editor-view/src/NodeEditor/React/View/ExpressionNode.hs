@@ -207,7 +207,6 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
         [ "key"       $= "nodeBody"
         , "id"        $= prefixNode ("body-" <> jsShow (n ^. Node.nodeId))
         , "className" $= Style.prefixFromList [ "node__body"
-                                              , convert $ "node-name" <> maybe "" (\a -> "-" <> toName a) (n ^. Node.name)
                                               , "node-translate"
                                               ]
         ] $ do

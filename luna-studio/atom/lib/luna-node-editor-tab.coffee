@@ -24,6 +24,7 @@ class LunaNodeEditorTab extends View
 
         @div
             id: mountPoint
+            class: 'luna-studio-mount'
             =>
                 @h1 "Loading ..."
 

@@ -104,7 +104,16 @@ module.exports =
 
             @highlightedElem = null
             if target.className
-                @highlightedElem = document.getElementsByClassName(target.className)[0]
+                if typeof target.className == 'string'
+                    @highlightedElem = document.getElementsByClassName(target.className)[0]
+                else
+                    for t in target.className
+                        if @highlightedElem?
+                            @highlightedElem = @highlightedElem.getElementsByClassName(t)[0]
+                        else
+                            @highlightedElem = document.getElementsByClassName(t)[0]
+                            unless @highlightedElem?
+                                break
             else if target.id
                 @highlightedElem = document.getElementById(target.id)
             else if target.custom
