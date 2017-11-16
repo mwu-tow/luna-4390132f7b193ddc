@@ -1,8 +1,0 @@
-def foo:
-    5
-
-def bar:
-    "bar"
-
-def main:
-    print bar
