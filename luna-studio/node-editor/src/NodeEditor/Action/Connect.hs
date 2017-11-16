@@ -26,7 +26,7 @@ import           NodeEditor.Action.NodeDrag                 (startNodeDrag)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, continueActionWithKey, removeActionFromState,
                                                              updateActionWithKey)
 import           NodeEditor.Action.State.Model              (createHalfConnectionModel, createHalfConnectionModel')
-import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, modifyNodeEditor)
+import           NodeEditor.Action.State.NodeEditor         (getConnection, getNode, inTopLevelBreadcrumb, modifyNodeEditor)
 import           NodeEditor.Action.State.Scene              (translateToWorkspace)
 import           NodeEditor.React.Event.Connection          (ModifiedEnd (Destination, Source))
 import           NodeEditor.React.Model.Connection          (ConnectionId, toValidConnection)
@@ -66,7 +66,7 @@ handleConnectionMouseDown evt connId modifiedEnd = do
         startConnecting mousePos portRef (Just connId) False Drag
 
 startConnecting :: ScreenPosition -> AnyPortRef -> Maybe ConnectionId -> Bool -> Mode -> Command State ()
-startConnecting screenMousePos anyPortRef mayModifiedConnId isArgumentConstructor connectMode' = do
+startConnecting screenMousePos anyPortRef mayModifiedConnId isArgumentConstructor connectMode' = unlessM inTopLevelBreadcrumb $ do
     let nodeLoc = anyPortRef ^. PortRef.nodeLoc
         portId  = anyPortRef ^. PortRef.portId
     mousePos <- translateToWorkspace screenMousePos
