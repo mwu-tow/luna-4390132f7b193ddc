@@ -175,7 +175,10 @@ run imports loc@(GraphLocation file br) interpret = do
     threads    <- use listeners
     listeners .= []
     case br of
-        Breadcrumb [] -> void $ recomputeCurrentScope imports file
+        Breadcrumb [] -> do
+            void $ recomputeCurrentScope imports file
+            liftIO $ mapM killThread threads
+            liftIO cln
         _             -> do
             std        <- liftIO $ readMVar imports
             scope      <- getCurrentScope imports file
@@ -184,8 +187,8 @@ run imports loc@(GraphLocation file br) interpret = do
                 runTC imps
                 updateNodes  loc
                 {-updateMonads loc-}
-                liftIO cln
                 liftIO $ mapM killThread threads
+                liftIO cln
                 when interpret $ do
                     scope <- runInterpreter file imps
                     traverse_ (updateValues loc) scope
