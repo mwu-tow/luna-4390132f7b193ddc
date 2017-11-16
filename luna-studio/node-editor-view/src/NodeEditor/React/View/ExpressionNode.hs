@@ -130,6 +130,7 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
     _ -> do
         let nodeId        = n ^. Node.nodeId
             nodeLoc       = n ^. Node.nodeLoc
+            isDef         = n ^. Node.isDefinition
             nodeLimit     = 10000::Int
             zIndex        = n ^. Node.zPos
             z             = zIndex + 11::Int --if isCollapsed n then zIndex else zIndex + nodeLimit
@@ -167,7 +168,7 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
                 , "key"       $= "nodeText"
                 ] $ do
                 nodeName_ ref nodeLoc (n ^. Node.name) mayVisVisible maySearcher
-                unless isTopLevel $ nodeExpression_ ref nodeLoc expression maySearcher
+                unless (isTopLevel && isDef) $ nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_ ref n mayEditedTextPortControlPortRef
             when showValue $ nodeValue_ ref n
             nodePorts_ ref n hasAlias hasSelf
