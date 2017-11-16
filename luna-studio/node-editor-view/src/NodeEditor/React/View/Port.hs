@@ -155,6 +155,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p, isTopLevel) -> do
         isInput  = isInPort portId
         color    = convert $ p ^. Port.color
         classes  = Style.prefixFromList $ [ "port", "port--o", "port--o--single" ] <> modeClass (p ^. Port.mode)
+        portTypeClass = if isTopLevel then "hide" else "port__type"
         r1 :: Double -> JSString
         r1 = jsShow2 . (+) nodeRadius
         r2 = jsShow2 nodeRadius'
@@ -163,7 +164,7 @@ portSingle = React.defineView "port-single" $ \(ref, nl, p, isTopLevel) -> do
                        " L0 "  <> r2   <> " A " <> r2   <> " " <> r2   <> " 1 0 " <> jsShow c <> " 0 -" <> r2   <> " Z "
     g_ [ "className" $= classes ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] <> modeClass (p ^. Port.mode))
+            [ "className" $= Style.prefixFromList ([ portTypeClass, "noselect" ] <> modeClass (p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 (-typeOffsetY)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
@@ -190,6 +191,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) 
         color    = convert $ p ^. Port.color
         classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
+        portTypeClass = if isTopLevel then "hide" else "port__type"
         svgFlag1 = if isInput then "1"  else "0"
         svgFlag2 = if isInput then "0"  else "1"
         mode     = if isInput then -1.0 else 1.0
@@ -217,7 +219,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) 
         [ "className" $= Style.prefixFromList classes
         ] $ do
         text_
-            [ "className" $= Style.prefixFromList ([ "port__type", "noselect" ] <> modeClass (p ^. Port.mode))
+            [ "className" $= Style.prefixFromList ([ portTypeClass, "noselect" ] <> modeClass (p ^. Port.mode))
             , "key"       $= (jsShow portId <> "-type")
             , "y"         $= jsShow2 ((lineHeight * fromIntegral num) - adjust)
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
