@@ -183,8 +183,7 @@ def apm_packages():
 
 def modify_atom_package_json():
     json = get_path('package_json')
-    json_bak = '.'.join(json, 'bak')
-    run_process('sed -i', json_bak, 's/"name":"atom"/"name":"LunaStudio"/ ; s/"productName":"Atom"/"productName":"LunaStudio"/',json)
+    run_process('sed', '-i', 's/"name":"atom"/"name":"LunaStudio"/g ; s/"productName":"Atom"/"productName":"LunaStudio"/g',json)
 
 
 
@@ -194,6 +193,7 @@ def run(gui_url, frontend_args, link=False):
     for pkg_name, pkg_url in atom_packages.items():
         apm_luna_atom_package(pkg_name, pkg_url)
     apm_packages()
+    modify_atom_package_json()
 
 
 # if __name__ == '__main__':
