@@ -89,13 +89,15 @@ instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
 
 data AppimageException = AppimageException SomeException deriving (Show)
 instance Exception AppimageException where
-   displayException (AppimageException exception ) = "AppImage not created because of: " <> displayException exception
+    displayException (AppimageException exception ) = "AppImage not created because of: " <> displayException exception
 
 data ExistingVersionException = ExistingVersionException Version deriving (Show)
 instance Exception ExistingVersionException where
-  displayException (ExistingVersionException v) = "This version already exists: " <> (convert $ showPretty v)
+    displayException (ExistingVersionException v) = "This version already exists: " <> (convert $ showPretty v)
 
-
+data NoTagException = NoTagException Text deriving (Show)
+instance Exception NoTagException where
+    displayException (NoTagException t) = "The tag " <> (convert t) <> " does not exist in the repo"
 
 ----------------------
 -- === Appimage === --
@@ -308,7 +310,7 @@ prepareVersion appPath version = Shelly.switchVerbosity $ do
         if exists then do
             Logger.log "Checking out the tag..."
             Shelly.cmd "git" "checkout" versionTxt
-        else Logger.log "Building from HEAD"
+        else throwM $ NoTagException versionTxt
 
         commitHash <- Shelly.cmd "git" "rev-parse" "--short" "HEAD"
         Logger.log $ "Building from commit: " <> commitHash
