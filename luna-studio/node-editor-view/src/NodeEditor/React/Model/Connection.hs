@@ -203,6 +203,8 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
                                         srcPortNum
                                         srcPorts 
                                         (srcPorts + dstArgs == 1)
+                                        (if isDstExp then dstPortNum else dstArgNum)
+                                        (if isDstExp then dstPorts   else dstArgs  )
 
             dstConnPos = connectionDst  srcPos'
                                         dstPos'
@@ -247,6 +249,8 @@ halfConnectionSrcPosition (Expression node) eport mousePos _ =
                                     (visibleOutPortNumber node $ port ^. portId)
                                     allPorts
                                     (countVisibleOutPorts node + countVisibleArgPorts node == 1)
+                                    1
+                                    1
         Left  port -> connectionDst mousePos
                                     pos
                                     False
@@ -266,32 +270,36 @@ halfConnectionSrcPosition (Expression node) eport mousePos _ =
 
 halfConnectionSrcPosition _ _ _ _ = def
 
-connectionAngle :: Position -> Position -> Int -> Int -> Double
-connectionAngle srcPos' dstPos' dstPortNum dstPorts =
+connectionAngle :: Position -> Position -> Int -> Int -> Bool -> Double
+connectionAngle srcPos' dstPos' dstPortNum dstPorts dstExpanded =
     if      t' > a' - pi / 2 - g then a - pi / 2 - g
     else if t' < b' - pi / 2 + g then b - pi / 2 + g
     else t where
-        a  = portAngleStop  True dstPortNum dstPorts portRadius
-        b  = portAngleStart True dstPortNum dstPorts portRadius
-        t  = nodeToNodeAngle srcPos' dstPos'
-        a' = if a < pi then a + (2 * pi) else a
-        b' = if b < pi then b + (2 * pi) else b
-        t' = if t < pi then t + (2 * pi) else t
-        g  = portGap portRadius / 4
+        a   = portAngleStop  True dstPortNum dstPorts portRadius
+        b   = portAngleStart True dstPortNum dstPorts portRadius
+        t   = nodeToNodeAngle srcPos' dst
+        a'  = if a < pi then a + (2 * pi) else a
+        b'  = if b < pi then b + (2 * pi) else b
+        t'  = if t < pi then t + (2 * pi) else t
+        g   = portGap portRadius / 4
+        dst = if dstExpanded 
+            then move (Vector2 (-(nodeExpandedWidth/2)) (lineHeight * (fromIntegral dstPortNum))) dstPos' 
+            else dstPos'
 
--- TODO[JK]: dst numOfInputs
-connectionSrc :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsOnly -> Position
-connectionSrc src' dst' srcExpanded _dstExpanded srcPortNum dstPorts isSingle =
-    if srcExpanded then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src'
-    else move (Vector2 (portRadius * cos t) (portRadius * sin t)) src' where
-        t = if isSingle
-            then nodeToNodeAngle src' dst'
-            else connectionAngle src' dst' (dstPorts - srcPortNum - 1) dstPorts
-
+connectionSrc :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsOnly -> Int -> Int -> Position
+connectionSrc src' dst' srcExpanded _dstExpanded srcPortNum srcPorts isSingle dstPortNum dstPorts = do
+    let t = if isSingle then nodeToNodeAngle src' dst' 
+                        else connectionAngle src' dst' (srcPorts - srcPortNum - 1) srcPorts _dstExpanded
+    if srcExpanded 
+        then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src'
+        else move (Vector2 (portRadius * cos t) (portRadius * sin t)) src'
+           
 connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
 connectionDst src' dst' srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts = do
-    let src'' = if srcExpanded then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src' else src'
-        t     = connectionAngle src'' dst' dstPortNum dstPorts
+    let src'' = if srcExpanded 
+                    then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src' 
+                    else src'
+        t     = connectionAngle src'' dst' dstPortNum dstPorts dstExpanded
     if dstExpanded
         then move (Vector2 (-(nodeExpandedWidth/2)) (lineHeight * (fromIntegral dstPortNum))) dst'
         else if isSelf'
