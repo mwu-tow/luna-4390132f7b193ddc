@@ -18,6 +18,7 @@
 @tile-size:             11*@grid;
 @tile-bg:               rgba(255,255,255,0.08);
 @tile-bg-hover:         rgba(255,255,255,0.12);
+@tile-margin:           1.5*@grid;
 
 @caption-height:        @grid*2;
 @sub-caption-height:    @grid*2;
@@ -25,8 +26,8 @@
 @padding:               2*@grid;
 
 .hide-scrollbar() {
-	&::-webkit-scrollbar { 
-	    display: none; 
+	&::-webkit-scrollbar {
+	    display: none;
 	}
 }
 
@@ -138,16 +139,17 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	width:         23.5*@grid;
 	float:         left;
 
-	&::-webkit-input-placeholder { 
+	&::-webkit-input-placeholder {
 		color: @passive;
 		opacity:0.8;
 	}
-	&:focus::-webkit-input-placeholder { 
+	&:focus::-webkit-input-placeholder {
 		color: transparent;
 	}
 }
 
 .luna-welcome__section__container {
+	min-height:      @tile-size + @caption-height + @sub-caption-height + @tile-margin;
 	width:           100%;
 	display:         flex;
 	flex-wrap:       wrap;
@@ -173,8 +175,8 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	width:         @tile-size !important;
 	height:        @tile-size + @caption-height + @sub-caption-height;
 	position:      relative;
-	margin-right:  1.5*@grid;
-	margin-bottom: 1.5*@grid;
+	margin-right:  @tile-margin;
+	margin-bottom: @tile-margin;
 	cursor:        pointer;
 	.luna-project-logo,
 	&::before {
@@ -187,7 +189,7 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 			background: @tile-bg-hover;
 		}
 	}
-				
+
 }
 
 .luna-welcome__tile--add-new {
@@ -216,7 +218,7 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 
 .luna-project-caption {
 	height:        @caption-height;
-	line-height:   @caption-height; 
+	line-height:   @caption-height;
 	text-align:    center;
 	text-overflow: ellipsis;
 	overflow:      hidden;
@@ -227,4 +229,3 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	text-align: center;
 	font-size:  10px;
 }
-

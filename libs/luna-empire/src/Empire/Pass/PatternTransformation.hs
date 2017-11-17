@@ -7,8 +7,8 @@ module Empire.Pass.PatternTransformation where
 
 import           OCI.Pass        (SubPass, Pass, Inputs, Outputs, Preserves)
 
-import Empire.Prelude hiding (Type, String, s, new, cons)
-import qualified Luna.Prelude as P
+import Empire.Prelude hiding (List, Type, String, s, new, cons)
+import qualified Luna.Prelude as P hiding (List)
 import qualified OCI.IR.Repr.Vis as Vis
 import Data.TypeDesc
 import OCI.IR.Combinators
@@ -63,6 +63,20 @@ flattenPattern expr = matchExpr expr $ \case
         return a
     Var{}     -> return expr
     Cons{}    -> return expr
+    List as   -> do
+        as' <- mapM (flattenPattern <=< source) as
+        l   <- generalize <$> list as'
+        putLayer @SpanLength l =<< getLayer @SpanLength expr
+        childLinks <- inputs l
+        P.forM (zip as childLinks) $ \(orig, new) -> putLayer @SpanOffset new =<< getLayer @SpanOffset orig
+        return l
+    Tuple as   -> do
+        as' <- mapM (flattenPattern <=< source) as
+        t   <- generalize <$> tuple as'
+        putLayer @SpanLength t =<< getLayer @SpanLength expr
+        childLinks <- inputs t
+        P.forM (zip as childLinks) $ \(orig, new) -> putLayer @SpanOffset new =<< getLayer @SpanOffset orig
+        return t
     App{}     -> do
         (name, children, links) <- dumpConsApplication expr
         flatChildren            <- mapM flattenPattern $ reverse children

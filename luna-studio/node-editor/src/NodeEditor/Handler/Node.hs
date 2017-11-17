@@ -3,7 +3,7 @@ module NodeEditor.Handler.Node where
 import           Common.Action.Command                      (Command)
 import           Common.Prelude
 import           LunaStudio.Data.ScreenPosition             (ScreenPosition)
-import           NodeEditor.Action.Basic                    (collapseToFunction, enterNode, localSetPortDefault, removeSelectedNodes,
+import           NodeEditor.Action.Basic                    (collapseToFunction, enterNode, removeSelectedNodes,
                                                              selectAll, setNodeExpression, setPortDefault, toggleSelect,
                                                              toggleSelectedNodesMode, toggleSelectedNodesUnfold)
 import           NodeEditor.Action.Batch                    (autolayoutNodes)
@@ -11,7 +11,6 @@ import qualified NodeEditor.Action.Node                     as Node
 import qualified NodeEditor.Action.Port                     as PortControl
 import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getExpressionNodes, getSelectedNodes)
 import           NodeEditor.Event.Event                     (Event (Shortcut, UI))
-import qualified NodeEditor.Event.Keys                      as Keys
 import qualified NodeEditor.Event.Mouse                     as Mouse
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import           NodeEditor.Event.UI                        (UIEvent (AppEvent, NodeEvent, SidebarEvent))

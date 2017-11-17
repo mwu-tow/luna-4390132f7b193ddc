@@ -3,18 +3,13 @@ module NodeEditor.Action.Basic.UpdateSearcherHints where
 
 import           Common.Action.Command                (Command)
 import           Common.Prelude
-import           Control.Monad.Extra                  (mapMaybeM)
-import qualified Control.Monad.State.Lazy             as S
 import qualified Data.Aeson                           as Aeson
 import qualified Data.ByteString.Lazy.Char8           as BS
-import           Data.Map                             (Map)
 import qualified Data.Map                             as Map
-import           Data.Set                             (Set)
 import qualified Data.Set                             as Set
 import           Data.Text                            (Text)
 import qualified Data.Text                            as Text
 import           JS.Visualizers                       (sendVisualizationData)
-import           LunaStudio.Data.Node                 (ExpressionNode)
 import           LunaStudio.Data.NodeSearcher         (EntryType (Function), ImportName, ImportsHints, Match (Match),
                                                        ModuleHints (ModuleHints), RawEntry (RawEntry), TypePreferation (TypePreferation),
                                                        currentImports, imports, missingImports)
@@ -121,7 +116,7 @@ localClearSearcherHints = do
     updateDocs
 
 getWeights :: IsFirstQuery -> SearchForMethodsOnly -> NodeModeInfo -> Text -> TypePreferation
-getWeights _     True _   q = TypePreferation 0 0 (def, def) 1 0
+getWeights _     True _   _ = TypePreferation 0 0 (def, def) 1 0
 getWeights False _    _   q = TypePreferation 0.7 0.5 (def, def) 0.3 (if not (Text.null q) && isUpper (Text.head q) then 0.6 else 0.1)
 getWeights _     _    nmi q = case nmi ^. className of
     Nothing -> TypePreferation 0.5 0.7 (def, def) 0.3 (if not (Text.null q) && isUpper (Text.head q) then 0.9 else 0.2)

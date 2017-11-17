@@ -28,7 +28,7 @@ import qualified LunaStudio.Data.NodeMeta                 as NodeMeta
 import           LunaStudio.Data.NodeValue                (ShortValue, Visualizer)
 import qualified LunaStudio.Data.PortRef                  as PortRef
 import           LunaStudio.Data.Position                 (Position, move)
-import           LunaStudio.Data.TypeRep                  (TypeRep)
+import           LunaStudio.Data.TypeRep                  (TypeRep, errorTypeRep)
 import           LunaStudio.Data.Vector2                  (Vector2 (Vector2))
 import           NodeEditor.Data.Color                    (Color)
 import           NodeEditor.React.Model.Constants         (nodeRadius)
@@ -49,7 +49,8 @@ data ExpressionNode = ExpressionNode { _nodeLoc'                  :: NodeLoc
                                      , _canEnter                  :: Bool
                                      , _position                  :: Position
                                      , _defaultVisualizer         :: Maybe Visualizer
-                                     , _visualizationsEnabled     :: Bool
+                                     , _visEnabled                :: Bool
+                                     , _errorVisEnabled           :: Bool
                                      , _code                      :: Text
                                      , _value                     :: Maybe Value
                                      , _zPos                      :: Int
@@ -92,6 +93,7 @@ makeLenses ''ExpressionNode
 makeLenses ''Subgraph
 makePrisms ''ExpandedMode
 makePrisms ''Mode
+makePrisms ''Value
 
 instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
     convert (path, n) = ExpressionNode
@@ -105,7 +107,8 @@ instance Convertible (NodePath, Empire.ExpressionNode) ExpressionNode where
         {- canEnter                  -} (n ^. Empire.canEnter)
         {- position                  -} (n ^. Empire.position)
         {- defaultVisualizer         -} (n ^. Empire.nodeMeta . NodeMeta.selectedVisualizer)
-        {- visualizationsEnabled     -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
+        {- visEnabled                -} (n ^. Empire.nodeMeta . NodeMeta.displayResult)
+        {- errorVisEnabled           -} False
         {- code                      -} (n ^. Empire.code)
         {- value                     -} def
         {- zPos                      -} def
@@ -125,7 +128,7 @@ instance Convertible ExpressionNode Empire.ExpressionNode where
         {- code         -} (n ^. code)
         {- inPorts      -} (convert <$> n ^. inPorts)
         {- outPorts     -} (convert <$> n ^. outPorts)
-        {- nodeMeta     -} (NodeMeta.NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer))
+        {- nodeMeta     -} (NodeMeta.NodeMeta (n ^. position) (n ^. visEnabled) (n ^. defaultVisualizer))
         {- canEnter     -} (n ^. canEnter)
 
 instance Default Mode where def = Collapsed
@@ -188,13 +191,21 @@ findSuccessorPosition :: ExpressionNode -> [ExpressionNode] -> Position
 findSuccessorPosition n nodes = Empire.findSuccessorPosition (convert n) $ map convert nodes
 
 nodeType :: Getter ExpressionNode (Maybe TypeRep)
-nodeType = to (^? outPortAt [] . Port.valueType)
+nodeType = to nodeType' where
+    nodeType' n = if has (value . _Just . _Error) n
+        then Just errorTypeRep
+        else (n ^? outPortAt [] . Port.valueType)
+
+visualizationsEnabled :: Lens' ExpressionNode Bool
+visualizationsEnabled = lens getVisualizationEnabled setVisualizationEnabled where
+    getVisualizationEnabled n   = if n ^. nodeType == Just errorTypeRep then n ^. errorVisEnabled else n ^. visEnabled
+    setVisualizationEnabled n v = if n ^. nodeType == Just errorTypeRep then n & errorVisEnabled .~ v else n & visEnabled .~ v
 
 nodeMeta :: Lens' ExpressionNode NodeMeta
 nodeMeta = lens getNodeMeta setNodeMeta where
-    getNodeMeta n    = NodeMeta (n ^. position) (n ^. visualizationsEnabled) (n ^. defaultVisualizer)
+    getNodeMeta n    = NodeMeta (n ^. position) (n ^. visEnabled) (n ^. defaultVisualizer)
     setNodeMeta n nm = n & position              .~ nm ^. NodeMeta.position
-                         & visualizationsEnabled .~ nm ^. NodeMeta.displayResult
+                         & visEnabled            .~ nm ^. NodeMeta.displayResult
                          & defaultVisualizer     .~ nm ^. NodeMeta.selectedVisualizer
 
 containsNode :: NodeLoc -> NodeLoc -> Bool

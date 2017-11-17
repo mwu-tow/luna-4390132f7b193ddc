@@ -10,7 +10,7 @@ import           Data.UUID.Types            (UUID)
 import           GHCJS.Marshal              (toJSValListOf)
 import           GHCJS.Marshal.Pure         (pFromJSVal)
 import           JavaScript.Array           (JSArray, toList)
-import           LunaStudio.Data.TypeRep    (ConstructorRep)
+import           LunaStudio.Data.TypeRep    (ConstructorRep, errorTypeRep, toConstructorRep)
 
 foreign import javascript safe "Object.keys(typeof window.visualizers == 'object' ? window.visualizers : {})"
     getVisualizers' :: IO JSArray
@@ -47,7 +47,8 @@ registerVisualizerFrame :: UUID -> IO ()
 registerVisualizerFrame = registerVisualizerFrame' . convert . show
 
 sendVisualizationData :: UUID -> ConstructorRep -> Text -> IO ()
-sendVisualizationData uid rep d = sendVisualizationData' (convert $ show uid) (convert . BS.unpack $ Aeson.encode rep) (convert d)
+sendVisualizationData uid rep d' = sendVisualizationData' (convert $ show uid) (convert . BS.unpack $ Aeson.encode rep) (convert d) where
+    d = if Just rep == toConstructorRep errorTypeRep then convert . BS.unpack . Aeson.encode $ d' else d'
 
 foreign import javascript safe "window.visualizers[$1]($2)"
     checkVisualizer' :: JSString -> JSString -> IO JSString

@@ -9,7 +9,7 @@ import           GHCJS.Prim                             (JSException)
 import           Common.Action.Command                  (Command, execCommand)
 import qualified Common.Analytics                       as Analytics
 import           Common.Prelude
-import           Common.Report
+import           Common.Report                          (error)
 import           NodeEditor.Action.State.App            (renderIfNeeded)
 import           NodeEditor.Event.Event                 (Event)
 import qualified NodeEditor.Event.Event                 as Event
@@ -40,14 +40,6 @@ import           NodeEditor.State.Global                (State)
 import qualified NodeEditor.State.Global                as Global
 import           WebSocket                              (WebSocket)
 
-
-foreign import javascript safe "console.time($1);"    consoleTimeStart' :: JSString -> IO ()
-foreign import javascript safe "console.timeEnd($1);" consoleTimeEnd'   :: JSString -> IO ()
-
-
-consoleTimeStart, consoleTimeEnd :: String -> IO ()
-consoleTimeStart = consoleTimeStart' . convert
-consoleTimeEnd   = consoleTimeEnd'   . convert
 
 actions :: LoopRef -> [Event -> Maybe (Command State ())]
 actions loop =

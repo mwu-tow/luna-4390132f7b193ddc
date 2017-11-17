@@ -21,21 +21,15 @@ class LunaWelcomeTab extends View
             outlet: 'background'
             =>
                 @div class: 'luna-welcome-scroll', outlet: 'welcomePanel', =>
-
                     @div class: 'luna-welcome', =>
-
                         @div class: 'luna-welcome__header', =>
-
                             @h1 class: 'luna-welcome__title', 'Welcome to Luna Studio'
-
                             @div class: 'luna-welcome__header__menu', =>
-
                                 @input
                                     class: 'luna-input luna-input--search luna-welcome-search native-key-bindings'
                                     type: 'search'
                                     placeholder: 'Search'
                                     outlet: 'searchInput'
-
                                 @div class: 'luna-welcome__header__menu__links', =>
                                     @a
                                         class: 'luna-welcome-link luna-welcome-link--forum'
@@ -47,9 +41,7 @@ class LunaWelcomeTab extends View
                                         href: 'http://luna-lang.org'
                                         title: 'Chat'
                                         'Chat'
-
                         @div class: 'luna-welcome__body', =>
-
                             @div class: 'luna-welcome__block luna-welcome__block--projects', =>
                                 @div
                                     class: 'luna-welcome__section luna-welcome__section--search-results'
@@ -57,21 +49,18 @@ class LunaWelcomeTab extends View
                                     =>
                                         @h2 class: 'luna-welcome__section__title icon icon-search', 'Search results'
                                         @div class: 'luna-welcome__section__container', outlet: 'searchResultsContainer', =>
-
                                 @div
                                     class: 'luna-welcome__section luna-welcome__section--tutorials'
                                     outlet: 'tutorialsSection'
                                     =>
                                         @h2 class: 'luna-welcome__section__title icon icon-book', 'Tutorials'
                                         @div class: 'luna-welcome__section__container', outlet: 'tutorialsContainer', =>
-
                                 @div
                                     class: 'luna-welcome__section luna-welcome__section--private',
                                     outlet: 'privateSection'
                                     =>
                                         @h2 class: 'luna-welcome__section__title icon icon-person', 'Private'
                                         @div class: 'luna-welcome__section__container', outlet: 'privateContainer', =>
-
                                 @div
                                     class: 'luna-welcome__section luna-welcome__section--community'
                                     outlet: 'communitySection'
@@ -80,7 +69,7 @@ class LunaWelcomeTab extends View
                                         @div  class: 'luna-welcome__section__container', outlet: 'communityContainer', =>
 
     initialize: =>
-        @tutorialItems = []
+        @tutorialItems = {}
         @privateItems = []
         @privateNew = new ProjectItem({name: 'New Project', uri: null}, privateNewClasses, (progress, finalize) =>
             finalize()
@@ -109,18 +98,22 @@ class LunaWelcomeTab extends View
             @privateContainer.append(item.element)
 
         @noTutorialsMsg ?= 'Fetching tutorials list...'
-        @tutorialsContainer[0].innerText = @noTutorialsMsg
+        @redrawTutorials()
         projects.tutorial.list (tutorial) =>
             if tutorial.error?
                 @noTutorialsMsg = tutorial.error
-                @tutorialsContainer[0].innerText = @noTutorialsMsg
+                @redrawTutorials()
             else
-                if @tutorialsContainer[0].innerText is @noTutorialsMsg
-                    @tutorialsContainer[0].innerText = ''
+                @noTutorialsMsg = ''
                 item = new ProjectItem tutorial, tutorialClasses, (progress, finalize) =>
                     projects.tutorial.open tutorial, progress, finalize
-                @tutorialItems.push(item)
-                @tutorialsContainer.append(item.element)
+                @tutorialItems[item.name] = item
+                @redrawTutorials()
+
+    redrawTutorials: =>
+        @tutorialsContainer[0].innerText = @noTutorialsMsg
+        for name in Object.keys @tutorialItems
+            @tutorialsContainer.append(@tutorialItems[name].element)
 
     getFilterKey: ->
         return 'name'
@@ -165,13 +158,7 @@ class LunaWelcomeTab extends View
         for privateItem in @privateItems
             @privateContainer.append(privateItem.element)
 
-        @tutorialsContainer.empty()
-        if @tutorialItems.length == 0
-            @tutorialsContainer[0].innerText = @noTutorialsMsg
-        else for tutorialItem in @tutorialItems
-            if @tutorialsContainer[0].innerText is @noTutorialsMsg
-                @tutorialsContainer[0].innerText = ''
-            @tutorialsContainer.append(tutorialItem.element)
+        @redrawTutorials()
 
         @communityContainer.empty()
         @communityContainer.append(@comunnityNew.element)

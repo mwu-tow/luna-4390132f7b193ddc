@@ -1,10 +1,10 @@
 module NodeEditor.Event.Loader where
 
-import           JS.Config                     (getBackendAddress)
+import           JS.Config                  (getBackendAddress)
+import           Common.Prelude
+import           Common.Report              (fatal)
 import           WebSocket                  (WebSocket)
 import qualified WebSocket                  as WS
-import           Common.Prelude
-import           Common.Report
 
 
 withActiveConnection :: (WebSocket -> IO ()) -> IO ()

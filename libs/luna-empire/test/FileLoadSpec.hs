@@ -2278,3 +2278,39 @@ def main:
                 Graph.addNode loc u1 "a=(1,2)" def
                 Graph.addNode loc u2 "(x,y)=a" def
                 Graph.addNodeWithConnection loc (convert u3) "succ" def (Just u2)
+        it "connects nested patternmatch to output" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    a=[((Just 1), "foo")]
+                    [((Just i), j)]=a
+                    i
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode loc u1 "a=[((Just 1), \"foo\")]" def
+                node <- Graph.addNode loc u2 "[((Just i), j)]=a" def
+                (_, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.connect loc (outPortRef u2 [Port.Projection 0, Port.Projection 0, Port.Projection 0]) (InPortRef' $ inPortRef output [])
+        it "connects nested patternmatch to output 2" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    a= Just [  (1  , Foo 9)]
+                    Just [(i,  Foo  b) ] =a
+                    b
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode loc u1 "a= Just [  (1  , Foo 9)]" def
+                node <- Graph.addNode loc u2 "Just [(i,  Foo  b) ] =a" def
+                (_, output) <- Graph.withGraph loc $ runASTOp $ GraphBuilder.getEdgePortMapping
+                Graph.connect loc (outPortRef u2 [Port.Projection 0, Port.Projection 0, Port.Projection 1, Port.Projection 0]) (InPortRef' $ inPortRef output [])

@@ -1,11 +1,7 @@
 @luna-visualization-width: 300;
 
-@visualization-background:        transparent;
-@visualization-background-hover:  #191919;
-@visualization-background-active: #212020;
-
 .luna-visualization-container-hover () {
-    .background(0.5);
+    .background(0.2);
     .outlineStroke;
 }
 
@@ -54,7 +50,7 @@
 .luna-visualization-container {
     position:      relative;
     width:         @luna-visualization-width * 1px;
-    background:    @visualization-background;
+    background:    transparent;
     border-radius: @luna-border-radius * 1px;
     overflow:      hidden;
 }
@@ -88,7 +84,7 @@
         }
         .luna-visualization-container {
             .outlineStroke;
-            background: @visualization-background-active;
+            .background(0.4);
         }
     }
 

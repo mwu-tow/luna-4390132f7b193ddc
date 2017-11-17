@@ -31,6 +31,10 @@ instance NFData   VisualizerEntry
 instance FromJSON VisualizerEntry
 instance ToJSON   VisualizerEntry
 
+mdVisName, errorVisName :: Text
+mdVisName    = "base: markdown"
+errorVisName = "base: error"
+
 transformJSVisualizerMatcher :: MonadIO m => (String -> m String) -> TypeRep -> m [VisualizerEntry]
 transformJSVisualizerMatcher f r = case toConstructorRep r of
     Nothing -> return def
@@ -48,7 +52,9 @@ applyType tpe = fmap (Map.fromList . concat) . liftIO . mapM applyToEntry . Map.
 
 getMdVis :: MonadIO m => Map VisualizerName VisualizerMatcher -> m (Maybe Visualizer)
 getMdVis visMap = fmap (mdVisName,) . Map.lookup mdVisName <$> applyType (TCons "Text" def) visMap
-    where mdVisName = "base: markdown"
+
+getErrorVis :: MonadIO m => Map VisualizerName VisualizerMatcher -> m (Maybe Visualizer)
+getErrorVis visMap = fmap (errorVisName,) . Map.lookup errorVisName <$> applyType (TCons "Error" def) visMap
 
 type ShortValue = Text
 

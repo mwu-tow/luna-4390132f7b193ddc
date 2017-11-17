@@ -10,7 +10,7 @@ import           NodeEditor.Action.Basic.UpdateSearcherHints (localUpdateSearche
 import           NodeEditor.Action.State.Model               (calculatePortSelfMode)
 import qualified NodeEditor.Action.State.NodeEditor          as NodeEditor
 import           NodeEditor.React.Model.Node                 (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
-import           NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected, nodeType)
+import           NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected, nodeType, value, _Error)
 import qualified NodeEditor.React.Model.Node.ExpressionNode  as ExpressionNode
 import qualified NodeEditor.React.Model.Node.SidebarNode     as SidebarNode
 import           NodeEditor.React.Model.Port                 (isSelf, mode, portId)
@@ -57,17 +57,20 @@ localUpdateExpressionNode' preventPorts node = NodeEditor.getExpressionNode (nod
     Just prevNode -> do
         let selected      = prevNode ^. isSelected
             mode'         = prevNode ^. ExpressionNode.mode
+            errVis        = prevNode ^. ExpressionNode.errorVisEnabled
             inPorts       = if preventPorts then prevNode ^. ExpressionNode.inPorts  else node ^. ExpressionNode.inPorts
             outPorts      = if preventPorts then prevNode ^. ExpressionNode.outPorts else node ^. ExpressionNode.outPorts
-            n             = node & isSelected                   .~ selected
-                                 & ExpressionNode.mode          .~ mode'
-                                 & ExpressionNode.inPorts       .~ inPorts
-                                 & ExpressionNode.outPorts      .~ outPorts
+            errorValue    = has (value . _Just . _Error) node
+            n             = node & isSelected                     .~ selected
+                                 & ExpressionNode.mode            .~ mode'
+                                 & ExpressionNode.inPorts         .~ inPorts
+                                 & ExpressionNode.outPorts        .~ outPorts
+                                 & ExpressionNode.errorVisEnabled .~ errVis
             mayPortSelfId = find isSelf . map (view portId) $ inPortsList n
             updatePortSelfMode n' selfPid m = n' & inPortAt selfPid . mode .~ m
         updatedNode <- maybe (return n) (\sPid -> updatePortSelfMode n sPid <$> calculatePortSelfMode n) mayPortSelfId
         NodeEditor.addExpressionNode updatedNode
-        NodeEditor.updateVisualizationsForNode (updatedNode ^. nodeLoc) $ updatedNode ^. nodeType
+        NodeEditor.updateVisualizationsForNode (updatedNode ^. nodeLoc) (updatedNode ^. nodeType)
         updateSearcherClassName updatedNode
         return True
 
@@ -91,9 +94,9 @@ localUpdateNodeTypecheck path update = do
             SidebarNode.inputSidebarPorts .= convert `fmap2` outPorts
 
 updateSearcherClassName :: ExpressionNode -> Command State ()
-updateSearcherClassName n = do
-    let (className, _) = Searcher.getPredInfo n
+updateSearcherClassName node = do
+    let (className, _) = Searcher.getPredInfo node
         isNodePred n s = s ^. Searcher.predNl == Just (n ^. ExpressionNode.nodeLoc)
-    whenM (maybe False (isNodePred n) <$> NodeEditor.getSearcher) $ do
+    whenM (maybe False (isNodePred node) <$> NodeEditor.getSearcher) $ do
         NodeEditor.modifySearcher $ Searcher.mode . Searcher._Node . _2 . Searcher.className .= className
         localUpdateSearcherHintsPreservingSelection

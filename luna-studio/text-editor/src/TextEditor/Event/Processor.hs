@@ -25,17 +25,6 @@ import qualified TextEditor.State.Global             as Global
 import           WebSocket                           (WebSocket)
 
 
-displayProcessingTime :: Bool
-displayProcessingTime = False
-
-foreign import javascript safe "console.time($1);"    consoleTimeStart' :: JSString -> IO ()
-foreign import javascript safe "console.timeEnd($1);" consoleTimeEnd'   :: JSString -> IO ()
-
-
-consoleTimeStart, consoleTimeEnd :: String -> IO ()
-consoleTimeStart = consoleTimeStart' . convert
-consoleTimeEnd   = consoleTimeEnd'   . convert
-
 actions :: LoopRef -> [Event -> Maybe (Command State ())]
 actions _ =
     [ Control.handle
@@ -55,19 +44,10 @@ processEvent :: LoopRef -> Event -> IO ()
 processEvent loop ev = modifyMVar_ (loop ^. Loop.state) $ \state -> do
     realEvent <- preprocessEvent ev
     Analytics.track realEvent
-    when displayProcessingTime $ do
-        consoleTimeStart $ (realEvent ^. Event.name) <>" show and force"
-        --putStrLn . show . length $ show realEvent
-        error (realEvent ^. Event.name) --realEvent
-        consoleTimeEnd $ (realEvent ^. Event.name) <> " show and force"
-        consoleTimeStart (realEvent ^. Event.name)
     timestamp <- getCurrentTime
     let state' = state & Global.lastEventTimestamp .~ timestamp
-    handle (handleExcept state realEvent) $ do
-        newState <- execCommand (runCommands (actions loop) realEvent ) state'
-        when displayProcessingTime $
-            consoleTimeEnd (realEvent ^. Event.name)
-        return newState
+    handle (handleExcept state realEvent) $
+        execCommand (runCommands (actions loop) realEvent ) state'
 
 connectEventSources :: WebSocket -> LoopRef -> IO ()
 connectEventSources conn loop = do

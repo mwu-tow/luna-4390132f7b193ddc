@@ -85,12 +85,12 @@ handleAppMove evt = do
     continue $ Connect.handleMove evt
 
 startPortDrag :: ScreenPosition -> OutPortRef -> Bool -> Mode -> Command State ()
-startPortDrag mousePos portRef isArgumentConstructor mode = do
+startPortDrag mousePos portRef isArgumentConstructor mode' = do
     maySuccess <- runMaybeT $ do
         let portId  = portRef ^. PortRef.srcPortId
         portPos <- MaybeT $ fmap2 (`portPositionInInputSidebar` portId) getInputSidebarSize
         lift . setInputSidebarPortMode portRef $ Port.Moved portPos
-        lift . begin $ PortDrag mousePos portPos portRef portRef isArgumentConstructor mode
+        lift . begin $ PortDrag mousePos portPos portRef portRef isArgumentConstructor mode'
     when (isNothing maySuccess && isArgumentConstructor) $ void $ localRemovePort portRef
 
 handleMove :: MouseEvent -> PortDrag -> Command State ()

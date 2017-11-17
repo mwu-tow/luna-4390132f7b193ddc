@@ -23,7 +23,6 @@ import           NodeEditor.Action.Basic            (localSetPortDefault, setPor
 import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.State.Action     (beginActionWithKey, checkAction, continueActionWithKey, removeActionFromState,
                                                      updateActionWithKey)
-import           NodeEditor.Action.State.App        (renderIfNeeded)
 import           NodeEditor.Action.State.NodeEditor (getPortDefault, modifyNodeEditor)
 import           NodeEditor.Data.Slider             (InitValue (Continous, Discrete))
 import qualified NodeEditor.React.Model.NodeEditor  as NE
@@ -82,9 +81,6 @@ stopMoveSlider _currentPostion state = do
     Batch.setPortDefault portRef $ toPortValue newValue
     removeActionFromState sliderDragAction
 
-sign :: Double -> Double
-sign a = if a < 0 then -1 else 1
-
 newSliderValue :: ScreenPosition -> UTCTime -> SliderDrag -> InitValue
 newSliderValue currentPostion currentTime slider =
     let dx   = currentPostion ^. x
@@ -132,22 +128,6 @@ unfocusEditTextPortControl :: Command State ()
 unfocusEditTextPortControl = JS.focus appId
 
 rollbackEditTextPortControl :: TextPortControlEdit -> Command State ()
-rollbackEditTextPortControl action = do
+rollbackEditTextPortControl _ = do
     modifyNodeEditor $ NE.textControlEditedPortRef .= def
     removeActionFromState textPortControlEditAction
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -2,8 +2,11 @@
 module NodeEditor.React.View.Style where
 
 import           Common.Prelude
-import           Data.List      (intercalate)
-import           React.Flux     as React
+import qualified Data.Aeson                       as Aeson
+import           Data.List                        (intercalate)
+import           LunaStudio.Data.Constants        (gridSize)
+import           NodeEditor.React.Model.Constants (nodeRadius)
+import           React.Flux                       as React
 
 prefix :: JSString -> JSString
 prefix a = (<>) "luna-" a
@@ -17,10 +20,11 @@ blurBackground_ = div_
     , "className" $= prefix "blur"
     ] mempty
 
-selectionMark_ :: ReactElementM ViewEventHandler ()
-selectionMark_ = div_
+selectionMark_ :: Double -> ReactElementM ViewEventHandler ()
+selectionMark_ height = rect_
     [ "key"       $= "selectionMark"
     , "className" $= prefix "selection"
+    , "style"     @= Aeson.object [ "height" Aeson..= ((show $ height) <> "px")]
     ] mempty
 
 errorMark_ :: ReactElementM ViewEventHandler ()

@@ -12,9 +12,10 @@ import           LunaStudio.Data.TypeRep                    (toConstructorRep)
 import           NodeEditor.Action.Basic                    (selectNode, setNodeMeta)
 import           NodeEditor.Action.State.Action             (beginActionWithKey, checkAction, checkIfActionPerfoming, continueActionWithKey,
                                                              removeActionFromState, updateActionWithKey)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNodeType, getNodeMeta, getNodeVisualizations, getSelectedNodes,
-                                                             getVisualizationsBackupMap, modifyExpressionNode, modifyNodeEditor,
-                                                             modifySearcher, updateDefaultVisualizer, updatePreferedVisualizer)
+import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getExpressionNodeType, getNodeMeta, getNodeVisualizations,
+                                                             getSelectedNodes, getVisualizationsBackupMap, modifyExpressionNode,
+                                                             modifyNodeEditor, modifySearcher, updateDefaultVisualizer,
+                                                             updatePreferedVisualizer)
 import           NodeEditor.Action.UUID                     (getUUID)
 import           NodeEditor.React.Model.Node.ExpressionNode (nodeLoc, visualizationsEnabled)
 import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (StreamBackup, ValueBackup), nodeVisualizations)
@@ -84,7 +85,7 @@ selectVisualizer (Node nl) visId visName = withJustM (getNodeVisualizations nl) 
     withJust ((,) <$> Map.lookup visId (nodeVis ^. visualizations) <*> Map.lookup visName (nodeVis ^. visualizers)) $ \(prevVis, visPath) -> do
         continue (end :: VisualizationActive -> Command State ())
         let visualizer' = (visName, visPath)
-        updateDefaultVisualizer nl (Just visualizer') True
+        updateDefaultVisualizer nl (Just visualizer') True True
         when (prevVis ^. runningVisualizer /= visualizer') $ getVisualizationsBackupMap >>= \visBackup ->
             case Map.lookup nl visBackup of
                 Just (StreamBackup backup) -> do
@@ -162,7 +163,8 @@ toggleVisualizations (Node nl) = do
     mayNodeMeta <- getNodeMeta nl
     withJust mayNodeMeta $ setNodeMeta . (nl,)
     stopVisualizationsForNode nl
-    when (maybe False (view displayResult) mayNodeMeta) $ startReadyVisualizations nl
+    showVis <- maybe False (view visualizationsEnabled) <$> getExpressionNode nl
+    when showVis $ startReadyVisualizations nl
 toggleVisualizations Searcher = $notImplemented
 
 stopVisualizationsForNode :: NodeLoc -> Command State ()
@@ -173,6 +175,7 @@ startReadyVisualizations nl = do
     mayVisBackup <- Map.lookup nl <$> getVisualizationsBackupMap
     mayNodeVis   <- getNodeVisualizations nl
     mayCRep      <- maybe def toConstructorRep <$> getExpressionNodeType nl
+    ent <- getExpressionNodeType nl
     withJust ((,,) <$> mayVisBackup <*> mayNodeVis <*> mayCRep) $ \(visBackup, nodeVis, cRep) -> case visBackup of
         StreamBackup backup -> do
             let activateWithStreamStart newNodeVis vis = if vis ^. visualizationStatus == Outdated then return $ newNodeVis & idleVisualizations %~ (vis:) else do
