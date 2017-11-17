@@ -5,15 +5,18 @@ import           Common.Prelude
 import qualified Data.Map                                   as Map
 import qualified Data.Text                                  as Text
 import           JS.Visualizers                             (notifyStreamRestart, sendStreamDatapoint, sendVisualizationData)
+import           LunaStudio.Data.Error                      (errorContent)
 import           LunaStudio.Data.NodeValue                  (NodeValue (NodeError, NodeValue),
                                                              VisualizationValue (StreamDataPoint, StreamStart, Value))
-import           LunaStudio.Data.TypeRep                    (toConstructorRep)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNodeType, getNodeVisualizations, modifyExpressionNode,
-                                                             modifyNodeEditor, recoverVisualizations, updateVisualizationsForNode)
-import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc, Value (Error, ShortValue), execTime, value)
-import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (StreamBackup, ValueBackup), backupMap,
+import           LunaStudio.Data.TypeRep                    (errorTypeRep, toConstructorRep)
+import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getExpressionNodeType, getNodeVisualizations,
+                                                             modifyExpressionNode, modifyNodeEditor, recoverVisualizations,
+                                                             updateVisualizationsForNode)
+import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc, Value (Error, ShortValue), execTime, nodeType, value,
+                                                             visualizationsEnabled)
+import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (StreamBackup, ValueBackup), backupMap, nodeVisualizations,
                                                              visualizationsBackup)
-import           NodeEditor.React.Model.Visualization       (visualizations)
+import           NodeEditor.React.Model.Visualization       (stopVisualizations, visualizations)
 import           NodeEditor.State.Global                    (State)
 
 
@@ -44,8 +47,12 @@ updateNodeValueAndVisualization nl = \case
         updateVisualizationsForNode nl Nothing
     NodeError e -> do
         modifyExpressionNode nl $ value ?= Error e
-        modifyNodeEditor $ visualizationsBackup . backupMap . at nl .= def
-        updateVisualizationsForNode nl Nothing
+        modifyNodeEditor $ visualizationsBackup . backupMap . at nl ?= ValueBackup (e ^. errorContent)
+        updateVisualizationsForNode nl $ Just errorTypeRep
+        visIds <- recoverVisualizations nl
+        withJust (toConstructorRep errorTypeRep) $ \cRep ->
+            liftIO . forM_ visIds $ \visId -> sendVisualizationData visId cRep $ e ^. errorContent
+
 
 setNodeProfilingData :: NodeLoc -> Integer -> Command State ()
 setNodeProfilingData nl t = modifyExpressionNode nl $ execTime ?= t

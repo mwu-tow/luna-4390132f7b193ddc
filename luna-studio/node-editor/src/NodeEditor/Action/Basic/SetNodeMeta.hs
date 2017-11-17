@@ -8,7 +8,7 @@ import qualified LunaStudio.Data.NodeMeta                   as NodeMeta
 import           LunaStudio.Data.Position                   (Position)
 import qualified NodeEditor.Action.Batch                    as Batch
 import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
-import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc, defaultVisualizer, position, visualizationsEnabled)
+import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc, defaultVisualizer, position, visEnabled)
 import           NodeEditor.State.Global                    (State)
 
 moveNode :: (NodeLoc, Position) -> Command State ()
@@ -21,14 +21,14 @@ moveNodes :: [(NodeLoc, Position)] -> Command State ()
 moveNodes nodesPos = do
     update <- fmap catMaybes . forM nodesPos $ \(nl, pos) ->
         flip fmap2 (NodeEditor.getExpressionNode nl) $
-            \node -> (nl, NodeMeta pos (node ^. visualizationsEnabled) (node ^. defaultVisualizer))
+            \node -> (nl, NodeMeta pos (node ^. visEnabled) (node ^. defaultVisualizer))
     setNodesMeta update
 
 localMoveNodes :: [(NodeLoc, Position)] -> Command State [NodeLoc]
 localMoveNodes nodesPos = do
     update <- fmap catMaybes . forM nodesPos $ \(nl, pos) ->
         flip fmap2 (NodeEditor.getExpressionNode nl) $
-            \node -> (nl, NodeMeta pos (node ^. visualizationsEnabled) (node ^. defaultVisualizer))
+            \node -> (nl, NodeMeta pos (node ^. visEnabled) (node ^. defaultVisualizer))
     localSetNodesMeta update
 
 setNodeMeta :: (NodeLoc, NodeMeta) -> Command State ()
@@ -47,8 +47,8 @@ localSetNodesMeta = fmap2 (view _1) . filterM (uncurry localSetNodeMeta)
 localSetNodeMeta :: NodeLoc -> NodeMeta -> Command State Bool
 localSetNodeMeta nl nm = do
     NodeEditor.modifyExpressionNode nl $ do
-        visualizationsEnabled .= nm ^. NodeMeta.displayResult
-        position              .= nm ^. NodeMeta.position
+        visEnabled .= nm ^. NodeMeta.displayResult
+        position   .= nm ^. NodeMeta.position
     NodeEditor.inGraph nl
 
 -- Use this function to notify backend - this function prevents undo
