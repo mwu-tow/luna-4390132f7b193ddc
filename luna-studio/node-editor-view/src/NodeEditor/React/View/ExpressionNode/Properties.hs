@@ -17,18 +17,17 @@ import qualified React.Flux                                           as React
 objName :: JSString
 objName = "node-properties"
 
-nodeProperties :: IsRef ref => ReactView (ref, NodeProperties, Maybe InPortRef, Int, Int)
-nodeProperties = React.defineView objName $ \(ref, prop, mayEditedTextPortControlPortRef, numOfInputs, numOfOutputs) -> do
+nodeProperties :: IsRef ref => ReactView (ref, NodeProperties, Maybe InPortRef, Int)
+nodeProperties = React.defineView objName $ \(ref, prop, mayEditedTextPortControlPortRef, numOfLines) -> do
     let nodeLoc    = prop ^. Prop.nodeLoc
         ports      = if prop ^. Prop.isExpanded && null (Prop.inPortsList prop) then maybeToList $ prop ^? Prop.inPortAt [] else Prop.inPortsList prop
         controls p = portControl_ ref nodeLoc p ((InPortRef' <$> mayEditedTextPortControlPortRef) == Just (toAnyPortRef nodeLoc $ p ^. Port.portId))
+        height     = (fromIntegral numOfLines) * gridSize
     div_
         [ "key"       $= "controls"
         , "className" $= Style.prefixFromList [ "node__controls", "noselect" ]
-        , "style"     @= Aeson.object [ "height" Aeson..= ((show $ (toEnum numOfInputs)  * gridSize) <> "rem")
-                                      , "minHeight" Aeson..= ((show $ (toEnum numOfOutputs) * gridSize) <> "rem") 
-                                      ]
+        , "style"     @= Aeson.object [ "height" Aeson..= ((show height) <> "rem")]
         ] $ forM_ ports $ controls
 
-nodeProperties_ :: IsRef ref => ref -> NodeProperties -> Maybe InPortRef -> Int -> Int -> ReactElementM ViewEventHandler ()
-nodeProperties_ ref prop mayEditedTextPortControlPortRef numOfInputs numOfOutputs = React.viewWithSKey nodeProperties objName (ref, prop, mayEditedTextPortControlPortRef, numOfInputs, numOfOutputs) mempty
+nodeProperties_ :: IsRef ref => ref -> NodeProperties -> Maybe InPortRef -> Int -> ReactElementM ViewEventHandler ()
+nodeProperties_ ref prop mayEditedTextPortControlPortRef numOfLines = React.viewWithSKey nodeProperties objName (ref, prop, mayEditedTextPortControlPortRef, numOfLines) mempty

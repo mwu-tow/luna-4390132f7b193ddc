@@ -23,7 +23,7 @@ import qualified NodeEditor.Event.UI                                  as UI
 import qualified NodeEditor.React.Event.Node                          as Node
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants                     (nodeRadius, selectionPadding)
+import           NodeEditor.React.Model.Constants                     (nodeRadius, selectionPadding, expandedNodePadding)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
                                                                        countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,
@@ -200,9 +200,8 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
         , "className" $= Style.prefixFromList [ "node__body", "node-translate" ]
         ] $ do
         errorMark_
---        selectionMark_
         case n ^. Node.mode of
-            Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef (countVisibleInPorts n) (countVisibleOutPorts n)
+            Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef $ max (countVisibleInPorts n) $ countVisibleOutPorts n
             Node.Expanded Node.Editor   -> multilineField_ [] "editor"
                 $ Field.mk ref (n ^. Node.code)
                 & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
@@ -255,11 +254,11 @@ nodePorts = React.defineView objNamePorts $ \(ref, n, hasAlias, hasSelf, isTopLe
             , "className" $= Style.prefix "node-transform"
             ] $ do
             if isCollapsed n then do
-                selectionMark_ $ nodeRadius/gridSize
+                selectionMark_ $ (nodeRadius + if n ^. Node.isSelected then selectionPadding else 0) * 2
                 ports argPorts
                 ports outPorts
             else do
-                selectionMark_ 5.0
+                selectionMark_ $ (fromIntegral $ max (countVisibleInPorts n) $ countVisibleOutPorts n) * gridSize + 2 * expandedNodePadding + if n ^. Node.isSelected then 2 * selectionPadding else 0
                 forM_ inPorts
                  $ uncurry (portExpanded_ ref nodeLoc)
                 forM_ outPorts $ uncurry (portExpanded_ ref nodeLoc)

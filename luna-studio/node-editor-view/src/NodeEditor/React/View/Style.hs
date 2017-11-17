@@ -24,7 +24,7 @@ selectionMark_ :: Double -> ReactElementM ViewEventHandler ()
 selectionMark_ height = rect_
     [ "key"       $= "selectionMark"
     , "className" $= prefix "selection"
-    , "style"     @= Aeson.object [ "height"    Aeson..= ((show $ height * nodeRadius * gridSize + 16) <> "px") ]
+    , "style"     @= Aeson.object [ "height" Aeson..= ((show $ height) <> "px")]
     ] mempty
 
 errorMark_ :: ReactElementM ViewEventHandler ()

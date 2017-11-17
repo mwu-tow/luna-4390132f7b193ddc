@@ -22,6 +22,7 @@
     .luna-selection {
         width: @luna-expanded-node-width * 1px;
         x:     @luna-expanded-node-width * -0.5px;
+        y:    (@luna-grid-size/2 + @luna-expanded-node-padding) * -1px;
     }
 }
 
@@ -39,6 +40,7 @@
         .luna-selection {
             width: (@luna-expanded-node-width + 2 * @luna-selection-padding) *  1px;
             x:     (@luna-expanded-node-width + 2 * @luna-selection-padding) * -0.5px;
+            y:     (@luna-grid-size/2 + @luna-expanded-node-padding + @luna-selection-padding) * -1px;
 
         }
     }

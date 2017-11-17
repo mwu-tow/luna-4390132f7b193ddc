@@ -26,3 +26,4 @@ searcherWidth  = 460
 searcherHeight = 24
 
 selectionPadding    = gridSize/2
+expandedNodePadding = gridSize/2
