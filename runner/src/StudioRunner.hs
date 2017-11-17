@@ -27,7 +27,7 @@ import qualified Data.Text                     as T
 import           Filesystem.Path
 import           Filesystem.Path.CurrentOS     (decodeString, encodeString, fromText)
 import           Options.Applicative
-import           System.Directory              (doesDirectoryExist, setCurrentDirectory, getHomeDirectory, getCurrentDirectory, createDirectoryIfMissing, getTemporaryDirectory)
+import           System.Directory              (doesDirectoryExist, setCurrentDirectory, getHomeDirectory, getCurrentDirectory, createDirectoryIfMissing, getTemporaryDirectory, getXdgDirectory, XdgDirectory(..), removeDirectoryRecursive)
 import           System.Exit                   (ExitCode)
 import           System.Process.Typed          (shell, runProcess, runProcess_, setWorkingDir, readProcess_)
 import           System.Environment            (getExecutablePath, getArgs)
@@ -310,6 +310,12 @@ runApp develop forceRun atom = do
     liftIO $ Environment.setEnv "LUNA_STUDIO_ATOM_ARG" (fromMaybe " " atom)
     runPackage develop forceRun
 
+deleteXDGDir :: IO ()
+deleteXDGDir = do
+    directory <- getXdgDirectory XdgConfig "./LunaStudio"
+    doesExist <- doesDirectoryExist directory
+    when doesExist $ liftIO $ removeDirectoryRecursive directory
+
 data Options = Options
     { frontend :: Bool
     , backend  :: Bool
@@ -326,7 +332,8 @@ optionParser = Options
     <*> (optional $ strOption $ long "atom" <> short 'a')
 
 run :: MonadIO m => Options -> m ()
-run (Options frontend backend develop forceRun atom) = evalDefHostConfigs @'[RunnerConfig] $
+run (Options frontend backend develop forceRun atom) = evalDefHostConfigs @'[RunnerConfig] $ do
+    liftIO $ deleteXDGDir
     if  frontend
     then runFrontend $ T.pack <$> atom
     else if backend
