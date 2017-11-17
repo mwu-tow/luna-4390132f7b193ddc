@@ -149,13 +149,14 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList 
                             ( [ "node", "noselect", 
-                                (if isCollapsed n                               then "node--collapsed"             else "node--expanded") ]
-                             <> (if returnsError n                              then ["node--error"]               else [])
-                             <> (if n ^. Node.isSelected                        then ["node--selected"]            else [])
-                             <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]            else [] )
-                             <> (if hasSelf                                     then ["node--has-self"]            else ["node--no-self"])
-                             <> (if hasAlias                                    then ["node--has-alias"]           else ["node--no-alias"])
-                             <> (if hasArgConstructor                           then ["node--has-arg-constructor"] else [])
+                                (if isCollapsed n                                   then "node--collapsed"                        else "node--expanded") ]
+                             <> (if returnsError n                                  then ["node--error"]                          else [])
+                             <> (if n ^. Node.isSelected                            then ["node--selected"]                       else [])
+                             <> (if n ^. Node.isMouseOver && not performConnect     then ["show-ctrl-icon"]                       else [])
+                             <> (if hasSelf                                         then ["node--has-self"]                       else ["node--no-self"])
+                             <> (if hasAlias                                        then ["node--has-alias"]                      else ["node--no-alias"])
+                             <> (if hasArgConstructor                               then ["node--has-arg-constructor"]            else [])
+                             <> (if countVisibleOutPorts n <= countVisibleInPorts n then ["node--has-arg-constructor-adjustment"] else [])
                              <> highlight
                             )
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
