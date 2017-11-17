@@ -98,8 +98,12 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
                     , onDoubleClick $ \e _ -> [stopPropagation e]
                     , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.ToggleVisualizations (Vis.Node nl)
                     ] $ if isVisualization
-                        then path_ [ "d" $= Style.iconEyeDisabled ] mempty
-                        else path_ [ "d" $= Style.iconEye         ] mempty
+                        then path_ [ "d"         $= Style.iconEye 
+                                   , "className" $= Style.prefix "icon--on"
+                                   ] mempty
+                        else path_ [ "d"         $= Style.iconEyeDisabled 
+                                   , "className" $= Style.prefixFromList ["icon--off"]
+                                   ] mempty
 
 
 nodeExpression_ :: IsRef ref => ref -> NodeLoc -> Text -> Maybe (Searcher, FilePath) -> ReactElementM ViewEventHandler ()
@@ -149,7 +153,7 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList 
-                            ( [ "node", "noselect", show (countVisibleOutPorts n), show (countVisibleInPorts n),
+                            ( [ "node", "noselect",
                                 (if isCollapsed n                               then "node--collapsed"                    else "node--expanded") ]
                              <> (if returnsError n                              then ["node--error"]                      else [])
                              <> (if n ^. Node.isSelected                        then ["node--selected"]                   else [])
