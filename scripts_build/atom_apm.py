@@ -85,12 +85,14 @@ def run_process(*pargs):
     return output.decode('utf-8')
 
 
-def run_apm(command, *args):
+def run_apm(command, *args. **kwargs):
     """Run: apm <command> [args], wait for it to finish and return the result
 
     Sets the ATOM_HOME env variable to the global `atom_home_path`.
     """
     os.environ['ATOM_HOME'] = atom_home_path
+    if 'build_only' in kwargs and kwargs[build_only]:
+        os.environ['BUILD_ONLY'] = '1'
     return run_process(apm_path, command, *args)
 
 
@@ -155,7 +157,7 @@ def init_apm(gui_url, frontend_args, link):
         dir_util.copy_tree(oniguruma_path, oniguruma_package_path)
         with working_directory(package_path):
             print('Installing Luna Studio')
-            output = run_apm('install', '.')
+            output = run_apm('install', '.', build_only=True)
             print(output)
         dir_util.remove_tree(oniguruma_package_path)
         dir_util.copy_tree(oniguruma_path, oniguruma_package_path)
