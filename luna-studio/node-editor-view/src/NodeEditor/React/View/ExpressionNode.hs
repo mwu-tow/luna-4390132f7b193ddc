@@ -143,20 +143,21 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
                         --  && (n ^. Node.argConstructorMode /= Port.Highlighted)
                         --  && (not $ any Port.isHighlighted (inPortsList n))
                         --  && (not $ any Port.isHighlighted (outPortsList n)) then ["hover"] else []
+            needAdjustment = countVisibleOutPorts n <= countVisibleInPorts n || countVisibleInPorts n == 0
             hasArgConstructor = not isTopLevel && elem (n ^. Node.argConstructorMode) [Port.Normal, Port.Highlighted]
         div_
             [ "key"       $= prefixNode (jsShow nodeId)
             , "id"        $= prefixNode (jsShow nodeId)
             , "className" $= Style.prefixFromList 
-                            ( [ "node", "noselect", 
-                                (if isCollapsed n                                   then "node--collapsed"                        else "node--expanded") ]
-                             <> (if returnsError n                                  then ["node--error"]                          else [])
-                             <> (if n ^. Node.isSelected                            then ["node--selected"]                       else [])
-                             <> (if n ^. Node.isMouseOver && not performConnect     then ["show-ctrl-icon"]                       else [])
-                             <> (if hasSelf                                         then ["node--has-self"]                       else ["node--no-self"])
-                             <> (if hasAlias                                        then ["node--has-alias"]                      else ["node--no-alias"])
-                             <> (if hasArgConstructor                               then ["node--has-arg-constructor"]            else [])
-                             <> (if countVisibleOutPorts n <= countVisibleInPorts n then ["node--has-arg-constructor-adjustment"] else [])
+                            ( [ "node", "noselect", show (countVisibleOutPorts n), show (countVisibleInPorts n),
+                                (if isCollapsed n                               then "node--collapsed"                    else "node--expanded") ]
+                             <> (if returnsError n                              then ["node--error"]                      else [])
+                             <> (if n ^. Node.isSelected                        then ["node--selected"]                   else [])
+                             <> (if n ^. Node.isMouseOver && not performConnect then ["show-ctrl-icon"]                   else [])
+                             <> (if hasSelf                                     then ["node--has-self"]                   else ["node--no-self"])
+                             <> (if hasAlias                                    then ["node--has-alias"]                  else ["node--no-alias"])
+                             <> (if hasArgConstructor                           then ["node--has-arg-constructor"]        else [])
+                             <> (if needAdjustment                              then ["node--arg-constructor-adjustment"] else [])
                              <> highlight
                             )
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
