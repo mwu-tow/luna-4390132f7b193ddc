@@ -184,28 +184,36 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
     (Expression srcNode, Expression dstNode) -> do
         let srcPos'    = srcNode ^. position
             dstPos'    = dstNode ^. position
+
             isSrcExp   = not . isCollapsed $ srcNode
             isDstExp   = not . isCollapsed $ dstNode
+
             srcPortNum = visibleOutPortNumber srcNode $ srcPort ^. portId
             dstArgNum  = visibleArgPortNumber dstNode $ dstPort ^. portId
             dstPortNum = visibleInPortNumber  dstNode $ dstPort ^. portId
-            numOfSrcOutPorts = countVisibleOutPorts srcNode
-            numOfDstInPorts  = countVisibleInPorts  dstNode
-            numOfDstArgPorts = countVisibleArgPorts dstNode
+
+            srcPorts   = countVisibleOutPorts srcNode
+            dstPorts   = countVisibleInPorts  dstNode
+            dstArgs    = countVisibleArgPorts dstNode
+
             srcConnPos = connectionSrc  srcPos'
                                         dstPos'
                                         isSrcExp
                                         isDstExp
                                         srcPortNum
-                                        numOfSrcOutPorts $ countVisibleOutPorts srcNode + countVisibleArgPorts srcNode == 1
+                                        srcPorts 
+                                        (srcPorts + dstArgs == 1)
+
             dstConnPos = connectionDst  srcPos'
                                         dstPos'
                                         isSrcExp
                                         isDstExp
-                                        (if isDstExp then dstPortNum      else dstArgNum)
-                                        (if isDstExp then numOfDstInPorts else numOfDstArgPorts)
+                                        (if isDstExp then dstPortNum else dstArgNum)
+                                        (if isDstExp then dstPorts   else dstArgs  )
                                         (isSelf $ dstPort ^. portId)
-                                        $ has (inPorts . LT.value . Port.state . Port._Connected) dstNode
+                                        (has (inPorts . LT.value . Port.state . Port._Connected) dstNode)
+                                        srcPortNum
+                                        srcPorts
         return (srcConnPos, dstConnPos)
     _ -> return def
 
@@ -237,32 +245,34 @@ halfConnectionSrcPosition (Expression node) eport mousePos _ =
                                     isExp
                                     False
                                     (visibleOutPortNumber node $ port ^. portId)
-                                    numOfSameTypePorts
-                                    $ countVisibleOutPorts node + countVisibleArgPorts node == 1
+                                    allPorts
+                                    (countVisibleOutPorts node + countVisibleArgPorts node == 1)
         Left  port -> connectionDst mousePos
                                     pos
                                     False
                                     isExp
                                     (if isExp then visibleInPortNumber node $ port ^. portId else visibleArgPortNumber node $ port ^. portId)
-                                    numOfSameTypePorts 
+                                    allPorts 
                                     (isSelf $ port ^. portId)
-                                    $ has (inPorts . LT.value . Port.state . Port._Connected) node
+                                    (has (inPorts . LT.value . Port.state . Port._Connected) node)
+                                    1
+                                    1
     where
-        pos                = node ^. position
-        isExp              = not . isCollapsed $ node
-        numOfSameTypePorts = if isLeft eport then if isExp then countVisibleInPorts node else countVisibleArgPorts node else countVisibleOutPorts node
+        pos      = node ^. position
+        isExp    = not . isCollapsed $ node
+        allPorts = if isLeft eport then if isExp then countVisibleInPorts node else countVisibleArgPorts node else countVisibleOutPorts node
 
 
 
 halfConnectionSrcPosition _ _ _ _ = def
 
 connectionAngle :: Position -> Position -> Int -> Int -> Double
-connectionAngle srcPos' dstPos' num numOfSameTypePorts =
+connectionAngle srcPos' dstPos' dstPortNum dstPorts =
     if      t' > a' - pi / 2 - g then a - pi / 2 - g
     else if t' < b' - pi / 2 + g then b - pi / 2 + g
     else t where
-        a  = portAngleStop  True num numOfSameTypePorts portRadius
-        b  = portAngleStart True num numOfSameTypePorts portRadius
+        a  = portAngleStop  True dstPortNum dstPorts portRadius
+        b  = portAngleStart True dstPortNum dstPorts portRadius
         t  = nodeToNodeAngle srcPos' dstPos'
         a' = if a < pi then a + (2 * pi) else a
         b' = if b < pi then b + (2 * pi) else b
@@ -271,19 +281,19 @@ connectionAngle srcPos' dstPos' num numOfSameTypePorts =
 
 -- TODO[JK]: dst numOfInputs
 connectionSrc :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsOnly -> Position
-connectionSrc src' dst' isSrcExpanded _isDstExpanded outNum allOuts isSingle =
-    if isSrcExpanded then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral outNum))) src'
+connectionSrc src' dst' srcExpanded _dstExpanded srcPortNum dstPorts isSingle =
+    if srcExpanded then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src'
     else move (Vector2 (portRadius * cos t) (portRadius * sin t)) src' where
         t = if isSingle
             then nodeToNodeAngle src' dst'
-            else connectionAngle src' dst' (allOuts - outNum - 1) allOuts
+            else connectionAngle src' dst' (dstPorts - srcPortNum - 1) dstPorts
 
-connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Position
-connectionDst src' dst' isSrcExpanded isDstExpanded num numOfSameTypePorts isSelf' isAlias = do
-    let src''   = if isSrcExpanded then move (Vector2 (nodeExpandedWidth/2) 0) src' else src'
-        t       = connectionAngle src'' dst' num numOfSameTypePorts
-    if isDstExpanded
-        then move (Vector2 (-(nodeExpandedWidth/2)) (lineHeight * (fromIntegral num))) dst'
+connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
+connectionDst src' dst' srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts = do
+    let src'' = if srcExpanded then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src' else src'
+        t     = connectionAngle src'' dst' dstPortNum dstPorts
+    if dstExpanded
+        then move (Vector2 (-(nodeExpandedWidth/2)) (lineHeight * (fromIntegral dstPortNum))) dst'
         else if isSelf'
                 then dst'
                 else
