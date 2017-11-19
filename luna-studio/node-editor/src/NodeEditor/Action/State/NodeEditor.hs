@@ -21,13 +21,14 @@ import           LunaStudio.Data.MonadPath                   (MonadPath)
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
 import           LunaStudio.Data.NodeSearcher                (ImportName, ModuleHints)
 import qualified LunaStudio.Data.NodeSearcher                as NS
-import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType)
+import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType,
+                                                              getErrorVis)
 import           LunaStudio.Data.Port                        (_WithDefault)
 import           LunaStudio.Data.PortDefault                 (PortDefault)
 import           LunaStudio.Data.PortRef                     (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.PortRef                     as PortRef
 import           LunaStudio.Data.Position                    (Position)
-import           LunaStudio.Data.TypeRep                     (TypeRep (TStar))
+import           LunaStudio.Data.TypeRep                     (TypeRep (TStar), errorTypeRep)
 import qualified NodeEditor.Action.Batch                     as Batch
 import           NodeEditor.Action.State.App                 (get, getWorkspace, modify, modifyApp)
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
@@ -325,11 +326,11 @@ addVisualizationForNode nl = withJustM (maybe def (view ExpressionNode.defaultVi
                                                                nl
                                                                (Visualization.NodeVisualizations def [newVis] def)
 
-updateDefaultVisualizer :: NodeLoc -> Maybe Visualizer -> Bool -> Command State ()
-updateDefaultVisualizer nl vis sendAsRequest = withJustM (getExpressionNode nl) $ \n ->
+updateDefaultVisualizer :: NodeLoc -> Maybe Visualizer -> Bool -> Bool -> Command State ()
+updateDefaultVisualizer nl vis localUpdate sendAsRequest = withJustM (getExpressionNode nl) $ \n ->
     when (n ^. ExpressionNode.defaultVisualizer /= vis) $ do
         modifyExpressionNode nl $ ExpressionNode.defaultVisualizer .= vis
-        withJustM (getNodeMeta nl) $ \nm -> if sendAsRequest
+        unless localUpdate $ withJustM (getNodeMeta nl) $ \nm -> if sendAsRequest
             then Batch.setNodesMeta [(nl, nm)]
             else Batch.sendNodesMetaUpdate [(nl, nm)]
 
@@ -350,7 +351,7 @@ recoverVisualizations nl = getNodeVisualizations nl >>= \case
 updateVisualizationsForNode :: NodeLoc -> Maybe TypeRep -> Command State ()
 updateVisualizationsForNode nl mayTpe = do
     mayVisInfo <- maybe (return def) getVisualizers mayTpe
-    updateDefaultVisualizer nl (fst <$> mayVisInfo) False
+    updateDefaultVisualizer nl (fst <$> mayVisInfo) (mayTpe == Just errorTypeRep) False
     case mayVisInfo of
         Nothing -> modifyNodeEditor $ withJustM (preuse $ NE.nodeVisualizations . ix nl) $ \nodeVis -> do
             let idleVis = map (& Visualization.visualizationStatus .~ Visualization.Outdated) (nodeVis ^. Visualization.idleVisualizations)

@@ -1038,7 +1038,7 @@ spec = around withChannels $ parallel $ do
             u1 <- mkUUID
             res <- evalEmp env $ Graph.addNode top u1 "(Just (Just (Foo a b c)), Nothing, (Bar x y)) = foo" def
             res ^. Node.code `shouldBe` "foo"
-            res ^. Node.name `shouldBe` Just "(Just (Just (Foo a b c)), Nothing, (Bar x y))"
+            res ^. Node.name `shouldBe` Just "(Just (Just (Foo a b c)), Nothing, Bar x y)"
         it "renames a node to pattern-matching on a value" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do

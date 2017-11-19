@@ -140,6 +140,10 @@ module.exports =
                     parsed = yaml.safeLoad(body)
                     if body?
                         parsed.forEach (repo) =>
+                            callback
+                                name: repo.name
+                                description: repo.description
+                                uri: repo.html_url
                             request.get thumbnailRequestOpts(repo.name), (err, response, body) =>
                                 if body?
                                     parsed = yaml.safeLoad(body)
