@@ -12,6 +12,7 @@ import qualified Data.HashMap.Strict                        as HashMap
 import           LunaStudio.Data.Angle                      (Angle)
 import           LunaStudio.Data.Connection                 as X (ConnectionId)
 import qualified LunaStudio.Data.Connection                 as Empire
+import           LunaStudio.Data.Geometry                   (Radius)
 import qualified LunaStudio.Data.LabeledTree                as LT
 import           LunaStudio.Data.PortRef                    (AnyPortRef (InPortRef', OutPortRef'), InPortRef, OutPortRef)
 import qualified LunaStudio.Data.PortRef                    as PortRef
@@ -27,8 +28,8 @@ import           NodeEditor.React.Model.Node.ExpressionNode (countVisibleArgPort
                                                              visibleOutPortNumber)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
 import           NodeEditor.React.Model.Port                (EitherPort, InPort, InPortId, IsAlias, IsOnly, IsSelf, OutPort, OutPortId,
-                                                             argumentConstructorOffsetY, isSelf, portAngleStart, portAngleStop, portGap,
-                                                             portId)
+                                                             argumentConstructorNumber, argumentConstructorOffsetY, isSelf, portAngleStart, 
+                                                             portAngleStop, portGap, portId)
 import qualified NodeEditor.React.Model.Port                as Port
 
 
@@ -161,10 +162,12 @@ toPosConnection src' dst' = PosConnection src' dst' <$> view srcPos <*> view dst
 instance Convertible Connection Empire.Connection where
     convert = Empire.Connection <$> view src <*> view dst
 
-argConstructorConnectionPos :: ExpressionNode -> Position
-argConstructorConnectionPos n = if n ^. ExpressionNode.mode == ExpressionNode.Collapsed
-    then n ^. position & y %~ (+ portRadius)
-    else move (Vector2 (-nodeExpandedWidth/2) (argumentConstructorOffsetY $ countVisibleInPorts n)) $ n ^. position
+argConstructorPosition :: ExpressionNode -> Position
+argConstructorPosition n = 
+    if n ^. ExpressionNode.mode == ExpressionNode.Collapsed
+        then n ^. position & y %~ (+ portRadius)
+        else expandedInputPosition (n ^. position) $ argumentConstructorNumber $ countVisibleInPorts n
+
 
 connectionPositions :: Node -> OutPort -> Node -> InPort -> Layout -> Maybe (Position, Position)
 connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', dstNode') of
@@ -248,7 +251,7 @@ halfConnectionSrcPosition (Expression node) eport mousePos _ =
                                     False
                                     (visibleOutPortNumber node $ port ^. portId)
                                     allPorts
-                                    (countVisibleOutPorts node + countVisibleArgPorts node == 1)
+                                    (countVisibleOutPorts node + countVisibleArgPorts node == 0)
                                     1
                                     1
         Left  port -> connectionDst mousePos
@@ -266,56 +269,76 @@ halfConnectionSrcPosition (Expression node) eport mousePos _ =
         isExp    = not . isCollapsed $ node
         allPorts = if isLeft eport then if isExp then countVisibleInPorts node else countVisibleArgPorts node else countVisibleOutPorts node
 
-
-
 halfConnectionSrcPosition _ _ _ _ = def
 
-connectionAngle :: Position -> Position -> Int -> Int -> Bool -> Double
-connectionAngle srcPos' dstPos' dstPortNum dstPorts dstExpanded =
-    if      t' > a' - pi / 2 - g then a - pi / 2 - g
-    else if t' < b' - pi / 2 + g then b - pi / 2 + g
-    else t where
-        a   = portAngleStop  True dstPortNum dstPorts portRadius
-        b   = portAngleStart True dstPortNum dstPorts portRadius
-        t   = nodeToNodeAngle srcPos' dst
-        a'  = if a < pi then a + (2 * pi) else a
-        b'  = if b < pi then b + (2 * pi) else b
-        t'  = if t < pi then t + (2 * pi) else t
-        g   = portGap portRadius / 4
-        dst = if dstExpanded 
-            then move (Vector2 (-(nodeExpandedWidth/2)) (lineHeight * (fromIntegral dstPortNum))) dstPos' 
-            else dstPos'
 
 connectionSrc :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsOnly -> Int -> Int -> Position
-connectionSrc src' dst' srcExpanded _dstExpanded srcPortNum srcPorts isSingle dstPortNum dstPorts = do
-    let t = if isSingle then nodeToNodeAngle src' dst' 
-                        else connectionAngle src' dst' (srcPorts - srcPortNum - 1) srcPorts _dstExpanded
+connectionSrc srcNode dstNode srcExpanded _dstExpanded srcPortNum srcPorts isSingle dstPortNum dstPorts =
     if srcExpanded 
-        then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src'
-        else move (Vector2 (portRadius * cos t) (portRadius * sin t)) src'
-           
-connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
-connectionDst src' dst' srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts = do
-    let src'' = if srcExpanded 
-                    then move (Vector2 (nodeExpandedWidth/2) (lineHeight * (fromIntegral srcPortNum))) src' 
-                    else src'
-        t     = connectionAngle src'' dst' dstPortNum dstPorts dstExpanded
-    if dstExpanded
-        then move (Vector2 (-(nodeExpandedWidth/2)) (lineHeight * (fromIntegral dstPortNum))) dst'
-        else if isSelf'
-                then dst'
-                else
-                    if isAlias then move (Vector2 (portAliasRadius * (-cos t)) (portAliasRadius * (-sin t))) dst'
-                               else move (Vector2 (portRadius      * (-cos t)) (portRadius      * (-sin t))) dst'
+        then expandedOutputPosition srcNode srcPortNum
+        else move (Vector2 (portRadius * cos t) (portRadius * sin t)) srcNode
 
-nodeToNodeAngle :: Position -> Position -> Angle
-nodeToNodeAngle src' dst' =
-    if src' == dst' then pi else
+    where 
+        t = toAngle srcNode trueDst 
+         -- if isSingle then toAngle srcNode trueDst 
+         --                else toAngle2 srcNode dstNode (srcPorts - srcPortNum - 1) srcPorts _dstExpanded
+
+        trueDst = if _dstExpanded then expandedInputPosition dstNode dstPortNum 
+                                  else dstNode
+
+
+connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
+connectionDst srcNode dstNode srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts = do
+    let t       = toAngle2 trueSrc trueDst 
+        t'      = limitAngle (portAngleStart True dstPortNum dstPorts portRadius)
+                             (portAngleStop  True dstPortNum dstPorts portRadius) t
+        trueSrc = if srcExpanded then expandedOutputPosition srcNode srcPortNum else srcNode
+        trueDst = if dstExpanded then expandedInputPosition  dstNode dstPortNum else dstNode
+    if dstExpanded || isSelf' 
+        then trueDst 
+        else if isAlias then moveOnCircumference portAliasRadius t  dstNode
+                        else moveOnCircumference portRadius      t' dstNode
+
+-- Graph Calculations
+
+expandedPortPosition :: Bool -> Position -> Int -> Position
+expandedPortPosition input nodePosition portNumber =
+    move (Vector2 ((nodeExpandedWidth/2) * (if input then (-1) else 1)) (lineHeight * (fromIntegral portNumber))) nodePosition
+
+expandedInputPosition, expandedOutputPosition :: Position -> Int -> Position
+expandedInputPosition  = expandedPortPosition True
+expandedOutputPosition = expandedPortPosition False
+
+-- Math Calculations
+
+limitAngle :: Angle -> Angle -> Angle -> Angle
+limitAngle opening closing current =  
+    if current < opening then opening else 
+    if current > closing then closing else current
+
+toAngle :: Position -> Position -> Angle
+toAngle srcPosition dstPosition =
+    if srcPosition == dstPosition then 0 else
         if srcX < dstX
             then atan ((srcY - dstY) / (srcX - dstX))
             else atan ((srcY - dstY) / (srcX - dstX)) + pi
     where
-        srcX = src' ^. x
-        srcY = src' ^. y
-        dstX = dst' ^. x
-        dstY = dst' ^. y
+        srcX = srcPosition ^. x
+        srcY = srcPosition ^. y
+        dstX = dstPosition ^. x
+        dstY = dstPosition ^. y
+
+toAngle2 :: Position -> Position -> Angle
+toAngle2 srcPosition dstPosition = 
+    if srcX < dstX then pi/2 - (atan $ (dstY - srcY) / (dstX - srcX))
+                   else pi/2 - (atan $ (dstY - srcY) / (dstX - srcX)) -- TODO: fix or remove
+    where
+        srcX = srcPosition ^. x
+        srcY = srcPosition ^. y
+        dstX = dstPosition ^. x
+        dstY = dstPosition ^. y
+
+
+moveOnCircumference :: Radius -> Angle -> Position -> Position
+moveOnCircumference r t = move $ Vector2 (r * (-cos t))
+                                         (r * (-sin t))

@@ -5,12 +5,13 @@ import           LunaStudio.Data.Position  (Position, distanceSquared, fromDoubl
 import           LunaStudio.Data.Vector2   (dotV, scalarProduct)
 import           Prologue                  hiding (p)
 
+type Radius = Double
+
 snapCoord :: Double -> Double
 snapCoord p = (* gridSize) . fromIntegral $ (round $ p / gridSize :: Integer)
 
 snap :: Position -> Position
 snap = (x %~ snapCoord) . (y %~ snapCoord)
-
 
 epsilon :: Double
 epsilon = 0.005
