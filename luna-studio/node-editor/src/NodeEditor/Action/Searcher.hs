@@ -130,7 +130,8 @@ openWith input mode = do
     let action   = Searcher
         inputLen = Text.length input
     begin action
-    modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False
+    waitingForTc <- use Global.waitingForTc
+    modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False waitingForTc
     modifyInput input inputLen inputLen action
     renderIfNeeded
     Searcher.focus
