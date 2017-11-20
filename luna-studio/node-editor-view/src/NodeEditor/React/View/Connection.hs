@@ -53,10 +53,7 @@ connection = React.defineView name $ \(ref, model) -> do
         [ "key"       $= "connection"
         , "className" $= Style.prefix "connection"
         ] $ do
-        text_ [ "fill" $= "white" ] $ do
-            elemString $ show $ toAngle src dst
-            elemString " --- " 
-            elemString $ show $ toAngle2 src dst
+        text_ [ "fill" $= "white" ] $ elemString $ show $ toAngle2 src dst --TODO: remove!
         line src dst
             [ "key"       $= "line"
             , "className" $= Style.prefixFromList classes

@@ -289,7 +289,7 @@ connectionSrc srcNode dstNode srcExpanded _dstExpanded srcPortNum srcPorts isSin
 
 connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
 connectionDst srcNode dstNode srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts = do
-    let t       = toAngle2 trueSrc trueDst 
+    let t       = toAngle2   trueSrc trueDst 
         t'      = limitAngle (portAngleStart True dstPortNum dstPorts portRadius)
                              (portAngleStop  True dstPortNum dstPorts portRadius) t
         trueSrc = if srcExpanded then expandedOutputPosition srcNode srcPortNum else srcNode
@@ -330,8 +330,11 @@ toAngle srcPosition dstPosition =
 
 toAngle2 :: Position -> Position -> Angle
 toAngle2 srcPosition dstPosition = 
-    if srcX < dstX then pi/2 - (atan $ (dstY - srcY) / (dstX - srcX))
-                   else pi/2 - (atan $ (dstY - srcY) / (dstX - srcX)) -- TODO: fix or remove
+    if srcX <= dstX 
+        then pi/2 - (atan $ (dstY - srcY) / (dstX - srcX))
+        else if srcY >= dstY 
+                then 1.5*pi - (atan $ (dstY - srcY) / (dstX - srcX))
+                else -(pi/2 + (atan $ (dstY - srcY) / (dstX - srcX)))
     where
         srcX = srcPosition ^. x
         srcY = srcPosition ^. y
