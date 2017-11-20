@@ -59,7 +59,7 @@ def upload_config_to_s3(luna_studio_path):
 def upload_gui(luna_studio_path):
     try:
         version = application_version(luna_studio_path)
-        name = application_name()
+        name = application_name(luna_studio_path)
         tarball_path = os.path.join(luna_studio_path,'dist-package','gui.zip')
         s3_key_path = '/'.join([name, version, 'gui.zip'])
         s3.Object('packages-luna', s3_key_path).put(Body=open(tarball_path, 'rb'))
