@@ -155,7 +155,8 @@ createAppimage appName repoPath = do
     pkgConfig     <- get @PackageConfig
     tmpAppPath    <- expand $ repoPath </> (pkgConfig ^. defaultPackagePath) </> appImageFolderName </> convert appName
     let tmpAppDirPath = tmpAppPath </> convert (appName <> ".AppDir")
-
+    doesTmpExist <- Shelly.test_d tmpAppDirPath
+    when doesTmpExist $ Shelly.rm_rf $ parent tmpAppPath
     Shelly.mkdir_p tmpAppDirPath
 
     Logger.log "Downloading AppImage functions.sh"
