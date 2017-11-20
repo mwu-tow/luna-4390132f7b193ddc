@@ -51,8 +51,8 @@ dumpGraphViz :: Command State ()
 dumpGraphViz = withWorkspace BatchCmd.dumpGraphViz
 
 
-getProgram :: Maybe (GraphLocation, LocationSettings) -> Command State ()
-getProgram = withWorkspace . BatchCmd.getProgram
+getProgram :: Maybe (GraphLocation, LocationSettings) -> Bool -> Command State ()
+getProgram = withWorkspace .: BatchCmd.getProgram
 
 
 addConnection :: Either OutPortRef NodeLoc -> Either AnyPortRef NodeLoc -> Command State ()

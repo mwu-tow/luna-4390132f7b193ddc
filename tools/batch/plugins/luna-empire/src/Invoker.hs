@@ -136,7 +136,7 @@ setPortValue :: EP.BusEndPoints -> GraphLocation -> NodeId -> Int -> Double -> I
 setPortValue endPoints graphLocation nodeId portId value = sendToBus endPoints $ SetPortDefault.Request graphLocation (InPortRef (NodeLoc def nodeId) [Arg portId]) (Just $ Constant $ RealValue value)
 
 getProgram :: EP.BusEndPoints -> GraphLocation -> IO ()
-getProgram endPoints graphLocation = sendToBus endPoints $ GetProgram.Request graphLocation def
+getProgram endPoints graphLocation = sendToBus endPoints $ GetProgram.Request graphLocation def False
 
 createLibrary :: EP.BusEndPoints -> ProjectId -> Maybe String -> String -> IO ()
 createLibrary endPoints pid name path = sendToBus endPoints $ CreateLibrary.Request pid name path

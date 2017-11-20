@@ -67,8 +67,8 @@ dumpGraphViz :: Workspace -> UUID -> Maybe UUID -> IO ()
 dumpGraphViz workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace DumpGraphViz.Request
 
 
-getProgram :: Maybe (GraphLocation, LocationSettings) -> Workspace -> UUID -> Maybe UUID -> IO ()
-getProgram maySettings workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace GetProgram.Request) maySettings
+getProgram :: Maybe (GraphLocation, LocationSettings) -> Bool -> Workspace -> UUID -> Maybe UUID -> IO ()
+getProgram maySettings enterMain workspace uuid guiID = sendRequest $ Message uuid guiID $ (withLibrary workspace GetProgram.Request) maySettings enterMain
 
 addConnection :: Either OutPortRef NodeLoc -> Either AnyPortRef NodeLoc -> Workspace -> UUID -> Maybe UUID -> IO ()
 addConnection src dst workspace uuid guiID = sendRequest $ Message uuid guiID $ withLibrary workspace AddConnection.Request (conv src) dst where

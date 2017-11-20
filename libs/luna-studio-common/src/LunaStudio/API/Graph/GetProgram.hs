@@ -14,8 +14,8 @@ import           LunaStudio.Data.Breadcrumb           (Breadcrumb, BreadcrumbIte
 import           LunaStudio.Data.CameraTransformation (CameraTransformation)
 import           LunaStudio.Data.Graph                (Graph)
 import           LunaStudio.Data.GraphLocation        (GraphLocation)
-import           LunaStudio.Data.NodeValue            (Visualizer)
 import           LunaStudio.Data.NodeSearcher         (ImportName)
+import           LunaStudio.Data.NodeValue            (Visualizer)
 import           LunaStudio.Data.Project              (LocationSettings)
 import           LunaStudio.Data.TypeRep              (TypeRep)
 import           Prologue                             hiding (TypeRep)
@@ -23,6 +23,7 @@ import           Prologue                             hiding (TypeRep)
 
 data Request = Request { _location             :: GraphLocation
                        , _prevLocationSettings :: Maybe (GraphLocation, LocationSettings)
+                       , _enterMain            :: Bool
                        } deriving (Eq, Generic, Show)
 
 type Error = String
@@ -33,6 +34,7 @@ data Result  = Result  { _graph            :: Either Error Graph
                        , _availableImports :: [ImportName]
                        , _typeRepToVisMap  :: Maybe (HashMap TypeRep Visualizer)
                        , _camera           :: CameraTransformation
+                       , _newLocation      :: GraphLocation
                        } deriving (Eq, Generic, Show)
 
 makeLenses ''Request
