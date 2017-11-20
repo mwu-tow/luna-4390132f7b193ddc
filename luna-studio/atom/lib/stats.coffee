@@ -5,7 +5,7 @@ yaml = require 'js-yaml'
 
 timeStart = new Date()
 runtimeReport = {}
-dataPath = if process.env.LUNA_STUDIO_CONFIG? then process.env.LUNA_STUDIO_CONFIG + '/analytics-data.yml' else './analytics-data.yml'
+dataPath = if process.env.LUNA_STUDIO_DATA_PATH? then process.env.LUNA_STUDIO_DATA_PATH + '/analytics-data.yml' else './analytics-data.yml'
 
 encoding = 'utf8'
 
