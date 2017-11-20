@@ -49,4 +49,5 @@ planeCanvas_ =
         [ "className" $= Style.prefixFromList [ "plane", "plane--canvas", "hide" ]
         , "key"       $= "canvas"
         , "id"        $= planeCanvasId
+        , onDoubleClick $ \e m -> [stopPropagation e]
         ]
