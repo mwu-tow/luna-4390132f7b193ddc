@@ -30,7 +30,7 @@ instance Typeable a => IsRef (Ref a) where
     dispatch s = dispatch' s . Event.UI
 
 instance HasApp (Store App) where
-		app = dt
+    app = dt
 
 dispatch' :: Typeable a => Ref a -> Event -> [SomeStoreAction]
 dispatch' s a = [SomeStoreAction s a]

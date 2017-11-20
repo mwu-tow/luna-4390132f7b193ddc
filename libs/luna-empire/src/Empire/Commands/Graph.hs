@@ -77,10 +77,10 @@ module Empire.Commands.Graph
     ) where
 
 import           Control.Arrow                    ((&&&), (***))
-import           Control.Concurrent               (putMVar, readMVar, takeMVar)
+import           Control.Concurrent               (readMVar)
 import qualified Control.Concurrent.MVar.Lifted   as Lifted
 import           Control.Monad                    (forM)
-import           Control.Monad.Catch              (finally, handle, try)
+import           Control.Monad.Catch              (handle, try)
 import           Control.Monad.State              hiding (when)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
@@ -88,9 +88,8 @@ import qualified Data.Aeson.Text                  as Aeson
 import           Data.Coerce                      (coerce)
 import           Data.Char                        (isSeparator, isUpper)
 import           Data.Foldable                    (toList)
-import           Data.List                        (elemIndex, find, group, partition, sortBy, sortOn, nub, head)
+import           Data.List                        (find, partition, sortBy, sortOn, nub, head)
 import qualified Data.List.Split                  as Split
-import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
 import           Data.Maybe                       (fromMaybe, maybeToList)
 import qualified Data.Set                         as Set
@@ -105,10 +104,9 @@ import           Data.Text.Position               (Delta)
 import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Data.UUID.V4                     as UUID (nextRandom)
 import           Debug
-import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis, runModuleTypecheck)
+import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIRCls, runASTOp, runAliasAnalysis, runModuleTypecheck)
 import qualified Empire.ASTOps.Builder            as ASTBuilder
-import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
-import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy, isNone)
+import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, isNone)
 import qualified Empire.ASTOps.Modify             as ASTModify
 import           Empire.ASTOps.Parse              (FunctionParsing(..))
 import qualified Empire.ASTOps.Parse              as ASTParse
@@ -127,9 +125,9 @@ import           Empire.Data.AST                  (InvalidConnectionException (.
                                                    PortDoesNotExistException(..), SomeASTException, astExceptionFromException,
                                                    astExceptionToException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
-import           Empire.Data.Graph                (ClsGraph, Graph, NodeCache(..), portMappingMap, nodeIdMap)
+import           Empire.Data.Graph                (ClsGraph, Graph, NodeCache(..))
 import qualified Empire.Data.Graph                as Graph
-import           Empire.Data.Layers               (Marker, SpanLength, SpanOffset)
+import           Empire.Data.Layers               (SpanLength, SpanOffset)
 import qualified Empire.Data.Library              as Library
 import           Empire.Empire
 import           Empire.Prelude                   hiding (head, toList)
@@ -144,7 +142,6 @@ import qualified Luna.Project                     as Project
 import           Luna.Syntax.Text.Analysis.SpanTree (Spanned(..))
 import qualified Luna.Syntax.Text.Analysis.SpanTree as SpanTree
 import qualified Luna.Syntax.Text.Lexer           as Lexer
-import qualified Luna.Syntax.Text.Lexer.Grammar   as Lexer
 import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker   (MarkedExprMap (..))
@@ -157,7 +154,7 @@ import           LunaStudio.Data.Connection       (Connection (..))
 import           LunaStudio.Data.Diff             (Diff (..))
 import qualified LunaStudio.Data.Graph            as APIGraph
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
-import           LunaStudio.Data.Node             (ExpressionNode (..), InputSidebar (..), NodeId)
+import           LunaStudio.Data.Node             (ExpressionNode (..), NodeId)
 import qualified LunaStudio.Data.Node             as Node
 import           LunaStudio.Data.NodeLoc          (NodeLoc (..))
 import qualified LunaStudio.Data.NodeLoc          as NodeLoc
@@ -165,8 +162,7 @@ import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
 import           LunaStudio.Data.NodeSearcher     (ImportName, ImportsHints, ClassHints(..), ModuleHints(..))
 import           LunaStudio.Data.Point            (Point)
-import qualified LunaStudio.Data.Point            as Point
-import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), OutPortId, getPortNumber)
+import           LunaStudio.Data.Port             (InPortId, InPortIndex (..), getPortNumber)
 import qualified LunaStudio.Data.Port             as Port
 import           LunaStudio.Data.PortDefault      (PortDefault)
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
@@ -174,13 +170,12 @@ import qualified LunaStudio.Data.PortRef          as PortRef
 import           LunaStudio.Data.Position         (Position)
 import qualified LunaStudio.Data.Position         as Position
 import           LunaStudio.Data.Range            (Range(..))
-import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, narrowTerm, replace)
+import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, replace)
 import qualified Path
 import qualified Safe
 import           System.Directory                 (canonicalizePath)
 import           System.Environment               (getEnv)
 
-import qualified System.IO as IO
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True

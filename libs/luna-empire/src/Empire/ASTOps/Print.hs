@@ -4,23 +4,18 @@
 
 module Empire.ASTOps.Print where
 
-import           Control.Monad                  (forM, (<=<))
-import           Data.Char                      (isAlpha)
-import           Data.List                      (delete, dropWhileEnd)
-import           Data.Map                       (Map)
+import           Control.Monad                  ((<=<))
+import           Data.List                      (delete)
 import qualified Data.Map                       as Map
 import qualified Data.Text                      as Text
-import           Empire.Prelude                 hiding (List, TypeRep)
+import           Empire.Prelude                 hiding (List)
 
-import           Empire.ASTOp                   (ASTOp, ASTOpReq, GraphOp, match)
-import qualified Empire.ASTOps.Deconstruct      as ASTDeconstruct
+import           Empire.ASTOp                   (ASTOpReq, GraphOp, match)
 import qualified Empire.ASTOps.Read             as ASTRead
 import           Empire.Data.AST                (NodeRef)
 import           Empire.Data.Graph              (Graph)
 import qualified Luna.IR                        as IR
 import           Luna.IR.Term.Uni
-import           LunaStudio.Data.Node           (NodeId)
-import           LunaStudio.Data.TypeRep
 import           LunaStudio.Data.TypeRep
 
 import           Luna.Syntax.Text.Lexer.Grammar (isOperator)
