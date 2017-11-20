@@ -1026,7 +1026,7 @@ markNode nodeId = do
     ASTBuilder.attachNodeMarkers nodeId [] var
 
 stripMetadata :: Text -> Text
-stripMetadata text = flip Text.append "\n" $ Text.stripEnd $ convert withoutMeta
+stripMetadata text = if lexerStream == code then text else flip Text.append "\n" $ Text.stripEnd $ convert withoutMeta
     where
         lexerStream  = Lexer.evalDefLexer (convert text)
         code         = takeWhile (\(Lexer.Token _ _ s) -> isNothing $ Lexer.matchMetadata s) lexerStream
