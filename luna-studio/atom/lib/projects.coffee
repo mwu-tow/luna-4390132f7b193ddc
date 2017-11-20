@@ -180,18 +180,21 @@ module.exports =
                                 progress p
                             catch error
                                 console.log error
+            clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then (repo) =>
+                atom.project.setPaths [dstPath]
+                finalize()
+            cloneError = (err) =>
+                atom.confirm
+                    message: "Error while cloning tutorial"
+                    detailedMessage: err
+                    buttons:
+                        Ok: ->
+                finalize()
             closeAllFiles()
             fse.remove dstPath, (err) =>
-                clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then((repo) =>
-                            atom.project.setPaths [dstPath]
-                            finalize())
-
-
-                clone().catch((error) =>
-                    clone().catch(error) =>
-                        atom.confirm
-                            message: "Error while cloning tutorial"
-                            detailedMessage: error.message
-                            buttons:
-                                Ok: ->
-                        finalize())
+                if err?
+                    cloneError err.toString()
+                else
+                    clone().catch (error) =>
+                        clone().catch (error) =>
+                            cloneError error
