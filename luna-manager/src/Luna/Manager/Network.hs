@@ -58,7 +58,7 @@ downloadFromURL address info = do
     go `Exception.catchAny` \e -> throwM (DownloadException address e)  where
 
 newHTTPManager :: MonadIO m => m HTTP.Manager
-newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.managerResponseTimeout = HTTP.responseTimeoutMicro 5000000}
+newHTTPManager = liftIO . HTTP.newManager $ HTTP.tlsManagerSettings { HTTP.managerResponseTimeout = HTTP.responseTimeout 30000000}
 
 downloadWithProgressBar  :: MonadNetwork m => URIPath -> m FilePath
 downloadWithProgressBar address = do
