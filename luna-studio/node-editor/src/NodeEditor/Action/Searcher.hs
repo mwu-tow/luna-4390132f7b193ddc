@@ -61,6 +61,19 @@ mkDocVis = getUUID >>= \uuid -> do
     liftIO $ registerVisualizerFrame uuid
     return $ RunningVisualization uuid def <$> mayVis
 
+
+
+emptyInputError :: Searcher.Mode -> Text
+emptyInputError m = fieldName <> " cannot be empty." where
+    fieldName = case m of
+        Searcher.Command  {} -> "Command"
+        Searcher.Node     {} -> "Node expression"
+        Searcher.NodeName {} -> "Node name"
+        Searcher.PortName {} -> "Port name"
+
+clearSearcherError :: Command State ()
+clearSearcherError = modifySearcher $ Searcher.searcherError .= def
+
 editExpression :: NodeLoc -> Command State ()
 editExpression nodeLoc = do
     let getClassName n = case n ^? ExpressionNode.inPortAt [Port.Self] . Port.valueType of
@@ -131,13 +144,14 @@ openWith input mode = do
         inputLen = Text.length input
     begin action
     waitingForTc <- use Global.waitingForTc
-    modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False waitingForTc
+    modifyNodeEditor $ NodeEditor.searcher ?= Searcher.Searcher 0 mode def False False waitingForTc def
     modifyInput input inputLen inputLen action
     renderIfNeeded
     Searcher.focus
 
 updateInput :: Text -> Int -> Int -> Searcher -> Command State ()
 updateInput input selectionStart selectionEnd action = do
+    clearSearcherError
     let inputStream = evalDefLexer $ convert input
         newInput    = if selectionStart /= selectionEnd
                           then Searcher.Raw input
@@ -197,12 +211,15 @@ accept :: (Event -> IO ()) -> Searcher -> Command State ()
 accept scheduleEvent action = whenM (updateInputWithSelectedHint action) $
     withJustM getSearcher $ \searcher -> do
         let inputText = searcher ^. Searcher.inputText
-        unless (Text.null inputText) $ case searcher ^. Searcher.mode of
-            Searcher.Command                                             _ -> execCommand action scheduleEvent $ convert inputText
-            Searcher.Node     nl (Searcher.NodeModeInfo _ (Just nn) _ _) _ -> createNode (nl ^. NodeLoc.path) (nn ^. Searcher.position) inputText False >> close action
-            Searcher.Node     nl _                                       _ -> setNodeExpression nl inputText >> close action
-            Searcher.NodeName nl                                         _ -> renameNode nl inputText >> close action
-            Searcher.PortName portRef                                    _ -> renamePort portRef inputText >> close action
+            mode      = searcher ^. Searcher.mode
+        if Text.null inputText
+            then modifySearcher $ Searcher.searcherError ?= emptyInputError mode
+            else case mode of
+                Searcher.Command                                             _ -> execCommand action scheduleEvent $ convert inputText
+                Searcher.Node     nl (Searcher.NodeModeInfo _ (Just nn) _ _) _ -> createNode (nl ^. NodeLoc.path) (nn ^. Searcher.position) inputText False >> close action
+                Searcher.Node     nl _                                       _ -> setNodeExpression nl inputText >> close action
+                Searcher.NodeName nl                                         _ -> renameNode nl inputText >> close action
+                Searcher.PortName portRef                                    _ -> renamePort portRef inputText >> close action
 
 execCommand :: Searcher -> (Event -> IO ()) -> String -> Command State ()
 execCommand action scheduleEvent inputText = case readMaybe inputText of
@@ -228,9 +245,11 @@ selectNextHint _ = do
     modifySearcher $ use (Searcher.hints . to length) >>= \hintsLen ->
         Searcher.selected %= min hintsLen . succ
     updateDocs
+    withJustM getSearcher $ \s -> when (s ^. Searcher.selected > 0) clearSearcherError
 
 selectPreviousHint :: Searcher -> Command State ()
 selectPreviousHint _ = do
+    withJustM getSearcher $ \s -> when (s ^. Searcher.selected > 0) clearSearcherError
     modifySearcher $ Searcher.selected %= max 0 . pred
     updateDocs
 
