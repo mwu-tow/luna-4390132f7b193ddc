@@ -137,7 +137,11 @@ class LunaWelcomeTab extends View
             @hideSearchResults()
         else
             fuzzyFilter ?= require('fuzzaldrin').filter
-            allItems = @tutorialItems.concat(@privateItems)
+            allItems = []
+            for itemName in Object.keys @tutorialItems
+                allItems.push @tutorialItems[itemName]
+
+            allItems = allItems.concat(@privateItems)
             filteredItems = fuzzyFilter(allItems, filterQuery, key: @getFilterKey())
             @showSearchResults filteredItems
 
