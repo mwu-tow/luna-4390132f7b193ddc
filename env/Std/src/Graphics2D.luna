@@ -90,8 +90,11 @@ class Boolean a:
 
     def toJSON:
         tp  = self.type.toJSON
-        ops = self.operands.toJSON
-        Map . empty . insert "type" tp . insert "operands" ops . toJSON
+        fst = self.operands.first.toJSON
+        snd = self.operands.second.toJSON
+        ops = (fst, snd).toJSON
+        res = Map . empty . insert "type" tp . insert "operands" ops . toJSON
+        res
 
     def toSVGDefs id: case self.type of
         Union:
@@ -139,7 +142,10 @@ class Geo:
     transformation :: AffineTransformation
     definition     :: GeoDef
 
-    def toJSON: Tip . insert "definition" self.definition.toJSON . insert "transformation" self.transformation.toJSON . toJSON
+    def toJSON:
+        deft  = self.definition.toJSON
+        trans = self.transformation.toJSON
+        Tip . insert "definition" deft . insert "transformation" trans . toJSON
 
     def transform t: case self of
         Geo tt d:
