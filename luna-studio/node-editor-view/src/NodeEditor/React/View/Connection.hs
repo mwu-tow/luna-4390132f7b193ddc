@@ -6,7 +6,7 @@ import           LunaStudio.Data.Position          (Position, averagePosition, x
 import qualified NodeEditor.Event.UI               as UI
 import           NodeEditor.React.Event.Connection (ModifiedEnd (Destination, Source))
 import qualified NodeEditor.React.Event.Connection as Connection
-import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Normal), PosConnection, PosHalfConnection, toInputAngle, toOutputAngle)
+import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Normal), PosConnection, PosHalfConnection, toAngle, toInputAngle, toOutputAngle)
 import qualified NodeEditor.React.Model.Connection as Connection
 import           NodeEditor.React.IsRef            (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style       as Style
@@ -53,10 +53,6 @@ connection = React.defineView name $ \(ref, model) -> do
         [ "key"       $= "connection"
         , "className" $= Style.prefix "connection"
         ] $ do
-        text_ [ "fill" $= "white" ] $ do
-            elemString $ show $ toInputAngle src dst
-            elemString " --- " 
-            elemString $ show $ toOutputAngle src dst
         line src dst
             [ "key"       $= "line"
             , "className" $= Style.prefixFromList classes

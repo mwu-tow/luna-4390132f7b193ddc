@@ -136,14 +136,14 @@ portAngle :: Int -> Angle
 portAngle numOfPorts = pi / fromIntegral numOfPorts
 
 portAngleStart :: Bool -> Int -> Int -> Radius -> Angle
-portAngleStart trimmed portNumber numOfPorts r = pi - n * t + trim
-    where n    = fromIntegral portNumber + 1
+portAngleStart trimmed portNumber numOfPorts r = n * t + trim
+    where n    = fromIntegral portNumber
           trim = if trimmed then (portGap r)/2 else 0
           t    = portAngle numOfPorts
 
 portAngleStop :: Bool -> Int -> Int -> Radius -> Angle
-portAngleStop trimmed portNumber numOfPorts r = pi - n * t + t - trim
-    where n    = fromIntegral portNumber + 1
+portAngleStop trimmed portNumber numOfPorts r = n * t + t - trim
+    where n    = fromIntegral portNumber
           trim = if trimmed then (portGap r)/2 else 0
           t    = portAngle numOfPorts
 

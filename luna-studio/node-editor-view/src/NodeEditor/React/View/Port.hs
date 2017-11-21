@@ -4,6 +4,7 @@ module NodeEditor.React.View.Port where
 
 import           Common.Prelude
 import qualified Data.Aeson                       as Aeson
+import           LunaStudio.Data.Angle            (Angle)
 import           LunaStudio.Data.Constants        (nodePropertiesWidth)
 import           LunaStudio.Data.PortRef          (AnyPortRef (InPortRef'), InPortRef, toAnyPortRef)
 import qualified NodeEditor.Event.Mouse           as Mouse
@@ -192,14 +193,14 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) 
         classes  = if isInput then [ "port", "port--i", "port--i--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
                               else [ "port", "port--o", "port--o--" <> show (num + 1) ] <> modeClass (p ^. Port.mode)
         portTypeClass = if isTopLevel then "hide" else "port__type"
-        svgFlag1 = if isInput then "1"  else "0"
-        svgFlag2 = if isInput then "0"  else "1"
+        svgFlag1 = if isInput then "0"  else "1"
+        svgFlag2 = if isInput then "1"  else "0"
         mode     = if isInput then -1.0 else 1.0
         adjust = typeOffsetY + fromIntegral ((min 3 (numOfArgs - 1)) * 8)
-        startPortArcX addGaps r = r * sin(portAngleStart addGaps num numOfArgs r * mode)
-        startPortArcY addGaps r = r * cos(portAngleStart addGaps num numOfArgs r * mode)
-        stopPortArcX  addGaps r = r * sin(portAngleStop  addGaps num numOfArgs r * mode)
-        stopPortArcY  addGaps r = r * cos(portAngleStop  addGaps num numOfArgs r * mode)
+        startPortArcX addGaps r = r * sin(toSvgAngle $ portAngleStart addGaps num numOfArgs r * mode)
+        startPortArcY addGaps r = r * cos(toSvgAngle $ portAngleStart addGaps num numOfArgs r * mode)
+        stopPortArcX  addGaps r = r * sin(toSvgAngle $ portAngleStop  addGaps num numOfArgs r * mode)
+        stopPortArcY  addGaps r = r * cos(toSvgAngle $ portAngleStop  addGaps num numOfArgs r * mode)
         ax addGaps = jsShow2 . startPortArcX addGaps . (+) nodeRadius
         ay addGaps = jsShow2 . startPortArcY addGaps . (+) nodeRadius
         bx addGaps = jsShow2 . stopPortArcX  addGaps . (+) nodeRadius
@@ -209,7 +210,7 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) 
         dx addGaps = jsShow2 $ startPortArcX addGaps nodeRadius'
         dy addGaps = jsShow2 $ startPortArcY addGaps nodeRadius'
         r1 = jsShow2 . (+) nodeRadius
-        r2 = jsShow2 nodeRadius'
+        r2 = jsShow2 nodeRadius'                 
         svgPath a b = "M"  <> ax a b <> " " <> ay a b <>
                      " A " <> r1 b   <> " " <> r1 b   <> " 0 0 " <> svgFlag1 <> " " <> bx a b <> " " <> by a b <>
                      " L " <> cx a   <> " " <> cy a   <>
@@ -225,10 +226,10 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) 
             , "x"         $= jsShow2 (if isInput then (-typeOffsetX) else typeOffsetX)
             ] $ elemString portType
         path_
-            [ "className" $= Style.prefix "port__shape"
-            , "key"       $= (jsShow portId <> "-shape")
-            , "fill"      $= color
-            , "d"         $= svgPath True 20
+            [ "className"   $= Style.prefix "port__shape"
+            , "key"         $= (jsShow portId <> "-shape")
+            , "fill"        $= color
+            , "d"           $= svgPath True 20
             ] mempty
         path_
             ( handlers ref portRef isTopLevel <>
@@ -299,3 +300,6 @@ argumentConstructor_ ref portRef numOfPorts isConnectionSource hasAlias hasSelf 
                 , "style"     @= Aeson.object [ "cy" Aeson..= (show offsetY <> "px") ]
                 ]
             ) mempty
+
+toSvgAngle :: Angle -> Angle
+toSvgAngle = (-) pi
