@@ -289,7 +289,7 @@ connectionSrc srcNode dstNode srcExpanded _dstExpanded srcPortNum srcPorts isSin
 
 connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
 connectionDst srcNode dstNode srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts = do
-    let t       = toAngle2   trueSrc trueDst 
+    let t       = toAngle    trueSrc trueDst 
         t'      = limitAngle (portAngleStart True dstPortNum dstPorts portRadius)
                              (portAngleStop  True dstPortNum dstPorts portRadius) t
         trueSrc = if srcExpanded then expandedOutputPosition srcNode srcPortNum else srcNode
@@ -318,28 +318,47 @@ limitAngle opening closing current =
 
 toAngle :: Position -> Position -> Angle
 toAngle srcPosition dstPosition =
-    if srcPosition == dstPosition then 0 else
-        if srcX < dstX
-            then atan ((srcY - dstY) / (srcX - dstX))
-            else atan ((srcY - dstY) / (srcX - dstX)) + pi
+    if srcPosition == dstPosition 
+        then 0 
+        else if srcX < dstX 
+            then t 
+            else t + pi
     where
+        t    = atan $ (srcY - dstY) / (srcX - dstX)
         srcX = srcPosition ^. x
         srcY = srcPosition ^. y
         dstX = dstPosition ^. x
         dstY = dstPosition ^. y
 
-toAngle2 :: Position -> Position -> Angle
-toAngle2 srcPosition dstPosition = 
-    if srcX <= dstX 
-        then pi/2 - (atan $ (dstY - srcY) / (dstX - srcX))
-        else if srcY >= dstY 
-                then 1.5*pi - (atan $ (dstY - srcY) / (dstX - srcX))
-                else -(pi/2 + (atan $ (dstY - srcY) / (dstX - srcX)))
+toInputAngle :: Position -> Position -> Angle
+toInputAngle srcPosition dstPosition = 
+    if srcX <= dstX
+        then 0.5*pi - t 
+        else if srcY < dstY 
+            then -0.5*pi - t
+            else  1.5*pi - t
+            
     where
+        t    = atan $ (dstY - srcY) / (dstX - srcX)
         srcX = srcPosition ^. x
         srcY = srcPosition ^. y
         dstX = dstPosition ^. x
         dstY = dstPosition ^. y
+
+toOutputAngle :: Position -> Position -> Angle
+toOutputAngle srcPosition dstPosition = 
+    if srcX <= dstX
+        then t + 0.5*pi
+        else if srcY < dstY 
+            then t + 1.5*pi
+            else t - 0.5*pi
+    where
+        t    = atan $ (dstY - srcY) / (dstX - srcX)
+        srcX = srcPosition ^. x
+        srcY = srcPosition ^. y
+        dstX = dstPosition ^. x
+        dstY = dstPosition ^. y
+
 
 
 moveOnCircumference :: Radius -> Angle -> Position -> Position
