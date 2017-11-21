@@ -197,7 +197,12 @@ accept :: (Event -> IO ()) -> Searcher -> Command State ()
 accept scheduleEvent action = whenM (updateInputWithSelectedHint action) $
     withJustM getSearcher $ \searcher -> do
         let inputText = searcher ^. Searcher.inputText
-        if Text.null inputText then warning "Input cannot be empty." else case searcher ^. Searcher.mode of
+            fieldName = case searcher ^. Searcher.mode of
+                Searcher.Command  {} -> "Command"
+                Searcher.Node     {} -> "Node expression"
+                Searcher.NodeName {} -> "Node name"
+                Searcher.PortName {} -> "Port name"
+        if Text.null inputText then warning $ fieldName <> " cannot be empty." else case searcher ^. Searcher.mode of
             Searcher.Command                                             _ -> execCommand action scheduleEvent $ convert inputText
             Searcher.Node     nl (Searcher.NodeModeInfo _ (Just nn) _ _) _ -> createNode (nl ^. NodeLoc.path) (nn ^. Searcher.position) inputText False >> close action
             Searcher.Node     nl _                                       _ -> setNodeExpression nl inputText >> close action
