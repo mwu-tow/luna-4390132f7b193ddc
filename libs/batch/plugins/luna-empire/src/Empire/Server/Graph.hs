@@ -185,19 +185,26 @@ saveSettings gl settings = do
     withJust mayProjectPathAndRelModulePath $ \(pf, mf) ->
         liftIO $ Project.updateLocationSettings pf mf bc settings
 
+findMainNodeId :: Graph -> Maybe NodeId
+findMainNodeId g = view Node.nodeId <$> find ((Just "main" ==) . view Node.name) (g ^. GraphAPI.nodes)
+
+getMainLocation :: GraphLocation -> Empire (Maybe GraphLocation)
+getMainLocation gl = do
+    g <- Graph.getGraph gl
+    return $ maybe def (\nid -> Just $ gl & GraphLocation.breadcrumb . Breadcrumb.items %~ (<> [Breadcrumb.Definition nid])) $ findMainNodeId g
 
 -- Handlers
 
 
 handleGetProgram :: Request GetProgram.Request -> StateT Env BusT ()
 handleGetProgram = modifyGraph defInverse action replyResult where
-    action (GetProgram.Request location mayPrevSettings) = do
+    action (GetProgram.Request location' mayPrevSettings enterMain) = do
         let moduleChanged = isNothing mayPrevSettings || isJust (maybe Nothing (view Project.visMap . snd) mayPrevSettings)
         withJust mayPrevSettings $ uncurry saveSettings
-        code <- Graph.getCode location
-        (graph, crumb, availableImports, typeRepToVisMap, camera) <- handle
-            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], def, mempty, def))
+        (graph, crumb, availableImports, typeRepToVisMap, camera, location) <- handle
+            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], def, mempty, def, location'))
             $ do
+                location <- if not enterMain then return location' else fromMaybe location' <$> getMainLocation location'
                 graph            <- Graph.getGraph location
                 crumb            <- Graph.decodeLocation location
                 availableImports <- Graph.getAvailableImports location
@@ -212,8 +219,9 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                                        bs     = Map.lookup bc $ ms ^. Project.breadcrumbsSettings
                                        cam    = maybe defaultCamera (view Project.breadcrumbCameraSettings) bs
                             in (visMap, cam)
-                return (Right graph, crumb, availableImports, typeRepToVisMap, camera)
-        return $ GetProgram.Result graph code crumb availableImports typeRepToVisMap camera
+                return (Right graph, crumb, availableImports, typeRepToVisMap, camera, location)
+        code <- Graph.getCode location
+        return $ GetProgram.Result graph code crumb availableImports typeRepToVisMap camera location
 
 handleAddConnection :: Request AddConnection.Request -> StateT Env BusT ()
 handleAddConnection = modifyGraph inverse action replyResult where

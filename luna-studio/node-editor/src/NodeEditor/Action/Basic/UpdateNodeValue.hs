@@ -9,14 +9,12 @@ import           LunaStudio.Data.Error                      (errorContent)
 import           LunaStudio.Data.NodeValue                  (NodeValue (NodeError, NodeValue),
                                                              VisualizationValue (StreamDataPoint, StreamStart, Value))
 import           LunaStudio.Data.TypeRep                    (errorTypeRep, toConstructorRep)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getExpressionNodeType, getNodeVisualizations,
+import           NodeEditor.Action.State.NodeEditor         (getExpressionNodeType, getNodeVisualizations,
                                                              modifyExpressionNode, modifyNodeEditor, recoverVisualizations,
                                                              updateVisualizationsForNode)
-import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc, Value (Error, ShortValue), execTime, nodeType, value,
-                                                             visualizationsEnabled)
-import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (StreamBackup, ValueBackup), backupMap, nodeVisualizations,
-                                                             visualizationsBackup)
-import           NodeEditor.React.Model.Visualization       (stopVisualizations, visualizations)
+import           NodeEditor.React.Model.Node.ExpressionNode (NodeLoc, Value (Error, ShortValue), execTime, value)
+import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (StreamBackup, ValueBackup), backupMap, visualizationsBackup)
+import           NodeEditor.React.Model.Visualization       (visualizations)
 import           NodeEditor.State.Global                    (State)
 
 

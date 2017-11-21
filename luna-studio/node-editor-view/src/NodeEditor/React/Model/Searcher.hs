@@ -61,6 +61,8 @@ data Searcher = Searcher
               , _input         :: Input
               , _replaceInput  :: Bool
               , _rollbackReady :: Bool
+              , _waitingForTc  :: Bool
+              , _searcherError :: Maybe Text
               } deriving (Eq, Generic, Show)
 
 makeLenses ''Searcher
@@ -143,7 +145,7 @@ findLambdaArgsAndEndOfLambdaArgs input' tokens = findRecursive tokens (0 :: Int)
         _             -> findRecursive t openParanthesisNumber        (endPos + tokenLength h) args res
 
 mkDef :: Mode -> Searcher
-mkDef mode' = Searcher def mode' (Divided $ DividedInput def def def) False False
+mkDef mode' = Searcher def mode' (Divided $ DividedInput def def def) False False False def
 
 defCommand :: Searcher
 defCommand = mkDef $ Command def

@@ -260,7 +260,7 @@ runFrontend args = do
     setEnv "ATOM_HOME"             =<< packageStudioAtomHome
     setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory True
     setEnv "LUNA_TMP"              =<< lunaTmpPath
-    setEnv "LUNA_PROJECT"          =<< lunaProjectsPath
+    setEnv "LUNA_PROJECTS"          =<< lunaProjectsPath
     setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
     unixOnly $ Shelly.shelly $ Shelly.run_ atom $ "-w" : maybeToList args
 
@@ -280,7 +280,7 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory develop
         setEnv "ATOM_HOME"             =<< userStudioAtomHome
         setEnv "LUNA_TMP"              =<< lunaTmpPath
-        setEnv "LUNA_PROJECT"          =<< lunaProjectsPath
+        setEnv "LUNA_PROJECTS"          =<< lunaProjectsPath
         setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
         createStorageDataDirectory develop
         Shelly.shelly $ Shelly.cmd atom
@@ -297,7 +297,7 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_STUDIO_CONFIG_PATH"     =<< configPath
         setEnv "LUNA_STUDIO_KILL_PATH"       =<< killSupervisorBinPath
         setEnv "LUNA_TMP"                    =<< lunaTmpPath
-        setEnv "LUNA_PROJECT"                =<< lunaProjectsPath
+        setEnv "LUNA_PROJECTS"                =<< lunaProjectsPath
         setEnv "LUNA_TUTORIALS"              =<< lunaTutorialsPath
         when develop   $ liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
         createStorageDataDirectory develop

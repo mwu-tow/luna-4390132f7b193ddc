@@ -21,8 +21,7 @@ import           LunaStudio.Data.MonadPath                   (MonadPath)
 import           LunaStudio.Data.NodeMeta                    (NodeMeta)
 import           LunaStudio.Data.NodeSearcher                (ImportName, ModuleHints)
 import qualified LunaStudio.Data.NodeSearcher                as NS
-import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType,
-                                                              getErrorVis)
+import           LunaStudio.Data.NodeValue                   (VisualizationId, Visualizer, VisualizerName, VisualizerPath, applyType)
 import           LunaStudio.Data.Port                        (_WithDefault)
 import           LunaStudio.Data.PortDefault                 (PortDefault)
 import           LunaStudio.Data.PortRef                     (AnyPortRef (..), InPortRef (..), OutPortRef (..))

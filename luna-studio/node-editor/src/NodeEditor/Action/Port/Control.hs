@@ -85,7 +85,7 @@ newSliderValue :: ScreenPosition -> UTCTime -> SliderDrag -> InitValue
 newSliderValue currentPostion currentTime slider =
     let dx   = currentPostion ^. x
         dt   = fromRational $ toRational $ Clock.diffUTCTime currentTime (slider ^. sliderDragStartTime)
-        v    = dx / dt -- 100 - 4 000
+        v    = if dt < 1e-10 then 0 else dx / dt -- 100 - 4 000
         max' = 100 :: Double
         nv   = v / max' :: Double
         f :: Double -> Double

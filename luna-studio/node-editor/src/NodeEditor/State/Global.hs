@@ -14,8 +14,8 @@ import           Data.UUID.Types                          (UUID)
 import           Data.Word                                (Word8)
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import           LunaStudio.Data.NodeLoc                  (NodeLoc)
-import           LunaStudio.Data.NodeValue                (Visualizer, VisualizerMatcher, VisualizerName)
 import           LunaStudio.Data.NodeSearcher             (NodeSearcherData)
+import           LunaStudio.Data.NodeValue                (Visualizer, VisualizerMatcher, VisualizerName)
 import           LunaStudio.Data.TypeRep                  (TypeRep)
 import           NodeEditor.Event.Event                   (Event)
 import           NodeEditor.React.Model.App               (App)
@@ -37,6 +37,7 @@ data State = State
         , _debug                :: DebugState
         , _selectionHistory     :: [Set NodeLoc]
         , _nodeSearcherData     :: NodeSearcherData
+        , _waitingForTc         :: Bool
         , _preferedVisualizers  :: HashMap TypeRep Visualizer
         , _visualizers          :: Map VisualizerName VisualizerMatcher
         , _lastEventTimestamp   :: DateTime
@@ -73,6 +74,7 @@ mkState ref clientId' = State
     {- debug                -} def
     {- selectionHistory     -} def
     {- nodeSearcherData     -} def
+    {- waitingForTc         -} False
 
 nextRandom :: Command State Word8
 nextRandom = uses random Random.random >>= \(val, rnd) -> random .= rnd >> return val

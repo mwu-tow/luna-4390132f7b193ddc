@@ -2,7 +2,6 @@
 module NodeEditor.State.Action where
 
 import           Common.Prelude
-import           Data.Aeson                           (FromJSON, ToJSON)
 import           Data.Curve                           (Curve)
 import           Data.Dynamic
 import           Data.Map                             (Map)

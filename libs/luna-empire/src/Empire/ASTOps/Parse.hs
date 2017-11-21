@@ -25,14 +25,9 @@ import           Empire.Prelude hiding (mempty)
 import           Prologue (convert, convertVia, unwrap', mempty, wrap', wrap)
 
 import           Control.Monad.Catch          (catchAll)
-import           Data.Char                    (isUpper)
-import           Data.List                    (partition)
-import qualified Data.Map                     as Map
 import qualified Data.Text                    as Text
-import           Data.Text.Position           (Delta)
 
 import           Empire.ASTOp                    (GraphOp, PMStack, runPass, runPM)
-import           Empire.ASTOps.Print
 import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
 import           Empire.Data.Graph               (ClsGraph, Graph)
 import qualified Empire.Data.Graph               as Graph (codeMarkers)
@@ -44,7 +39,7 @@ import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (.
 
 import qualified Data.Text.Position              as Pos
 import           Data.TypeDesc                   (getTypeDesc)
-import qualified Luna.Builtin.Data.Function      as Function (compile, importRooted)
+import qualified Luna.Builtin.Data.Function      as Function (compile)
 import qualified Luna.IR                         as IR
 import qualified Luna.Syntax.Text.Layer.Loc      as Loc
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan

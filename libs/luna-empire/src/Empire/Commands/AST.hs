@@ -8,37 +8,26 @@
 
 module Empire.Commands.AST where
 
-import           Control.Arrow                     (second)
 import           Control.Monad.State
 import           Data.Function                     (on)
 import           Data.List                         (sortBy)
-import           Data.Maybe                        (catMaybes, fromMaybe)
-import qualified Data.Text                         as Text
 import           Empire.Prelude
 
-import qualified LunaStudio.Data.Error             as APIError
 import           LunaStudio.Data.Node              (NodeId)
 import           LunaStudio.Data.NodeMeta          (NodeMeta)
-import           LunaStudio.Data.TypeRep           (TypeRep)
-import           Empire.Data.AST                   (EdgeRef, NodeRef, NotLambdaException(..), NotUnifyException(..))
-import           Empire.Data.Layers                (Meta, TypeLayer, SpanOffset, SpanLength)
+import           Empire.Data.AST                   (NodeRef, NotLambdaException(..))
+import           Empire.Data.Layers                (Meta, SpanOffset, SpanLength)
 
-import           Empire.ASTOp                      (ASTOp, ClassOp, GraphOp, match)
+import           Empire.ASTOp                      (ASTOp, GraphOp, match)
 import qualified Empire.ASTOps.Builder             as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct         as ASTDeconstruct
-import qualified Empire.ASTOps.Parse               as Parser
-import qualified Empire.ASTOps.Print               as Printer
 import qualified Empire.ASTOps.Read                as ASTRead
-import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan)
-import qualified Luna.Syntax.Text.Parser.CodeSpan       as CodeSpan
-import           Data.Text.Span                   (LeftSpacedSpan(..), SpacedSpan(..), leftSpacedSpan)
-import           Data.Text.Position               (Delta(..))
+import           Data.Text.Position                (Delta(..))
 
 import qualified Luna.IR as IR
 import           Luna.IR.Term.Uni
 import qualified OCI.IR.Repr.Vis as Vis
 
-import           Web.Browser                       (openBrowser)
 
 addNode :: GraphOp m => NodeId -> Maybe Text -> m Text -> NodeRef -> m (NodeRef, Maybe Text)
 addNode nid name genName node = do

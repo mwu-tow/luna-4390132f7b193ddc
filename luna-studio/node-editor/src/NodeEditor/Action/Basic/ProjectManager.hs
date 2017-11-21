@@ -10,21 +10,21 @@ import qualified NodeEditor.Action.Batch            as Batch
 import           NodeEditor.Action.State.App        (getWorkspace, modifyApp)
 import           NodeEditor.Action.State.NodeEditor (getScreenTransform, modifyNodeEditor, resetGraph, setGraphStatus)
 import           NodeEditor.Batch.Workspace         (currentLocation)
-import           NodeEditor.React.Model.NodeEditor  (GraphStatus (GraphLoading), visualizersLibPath)
 import           NodeEditor.React.Model.App         (workspace)
+import           NodeEditor.React.Model.NodeEditor  (GraphStatus (GraphLoading), visualizersLibPath)
 import           NodeEditor.State.Global            (State)
 import qualified NodeEditor.State.Global            as Global
 
 
-loadGraph :: GraphLocation -> Maybe (GraphLocation, LocationSettings) -> Command State ()
-loadGraph location prevSettings = do
+loadGraph :: GraphLocation -> Maybe (GraphLocation, LocationSettings) -> Bool -> Command State ()
+loadGraph location prevSettings enterMain = do
     resetGraph
     visLibPath <- liftIO $ getVisualizersLibraryPath
     modifyNodeEditor $ visualizersLibPath .= visLibPath
     setGraphStatus GraphLoading
     modifyApp $ workspace . _Just . currentLocation .= location
     Atom.setActiveLocation location
-    Batch.getProgram prevSettings
+    Batch.getProgram prevSettings enterMain
 
 navigateToGraph :: GraphLocation -> Command State ()
 navigateToGraph location = do
@@ -34,7 +34,7 @@ navigateToGraph location = do
         settings <- if (view filePath <$> mayCurrentLoc) == Just (location ^. filePath)
             then LocationSettings Nothing <$> getScreenTransform
             else getSettings
-        loadGraph location $ (, settings) <$> mayCurrentLoc
+        loadGraph location ((, settings) <$> mayCurrentLoc) False
 
 getSettings :: Command State LocationSettings
 getSettings = LocationSettings <$> (Just <$> use Global.preferedVisualizers) <*> getScreenTransform

@@ -65,9 +65,7 @@ atom_packages = {
     'luna-syntax': 'git@github.com:luna/luna-studio-syntax-theme.git',
     'luna-dark-ui': 'git@github.com:luna/luna-studio-ui-theme.git',
     'luna-dpi': 'git@github.com:luna/luna-studio-dpi.git',
-    'luna-toolbar': 'git@github.com:luna/luna-studio-toolbar.git',
     'settings-view': 'git@github.com:luna/atom-settings-view.git',
-    'tool-bar': 'git@github.com:luna/tool-bar.git',
 }
 
 #########################################################

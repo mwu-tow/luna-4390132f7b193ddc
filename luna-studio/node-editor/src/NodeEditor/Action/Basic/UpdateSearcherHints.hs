@@ -19,10 +19,11 @@ import           NodeEditor.Action.Batch              (searchNodes)
 import           NodeEditor.Action.State.NodeEditor   (getLocalFunctions, getNodeSearcherData, getSearcher, inTopLevelBreadcrumb,
                                                        modifySearcher)
 import           NodeEditor.React.Model.Searcher      (NodeModeInfo, Searcher, allCommands, className, updateCommandsResult,
-                                                       updateNodeResult)
+                                                       updateNodeResult, waitingForTc)
 import qualified NodeEditor.React.Model.Searcher      as Searcher
 import           NodeEditor.React.Model.Visualization (visualizationId)
 import           NodeEditor.State.Global              (State, nodeSearcherData)
+import qualified NodeEditor.State.Global              as Global
 
 
 type IsFirstQuery         = Bool
@@ -44,12 +45,17 @@ localAddSearcherHints :: ImportsHints -> Command State ()
 localAddSearcherHints ih = do
     nodeSearcherData . imports %= Map.union ih
     localUpdateSearcherHintsPreservingSelection
+    Global.waitingForTc .= False
+    modifySearcher $ waitingForTc .= False
 
 setCurrentImports :: [ImportName] -> Command State ()
 setCurrentImports importNames = do
     nodeSearcherData . currentImports .= importNames
     imps' <- (^. missingImports) <$> use nodeSearcherData
-    when (not $ null imps') $ searchNodes imps'
+    when (not $ null imps') $ do
+        Global.waitingForTc .= True
+        modifySearcher $ waitingForTc .= True
+        searchNodes imps'
 
 updateDocs :: Command State ()
 updateDocs = withJustM getSearcher $ \s -> withJust (s ^. Searcher.docVis) $ \docVis -> do

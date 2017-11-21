@@ -3,8 +3,8 @@ module NodeEditor.Action.Basic.Atom where
 import           Common.Action.Command                  (Command)
 import           Common.Prelude
 import           LunaStudio.Data.GraphLocation          (filePath)
-import           NodeEditor.Action.State.App            (getWorkspace, modifyApp)
 import           NodeEditor.Action.Basic.ProjectManager (getSettings, loadGraph, saveSettings)
+import           NodeEditor.Action.State.App            (getWorkspace, modifyApp)
 import           NodeEditor.Action.State.NodeEditor     (resetApp)
 import           NodeEditor.Batch.Workspace             (currentLocation)
 import qualified NodeEditor.Batch.Workspace             as Workspace
@@ -22,7 +22,7 @@ setFile path = do
         settings <- getSettings
         let newWorkspace = Workspace.mk path
         modifyApp $ workspace ?= newWorkspace
-        loadGraph (newWorkspace ^. currentLocation) $ (, settings) <$> mayCurrentLocation
+        loadGraph (newWorkspace ^. currentLocation) ((, settings) <$> mayCurrentLocation) True
 
 
 updateFilePath :: FilePath -> Command State ()
@@ -36,7 +36,7 @@ updateFilePath path = do
         modifyApp $ workspace ?= newWorkspace
         saveSettings
         settings <- getSettings
-        loadGraph newLocation $ Just (newLocation, settings)
+        loadGraph newLocation (Just (newLocation, settings)) True
 
 
 unsetFile :: Command State ()

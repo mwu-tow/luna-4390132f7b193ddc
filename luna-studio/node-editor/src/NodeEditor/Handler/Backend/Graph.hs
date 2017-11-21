@@ -6,6 +6,7 @@ import           Common.Action.Command                       (Command)
 import           Common.Prelude
 import           Common.Report                               (fatal)
 import qualified Data.DateTime                               as DT
+import qualified JS.Atom                                     as Atom
 import qualified JS.Clipboard                                as JS
 import qualified LunaStudio.API.Atom.MoveProject             as MoveProject
 import qualified LunaStudio.API.Atom.Paste                   as AtomPaste
@@ -105,27 +106,30 @@ checkBreadcrumb res = do
 handle :: Event.Event -> Maybe (Command State ())
 handle (Event.Batch ev) = Just $ case ev of
     GetProgramResponse response -> handleResponse response success failure where
-        location        = response ^. Response.request . GetProgram.location
+        location'       = response ^. Response.request . GetProgram.location
         requestId       = response ^. Response.requestId
-        success result  = do
-            whenM (isCurrentLocation location) $ do
-                putStrLn "GetProgram"
-                setBreadcrumbs $ result ^. GetProgram.breadcrumb
-                setCurrentImports $ result ^. GetProgram.availableImports
-                case result ^. GetProgram.graph of
-                    Left errMsg -> setGraphStatus $ GraphError errMsg
-                    Right graph -> do
-                        let nodes       = convert . (NodeLoc.empty,) <$> graph ^. Graph.nodes
-                            input       = convert . (NodeLoc.empty,) <$> graph ^. Graph.inputSidebar
-                            output      = convert . (NodeLoc.empty,) <$> graph ^. Graph.outputSidebar
-                            connections = graph ^. Graph.connections
-                            monads      = graph ^. Graph.monads
-                        updateGraph nodes input output connections monads
-                        setGraphStatus GraphLoaded
-                        setScreenTransform $ result ^. GetProgram.camera
-                        whenM (isOwnRequest requestId) $ withJust (result ^. GetProgram.typeRepToVisMap) $ \visMap ->
-                            Global.preferedVisualizers .= visMap
-                        updateScene
+        success result  = whenM (isCurrentLocation location') $ do
+            putStrLn "GetProgram"
+            let location = result ^. GetProgram.newLocation
+            unless (location' == location) $ do
+                modifyApp $ workspace . _Just . Workspace.currentLocation .= location
+                Atom.setActiveLocation location
+            setBreadcrumbs $ result ^. GetProgram.breadcrumb
+            setCurrentImports $ result ^. GetProgram.availableImports
+            case result ^. GetProgram.graph of
+                Left errMsg -> setGraphStatus $ GraphError errMsg
+                Right graph -> do
+                    let nodes       = convert . (NodeLoc.empty,) <$> graph ^. Graph.nodes
+                        input       = convert . (NodeLoc.empty,) <$> graph ^. Graph.inputSidebar
+                        output      = convert . (NodeLoc.empty,) <$> graph ^. Graph.outputSidebar
+                        connections = graph ^. Graph.connections
+                        monads      = graph ^. Graph.monads
+                    updateGraph nodes input output connections monads
+                    setGraphStatus GraphLoaded
+                    setScreenTransform $ result ^. GetProgram.camera
+                    whenM (isOwnRequest requestId) $ withJust (result ^. GetProgram.typeRepToVisMap) $ \visMap ->
+                        Global.preferedVisualizers .= visMap
+                    updateScene
         failure _ = do
             mayWorkspace <- getWorkspace
             let isOnTop = fromMaybe True (Workspace.isOnTopBreadcrumb <$> mayWorkspace)
@@ -133,7 +137,7 @@ handle (Event.Batch ev) = Just $ case ev of
                 then fatal "Cannot get file from backend"
                 else do
                     modifyApp $ workspace . _Just %= Workspace.upperWorkspace
-                    getProgram def
+                    getProgram def False
 
     AddConnectionResponse response -> handleResponse response success failure where
         requestId = response ^. Response.requestId

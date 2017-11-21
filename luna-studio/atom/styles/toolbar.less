@@ -1,0 +1,37 @@
+@gridSize: 16px;
+
+.luna-toolbar {
+    position: relative;
+    width: 2*@gridSize;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+
+.luna-toolbar__button {
+    width: 2*@gridSize;
+    height: 2*@gridSize;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px;
+    color: rgba(255, 255, 255, 0.3);
+
+    &.icon::before {
+        margin:0;
+        text-align: center;
+    }
+    &:hover {
+        color: rgba(255, 255, 255, 0.7);
+    }
+}
+
+.luna-toolbar__logo {
+    width: 1.5*@gridSize;
+    height: 1.5*@gridSize;
+    margin: @gridSize/4;
+    margin-bottom: 1.5*@gridSize;
+}

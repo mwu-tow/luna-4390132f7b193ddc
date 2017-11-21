@@ -8,6 +8,7 @@ analytics = require './gen/analytics'
 LunaCodeEditorTab  = require './luna-code-editor-tab'
 LunaNodeEditorTab  = require './luna-node-editor-tab'
 LunaWelcomeTab = require './luna-welcome-tab'
+LunaToolbar = require './luna-toolbar'
 LunaSemanticGrammar = require './luna-grammar'
 projects  = require './projects'
 Statusbar = require './statusbar-view'
@@ -30,6 +31,7 @@ module.exports = LunaStudio =
         atom.workspace.addOpener (uri) => @lunaOpener(uri)
         codeEditor.connect(nodeEditor.connector)
         @welcome = new LunaWelcomeTab(codeEditor)
+        @toolbar = new LunaToolbar(codeEditor)
         @moving = false
 
         actStatus = (act, arg1, arg2) =>
@@ -65,6 +67,7 @@ module.exports = LunaStudio =
         atom.project.onDidChangePaths (projectPaths) => @handleProjectPathsChange(projectPaths)
         atom.workspace.open(LUNA_STUDIO_URI, {split: atom.config.get('luna-studio.preferredNodeEditorPosition')})
         atom.packages.onDidActivateInitialPackages =>
+            @toolbar.attach()
             atom.reopenProjectMenuManager.open = projects.openLunaProject
             if atom.config.get('luna-studio.showWelcomeScreen') and atom.project.getPaths().length == 0
                 @welcome.attach()

@@ -205,7 +205,7 @@ connectionPositions srcNode' srcPort dstNode' dstPort layout = case (srcNode', d
                                         isSrcExp
                                         isDstExp
                                         srcPortNum
-                                        srcPorts 
+                                        srcPorts
                                         (srcPorts + srcArgs == 1)
                                         (if isDstExp then dstPortNum else dstArgNum)
                                         (if isDstExp then dstPorts   else dstArgs  )
@@ -279,7 +279,6 @@ connectionSrc srcNode dstNode srcExpanded _dstExpanded srcPortNum srcPorts isSin
         then expandedOutputPosition srcNode srcPortNum
         else if isSingle then moveToOutputRadius portRadius t  srcNode
                          else moveToOutputRadius portRadius t' srcNode
-
     where 
         t  = toOutputAngle trueSrc trueDst 
         t1 = portAngleStart True srcPortNum srcPorts portRadius
@@ -287,10 +286,6 @@ connectionSrc srcNode dstNode srcExpanded _dstExpanded srcPortNum srcPorts isSin
         t' = limitAngle t1 t2 t
         trueDst = if _dstExpanded then expandedInputPosition  dstNode dstPortNum else dstNode
         trueSrc = if srcExpanded  then expandedOutputPosition srcNode srcPortNum else srcNode
-
-        -- if isSingle then toAngle srcNode trueDst 
-         --                else toAngle2 srcNode dstNode (srcPorts - srcPortNum - 1) srcPorts _dstExpanded
-
 
 connectionDst :: Position -> Position -> Bool -> Bool -> Int -> Int -> IsSelf -> IsAlias -> Int -> Int -> Position
 connectionDst srcNode dstNode srcExpanded dstExpanded dstPortNum dstPorts isSelf' isAlias srcPortNum srcPorts =
