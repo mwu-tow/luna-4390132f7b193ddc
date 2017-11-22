@@ -202,7 +202,7 @@ toPosConnection ne connection = do
         (srcPos, dstPos) <- Connection.connectionPositions srcNode srcPort dstNode dstPort (ne ^. layout)
         return $ PosConnection src dst srcPos dstPos sidebarConn mode (srcPort ^. Port.color)
     else if countArgPorts dstNode == getPortNumber dstPortId then case dstNode of
-        Expression n -> fmap (Connection.toPosConnection srcPortRef dstPortRef) $
+        Expression n -> fmap (Connection.toPosConnection src dstPortRef) $
             toPosHalfConnection ne $ HalfConnection (OutPortRef' src) (Connection.argConstructorPosition n) sidebarConn mode
         _            -> Nothing
     else Nothing
