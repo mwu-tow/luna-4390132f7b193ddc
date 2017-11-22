@@ -34,6 +34,10 @@ module.exports =
                         class: 'luna-guide-button luna-guide-continue'
                         'Continue'
                     @button
+                        outlet: 'buttonDoIt'
+                        class: 'luna-guide-button luna-guide-doit'
+                        'Do it for me!'
+                    @button
                         outlet: 'buttonHide'
                         class: 'luna-guide-button luna-guide-hide'
                         'Hide'
@@ -49,6 +53,10 @@ module.exports =
                 @nextStep()
                 @buttonContinue.hide()
             @buttonContinue.hide()
+            @buttonDoIt.on 'click', =>
+                @buttonDoIt.hide()
+                @doIt()
+            @buttonDoIt.hide()
 
         nextStep: =>
             if @currentStep? and @currentStep.after?
@@ -100,23 +108,43 @@ module.exports =
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
                     if @target.action is 'value'
+                        @buttonDoIt.show()
                         oldHandlers = @highlightedElem.onkeyup
                         @highlightedElem.onkeyup = =>
                             if @highlightedElem.value is @target.value
                                 @highlightedElem.onkeyup = oldHandlers
                                 @nextStep()
                     else if @target.action.includes ':'
+                        @buttonDoIt.show()
                         handler = {}
                         handler[@target.action] = =>
                             @disposable.dispose()
                             @nextStep()
                         @disposable = atom.commands.add @highlightedElem, handler
                     else if @highlightedElem?
+                        @buttonDoIt.show()
                         oldHandlers = @highlightedElem[@target.action]
                         @highlightedElem[@target.action] = =>
                             @highlightedElem[@target.action] = oldHandlers
                             @nextStep()
 
+        doIt: =>
+            if @highlightedElem?
+                if @target.action is 'value'
+                    @highlightedElem.value = @target.value
+                else if @target.action.includes ':'
+                    view = atom.views.getView @highlightedElem
+                    atom.commands.dispatch view, @target.action
+                else if @highlightedElem?
+                    if @target.action.startsWith 'on'
+                        action = @target.action.slice 2
+                    else
+                        action = @target.action
+                    event = new Event action,
+                                        view: window
+                                        bubbles: true
+                                        cancelable: true
+                    @highlightedElem.dispatchEvent(event)
 
         displayStep: =>
             @setHighlightedElem()
