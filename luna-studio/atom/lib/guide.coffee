@@ -43,8 +43,8 @@ module.exports =
                         'Do not show again'
 
         initialize: =>
-            @buttonHide.on 'click', => @detach()
-            @buttonDisable.on 'click', => @disable()
+            @buttonHide.on 'click', @detach
+            @buttonDisable.on 'click', @disable
             @buttonContinue.on 'click', =>
                 @nextStep()
                 @buttonContinue.hide()
@@ -56,38 +56,70 @@ module.exports =
                     vm.run @currentStep.after
                 catch error
                     console.error error
-            if @highlightedElem?
-                @highlightedElem.classList.remove highlightClass
+
+            @unsetHighlightedElem()
 
             @currentStep = @guide.steps[@currentStepNo]
             @currentStepNo++
 
             if @currentStep?
-                @display()
+                @target = @currentStep.target
+                @target ?= {}
+                @target.action ?= 'proceed'
+                @displayStep()
             else
                 @detach()
 
-        display: =>
-            target = @currentStep.target
-            target ?= {}
-            target.action ?= 'proceed'
-
+        setHighlightedElem: =>
             @highlightedElem = null
-            if target.className
-                if typeof target.className == 'string'
-                    @highlightedElem = document.getElementsByClassName(target.className)[0]
+            if @target.className
+                if typeof @target.className == 'string'
+                    @highlightedElem = document.getElementsByClassName(@target.className)[0]
                 else
-                    for t in target.className
+                    for t in @target.className
                         if @highlightedElem?
                             @highlightedElem = @highlightedElem.getElementsByClassName(t)[0]
                         else
                             @highlightedElem = document.getElementsByClassName(t)[0]
                             unless @highlightedElem?
                                 break
-            else if target.id
-                @highlightedElem = document.getElementById(target.id)
-            else if target.custom
-                @highlightedElem = vm.run target.custom
+            else if @target.id
+                @highlightedElem = document.getElementById(@target.id)
+            else if @target.custom
+                @highlightedElem = vm.run @target.custom
+            if @highlightedElem?
+                @highlightedElem.classList.add highlightClass
+
+        unsetHighlightedElem: =>
+            if @highlightedElem?
+                @highlightedElem.classList.remove highlightClass
+                @highlightedElem = null
+
+        installHandlers: =>
+            if @highlightedElem?
+                highlightedRect = @highlightedElem.getBoundingClientRect()
+                if highlightedRect.width != 0 and highlightedRect.height != 0
+                    if @target.action is 'value'
+                        oldHandlers = @highlightedElem.onkeyup
+                        @highlightedElem.onkeyup = =>
+                            if @highlightedElem.value is @target.value
+                                @highlightedElem.onkeyup = oldHandlers
+                                @nextStep()
+                    else if @target.action.includes ':'
+                        handler = {}
+                        handler[@target.action] = =>
+                            @disposable.dispose()
+                            @nextStep()
+                        @disposable = atom.commands.add @highlightedElem, handler
+                    else if @highlightedElem?
+                        oldHandlers = @highlightedElem[@target.action]
+                        @highlightedElem[@target.action] = =>
+                            @highlightedElem[@target.action] = oldHandlers
+                            @nextStep()
+
+
+        displayStep: =>
+            @setHighlightedElem()
 
             msgBoxWidth = 200
             msgBoxHeight = 50
@@ -95,7 +127,7 @@ module.exports =
             msgBoxLeft = (windowRect.width - msgBoxWidth)/2
             msgBoxTop  = (windowRect.height - msgBoxHeight)/2
 
-            if target.action is 'proceed'
+            if @target.action is 'proceed'
                 @buttonContinue.show()
             else if not @highlightedElem?
                 @guideTitle[0].innerText = @currentStep.title
@@ -105,35 +137,14 @@ module.exports =
                 @messageBox[0].style.top = msgBoxTop + 'px'
                 @messageBox[0].style.left = msgBoxLeft + 'px'
 
-                setTimeout(@display, 300)
+                setTimeout(@displayStep, 300)
                 return
 
-            @guideTitle[0].innerText = @currentStep.title
-            @guideDescription[0].innerText = @currentStep.description
+            @installHandlers()
 
             if @highlightedElem?
-                @highlightedElem.classList.add highlightClass
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
-
-                    if target.action is 'value'
-                        oldHandlers = @highlightedElem.onkeyup
-                        @highlightedElem.onkeyup = =>
-                            if @highlightedElem.value is target.value
-                                @highlightedElem.onkeyup = oldHandlers
-                                @nextStep()
-                    else if target.action.includes ':'
-                        handler = {}
-                        handler[target.action] = =>
-                            @disposable.dispose()
-                            @nextStep()
-                        @disposable = atom.commands.add @highlightedElem, handler
-                    else if @highlightedElem?
-                        oldHandlers = @highlightedElem[target.action]
-                        @highlightedElem[target.action] = =>
-                            @highlightedElem[target.action] = oldHandlers
-                            @nextStep()
-
                     if highlightedRect.left > msgBoxWidth
                         msgBoxLeft = highlightedRect.left - msgBoxWidth
                         msgBoxTop = highlightedRect.top
@@ -145,7 +156,8 @@ module.exports =
                     else if highlightedRect.bottom + msgBoxHeight < windowRect.height
                         msgBoxTop = highlightedRect.bottom
 
-
+            @guideTitle[0].innerText = @currentStep.title
+            @guideDescription[0].innerText = @currentStep.description
             @messageBox[0].style.width = msgBoxWidth + 'px'
             @messageBox[0].style.height = msgBoxHeight + 'px'
             @messageBox[0].style.top = msgBoxTop + 'px'
