@@ -10,37 +10,7 @@ vm     = new VM
                 window: window
                 storage: {}
 
-tmpGuide =
-    steps: [
-        title: 'Step 0'
-        description: 'Hello guide'
-    ,
-        title: 'Step 1'
-        description: 'Use search bar to search for projects'
-        target:
-            className: 'luna-welcome-search'
-            action: 'onclick'
-
-        after: (storage) ->
-            storage.lastItem = 'test'
-            console.log 'after fired!'
-    ,
-        title: 'Step 2'
-        description: 'Type "Crypto"'
-        target:
-            className: 'luna-welcome-search'
-            action: 'value'
-            value: 'Crypto'
-    ,
-        title: 'Step 3'
-        description: 'Click on forum button'
-        target:
-            className: 'luna-welcome-link--forum'
-            action: 'onclick'
-    ,
-        title: 'Step 4'
-        description: 'Guide finished'
-]
+welcomeGuide = steps: []
 
 encoding = 'utf8'
 highlightClass = 'luna-guide-highlight'
@@ -216,7 +186,7 @@ module.exports =
 
 
         start: (@guide, @guidePath) =>
-            @guide ?= tmpGuide
+            @guide ?= welcomeGuide
             @currentStepNo = 0
             @attach()
             @nextStep()
