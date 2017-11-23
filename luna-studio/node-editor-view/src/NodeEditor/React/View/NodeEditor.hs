@@ -7,6 +7,7 @@ import           Data.Matrix                                (Matrix)
 import           Data.Maybe                                 (mapMaybe)
 import qualified Data.Set                                   as Set
 import qualified LunaStudio.Data.CameraTransformation       as CameraTransformation
+import           LunaStudio.Data.Error                      (errorContent)
 import           LunaStudio.Data.Matrix                     (CameraScale, CameraTranslate, showCameraMatrix, showCameraTranslate)
 import qualified LunaStudio.Data.Matrix                     as Matrix
 import qualified LunaStudio.Data.MonadPath                  as MonadPath
@@ -136,9 +137,9 @@ nodeEditor = React.defineView name $ \(ref, ne', isTopLevel) -> do
 
                 planeCanvas_ mempty --required for cursor lock
 
-        GraphLoading   -> noGraph_ True  "Loading…"
-        NoGraph        -> noGraph_ False ""
-        GraphError msg -> noGraph_ True  msg
+        GraphLoading -> noGraph_ True  "Loading…"
+        NoGraph      -> noGraph_ False ""
+        GraphError e -> noGraph_ True  . convert $ e ^. errorContent
 
 noGraph_ :: Bool -> String -> ReactElementM ViewEventHandler ()
 noGraph_ hideLogo msg =

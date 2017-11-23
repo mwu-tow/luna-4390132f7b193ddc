@@ -3,6 +3,7 @@ module LunaStudio.API.Graph.Result where
 import           Data.Aeson.Types           (FromJSON, ToJSON)
 import           Data.Binary                (Binary)
 import           LunaStudio.Data.Connection (ConnectionId)
+import           LunaStudio.Data.Error      (Error, GraphError)
 import           LunaStudio.Data.Graph      (Graph)
 import           LunaStudio.Data.Node       (NodeId)
 import           Prologue
@@ -10,7 +11,7 @@ import           Prologue
 
 data Result = Result { _removedNodes       :: [NodeId]
                      , _removedConnections :: [ConnectionId]
-                     , _graphUpdates       :: Either String Graph
+                     , _graphUpdates       :: Either (Error GraphError) Graph
                      } deriving (Eq, Generic, Show)
 
 makeLenses ''Result

@@ -4,10 +4,13 @@
 module Empire.Empire where
 
 import           Empire.Data.AST               (SomeASTException)
-import           Empire.Data.Graph             (Graph, ClsGraph)
+import           Empire.Data.Graph             (ClsGraph, Graph)
 import           Empire.Data.Library           (Library)
 import           Empire.Prelude                hiding (TypeRep)
 import           Empire.Prelude
+import           Luna.Builtin.Data.Function    (Function)
+import           Luna.Builtin.Data.Module      (Imports)
+import           Luna.Compilation              (CompiledModules)
 import           LunaStudio.API.AsyncUpdate    (AsyncUpdate)
 import qualified LunaStudio.Data.Error         as APIError
 import           LunaStudio.Data.GraphLocation (GraphLocation)
@@ -15,15 +18,12 @@ import           LunaStudio.Data.Node          (ExpressionNode, NodeId)
 import           LunaStudio.Data.PortDefault   (PortValue)
 import           LunaStudio.Data.Project       (ProjectId)
 import           LunaStudio.Data.TypeRep       (TypeRep)
-import           Luna.Builtin.Data.Module      (Imports)
-import           Luna.Builtin.Data.Function    (Function)
-import           Luna.Compilation              (CompiledModules)
 import           OCI.IR.Name                   (Name)
 
-import           Control.Concurrent.STM.TChan  (TChan)
-import           Control.Concurrent.MVar       (MVar)
-import           Control.Exception             (try)
 import           Control.Concurrent            (ThreadId)
+import           Control.Concurrent.MVar       (MVar)
+import           Control.Concurrent.STM.TChan  (TChan)
+import           Control.Exception             (try)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Map.Lazy                 (Map)
@@ -68,7 +68,7 @@ instance Show CommunicationEnv where
 
 data InterpreterEnv = InterpreterEnv { _valuesCache :: Map NodeId [PortValue]
                                      , _nodesCache  :: Map NodeId ExpressionNode
-                                     , _errorsCache :: Map NodeId APIError.Error
+                                     , _errorsCache :: Map NodeId (APIError.Error APIError.NodeError)
                                      , _graph       :: ClsGraph
                                      , _cleanUp     :: IO ()
                                      , _listeners   :: [ThreadId]

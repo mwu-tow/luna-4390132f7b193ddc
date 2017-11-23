@@ -11,9 +11,10 @@ import           Common.Prelude
 import qualified Data.HashMap.Strict                        as HashMap
 import           Data.Map                                   (Map)
 import qualified Data.Map                                   as Map
-import           LunaStudio.API.Graph.GetProgram            (Error)
 import qualified LunaStudio.Data.Breadcrumb                 as B
 import           LunaStudio.Data.CameraTransformation       (CameraTransformation)
+import qualified LunaStudio.Data.Error                      as Error
+import           LunaStudio.Data.MonadPath                  (MonadPath)
 import           LunaStudio.Data.MonadPath                  (MonadPath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import qualified LunaStudio.Data.PortRef                    as PortRef
@@ -39,7 +40,7 @@ import qualified NodeEditor.React.Model.Visualization       as Visualization
 data GraphStatus = GraphLoaded
                  | GraphLoading
                  | NoGraph
-                 | GraphError Error
+                 | GraphError (Error.Error Error.GraphError)
                  deriving (Eq, Generic)
 
 data NodeEditor = NodeEditor { _expressionNodes          :: ExpressionNodesMap

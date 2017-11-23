@@ -12,6 +12,7 @@ import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
 import           Data.UUID.Types            (UUID)
 import           LunaStudio.Data.Error      (Error)
+import qualified LunaStudio.Data.Error      as Error
 import           LunaStudio.Data.TypeRep    (TypeRep (TCons), toConstructorRep)
 import           Prologue                   hiding (Text, TypeRep)
 
@@ -64,7 +65,7 @@ data VisualizationValue = Value Text
                         deriving (Eq, Generic, Show)
 
 data NodeValue = NodeValue       ShortValue (Maybe VisualizationValue)
-               | NodeError       Error
+               | NodeError       (Error Error.NodeError)
                deriving (Eq, Generic, Show)
 
 

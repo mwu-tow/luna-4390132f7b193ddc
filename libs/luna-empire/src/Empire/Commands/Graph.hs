@@ -74,6 +74,7 @@ module Empire.Commands.Graph
     , getImports
     , getAvailableImports
     , setInterpreterState
+    , prepareGraphError
     ) where
 
 import           Control.Arrow                    ((&&&), (***))
@@ -157,6 +158,7 @@ import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
 import           LunaStudio.Data.Node             (ExpressionNode (..), NodeId)
 import qualified LunaStudio.Data.Node             as Node
 import           LunaStudio.Data.NodeLoc          (NodeLoc (..))
+import qualified LunaStudio.Data.Error          as ErrorAPI
 import qualified LunaStudio.Data.NodeLoc          as NodeLoc
 import           LunaStudio.Data.NodeMeta         (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta         as NodeMeta
@@ -1716,3 +1718,9 @@ makeWhole srcAst dst = do
         let lenDiff = fromIntegral (Text.length newExpr) - oldLen
         dstPointer <- ASTRead.getASTPointer dst
         Code.gossipLengthsChangedBy lenDiff dstPointer
+
+prepareGraphError :: SomeException -> ErrorAPI.Error ErrorAPI.GraphError
+prepareGraphError e | Just (BH.BreadcrumbDoesNotExistException content) <- fromException e = ErrorAPI.Error ErrorAPI.BreadcrumbDoesNotExist . convert $ show content
+                    | otherwise                                                            = ErrorAPI.Error ErrorAPI.Other                  . convert $ displayException e
+
+

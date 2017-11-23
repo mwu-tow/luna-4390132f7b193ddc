@@ -178,7 +178,7 @@ getProjectPathAndRelativeModulePath modulePath = do
         return (fromAbsFile absProjectPath, fromRelFile relModulePath)
 
 saveSettings :: GraphLocation -> LocationSettings -> Empire ()
-saveSettings gl settings = do
+saveSettings gl settings = handle (\(e :: SomeException) -> return ()) $ do
     bc <- Breadcrumb.toNames <$> Graph.decodeLocation gl
     let filePath = gl ^. GraphLocation.filePath
     mayProjectPathAndRelModulePath <- liftIO $ getProjectPathAndRelativeModulePath filePath
@@ -202,7 +202,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
         let moduleChanged = isNothing mayPrevSettings || isJust (maybe Nothing (view Project.visMap . snd) mayPrevSettings)
         withJust mayPrevSettings $ uncurry saveSettings
         (graph, crumb, availableImports, typeRepToVisMap, camera, location) <- handle
-            (\(e :: SomeASTException) -> return (Left $ show e, Breadcrumb [], def, mempty, def, location'))
+            (\(e :: SomeASTException) -> return (Left . Graph.prepareGraphError $ toException e, Breadcrumb [], def, mempty, def, location'))
             $ do
                 location <- if not enterMain then return location' else fromMaybe location' <$> getMainLocation location'
                 graph            <- Graph.getGraph location
