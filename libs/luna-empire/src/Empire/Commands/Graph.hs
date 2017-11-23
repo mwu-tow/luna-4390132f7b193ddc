@@ -19,6 +19,7 @@ module Empire.Commands.Graph
     , addSubgraph
     , autolayout
     , autolayoutNodes
+    , autolayoutTopLevel
     , removeNodes
     , movePort
     , removePort
@@ -90,6 +91,7 @@ import           Data.Coerce                      (coerce)
 import           Data.Char                        (isSeparator, isUpper)
 import           Data.Foldable                    (toList)
 import           Data.List                        ((++), elemIndex, find, group, partition, sortBy, sortOn, nub, head)
+import qualified Data.List                        as List
 import qualified Data.List.Split                  as Split
 import           Data.Map                         (Map)
 import qualified Data.Map                         as Map
@@ -1050,6 +1052,26 @@ removeMetadataNode = do
             Just (klass'' :: IR.Expr (IR.ClsASG)) <- IR.narrow klass'
             IR.modifyExprTerm klass'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newLinks :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
 
+renameFunction :: ClassOp m => String -> NodeRef -> m ()
+renameFunction newName astFunRef = IR.matchExpr astFunRef $ \case
+    IR.ASGRootedFunction n _ -> do
+        var <- IR.source n
+        ASTModify.renameVar var newName
+        return ()
+
+deduplicateFunctions :: ClassOp m => [(String, NodeRef, NodeRef)] -> m ([NodeRef], [(String, NodeRef, NodeRef)])
+deduplicateFunctions funs = deduplicateFunctions' [] funs
+
+deduplicateFunctions' :: ClassOp m => [NodeRef] -> [(String, NodeRef, NodeRef)] -> m ([NodeRef], [(String, NodeRef, NodeRef)])
+deduplicateFunctions' renamings funs = do
+    let names = Set.fromList $ map (view _1) funs
+        duplicateFunctions = List.deleteFirstsBy ((==) `on` view _1) funs $ map (\a -> (a, undefined, undefined)) $ Set.toList names
+    if null duplicateFunctions then return (renamings, funs) else do
+        let firstDuplicate = head duplicateFunctions
+            newName        = Text.unpack $ generateNewFunctionName (Set.map Text.pack names) $ firstDuplicate ^. _1 . packed
+            astFunRef      = firstDuplicate ^. _2
+        renameFunction newName astFunRef
+        deduplicateFunctions' (astFunRef:renamings) $ map (\orig@(_, fun, ref) -> if fun == astFunRef then (newName, fun, ref) else orig) funs
 
 loadCode :: GraphLocation -> Text -> Empire ()
 loadCode (GraphLocation file _) code = do
@@ -1065,7 +1087,7 @@ loadCode (GraphLocation file _) code = do
         prevParseError <- use $ Graph.clsParseError
         Graph.clsParseError .= Nothing
         putNewIRCls ir
-        FileMetadata fileMetadata <- runASTOp $ readMetadata'
+        FileMetadata fileMetadata <- runASTOp readMetadata'
         let savedNodeMetas = Map.fromList $ map (\(MarkerNodeMeta m meta) -> (m, meta)) fileMetadata
         Graph.nodeCache . Graph.nodeMetaMap %= (\cache -> Map.union cache savedNodeMetas)
         runASTOp $ do
@@ -1074,20 +1096,28 @@ loadCode (GraphLocation file _) code = do
             metaRef  <- ASTRead.getMetadataRef unit
             removeMetadataNode
             forM_ metaRef IR.deepDelete
-            return $ (codeWithoutMeta /= code, prevParseError)
+            return (codeWithoutMeta /= code, prevParseError)
     when (codeHadMeta && isJust prevParseError) $ resendCode loc
-    functions <- withUnit loc $ do
+    (renamed, functions) <- withUnit loc $ do
         klass <- use Graph.clsClass
         runASTOp $ do
             funs <- ASTRead.classFunctions klass
-            forM funs $ \f -> ASTRead.cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
+            functions <- forM funs $ \f -> ASTRead.cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
                 IR.ASGRootedFunction n _ -> do
                     name <- ASTRead.getVarName' =<< IR.source n
-                    return (convert name, f)
-    for_ functions $ \(name, fun) -> do
+                    return (convert name, fun, f)
+            deduplicateFunctions functions
+    for_ functions $ \(name, ref, fun) -> do
         let lastUUID = Map.lookup name funsUUIDs
         uuid <- Library.withLibrary file (fst <$> makeGraph fun lastUUID)
         let loc' = GraphLocation file $ Breadcrumb [Breadcrumb.Definition uuid]
+        let renaming = ref `elem` renamed
+        when renaming $ do
+            withGraph loc' $ runASTOp $ do
+                self <- use $ Graph.breadcrumbHierarchy . BH.self
+                v    <- ASTRead.getVarNode self
+                ASTModify.renameVar v name
+                Code.replaceAllUses v $ convert name
         autolayout loc'
     autolayoutTopLevel loc
     return ()
@@ -1625,9 +1655,13 @@ generateNodeNameFromBase :: GraphOp m => Text -> m Text
 generateNodeNameFromBase base = do
     ids   <- uses Graph.breadcrumbHierarchy BH.topLevelIDs
     names <- Set.fromList . catMaybes <$> mapM GraphBuilder.getNodeName ids
+    return $ generateNewFunctionName names base
+
+generateNewFunctionName :: Set Text -> Text -> Text
+generateNewFunctionName forbiddenNames base =
     let allPossibleNames = zipWith (<>) (repeat base) (convert . show <$> [1..])
-        Just newName     = find (not . flip Set.member names) allPossibleNames
-    return newName
+        Just newName     = find (not . flip Set.member forbiddenNames) allPossibleNames
+    in newName
 
 runTC :: GraphLocation -> Bool -> Bool -> Command ClsGraph ()
 runTC loc flush interpret = do

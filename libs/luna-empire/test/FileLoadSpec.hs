@@ -1815,6 +1815,55 @@ spec = around withChannels $ parallel $ do
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 Graph.pasteText loc [Range 18 20] ["\"test\""]
+        it "pastes a function to text" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def foo:
+                    url = "http://example.com"
+                    request = Http.get url
+                    response = request . perform
+                    None
+
+                def main:
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.pasteText loc [Range 0 0] ["def foo:\n    url = \"http://example.com\"\n    request = Http.get url\n    response = request . perform\n    None\n"]
+        it "pastes a function to toplevel" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def foo:
+                    url = "http://example.com"
+                    request = Http.get url
+                    response = request . perform
+                    None
+                def main:
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \(GraphLocation file _) -> do
+                Graph.paste (GraphLocation file def) (Position.fromTuple (-300, 0)) "def foo:\n    url = \"http://example.com\"\n    request = Http.get url\n    response = request . perform\n    None"
+        it "pastes a function to functionlevel" $ let
+            initialCode = [r|
+                def main:
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    def foo:
+                        url = "http://example.com"
+                        request = Http.get url
+                        response = request . perform
+                        None
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.paste loc (Position.fromTuple (300, 0)) "def foo:\n    url = \"http://example.com\"\n    request = Http.get url\n    response = request . perform\n    None\n"
         it "copy pastes" $ let
             initialCode = [r|
                 def main:
@@ -1834,6 +1883,43 @@ spec = around withChannels $ parallel $ do
                 code <- Graph.copyText loc [Range 50 60]
                 Graph.pasteText loc [Range 50 60] [code]
                 Graph.substituteCode "/TestPath" [(55, 59, "")]
+        it "copy pastes a function" $ let
+            initialCode = [r|
+                def main:
+                    None
+
+                def bar:
+                    «0»url = "http://example.com"
+                    «1»request = Http.get url
+                    «2»response = request . perform
+                    «3»body1 = response . body
+                    «4»toText1 = body1 . toText
+                    None
+
+                |]
+            expectedCode = [r|
+                def main:
+                    None
+
+                def bar:
+                    url = "http://example.com"
+                    request = Http.get url
+                    response = request . perform
+                    body1 = response . body
+                    toText1 = body1 . toText
+                    None
+                def bar1:
+                    url = "http://example.com"
+                    request = Http.get url
+                    response = request . perform
+                    body1 = response . body
+                    toText1 = body1 . toText
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \(GraphLocation file _) -> do
+                code <- Graph.copyText (GraphLocation file def) [Range 19 186]
+                Graph.pasteText (GraphLocation file def) [Range 19 19] [code]
+                Graph.substituteCode "/TestPath" [(203, 203, "\n")]
         it "sends update with proper code points after paste" $ \env -> do
             let initialCode = "def main:\n\n    print 3.14\n"
                 expectedCode = "def main:\n3.14\n    print 3.14\n"

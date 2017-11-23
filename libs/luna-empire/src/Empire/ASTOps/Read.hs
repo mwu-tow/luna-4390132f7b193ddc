@@ -21,7 +21,7 @@ import qualified Safe
 
 import           LunaStudio.Data.Node               (NodeId)
 import qualified LunaStudio.Data.PortRef            as PortRef
-import           LunaStudio.Data.Port               as Port
+import           LunaStudio.Data.Port               (OutPortId(..), OutPortIndex(..))
 import qualified LunaStudio.Data.NodeLoc            as NodeLoc
 import           Empire.ASTOp                       (ClassOp, GraphOp, ASTOp, match)
 import           Empire.Data.AST                    (NodeRef, EdgeRef, NotUnifyException(..),
@@ -34,6 +34,8 @@ import           Empire.Data.Layers                 (Marker)
 import qualified OCI.IR.Combinators as IRExpr
 import           Luna.IR.Term.Uni
 import qualified Luna.IR as IR
+
+import qualified System.IO as IO
 
 cutThroughGroups :: GraphOp m => NodeRef -> m NodeRef
 cutThroughGroups r = match r $ \case
@@ -387,6 +389,13 @@ getMetadataRef unit = IR.matchExpr unit $ \case
                     _             -> return Nothing)
     _ -> return Nothing
 
+data DuplicateFunction = DuplicateFunction String
+    deriving Show
+
+instance Exception DuplicateFunction where
+    toException = astExceptionToException
+    fromException = astExceptionFromException
+
 getFunByName :: ClassOp m => String -> m NodeRef
 getFunByName name = do
     cls <- use Graph.clsClass
@@ -399,4 +408,6 @@ getFunByName name = do
                     n <- getVarName' =<< IR.source n'
                     return $ if nameToString n == name then Just fun else Nothing
     case catMaybes maybeFuns of
+        []  -> error $ "function does not exist: " <> name
         [f] -> return f
+        a   -> throwM $ DuplicateFunction name
