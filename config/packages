@@ -1,5 +1,4 @@
 advanced-open-file 0.16.6
-atom-beautify 0.30.5
 busy-signal 1.4.3
 color-picker 2.2.5
 column-select 0.2.0
@@ -9,14 +8,12 @@ git-blame 1.2.2
 git-history 3.3.0
 git-log 0.4.1
 git-plus 7.9.3
-git-time-machine 1.5.9
 hasklig 0.4.0
 highlight-line 0.12.0
 highlight-selected 0.13.1
 intentions 1.1.5
 language-gitignore 0.3.0
 language-haskell 1.13.2
-local-history 4.3.0
 minimap 4.29.6
 minimap-codeglance 0.4.7
 minimap-cursorline 0.2.0
