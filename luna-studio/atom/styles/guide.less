@@ -1,12 +1,95 @@
-.luna-guide-message {
-	pointer-events: none;
+@gridSize: 16px;
+@borderRadius: 16px;
+@gutter: 2px;
+@accentColor: #573614;
+@backgroundColor: @guideColor; //lighten(@accentColor,5%);
+@textColor: rgba(0,0,0,.7);
+@guideColor: darken(orange,10%);
+
+.luna-guide__message {
+	color: @textColor;
+	width: 260px !important;
+	@a: 1px;
+	pointer-events: all;
 	position: fixed;
 	z-index: 10000;
+	background: @backgroundColor;
+	padding: @gridSize/@a @gridSize @gridSize - @gridSize/@a + @gridSize;
+	box-sizing: content-box;
+	border-radius: @borderRadius;
+	height: auto !important;
 }
 
-.luna-guide-button {
+.luna-guide__title {
+	padding-bottom: @gridSize/1.5;
+	font-size: 		1*@gridSize;
+	font-weight: bold;
+	color: rgba(255,255,255,.8);
+}
+
+.luna-guide__description {
+	padding-bottom: @gridSize/1;
+}
+
+.luna-guide__button {
+	float:left;
+	color: #fff;
+	background: lighten(@accentColor,10%);
 	pointer-events: auto;
+	height: 1.5*@gridSize;
+	padding: 0 @gridSize/1.5 @gridSize*0.08;
+	margin-right: @gutter;
+	float: left;
+	border-radius: @borderRadius;
+	display: block;
 }
-.luna-guide-highlight {
-	background: rgba(255,255,255,0.5);
+.luna-guide__button-box {
+	border-radius: @borderRadius;
+	overflow: hidden;
+	display: block;
+	float: left;
+	margin-right: 20px;
+	.luna-guide__button {
+	    border-radius: 0;
+	    margin-right: 0;
+		&:first-child {
+			padding-left: @gridSize/1.2;
+		}
+		&:last-child {
+			padding-right: @gridSize/1.1;
+		}
+	}
 }
+
+
+.luna-guide__button--link {
+	background: none;
+	color: @textColor;
+	text-decoration: underline;
+	margin-right: 0;
+}
+
+.luna-guide__highlight::before {
+	@a: @gridSize*5;
+	display: block;
+	content: " ";
+	width: @a;
+	height: @a;
+	background: fade(@guideColor, 30%);
+	border-radius: @a/2;
+	//-webkit-transform: translate(-@a/2, -@a/2);
+	position: fixed;
+	z-index: 10000000;
+	animation-duration: 0.7s;
+	animation-iteration-count: infinite;
+	animation-direction: alternate;
+	animation-name: pulsing;
+	animation-timing-function: linear;
+	pointer-events: none;
+}
+
+@keyframes pulsing {
+  from { opacity: 1  }
+  to   { opacity: .3 }
+}
+

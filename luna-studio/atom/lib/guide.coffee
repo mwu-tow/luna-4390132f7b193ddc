@@ -13,7 +13,7 @@ vm     = new VM
 welcomeGuide = steps: []
 
 encoding = 'utf8'
-highlightClass = 'luna-guide-highlight'
+highlightClass = 'luna-guide__highlight'
 
 module.exports =
     class VisualGuide extends View
@@ -22,29 +22,30 @@ module.exports =
 
         @content: ->
             @div =>
-                @div class: 'luna-guide-message', outlet: 'messageBox', =>
+                @div class: 'luna-guide__message', outlet: 'messageBox', =>
                     @div
-                        class: 'luna-guide-title'
+                        class: 'luna-guide__title'
                         outlet: 'guideTitle'
                     @div
-                        class: 'luna-guide-description'
+                        class: 'luna-guide__description'
                         outlet: 'guideDescription'
-                    @button
-                        outlet: 'buttonContinue'
-                        class: 'luna-guide-button luna-guide-continue'
-                        'Continue'
-                    @button
-                        outlet: 'buttonDoIt'
-                        class: 'luna-guide-button luna-guide-doit'
-                        'Do it for me!'
-                    @button
-                        outlet: 'buttonHide'
-                        class: 'luna-guide-button luna-guide-hide'
-                        'Hide'
-                    @button
-                        outlet: 'buttonDisable'
-                        class: 'luna-guide-button luna-guide-disable'
-                        'Do not show again'
+                    @div class: 'luna-guide__buttons', =>
+                        @button
+                            outlet: 'buttonContinue'
+                            class: 'luna-guide__button luna-guide__button--continue'
+                            'Continue'
+                        @button
+                            outlet: 'buttonDoIt'
+                            class: 'luna-guide__button luna-guide__button--doit'
+                            'Skip'
+                        @button
+                            outlet: 'buttonHide'
+                            class: 'luna-guide__button luna-guide__button--hide luna-guide__button--link'
+                            'Hide'
+                        @button
+                            outlet: 'buttonDisable'
+                            class: 'luna-guide__button luna-guide__button--disable luna-guide__button--link'
+                            'Do not show again'
 
         initialize: =>
             @buttonHide.on 'click', @detach
@@ -149,7 +150,7 @@ module.exports =
         displayStep: =>
             @setHighlightedElem()
 
-            msgBoxWidth = 200
+            msgBoxWidth = 292
             msgBoxHeight = 50
             windowRect = document.body.getBoundingClientRect()
             msgBoxLeft = (windowRect.width - msgBoxWidth)/2
