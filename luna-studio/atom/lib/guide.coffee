@@ -37,7 +37,7 @@ module.exports =
                         @button
                             outlet: 'buttonDoIt'
                             class: 'luna-guide__button luna-guide__button--doit'
-                            'Skip'
+                            'Next'
                         @button
                             outlet: 'buttonHide'
                             class: 'luna-guide__button luna-guide__button--hide luna-guide__button--link'

@@ -3,8 +3,9 @@
 @gutter: 2px;
 @accentColor: #573614;
 @backgroundColor: @guideColor; //lighten(@accentColor,5%);
+@buttonColor: lighten(@accentColor,25%); //lighten(@accentColor,10%);
 @textColor: rgba(0,0,0,.7);
-@guideColor: darken(orange,10%);
+@guideColor: lighten(@accentColor,10%); //darken(orange,10%);
 
 .luna-guide__message {
 	color: @textColor;
@@ -34,7 +35,7 @@
 .luna-guide__button {
 	float:left;
 	color: #fff;
-	background: lighten(@accentColor,10%);
+	background: @buttonColor;
 	pointer-events: auto;
 	height: 1.5*@gridSize;
 	padding: 0 @gridSize/1.5 @gridSize*0.08;
