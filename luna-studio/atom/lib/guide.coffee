@@ -80,32 +80,37 @@ module.exports =
             else
                 @detach()
 
-        setHighlightedElem: =>
-            @highlightedElem = null
+
+        findTargetedElem: =>
+            targetedElem = null
             if @target.className
                 if typeof @target.className == 'string'
-                    @highlightedElem = document.getElementsByClassName(@target.className)[0]
+                    targetedElem = document.getElementsByClassName(@target.className)[0]
                 else
                     for t in @target.className
-                        if @highlightedElem?
-                            @highlightedElem = @highlightedElem.getElementsByClassName(t)[0]
+                        if targetedElem?
+                            targetedElem = targetedElem.getElementsByClassName(t)[0]
                         else
-                            @highlightedElem = document.getElementsByClassName(t)[0]
-                            unless @highlightedElem?
+                            targetedElem = document.getElementsByClassName(t)[0]
+                            unless targetedElem?
                                 break
             else if @target.id
-                @highlightedElem = document.getElementById(@target.id)
+                targetedElem = document.getElementById(@target.id)
             else if @target.custom
-                @highlightedElem = vm.run @target.custom
+                targetedElem = vm.run @target.custom
+            return targetedElem
+
+        setHighlightedElem: =>
+            @highlightedElem = @findTargetedElem()
             if @highlightedElem?
                 @highlightedElem.classList.add highlightClass
-            @displayPointer()
+            @updatePointer()
 
         unsetHighlightedElem: =>
             if @highlightedElem?
                 @highlightedElem.classList.remove highlightClass
                 @highlightedElem = null
-            @displayPointer()
+            @updatePointer()
 
         installHandlers: =>
             if @highlightedElem?
@@ -150,7 +155,7 @@ module.exports =
                                         cancelable: true
                     @highlightedElem.dispatchEvent(event)
 
-        displayStep: =>
+        displayStep: (retry = false) =>
             @setHighlightedElem()
 
             msgBoxWidth = 292
@@ -163,14 +168,15 @@ module.exports =
             if @target.action is 'proceed'
                 @buttonContinue.show()
             else if not @highlightedElem?
-                @guideTitle[0].innerText = @currentStep.title
-                @guideDescription[0].innerText = 'Please wait...'
-                @messageBox[0].style.width = msgBoxWidth + 'px'
-                @messageBox[0].style.height = msgBoxHeight + 'px'
-                @messageBox[0].style.top = msgBoxTop + 'px'
-                @messageBox[0].style.left = msgBoxLeft + 'px'
+                unless retry
+                    @guideTitle[0].innerText = @currentStep.title
+                    @guideDescription[0].innerText = 'Please wait...'
+                    @messageBox[0].style.width = msgBoxWidth + 'px'
+                    @messageBox[0].style.height = msgBoxHeight + 'px'
+                    @messageBox[0].style.top = msgBoxTop + 'px'
+                    @messageBox[0].style.left = msgBoxLeft + 'px'
 
-                setTimeout(@displayStep, 300)
+                setTimeout (=> @displayStep(true)), 300
                 return
 
             @installHandlers()
@@ -196,7 +202,18 @@ module.exports =
             @messageBox[0].style.top = msgBoxTop + 'px'
             @messageBox[0].style.left = msgBoxLeft + 'px'
 
-        displayPointer: =>
+            if @highlightedElem?
+                @retryWhenHighlightedElementIsGone()
+
+        retryWhenHighlightedElementIsGone: =>
+            targetedElem = @findTargetedElem()
+            if targetedElem? and targetedElem.classList.contains highlightClass
+                setTimeout @retryWhenHighlightedElementIsGone, 100
+            else
+                @displayStep(retry: true)
+
+
+        updatePointer: =>
             if @highlightedElem?
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 unless highlightedRect.width is 0 or highlightedRect.height is 0
@@ -205,7 +222,7 @@ module.exports =
                     @pointer[0].style.height = highlightedRect.height + 'px'
                     @pointer[0].style.top  = highlightedRect.top + 'px'
                     @pointer[0].style.left = highlightedRect.left + 'px'
-                    setTimeout(@displayPointer, 100)
+                    window.requestAnimationFrame @updatePointer
                 else
                     @pointer.hide()
             else
