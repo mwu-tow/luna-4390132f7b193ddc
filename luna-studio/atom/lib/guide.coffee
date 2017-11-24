@@ -205,6 +205,7 @@ module.exports =
                     @pointer[0].style.height = highlightedRect.height + 'px'
                     @pointer[0].style.top  = highlightedRect.top + 'px'
                     @pointer[0].style.left = highlightedRect.left + 'px'
+                    setTimeout(@displayPointer, 100)
                 else
                     @pointer.hide()
             else
