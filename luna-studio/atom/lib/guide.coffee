@@ -22,6 +22,7 @@ module.exports =
 
         @content: ->
             @div =>
+                @div class: 'luna-guide__pointer', outlet: 'pointer'
                 @div class: 'luna-guide__message', outlet: 'messageBox', =>
                     @div
                         class: 'luna-guide__title'
@@ -98,11 +99,13 @@ module.exports =
                 @highlightedElem = vm.run @target.custom
             if @highlightedElem?
                 @highlightedElem.classList.add highlightClass
+            @displayPointer()
 
         unsetHighlightedElem: =>
             if @highlightedElem?
                 @highlightedElem.classList.remove highlightClass
                 @highlightedElem = null
+            @displayPointer()
 
         installHandlers: =>
             if @highlightedElem?
@@ -152,6 +155,7 @@ module.exports =
 
             msgBoxWidth = 292
             msgBoxHeight = 50
+            msgBoxOffset = 10
             windowRect = document.body.getBoundingClientRect()
             msgBoxLeft = (windowRect.width - msgBoxWidth)/2
             msgBoxTop  = (windowRect.height - msgBoxHeight)/2
@@ -174,16 +178,16 @@ module.exports =
             if @highlightedElem?
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
-                    if highlightedRect.left > msgBoxWidth
-                        msgBoxLeft = highlightedRect.left - msgBoxWidth
-                        msgBoxTop = highlightedRect.top
-                    else if highlightedRect.right + msgBoxWidth < windowRect.width
-                        msgBoxLeft = highlightedRect.right
-                        msgBoxTop = highlightedRect.top
-                    else if highlightedRect.top > msgBoxHeight
-                        msgBoxTop = highlightedRect.top - msgBoxHeight
-                    else if highlightedRect.bottom + msgBoxHeight < windowRect.height
-                        msgBoxTop = highlightedRect.bottom
+                    if highlightedRect.left > msgBoxWidth + msgBoxOffset
+                        msgBoxLeft = highlightedRect.left - msgBoxWidth - msgBoxOffset
+                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxHeight/2
+                    else if highlightedRect.right + msgBoxWidth + msgBoxOffset < windowRect.width
+                        msgBoxLeft = highlightedRect.right + msgBoxOffset
+                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxHeight/2
+                    else if highlightedRect.top > msgBoxHeight + msgBoxOffset
+                        msgBoxTop = highlightedRect.top - msgBoxHeight - msgBoxOffset
+                    else if highlightedRect.bottom + msgBoxHeight + msgBoxOffset < windowRect.height
+                        msgBoxTop = highlightedRect.bottom + msgBoxOffset
 
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerText = @currentStep.description
@@ -192,6 +196,19 @@ module.exports =
             @messageBox[0].style.top = msgBoxTop + 'px'
             @messageBox[0].style.left = msgBoxLeft + 'px'
 
+        displayPointer: =>
+            if @highlightedElem?
+                highlightedRect = @highlightedElem.getBoundingClientRect()
+                unless highlightedRect.width is 0 or highlightedRect.height is 0
+                    @pointer.show()
+                    @pointer[0].style.width  = highlightedRect.width + 'px'
+                    @pointer[0].style.height = highlightedRect.height + 'px'
+                    @pointer[0].style.top  = highlightedRect.top + 'px'
+                    @pointer[0].style.left = highlightedRect.left + 'px'
+                else
+                    @pointer.hide()
+            else
+                @pointer.hide()
 
         attach: =>
             @panel ?= atom.workspace.addHeaderPanel({item: this, visible: false})
