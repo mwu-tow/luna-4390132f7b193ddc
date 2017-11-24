@@ -77,8 +77,8 @@
 	content: " ";
 	width: @a;
 	height: @a;
-	background: fade(@guideColor, 30%);
-	border-radius: @a/2;
+	background: fade(@guideColor, 40%);
+	border-radius: @gridSize;
 	//-webkit-transform: translate(-@a/2, -@a/2);
 	position: fixed;
 	z-index: 10000000;
@@ -91,7 +91,16 @@
 }
 
 @keyframes pulsing {
-  from { opacity: 1  }
-  to   { opacity: .3 }
+  from { opacity:  1 }
+  to   { opacity: .2 }
 }
 
+@keyframes pulsing--window {
+  from { opacity:  .4 }
+  to   { opacity: .1 }
+}
+
+.luna-guide__pointer.luna-guide__pointer--window {
+	border-radius: 0;
+	animation-name: pulsing--window;
+}
