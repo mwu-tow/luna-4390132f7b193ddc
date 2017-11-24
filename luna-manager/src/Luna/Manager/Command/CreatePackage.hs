@@ -313,9 +313,10 @@ prepareVersion appPath version = Shelly.switchVerbosity $ do
         Logger.log $ "Tag " <> versionTxt <> " " <> (if exists then "exists" else "does not exist.")
         if exists then do
             Logger.log "Checking out the tag..."
-            Shelly.cmd "git" "stash"
+            changesPresent <- not . T.null <$> Shelly.cmd "git" "diff-index" "HEAD"
+            when changesPresent $ Shelly.cmd "git" "stash"
             Shelly.cmd "git" "checkout" versionTxt
-            Shelly.cmd "git" "stash" "pop"
+            when changesPresent $ Shelly.cmd "git" "stash" "pop"
         else if permitNoTagsFlag then Logger.log "[WARNING] No tag, building the package from head"
         else throwM $ NoTagException versionTxt
 
@@ -340,7 +341,7 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
 
     mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
     -- Save the current branch to return from the detached head state after switching to the tag
-    currBranch <- Shelly.silently $ Text.strip <$> Shelly.cmd "git" "rev-parse" "--abbrev-ref" "HEAD"
+    currBranch <- Shelly.silently $ Shelly.chdir appPath $ Text.strip <$> Shelly.cmd "git" "rev-parse" "--abbrev-ref" "HEAD"
     prepareVersion appPath appVersion
 
     runPkgBuildScript appPath s3GuiURL
