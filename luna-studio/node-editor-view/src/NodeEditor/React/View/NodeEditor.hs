@@ -41,6 +41,8 @@ import           React.Flux                                 hiding (transform)
 import qualified React.Flux                                 as React
 
 
+data NoGraphMode = LoadingMode | EmptyMode | ErrorMode deriving Eq
+
 name :: JSString
 name = "node-editor"
 
@@ -137,16 +139,18 @@ nodeEditor = React.defineView name $ \(ref, ne', isTopLevel) -> do
 
                 planeCanvas_ mempty --required for cursor lock
 
-        GraphLoading -> noGraph_ True  "Loading…"
-        NoGraph      -> noGraph_ False ""
-        GraphError e -> noGraph_ True  . convert $ e ^. errorContent
+        GraphLoading -> noGraph_ LoadingMode "Loading…"
+        NoGraph      -> noGraph_ EmptyMode ""
+        GraphError e -> noGraph_ ErrorMode . convert $ e ^. errorContent
 
-noGraph_ :: Bool -> String -> ReactElementM ViewEventHandler ()
-noGraph_ hideLogo msg =
+noGraph_ :: NoGraphMode -> String -> ReactElementM ViewEventHandler ()
+noGraph_ mode msg =
     div_ [ "className" $= Style.prefix "graph"] $
-        div_ [ "className" $= Style.prefix "background-text"] $ do
-            unless hideLogo $ div_ [ "className" $= Style.prefix "message-logo" ] mempty
-            elemString msg
+        case mode of
+            EmptyMode   -> mempty
+            LoadingMode -> div_ [ "className" $= Style.prefix "background-text"] $  elemString msg
+            ErrorMode   -> div_ [ "className" $= Style.prefix "background-text-container"] $ 
+                               div_ [ "className" $= Style.prefix "background-text"] $ elemString msg
 
 dynamicStyles_ :: Matrix Double -> [ExpressionNode] -> ReactElementM ViewEventHandler ()
 dynamicStyles_ camera nodes = React.viewWithSKey dynamicStyles "dynamic-styles" (camera, nodes) mempty
