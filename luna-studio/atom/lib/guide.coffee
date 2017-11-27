@@ -123,14 +123,15 @@ module.exports =
 
         installHandlers: =>
             if @highlightedElem?
-                highlightedRect = @highlightedElem.getBoundingClientRect()
+                hgElem = @highlightedElem
+                highlightedRect = hgElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
                     if @target.action is 'value'
                         @buttonDoIt.show()
-                        oldHandlers = @highlightedElem.onkeyup
-                        @highlightedElem.onkeyup = =>
-                            if @highlightedElem.value is @target.value
-                                @highlightedElem.onkeyup = oldHandlers
+                        oldHandlers = hgElem.onkeyup
+                        hgElem.onkeyup = =>
+                            if hgElem? and (hgElem.value is @target.value)
+                                hgElem.onkeyup = oldHandlers
                                 @nextStep()
                     else if @target.action.includes ':'
                         @buttonDoIt.show()
@@ -138,13 +139,15 @@ module.exports =
                         handler[@target.action] = =>
                             @disposable.dispose()
                             @nextStep()
-                        @disposable = atom.commands.add @highlightedElem, handler
-                    else if @highlightedElem?
+                        @disposable = atom.commands.add hgElem, handler
+                    else if hgElem?
                         @buttonDoIt.show()
-                        oldHandlers = @highlightedElem[@target.action]
-                        @highlightedElem[@target.action] = =>
-                            @highlightedElem[@target.action] = oldHandlers
-                            @nextStep()
+                        oldHandlers = hgElem[@target.action]
+                        hgElem[@target.action] = =>
+
+                            if hgElem?
+                                hgElem[@target.action] = oldHandlers
+                                @nextStep()
 
         doIt: =>
             if @highlightedElem?
