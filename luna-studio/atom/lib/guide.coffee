@@ -77,6 +77,14 @@ module.exports =
                 @target = @currentStep.target
                 @target ?= {}
                 @target.action ?= 'proceed'
+
+                msgBoxDefaultOffset = 20
+                @msgBoxOffset = @currentStep.offset
+                @msgBoxOffset ?= {}
+                @msgBoxOffset.left   ?= msgBoxDefaultOffset
+                @msgBoxOffset.right  ?= msgBoxDefaultOffset
+                @msgBoxOffset.top    ?= msgBoxDefaultOffset
+                @msgBoxOffset.bottom ?= msgBoxDefaultOffset
                 @displayStep()
             else
                 @detach()
@@ -161,7 +169,7 @@ module.exports =
 
             msgBoxWidth = 292
             msgBoxHeight = 50
-            msgBoxOffset = 10
+
             windowRect = document.body.getBoundingClientRect()
             msgBoxLeft = (windowRect.width - msgBoxWidth)/2
             msgBoxTop  = (windowRect.height - msgBoxHeight)/2
@@ -186,16 +194,16 @@ module.exports =
             if @highlightedElem?
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
-                    if highlightedRect.left > msgBoxWidth + msgBoxOffset
-                        msgBoxLeft = highlightedRect.left - msgBoxWidth - msgBoxOffset
+                    if highlightedRect.left > msgBoxWidth + @msgBoxOffset.left
+                        msgBoxLeft = highlightedRect.left - msgBoxWidth - @msgBoxOffset.left
                         msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxHeight/2
-                    else if highlightedRect.right + msgBoxWidth + msgBoxOffset < windowRect.width
-                        msgBoxLeft = highlightedRect.right + msgBoxOffset
+                    else if highlightedRect.right + msgBoxWidth + @msgBoxOffset.right < windowRect.width
+                        msgBoxLeft = highlightedRect.right + @msgBoxOffset.right
                         msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxHeight/2
-                    else if highlightedRect.top > msgBoxHeight + msgBoxOffset
-                        msgBoxTop = highlightedRect.top - msgBoxHeight - msgBoxOffset
-                    else if highlightedRect.bottom + msgBoxHeight + msgBoxOffset < windowRect.height
-                        msgBoxTop = highlightedRect.bottom + msgBoxOffset
+                    else if highlightedRect.top > msgBoxHeight + @msgBoxOffset.top
+                        msgBoxTop = highlightedRect.top - msgBoxHeight - @msgBoxOffset.top
+                    else if highlightedRect.bottom + msgBoxHeight + @msgBoxOffset.bottom < windowRect.height
+                        msgBoxTop = highlightedRect.bottom + @msgBoxOffset.bottom
 
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerText = @currentStep.description
