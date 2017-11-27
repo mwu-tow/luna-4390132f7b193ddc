@@ -14,6 +14,7 @@ welcomeGuide = steps: []
 
 encoding = 'utf8'
 highlightClass = 'luna-guide__highlight'
+pointerWindowClass = 'luna-guide__pointer--window'
 
 module.exports =
     class VisualGuide extends View
@@ -168,6 +169,7 @@ module.exports =
             if @target.action is 'proceed'
                 @buttonContinue.show()
             else if not @highlightedElem?
+                @buttonDoIt.hide()
                 unless retry
                     @guideTitle[0].innerText = @currentStep.title
                     @guideDescription[0].innerText = 'Please wait...'
@@ -215,6 +217,10 @@ module.exports =
 
         updatePointer: =>
             if @highlightedElem?
+                if (@highlightedElem.classList.contains 'luna-studio-window') or (@highlightedElem.classList.contains 'luna-studio-mount')
+                    @pointer[0].classList.add pointerWindowClass
+                else
+                    @pointer[0].classList.remove pointerWindowClass
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 unless highlightedRect.width is 0 or highlightedRect.height is 0
                     @pointer.show()
