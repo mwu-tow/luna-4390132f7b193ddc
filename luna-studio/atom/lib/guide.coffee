@@ -167,12 +167,9 @@ module.exports =
         displayStep: (retry = false) =>
             @setHighlightedElem()
 
-            msgBoxWidth = 292
-            msgBoxHeight = 50
+
 
             windowRect = document.body.getBoundingClientRect()
-            msgBoxLeft = (windowRect.width - msgBoxWidth)/2
-            msgBoxTop  = (windowRect.height - msgBoxHeight)/2
 
             if @target.action is 'proceed'
                 @buttonContinue.show()
@@ -181,8 +178,9 @@ module.exports =
                 unless retry
                     @guideTitle[0].innerText = @currentStep.title
                     @guideDescription[0].innerText = 'Please wait...'
-                    @messageBox[0].style.width = msgBoxWidth + 'px'
-                    @messageBox[0].style.height = msgBoxHeight + 'px'
+                    msgBoxRect = @messageBox[0].getBoundingClientRect()
+                    msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
+                    msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
                     @messageBox[0].style.top = msgBoxTop + 'px'
                     @messageBox[0].style.left = msgBoxLeft + 'px'
 
@@ -191,24 +189,27 @@ module.exports =
 
             @installHandlers()
 
+            @guideTitle[0].innerText = @currentStep.title
+            @guideDescription[0].innerText = @currentStep.description
+            msgBoxRect = @messageBox[0].getBoundingClientRect()
+            msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
+            msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
+
             if @highlightedElem?
                 highlightedRect = @highlightedElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
-                    if highlightedRect.left > msgBoxWidth + @msgBoxOffset.left
-                        msgBoxLeft = highlightedRect.left - msgBoxWidth - @msgBoxOffset.left
-                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxHeight/2
-                    else if highlightedRect.right + msgBoxWidth + @msgBoxOffset.right < windowRect.width
+                    if highlightedRect.left > msgBoxRect.width + @msgBoxOffset.left
+                        msgBoxLeft = highlightedRect.left - msgBoxRect.width - @msgBoxOffset.left
+                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxRect.height/2
+                    else if highlightedRect.right + msgBoxRect.width + @msgBoxOffset.right < windowRect.width
                         msgBoxLeft = highlightedRect.right + @msgBoxOffset.right
-                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxHeight/2
-                    else if highlightedRect.top > msgBoxHeight + @msgBoxOffset.top
-                        msgBoxTop = highlightedRect.top - msgBoxHeight - @msgBoxOffset.top
-                    else if highlightedRect.bottom + msgBoxHeight + @msgBoxOffset.bottom < windowRect.height
+                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxRect.height/2
+                    else if highlightedRect.top > msgBoxRect.height + @msgBoxOffset.top
+                        msgBoxTop = highlightedRect.top - msgBoxRect.height - @msgBoxOffset.top
+                    else if highlightedRect.bottom + msgBoxRect.height + @msgBoxOffset.bottom < windowRect.height
                         msgBoxTop = highlightedRect.bottom + @msgBoxOffset.bottom
 
-            @guideTitle[0].innerText = @currentStep.title
-            @guideDescription[0].innerText = @currentStep.description
-            @messageBox[0].style.width = msgBoxWidth + 'px'
-            @messageBox[0].style.height = msgBoxHeight + 'px'
+
             @messageBox[0].style.top = msgBoxTop + 'px'
             @messageBox[0].style.left = msgBoxLeft + 'px'
 
