@@ -6,6 +6,7 @@ import           Prologue                     hiding (FilePath,null, filter, app
 
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
+import           Control.Monad.Trans.Resource (MonadBaseControl)
 import           Data.ByteString.Lazy         (ByteString, null)
 import           Data.ByteString.Lazy.Char8   (filter)
 import           Data.Maybe                   (listToMaybe)
@@ -97,7 +98,7 @@ getShExportFile files = do
     return $ listToMaybe $ catMaybes checkedFiles
 
 --TODO wyextrachowac wspolna logike dla poszczególnych terminali
-exportPathUnix :: (MonadIO m, LoggerMonad m) => FilePath -> m ()
+exportPathUnix :: (MonadIO m, MonadBaseControl IO m, LoggerMonad m) => FilePath -> m ()
 exportPathUnix pathToExport = do
     shellType <- checkShell
     file      <- getShExportFile $ case shellType of
@@ -106,9 +107,10 @@ exportPathUnix pathToExport = do
                 _    -> [".profile"]
     let pathToExportText = convert $ encodeString pathToExport
         exportToAppend   = Text.concat ["\nexport PATH=", pathToExportText, ":$PATH\n"]
+        warn             = Logger.warning "Unable to export Luna path. Please add ~/.local/bin to your PATH"
     case file of
-        Just f  -> liftIO $ appendFile (encodeString f) exportToAppend
-        Nothing -> Logger.warning "Unable to export Luna path. Please add ~/.local/bin to your PATH"
+        Just f  -> (liftIO $ appendFile (encodeString f) exportToAppend) `Shelly.catchany` (const warn)
+        Nothing -> warn
 
 exportPathWindows :: MonadIO m => FilePath -> m ()
 exportPathWindows path = liftIO $ do
