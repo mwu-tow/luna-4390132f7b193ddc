@@ -128,10 +128,10 @@ module.exports =
                 if highlightedRect.width != 0 and highlightedRect.height != 0
                     if @target.action is 'value'
                         @buttonDoIt.show()
-                        oldHandlers = hgElem.onkeyup
-                        hgElem.onkeyup = =>
+                        oldHandlers = hgElem.oninput
+                        hgElem.oninput = =>
                             if hgElem? and (hgElem.value is @target.value)
-                                hgElem.onkeyup = oldHandlers
+                                hgElem.oninput = oldHandlers
                                 @nextStep()
                     else if @target.action.includes ':'
                         @buttonDoIt.show()
@@ -152,7 +152,11 @@ module.exports =
         doIt: =>
             if @highlightedElem?
                 if @target.action is 'value'
+                    event = new Event 'input',
+                                        bubbles: true
                     @highlightedElem.value = @target.value
+                    event.simulated = true
+                    @highlightedElem.dispatchEvent(event)
                 else if @target.action.includes ':'
                     view = atom.views.getView @highlightedElem
                     atom.commands.dispatch view, @target.action
