@@ -168,6 +168,9 @@ module.exports = LunaStudio =
             if @openProjectInBackground
                 @openProjectInBackground = false
             else
+                analytics.track 'LunaStudio.Project.Open',
+                    name: path.basename projectPath
+                    path: projectPath
                 @welcome.detach()
         if @moving
             @moving = false

@@ -3,6 +3,7 @@ etch = require 'etch'
 fuzzyFilter = null # defer until used
 ProjectItem = require './project-item'
 projects = require './projects'
+analytics = require './gen/analytics'
 
 projectClasses = "luna-welcome__tile "
 tutorialClasses = projectClasses + "luna-welcome__tile--tutorial"
@@ -123,6 +124,7 @@ class LunaWelcomeTab extends View
         @previouslyFocusedElement = document.activeElement
         @panel.show()
         @searchInput.focus()
+        analytics.track 'LunaStudio.Welcome.Open'
 
     detach: =>
         if @panel and @panel.isVisible()
@@ -130,6 +132,7 @@ class LunaWelcomeTab extends View
             @hideSearchResults()
             @panel.hide()
             @previouslyFocusedElement?.focus()
+            analytics.track 'LunaStudio.Welcome.Close'
 
     search: =>
         filterQuery = @searchInput[0].value
