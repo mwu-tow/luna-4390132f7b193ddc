@@ -70,6 +70,16 @@ stopAnalyse = =>
     analyseActive = false
     stopGather()
 
+isActive = false
+
+document.body.onmouseover = => isActive = true
+document.body.onscroll    = => isActive = true
+document.body.onkeydown   = => isActive = true
+
+whenActive = (callback) =>
+    if isActive
+        callback()
+        isActive = false
 
 module.exports =
     collect: =>
@@ -87,7 +97,7 @@ module.exports =
                 analytics.track('Performance.FPS.First', fps)
                 first = false
             else
-                analytics.track('Performance.FPS', fps)
+                whenActive => analytics.track('Performance.FPS', fps)
                 runtimeReport.fps = fps
 
         fs.readFile dataPath, encoding, (err, data) =>
