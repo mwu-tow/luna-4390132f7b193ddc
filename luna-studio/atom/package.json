@@ -20,7 +20,6 @@
     },
     "dependencies": {
         "atom-space-pen-views": "^2.0.x",
-        "collect-fps": "2.0.x",
         "etch": "0.12.x",
         "first-mate": "7.0.x",
         "fuzzaldrin": "^2.1.0",
