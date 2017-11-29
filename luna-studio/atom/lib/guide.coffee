@@ -1,8 +1,9 @@
-{View} = require 'atom-space-pen-views'
-fs     = require 'fs-plus'
-path   = require 'path'
-yaml   = require 'js-yaml'
-{VM}   = require 'vm2'
+{View}    = require 'atom-space-pen-views'
+analytics = require './gen/analytics'
+fs        = require 'fs-plus'
+path      = require 'path'
+yaml      = require 'js-yaml'
+{VM}      = require 'vm2'
 
 vm     = new VM
             timeout: 1000
@@ -70,6 +71,12 @@ module.exports =
 
             @unsetHighlightedElem()
 
+            projectPath = atom.project.getPaths()[0]
+            projectPath ?= '(None)'
+            analytics.track 'LunaStudio.Guide.Step',
+                number: @currentStepNo
+                name: path.basename projectPath
+                path: projectPath
             @currentStep = @guide.steps[@currentStepNo]
             @currentStepNo++
 
@@ -173,9 +180,6 @@ module.exports =
 
         displayStep: (retry = false) =>
             @setHighlightedElem()
-
-
-
             windowRect = document.body.getBoundingClientRect()
 
             if @target.action is 'proceed'
