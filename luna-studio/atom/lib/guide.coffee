@@ -151,7 +151,6 @@ module.exports =
                         @buttonDoIt.show()
                         oldHandlers = hgElem[@target.action]
                         hgElem[@target.action] = =>
-
                             if hgElem?
                                 hgElem[@target.action] = oldHandlers
                                 @nextStep()

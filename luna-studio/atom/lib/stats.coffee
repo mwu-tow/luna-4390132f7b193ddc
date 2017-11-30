@@ -94,25 +94,39 @@ module.exports =
             if discardInit
                 discardInit = false
             else if first
-                analytics.track('Performance.FPS.First', fps)
+                analytics.track 'Performance.FPS.First', fps
                 first = false
             else
-                whenActive => analytics.track('Performance.FPS', fps)
+                whenActive => analytics.track 'Performance.FPS', fps
                 runtimeReport.fps = fps
 
         fs.readFile dataPath, encoding, (err, data) =>
             if err
                 analytics.track 'Stats.FirstRun'
             else
-                parsed = yaml.safeLoad(data)
+                parsed = yaml.safeLoad data
                 if parsed?
                     analytics.track 'Stats.Runtime', parsed, =>
-                        fs.writeFileSync dataPath, "", {encoding:encoding}
+                        fs.writeFileSync dataPath, "", {encoding: encoding}
 
-
+    initialize: ->
+        try
+            analytics.setUserInfo
+                user: 'test'
+            # fs.readFile '~/.luna/version.txt', encoding, (err, data) =>
+            #     if err
+            #         console.log err
+            #     else
+            #         console.log data
+            request.get analyticsConfigRequest, (err, response, body) =>
+                filters = yaml.safeLoad body
+                analytics.setFilters filters
+                @collect()
+        catch error
+            console.error error
 
     finalize: =>
         timeEnd = new Date()
         runtimeReport.totalTime = (timeEnd - timeStart)/1000.0
-        data = yaml.safeDump(runtimeReport)
+        data = yaml.safeDump runtimeReport
         fs.writeFileSync dataPath, data, {encoding:encoding}
