@@ -25,30 +25,30 @@ module.exports =
         @content: ->
             @div =>
                 @div class: 'luna-guide__pointer', outlet: 'pointer'
-                @div class: 'luna-guide__message', outlet: 'messageBox', =>
-                    @div
-                        class: 'luna-guide__title'
-                        outlet: 'guideTitle'
-                    @div
-                        class: 'luna-guide__description'
-                        outlet: 'guideDescription'
-                    @button
-                        outlet: 'buttonHide'
-                        class: 'luna-guide__close-icon'
-                        'x'
-                    @div class: 'luna-guide__buttons', =>
+                @div class: 'luna-guide__message-positioner', =>
+                    @div class: 'luna-guide__message', outlet: 'messageBox', =>
+                        @div
+                            class: 'luna-guide__title'
+                            outlet: 'guideTitle'
+                        @div
+                            class: 'luna-guide__description'
+                            outlet: 'guideDescription'
                         @button
-                            outlet: 'buttonContinue'
-                            class: 'luna-guide__button luna-guide__button--continue'
-                            'Next'
-                        @button
-                            outlet: 'buttonDoIt'
-                            class: 'luna-guide__button luna-guide__button--doit'
-                            'Next'
-                        # @button
-                        #     outlet: 'buttonDisable'
-                        #     class: 'luna-guide__button luna-guide__button--disable luna-guide__button--link'
-                        #     'Do not show again'
+                            outlet: 'buttonHide'
+                            class: 'luna-guide__close-icon close icon icon-x'
+                        @div class: 'luna-guide__buttons', =>
+                            @button
+                                outlet: 'buttonContinue'
+                                class: 'luna-guide__button luna-guide__button--continue'
+                                'Next'
+                            @button
+                                outlet: 'buttonDoIt'
+                                class: 'luna-guide__button luna-guide__button--doit'
+                                'Next'
+                            # @button
+                            #     outlet: 'buttonDisable'
+                            #     class: 'luna-guide__button luna-guide__button--disable luna-guide__button--link'
+                            #     'Do not show again'
 
         initialize: =>
             @buttonHide.on 'click', @detach
