@@ -78,13 +78,13 @@ module.exports =
                 @target ?= {}
                 @target.action ?= 'proceed'
 
-                msgBoxDefaultOffset = 20
-                @msgBoxOffset = @currentStep.offset
-                @msgBoxOffset ?= {}
-                @msgBoxOffset.left   ?= msgBoxDefaultOffset
-                @msgBoxOffset.right  ?= msgBoxDefaultOffset
-                @msgBoxOffset.top    ?= msgBoxDefaultOffset
-                @msgBoxOffset.bottom ?= msgBoxDefaultOffset
+                # msgBoxDefaultOffset = 20
+                # @msgBoxOffset = @currentStep.offset
+                # @msgBoxOffset ?= {}
+                # @msgBoxOffset.left   ?= msgBoxDefaultOffset
+                # @msgBoxOffset.right  ?= msgBoxDefaultOffset
+                # @msgBoxOffset.top    ?= msgBoxDefaultOffset
+                # @msgBoxOffset.bottom ?= msgBoxDefaultOffset
                 @displayStep()
             else
                 @detach()
@@ -186,10 +186,10 @@ module.exports =
                     @guideTitle[0].innerText = @currentStep.title
                     @guideDescription[0].innerText = 'Please wait...'
                     msgBoxRect = @messageBox[0].getBoundingClientRect()
-                    msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
-                    msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
-                    @messageBox[0].style.top = msgBoxTop + 'px'
-                    @messageBox[0].style.left = msgBoxLeft + 'px'
+                    # msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
+                    # msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
+                    # @messageBox[0].style.top = msgBoxTop + 'px'
+                    # @messageBox[0].style.left = msgBoxLeft + 'px'
 
                 setTimeout (=> @displayStep(true)), 300
                 return
@@ -199,26 +199,26 @@ module.exports =
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerText = @currentStep.description
             msgBoxRect = @messageBox[0].getBoundingClientRect()
-            msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
-            msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
+            # msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
+            # msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
 
             if @highlightedElem?
                 highlightedRect = @highlightedElem.getBoundingClientRect()
-                if highlightedRect.width != 0 and highlightedRect.height != 0
-                    if highlightedRect.left > msgBoxRect.width + @msgBoxOffset.left
-                        msgBoxLeft = highlightedRect.left - msgBoxRect.width - @msgBoxOffset.left
-                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxRect.height/2
-                    else if highlightedRect.right + msgBoxRect.width + @msgBoxOffset.right < windowRect.width
-                        msgBoxLeft = highlightedRect.right + @msgBoxOffset.right
-                        msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxRect.height/2
-                    else if highlightedRect.top > msgBoxRect.height + @msgBoxOffset.top
-                        msgBoxTop = highlightedRect.top - msgBoxRect.height - @msgBoxOffset.top
-                    else if highlightedRect.bottom + msgBoxRect.height + @msgBoxOffset.bottom < windowRect.height
-                        msgBoxTop = highlightedRect.bottom + @msgBoxOffset.bottom
+                # if highlightedRect.width != 0 and highlightedRect.height != 0
+                #     if highlightedRect.left > msgBoxRect.width + @msgBoxOffset.left
+                #         msgBoxLeft = highlightedRect.left - msgBoxRect.width - @msgBoxOffset.left
+                #         msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxRect.height/2
+                #     else if highlightedRect.right + msgBoxRect.width + @msgBoxOffset.right < windowRect.width
+                #         msgBoxLeft = highlightedRect.right + @msgBoxOffset.right
+                #         msgBoxTop = highlightedRect.top + highlightedRect.height/2 - msgBoxRect.height/2
+                #     else if highlightedRect.top > msgBoxRect.height + @msgBoxOffset.top
+                #         msgBoxTop = highlightedRect.top - msgBoxRect.height - @msgBoxOffset.top
+                #     else if highlightedRect.bottom + msgBoxRect.height + @msgBoxOffset.bottom < windowRect.height
+                #         msgBoxTop = highlightedRect.bottom + @msgBoxOffset.bottom
 
 
-            @messageBox[0].style.top = msgBoxTop + 'px'
-            @messageBox[0].style.left = msgBoxLeft + 'px'
+            # @messageBox[0].style.top = msgBoxTop + 'px'
+            # @messageBox[0].style.left = msgBoxLeft + 'px'
 
             if @highlightedElem?
                 @retryWhenHighlightedElementIsGone()
