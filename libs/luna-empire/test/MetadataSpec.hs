@@ -177,10 +177,10 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc codeWithMetadata
                 Graph.addMetadataToCode "TestPath"
                 Graph.FileMetadata meta <- Graph.readMetadata "TestPath"
-                code <- Graph.withUnit loc $ use Graph.code
+                code <- Graph.getCode loc
                 return (meta, code)
             meta `shouldMatchList` []
-            code `shouldBe` Graph.stripMetadata codeWithMetadata
+            code `shouldBe` Code.removeMarkers (Graph.stripMetadata codeWithMetadata)
         it "addMetadataToCode adds metadata to code without it" $ \env -> do
             code <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -188,14 +188,14 @@ spec = around withChannels $ parallel $ do
                 Graph.loadCode loc crypto
                 code <- Graph.addMetadataToCode "TestPath"
                 return $ Text.unpack code
-            code `shouldStartWith` [r|def getCurrentPrices crypto fiat:
+            code `shouldStartWith` [r|«6»def getCurrentPrices crypto fiat:
     «0»baseUri = "https://min-api.cryptocompare.com/data/price?"
     «3»withFsym = baseUri + "fsym=" + crypto
     «4»withTsym = withFsym + "&tsyms=" + fiat
     «5»result = Http.getJSON withTsym . lookupReal fiat
     result
 
-def main:
+«7»def main:
     «2»node1 = every 500.miliseconds (getCurrentPrices "BTC" "USD")
 
 ### META|]
@@ -281,7 +281,7 @@ def main:
                 nodes <- Graph.getNodes loc
                 let Just main = find (\n -> n ^. Node.name == Just "main") nodes
                 Graph.prepareCopy loc [main ^. Node.nodeId]
-            code `shouldStartWith` [r|def main:
+            code `shouldStartWith` [r|«13»def main:
     «0»pi = 3.14
     «1»foo = a: b:
         «4»lala = 17.0
@@ -313,26 +313,26 @@ def main:
                 nodes <- Graph.getNodes loc
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
-            map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
-            let positions = map (view $ Node.nodeMeta . NodeMeta.position . to Position.toTuple) nodes
-            length (Set.toList $ Set.fromList positions) `shouldBe` 2
-            code `shouldStartWith` [r|def bar:
-    «1»pi = 3.14
-    «2»foo = a: b:
-        «3»lala = 17.0
-        «4»buzz = x: y:
-            «5»x * y
-        «6»pi = 3.14
-        «7»n = buzz a lala
-        «8»m = buzz b pi
-        «9»m + n
-    «10»c = 4.0
-    «11»bar = foo 8.0 c
+            code `shouldStartWith` [r|«2»def bar:
+    «3»pi = 3.14
+    «4»foo = a: b:
+        «5»lala = 17.0
+        «6»buzz = x: y:
+            «7»x * y
+        «8»pi = 3.14
+        «9»n = buzz a lala
+        «10»m = buzz b pi
+        «11»m + n
+    «12»c = 4.0
+    «13»bar = foo 8.0 c
 
-def main:
+«1»def main:
     «0»pi = 3.14
     None
 |]
+            map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
+            let positions = map (view $ Node.nodeMeta . NodeMeta.position . to Position.toTuple) nodes
+            length (Set.toList $ Set.fromList positions) `shouldBe` 2
         it "pastes top level node with empty line inside" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -347,20 +347,20 @@ def main:
                 nodes <- Graph.getNodes loc
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
-            map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
-            let positions = map (view $ Node.nodeMeta . NodeMeta.position . to Position.toTuple) nodes
-            length (Set.toList $ Set.fromList positions) `shouldBe` 2
-            code `shouldStartWith` [r|def bar:
-    «1»pi = 3.14
+            code `shouldStartWith` [r|«2»def bar:
+    «3»pi = 3.14
 
-    «2»c = 4.0
+    «4»c = 4.0
 
-    «3»bar = foo 8.0 c
+    «5»bar = foo 8.0 c
 
-def main:
+«1»def main:
     «0»pi = 3.14
     None
 |]
+            map (view Node.name) nodes `shouldMatchList` [Just "main", Just "bar"]
+            let positions = map (view $ Node.nodeMeta . NodeMeta.position . to Position.toTuple) nodes
+            length (Set.toList $ Set.fromList positions) `shouldBe` 2
         it "pastes and removes top level node" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -382,7 +382,7 @@ def bar:
             map (view Node.name) nodes `shouldMatchList` [Just "main"]
             code `shouldStartWith` [r|
 
-def main:
+«1»def main:
     «0»pi = 3.14
     None
 |]
@@ -411,13 +411,13 @@ def bar:
             map (view Node.name) nodes `shouldMatchList` [Just "foo", Just "bar", Just "main"]
             code `shouldStartWith` [r|
 
-def foo:
-    «3»5
+«6»def foo:
+    «7»5
 
-def bar:
-    «4»"bar"
+«8»def bar:
+    «9»"bar"
 
-def main:
+«1»def main:
     «0»pi = 3.14
     None
 |]
@@ -438,10 +438,10 @@ def main:
                 bar = find (\n -> n ^. Node.name == Just "bar") nodes
             c `shouldSatisfy` isJust
             bar `shouldSatisfy` isJust
-            code `shouldStartWith` [r|def main:
+            code `shouldStartWith` [r|«1»def main:
     «0»pi = 3.14
-    «1»c = 4.0
-    «2»bar = foo 8.0 c
+    «2»c = 4.0
+    «3»bar = foo 8.0 c
     None
 |]
         it "moves positions to origin" $ \_ ->
@@ -470,16 +470,16 @@ def main:
                 return (nodes, Text.unpack code)
             let foo = find (\n -> n ^. Node.name == Just "foo") nodes
             foo `shouldSatisfy` isJust
-            code `shouldStartWith` [r|def main:
+            code `shouldStartWith` [r|«1»def main:
     «0»pi = 3.14
-    «1»foo = a: b:
-        «2»lala = 17.0
-        «3»buzz = x: y:
-            «4»x * y
-        «5»pi = 3.14
-        «6»n = buzz a lala
-        «7»m = buzz b pi
-        «8»m + n
+    «2»foo = a: b:
+        «3»lala = 17.0
+        «4»buzz = x: y:
+            «5»x * y
+        «6»pi = 3.14
+        «7»n = buzz a lala
+        «8»m = buzz b pi
+        «9»m + n
     None
 |]
         it "substitutes function body" $ \env -> do
@@ -491,7 +491,7 @@ def main:
                 --           4 characters further than it is in the file
                 Graph.substituteCodeFromPoints "TestPath" $ [Diff (Just (Point 4 12, Point 36 14)) "5" Nothing]
                 Graph.withUnit loc $ use Graph.code
-            code `shouldBe` [r|def main:
+            code `shouldBe` [r|«18»def main:
     «0»pi = 3.14
     «1»foo = a: b:
         «5»lala = 17.0
@@ -517,6 +517,6 @@ def main:
                 Graph.withUnit loc $ use Graph.code
             code `shouldBe` [r|import Std.Base
 
-def bar:
+«40»def bar:
     None
 |]

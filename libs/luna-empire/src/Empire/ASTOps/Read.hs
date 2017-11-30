@@ -85,7 +85,7 @@ getOutputForPort portId@(Projection i : rest) ref = cutThroughGroups ref >>= fli
 isGraphNode :: GraphOp m => NodeRef -> m Bool
 isGraphNode = fmap isJust . getNodeId
 
-getNodeId :: GraphOp m => NodeRef -> m (Maybe NodeId)
+getNodeId :: ASTOp g m => NodeRef -> m (Maybe NodeId)
 getNodeId node = do
     rootNodeId <- preview (_Just . PortRef.srcNodeLoc . NodeLoc.nodeId) <$> IR.getLayer @Marker node
     varNodeId  <- (getVarNode node >>= getNodeId) `catch` (\(_e :: NotUnifyException) -> return Nothing)
@@ -130,13 +130,13 @@ rightMatchOperand node = match node $ \case
 getTargetNode :: GraphOp m => NodeRef -> m NodeRef
 getTargetNode node = rightMatchOperand node >>= IR.source
 
-leftMatchOperand :: GraphOp m => NodeRef -> m EdgeRef
+leftMatchOperand :: ASTOp g m => NodeRef -> m EdgeRef
 leftMatchOperand node = match node $ \case
     Unify a _         -> pure a
     ASGFunction n _ _ -> pure n
     _         -> throwM $ NotUnifyException node
 
-getVarNode :: GraphOp m => NodeRef -> m NodeRef
+getVarNode :: ASTOp g m => NodeRef -> m NodeRef
 getVarNode node = leftMatchOperand node >>= IR.source
 
 data NodeDoesNotExistException = NodeDoesNotExistException NodeId

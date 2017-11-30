@@ -108,7 +108,7 @@ import           Data.Text.Position               (Delta)
 import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..), leftSpacedSpan)
 import qualified Data.UUID.V4                     as UUID (nextRandom)
 import           Debug
-import           Empire.ASTOp                     (ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis, runModuleTypecheck)
+import           Empire.ASTOp                     (ASTOp, ClassOp, GraphOp, putNewIR, putNewIRCls, runASTOp, runAliasAnalysis, runModuleTypecheck)
 import qualified Empire.ASTOps.Builder            as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct        as ASTDeconstruct
 import           Empire.ASTOps.BreadcrumbHierarchy (getMarker, prepareChild, makeTopBreadcrumbHierarchy, isNone)
@@ -260,27 +260,40 @@ insertFunAfter previousFunction function code = do
 addFunNode :: GraphLocation -> FunctionParsing -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addFunNode loc parsing uuid expr meta = withUnit loc $ do
     (parse, code) <- ASTParse.runFunHackParser expr parsing
-    when (meta /= def) $ runASTOp $ AST.writeMeta parse meta
-    name <- runASTOp $ IR.matchExpr parse $ \case
-        IR.ASGRootedFunction n _ -> do
-            name <- ASTRead.getVarName' =<< IR.source n
-            return $ nameToString name
+    (name, markedFunction, markedCode) <- runASTOp $ do
+        name <- IR.matchExpr parse $ \case
+            IR.ASGRootedFunction n _ -> do
+                name <- ASTRead.getVarName' =<< IR.source n
+                return $ nameToString name
+        index  <- getNextTopLevelMarker
+        Code.invalidateMarker index
+        marker <- IR.marker' index
+        let markerText = Code.makeMarker index
+            markerLen  = convert $ Text.length markerText
+        IR.putLayer @CodeSpan marker $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 markerLen))
+        markedNode <- IR.marked' marker parse
+        when (meta /= def) $ AST.writeMeta markedNode meta
+        Graph.clsCodeMarkers . at index ?= markedNode
+        IR.putLayer @CodeSpan markedNode $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 (markerLen + convert (Text.length code))))
+        let markedCode = Text.concat [markerText, code]
+        return (name, markedNode, markedCode)
+
     klass <- use Graph.clsClass
     (insertedCharacters, codePosition) <- runASTOp $ do
         funs <- ASTRead.classFunctions klass
         previousFunction <- findPreviousFunction meta funs
 
-        insertedCharacters <- insertFunAfter previousFunction parse code
+        insertedCharacters <- insertFunAfter previousFunction markedFunction markedCode
         IR.matchExpr klass $ \case
             IR.Unit _ _ cls -> do
                 cls' <- IR.source cls
                 Just (cls'' :: IR.Expr (IR.ClsASG)) <- IR.narrow cls'
-                l <- IR.unsafeGeneralize <$> IR.link parse cls''
+                l <- IR.unsafeGeneralize <$> IR.link markedFunction cls''
                 links <- IR.matchExpr cls' $ \case
                     IR.ClsASG _ _ _ _ decls -> return decls
                 newFuns <- putNewFunctionRef l previousFunction links
                 IR.modifyExprTerm cls'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newFuns :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
-        codePosition       <- Code.functionBlockStartRef parse
+        codePosition       <- Code.functionBlockStartRef markedFunction
 
         return (fromIntegral insertedCharacters, codePosition)
 
@@ -975,7 +988,7 @@ substituteCode path changes = do
 lamItemToMapping :: ((NodeId, Maybe Int), BH.LamItem) -> ((NodeId, Maybe Int), (NodeId, NodeId))
 lamItemToMapping (idArg, BH.LamItem portMapping _ _) = (idArg, portMapping)
 
-extractMarkedMetasAndIds :: GraphOp m => NodeRef -> m [(Word64, (Maybe NodeMeta, Maybe NodeId))]
+extractMarkedMetasAndIds :: ASTOp g m => NodeRef -> m [(Word64, (Maybe NodeMeta, Maybe NodeId))]
 extractMarkedMetasAndIds root = IR.matchExpr root $ \case
     IR.Marked m e -> do
         meta   <- AST.readMeta root
@@ -1073,6 +1086,36 @@ deduplicateFunctions' renamings funs = do
         renameFunction newName astFunRef
         deduplicateFunctions' (astFunRef:renamings) $ map (\orig@(_, fun, ref) -> if fun == astFunRef then (newName, fun, ref) else orig) funs
 
+getNextTopLevelMarker :: ClassOp m => m Word64
+getNextTopLevelMarker = do
+    globalMarkers <- use Graph.clsCodeMarkers
+    let highestIndex = Safe.maximumMay $ Map.keys globalMarkers
+        newMarker    = maybe 0 succ highestIndex
+    return newMarker
+
+markFunctions :: ClassOp m => NodeRef -> m ()
+markFunctions unit = IR.matchExpr unit $ \case
+    IR.Unit _ _ klass -> do
+        klass' <- IR.source klass
+        IR.matchExpr klass' $ \case
+            IR.ClsASG _ _ _ _ funs -> do
+                forM_ funs $ \fun -> IR.source fun >>= \asgFun -> IR.matchExpr asgFun $ \case
+                    IR.Marked{}            -> return ()
+                    IR.ASGRootedFunction{} -> do
+                        newMarker <- getNextTopLevelMarker
+                        Code.invalidateMarker newMarker
+                        funStart <- Code.functionBlockStartRef asgFun
+                        Code.insertAt funStart (Code.makeMarker newMarker)
+                        marker    <- IR.marker' newMarker
+                        markedFun <- IR.marked' marker asgFun
+                        Graph.clsCodeMarkers . at newMarker ?= markedFun
+                        LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan asgFun
+                        let markerLength = convert $ Text.length $ Code.makeMarker newMarker
+                        IR.putLayer @CodeSpan marker $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 markerLength))
+                        IR.putLayer @CodeSpan markedFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (prevLen + markerLength)))
+                        IR.putLayer @CodeSpan asgFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 prevLen))
+                        IR.replaceSource markedFun fun
+
 loadCode :: GraphLocation -> Text -> Empire ()
 loadCode (GraphLocation file _) code = do
     let loc = GraphLocation file def
@@ -1101,6 +1144,7 @@ loadCode (GraphLocation file _) code = do
     (renamed, functions) <- withUnit loc $ do
         klass <- use Graph.clsClass
         runASTOp $ do
+            markFunctions klass
             funs <- ASTRead.classFunctions klass
             functions <- forM funs $ \f -> ASTRead.cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
                 IR.ASGRootedFunction n _ -> do

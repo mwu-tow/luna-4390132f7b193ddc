@@ -22,7 +22,7 @@ import           Empire.Empire           (Command, Empire)
 import qualified Safe
 
 import           Empire.Data.AST         (NodeRef, EdgeRef)
-import           Empire.ASTOp            (ClassOp, GraphOp, runASTOp)
+import           Empire.ASTOp            (ASTOp, ClassOp, GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
 
 import qualified Luna.IR                 as IR
@@ -212,7 +212,7 @@ getNextExprMarker = do
         highestIndex = Safe.maximumMay keys
     return $ maybe 0 succ highestIndex
 
-invalidateMarker :: GraphOp m => Word64 -> m ()
+invalidateMarker :: (ASTOp g m, HasNodeCache g) => Word64 -> m ()
 invalidateMarker index = do
     oldId <- use $ Graph.nodeCache . Graph.nodeIdMap . at index
     Graph.nodeCache . Graph.nodeIdMap . at index .= Nothing
