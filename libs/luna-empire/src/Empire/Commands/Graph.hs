@@ -298,7 +298,7 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
         return (fromIntegral insertedCharacters, codePosition)
 
     Graph.clsFuns . traverse . Graph.funGraph . Graph.fileOffset %= (\off -> if off >= codePosition then off + insertedCharacters else off)
-    (uuid', graph) <- makeGraphCls parse (Just uuid)
+    (uuid', graph) <- makeGraphCls markedFunction (Just uuid)
 
     runASTOp $ GraphBuilder.buildClassNode uuid' name
 
@@ -751,7 +751,7 @@ setNodeMetaGraph nodeId newMeta = do
 setNodeMetaFun :: NodeId -> NodeMeta -> Command ClsGraph ()
 setNodeMetaFun nodeId newMeta = runASTOp $ do
     Just fun <- use $ Graph.clsFuns . at nodeId
-    f        <- ASTRead.getFunByName $ fun ^. Graph.funName
+    f        <- ASTRead.getFunByNodeId nodeId
     AST.writeMeta f newMeta
 
 setNodeMeta :: GraphLocation -> NodeId -> NodeMeta -> Empire ()
@@ -771,7 +771,7 @@ setNodePositionAST nodeId newPos = do
 setNodePositionCls :: ClassOp m => NodeId -> Position -> m ()
 setNodePositionCls nodeId newPos = do
     Just fun <- use $ Graph.clsFuns . at nodeId
-    f        <- ASTRead.getFunByName $ fun ^. Graph.funName
+    f        <- ASTRead.getFunByNodeId nodeId
     oldMeta <- fromMaybe def <$> AST.readMeta f
     AST.writeMeta f $ oldMeta & NodeMeta.position .~ newPos
 
@@ -900,7 +900,7 @@ renameNode loc nid name
             oldName <- use $ Graph.clsFuns . ix nid . Graph.funName
             Graph.clsFuns %= Map.adjust (Graph.funName .~ (Text.unpack stripped)) nid
             runASTOp $ do
-                fun     <- ASTRead.getFunByName oldName >>= ASTRead.cutThroughMarked
+                fun     <- ASTRead.getFunByNodeId nid >>= ASTRead.cutThroughMarked
                 IR.matchExpr fun $ \case
                     IR.ASGRootedFunction n _ -> flip ASTModify.renameVar (convert stripped) =<< IR.source n
                     _                        -> return ()
@@ -1189,7 +1189,7 @@ autolayoutTopLevel loc = do
     withUnit loc $ runASTOp $ do
         clsFuns    <- use Graph.clsFuns
         needLayout <- fmap catMaybes $ forM (Map.assocs clsFuns) $ \(id, fun) -> do
-            f    <- ASTRead.getFunByName $ fun ^. Graph.funName
+            f    <- ASTRead.getFunByNodeId id
             meta <- AST.readMeta f
             let fileOffset = fun ^. Graph.funGraph . Graph.fileOffset
             return $ if meta /= def then Nothing else Just (id, fileOffset)
@@ -1447,7 +1447,7 @@ prepareCopy loc@(GraphLocation _ (Breadcrumb [])) nodeIds = withUnit loc $ do
                 nonExistent = filter (isNothing . snd) names
             forM nonExistent $ \(nid, _) ->
                 throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Breadcrumb.Definition nid])
-            refs <- mapM ASTRead.getFunByName [ name | (_nid, Just (view Graph.funName -> name)) <- names]
+            refs <- mapM ASTRead.getFunByNodeId [ nid | (nid, Just (view Graph.funName -> _name)) <- names]
             forM refs $ \ref -> do
                 LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
                 return $ fromIntegral len

@@ -74,7 +74,7 @@ makeGraphCls fun lastUUID = do
             return (nameToString name, root, offset)
     let ast   = Graph.AST ir pmState
     uuid <- maybe (liftIO UUID.nextRandom) return lastUUID
-    runASTOp $ IR.putLayer @Marker asgFun $ Just $ OutPortRef (NodeLoc def uuid) []
+    runASTOp $ IR.putLayer @Marker fun $ Just $ OutPortRef (NodeLoc def uuid) []
     let oldPortMapping = nodeCache ^. Graph.portMappingMap . at (uuid, Nothing)
     portMapping <- fromJustM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping
     globalMarkers <- use Graph.clsCodeMarkers

@@ -289,11 +289,7 @@ computeLength ref = do
 
 functionBlockStart :: ClassOp m => NodeId -> m Delta
 functionBlockStart funUUID = do
-    unit <- use Graph.clsClass
-    funs <- use Graph.clsFuns
-    let fun = Map.lookup funUUID funs
-    funGraph  <- fromJustM (throwM $ BH.BreadcrumbDoesNotExistException (Breadcrumb [Definition funUUID])) fun
-    ref       <- ASTRead.getFunByName $ funGraph ^. Graph.funName
+    ref  <- ASTRead.getFunByNodeId funUUID
     functionBlockStartRef ref
 
 functionBlockStartRef :: ClassOp m => NodeRef -> m Delta

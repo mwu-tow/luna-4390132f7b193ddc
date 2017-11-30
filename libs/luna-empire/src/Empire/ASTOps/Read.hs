@@ -389,25 +389,12 @@ getMetadataRef unit = IR.matchExpr unit $ \case
                     _             -> return Nothing)
     _ -> return Nothing
 
-data DuplicateFunction = DuplicateFunction String
-    deriving Show
-
-instance Exception DuplicateFunction where
-    toException = astExceptionToException
-    fromException = astExceptionFromException
-
-getFunByName :: ClassOp m => String -> m NodeRef
-getFunByName name = do
-    cls <- use Graph.clsClass
-    maybeFuns <- do
-        funs <- classFunctions cls
-        forM funs $ \fun -> do
-            funExpr <- cutThroughMarked fun
-            IR.matchExpr funExpr $ \case
-                IR.ASGRootedFunction n' _ -> do
-                    n <- getVarName' =<< IR.source n'
-                    return $ if nameToString n == name then Just fun else Nothing
-    case catMaybes maybeFuns of
-        []  -> error $ "function does not exist: " <> name
+getFunByNodeId :: ClassOp m => NodeId -> m NodeRef
+getFunByNodeId nodeId = do
+    cls  <- use Graph.clsClass
+    funs <- classFunctions cls
+    fs   <- forM funs $ \fun -> do
+        nid <- getNodeId fun
+        return $ if nid == Just nodeId then Just fun else Nothing
+    case catMaybes fs of
         [f] -> return f
-        a   -> throwM $ DuplicateFunction name
