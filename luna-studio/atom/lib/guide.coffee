@@ -31,27 +31,27 @@ module.exports =
                     @div
                         class: 'luna-guide__description'
                         outlet: 'guideDescription'
+                    @button
+                        outlet: 'buttonHide'
+                        class: 'luna-guide__close-icon'
+                        'x'
                     @div class: 'luna-guide__buttons', =>
                         @button
                             outlet: 'buttonContinue'
                             class: 'luna-guide__button luna-guide__button--continue'
-                            'Continue'
+                            'Next'
                         @button
                             outlet: 'buttonDoIt'
                             class: 'luna-guide__button luna-guide__button--doit'
                             'Next'
-                        @button
-                            outlet: 'buttonHide'
-                            class: 'luna-guide__button luna-guide__button--hide luna-guide__button--link'
-                            'Hide'
-                        @button
-                            outlet: 'buttonDisable'
-                            class: 'luna-guide__button luna-guide__button--disable luna-guide__button--link'
-                            'Do not show again'
+                        # @button
+                        #     outlet: 'buttonDisable'
+                        #     class: 'luna-guide__button luna-guide__button--disable luna-guide__button--link'
+                        #     'Do not show again'
 
         initialize: =>
             @buttonHide.on 'click', @detach
-            @buttonDisable.on 'click', @disable
+            # @buttonDisable.on 'click', @disable
             @buttonContinue.on 'click', =>
                 @nextStep()
                 @buttonContinue.hide()
