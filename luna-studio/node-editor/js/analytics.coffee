@@ -22,6 +22,7 @@ module.exports =
     setUserInfo: (@userInfo) =>
 
     track: (title, data) =>
+        data ?= {}
         data.user_info = @userInfo
         if atom.config.get('luna-studio.analyticsEnabled') && test(title)
             if devMode

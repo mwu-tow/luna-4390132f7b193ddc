@@ -156,10 +156,13 @@ module.exports =
                                 @nextStep()
 
         doIt: =>
+            mkEvent = (name) => new Event name,
+                                    view: window
+                                    bubbles: true
+                                    cancelable: true
             if @highlightedElem?
                 if @target.action is 'value'
-                    event = new Event 'input',
-                                        bubbles: true
+                    event = mkEvent 'input',
                     @highlightedElem.value = @target.value
                     event.simulated = true
                     @highlightedElem.dispatchEvent(event)
@@ -171,11 +174,10 @@ module.exports =
                         action = @target.action.slice 2
                     else
                         action = @target.action
-                    event = new Event action,
-                                        view: window
-                                        bubbles: true
-                                        cancelable: true
-                    @highlightedElem.dispatchEvent(event)
+                    if action is 'click'
+                        @highlightedElem.dispatchEvent mkEvent 'mousedown'
+                        @highlightedElem.dispatchEvent mkEvent 'mouseup'
+                    @highlightedElem.dispatchEvent mkEvent action
 
         displayStep: (retry = false) =>
             @setHighlightedElem()
