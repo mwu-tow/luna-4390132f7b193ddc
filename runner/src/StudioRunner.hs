@@ -129,16 +129,16 @@ relativeToHomeDir = relativeToDir (decodeString <$> (liftIO getHomeDirectory)) .
 
 version :: MonadRun m => m FilePath
 version = do
-    versionFilePath <- relativeToMainDir [configFolder, versionFile]
-    versionStr      <- liftIO $ readFile $ encodeString versionFilePath
+    versionFP  <- versionFilePath
+    versionStr <- liftIO $ readFile $ encodeString versionFP
     return . fromText . T.pack $ versionStr
 
 -- paths --
-backendBinsPath, configPath, atomAppPath, backendDir                   :: MonadRun m => m FilePath
-supervisordBinPath, supervisorctlBinPath, killSupervisorBinPath        :: MonadRun m => m FilePath
-packageStudioAtomHome, userStudioAtomHome, localLogsDirectory          :: MonadRun m => m FilePath
-userLogsDirectory, userdataStorageDirectory, localdataStorageDirectory :: MonadRun m => m FilePath
-lunaTmpPath, lunaProjectsPath, lunaTutorialsPath, userInfoPath         :: MonadRun m => m FilePath
+backendBinsPath, configPath, atomAppPath, backendDir                           :: MonadRun m => m FilePath
+supervisordBinPath, supervisorctlBinPath, killSupervisorBinPath                :: MonadRun m => m FilePath
+packageStudioAtomHome, userStudioAtomHome, localLogsDirectory, versionFilePath :: MonadRun m => m FilePath
+userLogsDirectory, userdataStorageDirectory, localdataStorageDirectory         :: MonadRun m => m FilePath
+lunaTmpPath, lunaProjectsPath, lunaTutorialsPath, userInfoPath                 :: MonadRun m => m FilePath
 
 backendBinsPath           = relativeToMainDir [binsFolder, backendBinsFolder]
 configPath                = relativeToMainDir [configFolder]
@@ -149,6 +149,7 @@ supervisorctlBinPath      = relativeToMainDir [thirdPartyFolder, supervisordFold
 killSupervisorBinPath     = relativeToMainDir [thirdPartyFolder, supervisorKillFolder, supervisorKillBin]
 packageStudioAtomHome     = relativeToMainDir [userConfigFolder, studioHome]
 localLogsDirectory        = relativeToMainDir [logsFolder]
+versionFilePath           = relativeToMainDir [configFolder, versionFile]
 userLogsDirectory         = relativeToHomeDir [logsFolder, appName] >>= (\p -> (fmap (p </>) version))
 userdataStorageDirectory  = relativeToHomeDir [configHomeFolder, appName, storageDataHomeFolder]
 localdataStorageDirectory = relativeToHomeDir [storageDataHomeFolder]
@@ -286,6 +287,7 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_PROJECTS"         =<< lunaProjectsPath
         setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
         setEnv "LUNA_USER_INFO"        =<< userInfoPath
+        setEnv "LUNA_VERSION_PATH"     =<< versionFilePath
         createStorageDataDirectory develop
         Shelly.shelly $ Shelly.cmd atom
 
@@ -304,6 +306,7 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_PROJECTS"               =<< lunaProjectsPath
         setEnv "LUNA_TUTORIALS"              =<< lunaTutorialsPath
         setEnv "LUNA_USER_INFO"              =<< userInfoPath
+        setEnv "LUNA_VERSION_PATH"           =<< versionFilePath
         when develop   $ liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
         createStorageDataDirectory develop
         unless develop $ checkLunaHome
