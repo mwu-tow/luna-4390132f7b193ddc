@@ -54,7 +54,7 @@ module.exports =
             @buttonHide.on 'click', @detach
             # @buttonDisable.on 'click', @disable
             @buttonContinue.on 'click', =>
-                @nextStep()
+                @nextStep @nextStepNo
                 @buttonContinue.hide()
             @buttonContinue.hide()
             @buttonDoIt.on 'click', =>
@@ -62,7 +62,10 @@ module.exports =
                 @doIt()
             @buttonDoIt.hide()
 
-        nextStep: =>
+        nextStep: (nextStepNo) =>
+            if nextStepNo != @nextStepNo
+                return
+
             if @currentStep? and @currentStep.after?
                 try
                     vm.run @currentStep.after
@@ -74,11 +77,11 @@ module.exports =
             projectPath = atom.project.getPaths()[0]
             projectPath ?= '(None)'
             analytics.track 'LunaStudio.Guide.Step',
-                number: @currentStepNo
+                number: @nextStepNo
                 name: path.basename projectPath
                 path: projectPath
-            @currentStep = @guide.steps[@currentStepNo]
-            @currentStepNo++
+            @currentStep = @guide.steps[@nextStepNo]
+            @nextStepNo++
 
             if @currentStep?
                 @target = @currentStep.target
@@ -131,6 +134,7 @@ module.exports =
         installHandlers: =>
             if @highlightedElem?
                 hgElem = @highlightedElem
+                nextStepNo = @nextStepNo
                 highlightedRect = hgElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
                     if @target.action is 'value'
@@ -139,13 +143,13 @@ module.exports =
                         hgElem.oninput = =>
                             if hgElem? and (hgElem.value is @target.value)
                                 hgElem.oninput = oldHandlers
-                                @nextStep()
+                                @nextStep nextStepNo
                     else if @target.action.includes ':'
                         @buttonDoIt.show()
                         handler = {}
                         handler[@target.action] = =>
                             @disposable.dispose()
-                            @nextStep()
+                            @nextStep nextStepNo
                         @disposable = atom.commands.add hgElem, handler
                     else if hgElem?
                         @buttonDoIt.show()
@@ -153,7 +157,7 @@ module.exports =
                         hgElem[@target.action] = =>
                             if hgElem?
                                 hgElem[@target.action] = oldHandlers
-                                @nextStep()
+                                @nextStep nextStepNo
 
         doIt: =>
             mkEvent = (name) => new Event name,
@@ -290,6 +294,6 @@ module.exports =
 
         start: (@guide, @guidePath) =>
             @guide ?= welcomeGuide
-            @currentStepNo = 0
+            @nextStepNo = 0
             @attach()
-            @nextStep()
+            @nextStep 0
