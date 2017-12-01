@@ -2,6 +2,7 @@ analytics = require './gen/analytics'
 fs = require 'fs'
 yaml = require 'js-yaml'
 path = require 'path'
+request = require 'request'
 
 timeStart = new Date()
 runtimeReport = {}
@@ -10,6 +11,11 @@ dataPath = if process.env.LUNA_STUDIO_DATA_PATH? then process.env.LUNA_STUDIO_DA
 encoding = 'utf8'
 userInfoPath    = path.join process.env.HOME, '.luna/user_info.json'
 versionInfoPath = path.join process.env.HOME, '.luna/version.txt'
+
+analyticsConfigRequest =
+    url: 'https://raw.githubusercontent.com/luna/luna-studio-config/master/analytics.yml'
+    headers:
+        'User-Agent': 'luna-studio'
 
 frames = []
 gatherActive = false
@@ -86,7 +92,6 @@ whenActive = (callback) =>
 
 module.exports =
     collect: =>
-        discardInit = true
         first = true
 
         timeLoaded = new Date()
@@ -94,9 +99,7 @@ module.exports =
         timeStart = timeLoaded
 
         startAnalyse 60000, (fps) =>
-            if discardInit
-                discardInit = false
-            else if first
+            if first
                 analytics.track 'Performance.FPS.First', fps
                 first = false
             else

@@ -1,6 +1,5 @@
 fs       = require 'fs-plus'
 path     = require 'path'
-request  = require 'request'
 yaml     = require 'js-yaml'
 
 VisualGuide      = require './guide'
