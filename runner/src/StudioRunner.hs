@@ -65,6 +65,7 @@ data RunnerConfig = RunnerConfig { _versionFile            :: FilePath
                                  , _mainTmpDirectory       :: FilePath
                                  , _lunaProjects           :: FilePath
                                  , _tutorialsDirectory     :: FilePath
+                                 , _userInfoFile           :: FilePath
                                  }
 
 makeLenses ''RunnerConfig
@@ -99,6 +100,7 @@ instance Monad m => MonadHostConfig RunnerConfig 'Linux arch m where
         , _mainTmpDirectory       = "luna"
         , _lunaProjects           = "luna" </> "projects"
         , _tutorialsDirectory     = "tutorials"
+        , _userInfoFile           = "user_info.json"
         }
 
 instance Monad m => MonadHostConfig RunnerConfig 'Darwin arch m where
@@ -136,7 +138,7 @@ backendBinsPath, configPath, atomAppPath, backendDir                   :: MonadR
 supervisordBinPath, supervisorctlBinPath, killSupervisorBinPath        :: MonadRun m => m FilePath
 packageStudioAtomHome, userStudioAtomHome, localLogsDirectory          :: MonadRun m => m FilePath
 userLogsDirectory, userdataStorageDirectory, localdataStorageDirectory :: MonadRun m => m FilePath
-lunaTmpPath, lunaProjectsPath, lunaTutorialsPath                       :: MonadRun m => m FilePath
+lunaTmpPath, lunaProjectsPath, lunaTutorialsPath, userInfoPath         :: MonadRun m => m FilePath
 
 backendBinsPath           = relativeToMainDir [binsFolder, backendBinsFolder]
 configPath                = relativeToMainDir [configFolder]
@@ -150,6 +152,7 @@ localLogsDirectory        = relativeToMainDir [logsFolder]
 userLogsDirectory         = relativeToHomeDir [logsFolder, appName] >>= (\p -> (fmap (p </>) version))
 userdataStorageDirectory  = relativeToHomeDir [configHomeFolder, appName, storageDataHomeFolder]
 localdataStorageDirectory = relativeToHomeDir [storageDataHomeFolder]
+userInfoPath              = relativeToHomeDir [userInfoFile]
 userStudioAtomHome = do
     runnerCfg <- get @RunnerConfig
     baseDir   <- relativeToHomeDir [configHomeFolder, appName] >>= (\p -> (fmap (p </>) version))
@@ -280,8 +283,9 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_STUDIO_DATA_PATH" =<< dataStorageDirectory develop
         setEnv "ATOM_HOME"             =<< userStudioAtomHome
         setEnv "LUNA_TMP"              =<< lunaTmpPath
-        setEnv "LUNA_PROJECTS"          =<< lunaProjectsPath
+        setEnv "LUNA_PROJECTS"         =<< lunaProjectsPath
         setEnv "LUNA_TUTORIALS"        =<< lunaTutorialsPath
+        setEnv "LUNA_USER_INFO"        =<< userInfoPath
         createStorageDataDirectory develop
         Shelly.shelly $ Shelly.cmd atom
 
@@ -297,8 +301,9 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_STUDIO_CONFIG_PATH"     =<< configPath
         setEnv "LUNA_STUDIO_KILL_PATH"       =<< killSupervisorBinPath
         setEnv "LUNA_TMP"                    =<< lunaTmpPath
-        setEnv "LUNA_PROJECTS"                =<< lunaProjectsPath
+        setEnv "LUNA_PROJECTS"               =<< lunaProjectsPath
         setEnv "LUNA_TUTORIALS"              =<< lunaTutorialsPath
+        setEnv "LUNA_USER_INFO"              =<< userInfoPath
         when develop   $ liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
         createStorageDataDirectory develop
         unless develop $ checkLunaHome
