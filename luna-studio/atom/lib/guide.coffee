@@ -172,7 +172,7 @@ module.exports =
                     @highlightedElem.dispatchEvent(event)
                 else if @target.action.includes ':'
                     view = atom.views.getView @highlightedElem
-                    atom.commands.dispatch view, @target.action
+                    atom.commands.dispatch view, @target.action, @target.payload
                 else if @highlightedElem?
                     if @target.action.startsWith 'on'
                         action = @target.action.slice 2
