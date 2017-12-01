@@ -1,3 +1,5 @@
+{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedStrings    #-}
 module Luna.Manager.Command.Install where
 
 import Prologue hiding (txt, FilePath, toText)
@@ -17,20 +19,22 @@ import Luna.Manager.System (makeExecutable, exportPathUnix, exportPathWindows, c
 import Control.Lens.Aeson
 import Control.Monad.Raise
 import Control.Monad.State.Layered
+import Control.Monad.Trans.Resource (MonadBaseControl)
 
 import qualified Data.Char as Char
 import Data.Maybe (listToMaybe)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-
+import qualified Data.Text.IO as Text
 
 import qualified Data.Yaml as Yaml
 
 import Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, toText, basename, hasExtension, parent)
-import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh)
+import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh, MonadShControl)
 import qualified Luna.Manager.Shell.Shelly as Shelly
 import System.Exit (exitSuccess, exitFailure)
 import System.IO (hFlush, stdout, stderr, hPutStrLn)
+import System.Info (arch)
 import qualified System.Process.Typed as Process
 import qualified System.Directory as System
 import qualified System.Environment as Environment
@@ -42,7 +46,9 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Control.Exception.Safe as Exception
 
 import Luna.Manager.Gui.InstallationProgress
-import Data.Aeson (encode)
+import Data.Aeson (ToJSON, toJSON, toEncoding, encode)
+
+default(Text.Text)
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 -- FIXME: Remove it as fast as we upload config yaml to the server
@@ -68,6 +74,7 @@ import Data.Aeson (encode)
 data InstallConfig = InstallConfig { _defaultConfPath        :: FilePath
                                    , _defaultBinPathBatchApp :: FilePath
                                    , _defaultBinPathGuiApp   :: FilePath
+                                   , _userInfoFile           :: FilePath
                                    , _localName              :: Text
                                    , _selectedVersionPath    :: FilePath
                                    , _mainBinPath            :: FilePath
@@ -92,6 +99,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Linux arch m where
         { _defaultConfPath         = "~/.luna"
         , _defaultBinPathBatchApp  = "~/.luna/bin"
         , _defaultBinPathGuiApp    = "~/.luna/bin"
+        , _userInfoFile            = "~/.luna/user_info.json"
         , _localName               = "local"
         , _selectedVersionPath     = "current"
         , _mainBinPath             = "bin/main"
@@ -121,6 +129,19 @@ instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
 -----------------------
 -- === Installer === --
 -----------------------
+
+-- === Misc data structs === --
+data UserInfo = UserInfo
+              { _userInfoEmail :: Text
+              , _userInfoOs    :: Text
+              , _userInfoOsVer :: Text
+              , _userInfoArch  :: Text
+              } deriving (Show, Generic)
+makeLenses ''UserInfo
+
+instance ToJSON UserInfo where
+    toEncoding = lensJSONToEncoding
+    toJSON     = lensJSONToJSON
 
 -- === Errors === --
 
@@ -381,6 +402,51 @@ readVersion v = case readPretty v of
     Left e  -> throwM $ VersionException v
     Right v -> return $ v
 
+osVersion :: (MonadShControl m, MonadSh m) => m Text
+osVersion = Shelly.silently $ case currentHost of
+        Windows ->   Text.strip . (!! 1) . Text.splitOn ":" . head
+                 .   filter ("OS Name" `Text.isPrefixOf`) . Text.lines
+                 <$> Shelly.cmd "systeminfo"
+        Linux   -> Shelly.cmd "awk" "'/^VERSION=/'" "/etc/*-release" >>=
+                   Shelly.cmd "awk" "-F'='" "'{ print tolower($2) }'"
+        Darwin  -> Text.strip <$> Shelly.cmd "sw_vers" "-productVersion"
+
+osName :: (MonadShControl m, MonadSh m) => m Text
+osName = Shelly.silently $ case currentHost of
+        Windows -> return "Windows"
+        Linux   -> Shelly.cmd "awk" "'/^ID=/'" "/etc/*-release" >>=
+                   Shelly.cmd "awk" "-F'='" "'{ print tolower($2) }'"
+        Darwin  -> return "MacOS"
+
+-- Gets basic info about the operating system the installer is running on.
+userInfo :: (MonadBaseControl IO m, MonadSh m, MonadShControl m) => Text -> m UserInfo
+userInfo email = do
+    let safeGet item = Shelly.catchany item (const $ return "unknown")
+    ver  <- safeGet osVersion
+    name <- safeGet osName
+    return $ UserInfo email name ver (convert arch)
+
+-- Checks whether we already have the user info saved in ~/.luna/user_info.json
+userInfoExists :: (MonadSh m, MonadIO m, MonadGetter InstallConfig m) => m Bool
+userInfoExists = do
+    path <- gets @InstallConfig userInfoFile >>= expand
+    Shelly.test_f path
+
+-- Prompt user for the email, unless we already have it.
+askUserEmail :: MonadIO m => m Text
+askUserEmail = liftIO $ do
+    putStrLn $  "Please enter your email address (it is optional"
+             <> " but will help us greatly in the early alpha stage):"
+    Text.getLine
+
+-- Saves the email, along with some OS info, to a file user_info.json.
+processUserEmail :: (MonadSh m, MonadShControl m, MonadIO m, MonadBaseControl IO m, MonadGetter InstallConfig m) => Text -> m ()
+processUserEmail email = do
+    path <- gets @InstallConfig userInfoFile >>= expand
+    Shelly.unlessM userInfoExists $ do
+        info  <- userInfo email
+        Shelly.touchfile path
+        liftIO $ BS.writeFile (encodeString path) (BSL.toStrict $ JSON.encode info)
 
 -- === Running === --
 
@@ -389,26 +455,33 @@ run opts = do
     guiInstaller <- Opts.guiInstallerOpt
     repo         <- getRepo
     if guiInstaller then do
-        Initilize.generateInitialJSON repo
+        Initilize.generateInitialJSON repo =<< userInfoExists
         liftIO $ hFlush stdout
         options <- liftIO $ BS.getLine
 
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
-        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion)) -> do
+        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion email)) -> do
             appPkg           <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
             evaluatedVersion <- tryJust (toException $ VersionException $ convert $ show appVersion) $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
             appDesc          <- tryJust (toException $ MissingPackageDescriptionError appVersion) $ Map.lookup currentSysDesc evaluatedVersion
             let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
             when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
+                resolvedApp   = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
+                allApps       = resolvedApp : appsToInstall
 
-                resolvedApp = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
-                allApps = resolvedApp : appsToInstall
+            processUserEmail email
             mapM_ (installApp opts) $ allApps
             print $ encode $ InstallationProgress 1
             liftIO $ hFlush stdout
 
         else do
+            Shelly.unlessM userInfoExists $ do
+                email <- case (opts ^. Opts.selectedUserEmail) of
+                    Just e  -> return e
+                    Nothing -> askUserEmail
+                processUserEmail email
+
             (appName, appPkg) <- askOrUse (opts ^. Opts.selectedComponent)
                 $ question "Select component to be installed" (\t -> choiceValidator' "component" t $ (t,) <$> Map.lookup t (repo ^. packages))
                 & help   .~ choiceHelp "components" (repo ^. apps)
