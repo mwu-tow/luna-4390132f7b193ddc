@@ -143,13 +143,13 @@ module.exports =
                         hgElem.oninput = =>
                             if hgElem? and (hgElem.value is @target.value)
                                 hgElem.oninput = oldHandlers
-                                @nextStep nextStepNo
+                                setTimeout => @nextStep nextStepNo
                     else if @target.action.includes ':'
                         @buttonDoIt.show()
                         handler = {}
                         handler[@target.action] = =>
                             @disposable.dispose()
-                            @nextStep nextStepNo
+                            setTimeout => @nextStep nextStepNo
                         @disposable = atom.commands.add hgElem, handler
                     else if hgElem?
                         @buttonDoIt.show()
@@ -157,7 +157,7 @@ module.exports =
                         hgElem[@target.action] = =>
                             if hgElem?
                                 hgElem[@target.action] = oldHandlers
-                                @nextStep nextStepNo
+                                setTimeout => @nextStep nextStepNo
 
         doIt: =>
             mkEvent = (name) => new Event name,
