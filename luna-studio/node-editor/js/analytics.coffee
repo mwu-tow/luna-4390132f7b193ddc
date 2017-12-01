@@ -13,22 +13,48 @@ test = (title) =>
             return true
     return false
 
+filtersSet = false
+userInfoSet = false
+isConfigured = => filtersSet and userInfoSet
+
+cachedEvents = []
+
+
+cacheEvent = (title, data) =>
+    cachedEvents.push
+        title: title
+        data: data
+
 module.exports =
-    setFilters: (strings) =>
+
+    setFilters: (strings) ->
         filters = []
         for str in strings
             filters.push new RegExp str
+        filtersSet = true
+        @sendCached()
 
-    setUserInfo: (@userInfo) =>
+    setUserInfo: (@userInfo) ->
+        userInfoSet = true
+        @sendCached()
 
-    track: (title, data) =>
+    sendCached: ->
+        if isConfigured()
+            for event in cachedEvents
+                @track event.title, event.data
+            cachedEvents = []
+
+    track: (title, data) ->
         data ?= {}
         data.user_info = @userInfo
-        if atom.config.get('luna-studio.analyticsEnabled') && test(title)
-            if devMode
-                console.log ("track.accept: " + title), data
+        if isConfigured()
+            if atom.config.get('luna-studio.analyticsEnabled') && test(title)
+                if devMode
+                    console.log ("track.accept: " + title), data
+                else
+                    mixpanel.track title, data
             else
-                mixpanel.track title, data
+                if devMode
+                    console.log ("track.discard: " + title), data
         else
-            if devMode
-                console.log ("track.discard: " + title), data
+            cacheEvent title, data
