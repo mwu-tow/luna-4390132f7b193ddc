@@ -1,7 +1,6 @@
 analytics = require './gen/analytics'
 fs = require 'fs'
 yaml = require 'js-yaml'
-path = require 'path'
 request = require 'request'
 
 timeStart = new Date()
@@ -9,8 +8,6 @@ runtimeReport = {}
 dataPath = if process.env.LUNA_STUDIO_DATA_PATH? then process.env.LUNA_STUDIO_DATA_PATH + '/analytics-data.yml' else './analytics-data.yml'
 
 encoding = 'utf8'
-userInfoPath    = path.join process.env.HOME, '.luna/user_info.json'
-versionInfoPath = path.join process.env.HOME, '.luna/version.txt'
 
 analyticsConfigRequest =
     url: 'https://raw.githubusercontent.com/luna/luna-studio-config/master/analytics.yml'
@@ -116,6 +113,10 @@ module.exports =
                         fs.writeFileSync dataPath, "", {encoding: encoding}
 
     readUserInfo: (callback) =>
+        userInfoPath = process.env.LUNA_USER_INFO
+        unless userInfoPath?
+            callback 'LUNA_USER_INFO variable not set', undefined
+            return
         fs.readFile userInfoPath, encoding, (err, data) =>
             if err?
                 callback err, undefined
@@ -123,6 +124,10 @@ module.exports =
                 callback undefined, JSON.parse data
 
     readVersionInfo: (callback) =>
+        versionInfoPath = process.env.LUNA_VERSION_PATH
+        unless versionInfoPath?
+            callback 'LUNA_VERSION_PATH variable not set', undefined
+            return
         fs.readFile versionInfoPath, encoding, callback
 
 
