@@ -113,8 +113,8 @@ module.exports =
                             targetedElem = targetedElem.getElementsByClassName(t)[0]
                         else
                             targetedElem = document.getElementsByClassName(t)[0]
-                            unless targetedElem?
-                                break
+                        unless targetedElem?
+                            break
             else if @target.id
                 targetedElem = document.getElementById(@target.id)
             else if @target.custom
