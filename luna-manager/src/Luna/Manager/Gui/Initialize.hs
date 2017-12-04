@@ -18,19 +18,27 @@ import Control.Lens.Aeson
 -- === Definition === --
 
 data Initialize = Initialize { initialize :: Applications
-                             , email      :: Bool
                              } deriving (Show, Generic, Eq)
 
-data Applications = Applications {applications :: [Apps]} deriving (Show, Generic, Eq)
+data Applications = Applications { askEmail     :: Bool
+                                 , versionTypes :: [Text]
+                                 , applications :: [Apps]
+                                 } deriving (Show, Generic, Eq)
 
-data Apps = Apps { name    :: Text
-                 , version :: [Version]} deriving (Show, Generic, Eq)
+data Apps = Apps { name     :: Text
+                 , versions :: Versions
+                 } deriving (Show, Generic, Eq)
+
+data Versions = Versions { developer :: [Version]
+                         , nightly   :: [Version]
+                         , release   :: [Version]
+                         } deriving (Show, Generic, Eq)
 
 data Option = Option { install :: Install} deriving (Show, Generic, Eq)
 
 data Install = Install { application :: Text
                        , version     :: Version
-                       , userEmail   :: Text
+                       , email       :: Maybe Text
                        } deriving (Show, Generic, Eq)
 
 -- makeLenses ''Apps
@@ -40,19 +48,22 @@ instance ToJSON Install
 instance ToJSON Initialize
 instance ToJSON Applications
 instance ToJSON Apps      --  where toEncoding = lensJSONToEncoding; toJSON = lensJSONToJSON
+instance ToJSON Versions
 
 instance FromJSON Option
 instance FromJSON Install
 instance FromJSON Initialize   where parseJSON  = lensJSONParse
 instance FromJSON Applications where parseJSON  = lensJSONParse
 instance FromJSON Apps         where parseJSON  = lensJSONParse
+instance FromJSON Versions     where parseJSON  = lensJSONParse
 
 resolveAppToInitialize :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Apps
 resolveAppToInitialize repo name = do
-    versions <- getVersionsList repo name
-    return $ Apps name versions
+    (devs, nightlies, releases) <- getGroupedVersionsList repo name
+    return $ Apps name $ Versions devs nightlies releases
 
 generateInitialJSON :: (MonadIO m, MonadException SomeException m) => Repo -> Bool -> m ()
 generateInitialJSON repo userInfoExists = do
+    let verTypes = ["release", "nightly", "developer"]
     resolved <- mapM (resolveAppToInitialize repo) (repo ^. apps)
-    print $ encode $ Initialize (Applications resolved) userInfoExists
+    print $ encode $ Initialize $ Applications (not userInfoExists) verTypes resolved

@@ -445,6 +445,7 @@ processUserEmail email = do
     path <- gets @InstallConfig userInfoFile >>= expand
     Shelly.unlessM userInfoExists $ do
         info  <- userInfo email
+        Shelly.mkdir_p $ parent path
         Shelly.touchfile path
         liftIO $ BS.writeFile (encodeString path) (BSL.toStrict $ JSON.encode info)
 
@@ -460,7 +461,8 @@ run opts = do
         options <- liftIO $ BS.getLine
 
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
-        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion email)) -> do
+        forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion emailM)) -> do
+            processUserEmail $ fromMaybe "" emailM
             appPkg           <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
             evaluatedVersion <- tryJust (toException $ VersionException $ convert $ show appVersion) $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
             appDesc          <- tryJust (toException $ MissingPackageDescriptionError appVersion) $ Map.lookup currentSysDesc evaluatedVersion
@@ -470,7 +472,6 @@ run opts = do
                 resolvedApp   = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
                 allApps       = resolvedApp : appsToInstall
 
-            processUserEmail email
             mapM_ (installApp opts) $ allApps
             print $ encode $ InstallationProgress 1
             liftIO $ hFlush stdout

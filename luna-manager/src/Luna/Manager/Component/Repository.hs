@@ -109,6 +109,17 @@ getVersionsList repo appName = do
     let vmap   = Map.mapMaybe (Map.lookup currentSysDesc) $ appPkg ^. versions
     return $ reverse . sort . Map.keys $ vmap
 
+-- Gets versions grouped by type (dev, nightly, release)
+getGroupedVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ([Version], [Version], [Version])
+getGroupedVersionsList repo appName = do
+    versions <- getVersionsList repo appName
+    let appendVersion (ds, ns, rs) v = if isDev v then (v:ds, ns, rs)
+                                       else if isNightly v then (ds, v:ns, rs)
+                                       else (ds, ns, v:rs)
+        groupedVersions = foldl appendVersion ([], [], []) versions
+        reversed = groupedVersions & over _1 reverse . over _2 reverse . over _3 reverse
+    return reversed
+
 resolvePackageApp :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ResolvedApplication
 resolvePackageApp repo appName = do
     appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
