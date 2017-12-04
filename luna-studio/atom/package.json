@@ -31,6 +31,7 @@
         "react-dom": "15.6.x",
         "react": "15.6.x",
         "resize-observer-polyfill": "1.3.x",
+        "showdown": "1.8.x",
         "sub-atom": "1.0.x",
         "underscore": "1.8.x",
         "vm2": "3.5.x"

@@ -4,6 +4,8 @@ fs        = require 'fs-plus'
 path      = require 'path'
 yaml      = require 'js-yaml'
 {VM}      = require 'vm2'
+showdown  = require 'showdown'
+converter = new showdown.Converter()
 
 vm     = new VM
             timeout: 1000
@@ -206,7 +208,7 @@ module.exports =
             @installHandlers()
 
             @guideTitle[0].innerText = @currentStep.title
-            @guideDescription[0].innerText = @currentStep.description
+            @guideDescription[0].innerHTML = converter.makeHtml @currentStep.description
             msgBoxRect = @messageBox[0].getBoundingClientRect()
             # msgBoxLeft = (windowRect.width - msgBoxRect.width)/2
             # msgBoxTop  = (windowRect.height - msgBoxRect.height)/2
