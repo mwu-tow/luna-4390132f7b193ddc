@@ -55,11 +55,14 @@ module.exports =
         initialize: =>
             @buttonHide.on 'click', @detach
             # @buttonDisable.on 'click', @disable
-            @buttonContinue.on 'click', =>
-                @nextStep @nextStepNo
-                @buttonContinue.hide()
+            @buttonContinue.on 'click', (e) =>
+                if e.ctrlKey and e.shiftKey
+                    @fastForward()
+                @proceed()
             @buttonContinue.hide()
-            @buttonDoIt.on 'click', =>
+            @buttonDoIt.on 'click', (e) =>
+                if e.ctrlKey and e.shiftKey
+                    @fastForward()
                 @buttonDoIt.hide()
                 @doIt()
             @buttonDoIt.hide()
@@ -161,12 +164,18 @@ module.exports =
                                 hgElem[@target.action] = oldHandlers
                                 setTimeout => @nextStep nextStepNo
 
+        proceed: =>
+            @buttonContinue.hide()
+            @nextStep @nextStepNo
+
         doIt: =>
             mkEvent = (name) => new Event name,
                                     view: window
                                     bubbles: true
                                     cancelable: true
-            if @highlightedElem?
+            if @target.action is 'proceed'
+                @proceed()
+            else if @highlightedElem?
                 if @target.action is 'value'
                     event = mkEvent 'input',
                     @highlightedElem.value = @target.value
@@ -320,3 +329,7 @@ module.exports =
                 if pointContainer is elem then return true
                 break unless pointContainer = pointContainer.parentNode
             return false
+
+        fastForward: =>
+            @doIt()
+            setTimeout @fastForward, 100
