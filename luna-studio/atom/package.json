@@ -34,6 +34,7 @@
         "showdown": "1.8.x",
         "sub-atom": "1.0.x",
         "underscore": "1.8.x",
+        "uuid": "3.1.x",
         "vm2": "3.5.x"
     }
 }

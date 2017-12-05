@@ -2,6 +2,7 @@ analytics = require './gen/analytics'
 fs = require 'fs'
 yaml = require 'js-yaml'
 request = require 'request'
+uuidv1 = require 'uuid/v1'
 
 timeStart = new Date()
 runtimeReport = {}
@@ -123,6 +124,10 @@ module.exports =
             else
                 callback undefined, JSON.parse data
 
+    writeUserInfo: (userInfo) =>
+        userInfoPath = process.env.LUNA_USER_INFO
+        fs.writeFileSync userInfoPath, JSON.stringify userInfo
+
     readVersionInfo: (callback) =>
         versionInfoPath = process.env.LUNA_VERSION_PATH
         unless versionInfoPath?
@@ -136,6 +141,9 @@ module.exports =
             if error?
                 console.error error
             userInfo ?= {}
+            unless userInfo.userInfoUUID?
+                userInfo.userInfoUUID = uuidv1()
+                @writeUserInfo userInfo
             @readVersionInfo (error, version) =>
                 if error?
                     console.error error
