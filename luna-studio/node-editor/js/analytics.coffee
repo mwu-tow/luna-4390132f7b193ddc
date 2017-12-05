@@ -41,9 +41,18 @@ module.exports =
 
     sendCached: ->
         if isConfigured()
+            @identify()
             for event in cachedEvents
                 @track event.title, event.data
             cachedEvents = []
+
+    identify: ->
+        if @userInfo.userInfoUUID?
+            if atom.config.get('luna-studio.analyticsEnabled')
+                if @isDevMode()
+                    console.log 'track.indentify: ', @userInfo.userInfoUUID
+                else
+                    mixpanel.identify userInfo.userInfoUUID
 
     track: (title, data) ->
         data ?= {}
