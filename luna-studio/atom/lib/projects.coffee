@@ -7,13 +7,13 @@ yaml    = require 'js-yaml'
 InputView = require './input-view'
 
 recentProjectsPath    = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.yml'
-defaultProjectPath    = process.env.LUNA_PROJECTS  or path.join(fs.getHomeDirectory(), 'projects')
-temporaryPath         = process.env.LUNA_TEMP      or '/tmp'
-tutorialsDownloadPath = process.env.LUNA_TUTORIALS or '/tmp/tutorials'
+defaultProjectPath    = process.env.LUNA_PROJECTS
+temporaryPath         = process.env.LUNA_TMP
+tutorialsDownloadPath = process.env.LUNA_TUTORIALS
 
 temporaryProject = {
-    name: 'unsaved-luna-project',
-    path: '/tmp/unsaved-luna-project',
+    name: 'unsaved-luna-project'
+    path: path.join temporaryPath, 'unsaved-luna-project'
     srcDir: 'src'
     mainFile: 'Main.luna'
     mainContent: 'def main:\n    None'
@@ -50,7 +50,7 @@ loadRecentNoCheck = (callback) =>
 
 createTemporary = (callback) =>
     fse.remove temporaryProject.path, (err) =>
-        fs.mkdir temporaryProject.path, (err) =>
+        fse.mkdirs temporaryProject.path, (err) =>
             if err then throw err
             srcPath = path.join temporaryProject.path, temporaryProject.srcDir
             fs.mkdir srcPath, (err) =>
@@ -76,7 +76,7 @@ openMainIfExists = ->
     if fs.existsSync mainLocation
         atom.workspace.open(mainLocation, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
 
-isTemporary = (projectPath) -> projectPath.startsWith temporaryPath
+isTemporary = (projectPath) -> (projectPath.startsWith temporaryPath) or (projectPath.startsWith tutorialsDownloadPath)
 
 selectLunaProject = (e) ->
     e.stopImmediatePropagation()
