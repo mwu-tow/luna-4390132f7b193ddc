@@ -16,8 +16,7 @@ import           Control.Monad                   (forM)
 import           Control.Monad.Loops             (unfoldM)
 import           Control.Monad.Reader            (ask)
 import           Data.Coerce
-import           Data.Char                       (isSpace)
-import           Data.List                       (dropWhileEnd, find, minimum, maximum)
+import           Data.List                       (find, maximum)
 import qualified Data.Map                        as Map
 import           Data.Reflection                 (Given (..), give)
 import qualified Data.Set                        as Set
@@ -69,7 +68,8 @@ import           System.Directory                (canonicalizePath, getCurrentDi
 import           System.Environment              (lookupEnv, setEnv)
 import           System.FilePath                 ((</>), takeDirectory)
 
-import           Empire.Prelude                  hiding (minimum, maximum)
+import           Empire.Prelude                  hiding (maximum)
+import           Luna.Prelude                    (normalizeQQ)
 
 import           Test.Hspec                      (Expectation, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
                                                   shouldMatchList, shouldNotBe, shouldSatisfy, shouldStartWith, xit)
@@ -118,11 +118,6 @@ testLuna' = [r|def main:
 |]
 
 atXPos = ($ def) . (NodeMeta.position . Position.x .~)
-
-normalizeQQ :: String -> String
-normalizeQQ str = dropWhileEnd isSpace $ intercalate "\n" $ fmap (drop minWs) allLines where
-    allLines = dropWhile null $ dropWhileEnd isSpace <$> lines str
-    minWs    = minimum $ length . takeWhile isSpace <$> (filter (not.null) allLines)
 
 specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
 specifyCodeChange initialCode expectedCode act env = do
@@ -1178,37 +1173,14 @@ spec = around withChannels $ parallel $ do
                     «3»a = baz + 1
                 |]
             expectedCode = [r|
-                def func1 foo:
-                    baz = buzz foo
-                    spam = eggs baz
-                    baz
-
                 def main:
                     foo = bar
+                    def func1 foo:
+                        baz = buzz foo
+                        spam = eggs baz
+                        baz
                     baz = func1 foo
                     a = baz + 1
-                |]
-            in specifyCodeChange initialCode expectedCode $ \loc -> do
-                [Just baz, Just spam] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [1, 2]
-                Graph.collapseToFunction loc [baz, spam]
-        it "handles collapsing nodes into functions without use of an argument" $ let
-            initialCode = [r|
-                def main:
-                    «0»foo = bar
-                    «1»baz = buzz foo
-                    «2»spam = eggs baz
-                    «3»a = 3 + 1
-                |]
-            expectedCode = [r|
-                def func1 foo:
-                    baz = buzz foo
-                    spam = eggs baz
-                    spam
-
-                def main:
-                    foo = bar
-                    a = 3 + 1
-                    spam = func1 foo
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just baz, Just spam] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [1, 2]
@@ -1226,17 +1198,16 @@ spec = around withChannels $ parallel $ do
                     «10»foo = id result
                 |]
             expectedCode = [r|
-                def func1 crypto fiat:
-                    uri = "https://min-api.cryptocompare.com/data/price?fsym="
-                    withCrypto = uri + crypto
-                    fullUri = withCrypto + "&tsyms=" + fiat
-                    response = Http.getJSON fullUri
-                    result = response . lookupReal fiat
-                    result
-
                 def main:
                     crypto = "BTC"
                     fiat = "USD"
+                    def func1 crypto fiat:
+                        uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                        withCrypto = uri + crypto
+                        fullUri = withCrypto + "&tsyms=" + fiat
+                        response = Http.getJSON fullUri
+                        result = response . lookupReal fiat
+                        result
                     result = func1 crypto fiat
                     foo = id result
                 |]
@@ -1256,17 +1227,16 @@ spec = around withChannels $ parallel $ do
                     «10»foo = id result
                 |]
             expectedCode = [r|
-                def func1 fiat crypto:
-                    uri = "https://min-api.cryptocompare.com/data/price?fsym="
-                    withCrypto = uri + crypto
-                    fullUri = withCrypto + "&tsyms=" + fiat
-                    response = Http.getJSON fullUri
-                    result = response . lookupReal fiat
-                    result
-
                 def main:
                     crypto = "BTC"
                     fiat = "USD"
+                    def func1 fiat crypto:
+                        uri = "https://min-api.cryptocompare.com/data/price?fsym="
+                        withCrypto = uri + crypto
+                        fullUri = withCrypto + "&tsyms=" + fiat
+                        response = Http.getJSON fullUri
+                        result = response . lookupReal fiat
+                        result
                     result = func1 fiat crypto
                     foo = id result
                 |]
@@ -1805,6 +1775,7 @@ spec = around withChannels $ parallel $ do
             expectedCode = [r|
                 def main:
                     "test"
+
                     pi = 3.14
                     foo = a: b: a + b
                     c = 4
@@ -1885,7 +1856,6 @@ spec = around withChannels $ parallel $ do
                     c = 4
                     c = 4.0
                     bar = foo 8.0 c
-
                     bar = foo 8 c
 
                 def bar:
