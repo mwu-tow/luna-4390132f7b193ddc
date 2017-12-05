@@ -3,8 +3,6 @@ Mixpanel = require 'mixpanel'
 mixpanel = Mixpanel.init "0d906436719b047c86b7fee8ae550601",
     protocol: 'https'
 
-devMode = process.env.LUNA_STUDIO_DEVELOP?
-
 filters = []
 
 test = (title) =>
@@ -26,6 +24,9 @@ cacheEvent = (title, data) =>
         data: data
 
 module.exports =
+
+    isDevMode: ->
+        (@userInfo? and @userInfo.userInfoEmail? and @userInfo.userInfoEmail.endsWith '@luna-lang.org') or process.env.LUNA_STUDIO_DEVELOP?
 
     setFilters: (strings) ->
         filters = []
@@ -49,12 +50,12 @@ module.exports =
         data.user_info = @userInfo
         if isConfigured()
             if atom.config.get('luna-studio.analyticsEnabled') && test(title)
-                if devMode
+                if @isDevMode()
                     console.log ("track.accept: " + title), data
                 else
                     mixpanel.track title, data
             else
-                if devMode
+                if @isDevMode()
                     console.log ("track.discard: " + title), data
         else
             cacheEvent title, data

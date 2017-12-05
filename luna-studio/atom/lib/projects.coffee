@@ -10,7 +10,6 @@ recentProjectsPath    = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.ym
 defaultProjectPath    = process.env.LUNA_PROJECTS  or path.join(fs.getHomeDirectory(), 'projects')
 temporaryPath         = process.env.LUNA_TEMP      or '/tmp'
 tutorialsDownloadPath = process.env.LUNA_TUTORIALS or '/tmp/tutorials'
-devMode               = process.env.LUNA_STUDIO_DEVELOP?
 
 temporaryProject = {
     name: 'unsaved-luna-project',
