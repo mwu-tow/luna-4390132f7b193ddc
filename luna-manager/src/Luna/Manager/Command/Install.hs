@@ -48,6 +48,11 @@ import qualified Control.Exception.Safe as Exception
 import Luna.Manager.Gui.InstallationProgress
 import Data.Aeson (ToJSON, toJSON, toEncoding, encode)
 
+import           Data.UUID    (UUID)
+import qualified Data.UUID    as UUID
+import qualified Data.UUID.V1 as UUID
+import qualified Data.UUID.V4 as UUID
+
 default(Text.Text)
 
 -- FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
@@ -132,7 +137,8 @@ instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
 
 -- === Misc data structs === --
 data UserInfo = UserInfo
-              { _userInfoEmail :: Text
+              { _userInfoUUID  :: Text
+              , _userInfoEmail :: Text
               , _userInfoOs    :: Text
               , _userInfoOsVer :: Text
               , _userInfoArch  :: Text
@@ -397,6 +403,13 @@ instance Exception VersionException where
 -- versionError :: SomeException
 -- versionError = toException VersionException
 
+newUuid :: MonadIO m => m UUID
+newUuid = liftIO $ do
+    v1 <- UUID.nextUUID
+    case v1 of
+        Just uuid -> return uuid
+        Nothing   -> UUID.nextRandom
+
 readVersion :: (MonadIO m, MonadException SomeException m, MonadThrow m) => Text -> m Version
 readVersion v = case readPretty v of
     Left e  -> throwM $ VersionException v
@@ -419,12 +432,13 @@ osName = Shelly.silently $ case currentHost of
         Darwin  -> return "MacOS"
 
 -- Gets basic info about the operating system the installer is running on.
-userInfo :: (MonadBaseControl IO m, MonadSh m, MonadShControl m) => Text -> m UserInfo
+userInfo :: (MonadIO m, MonadBaseControl IO m, MonadSh m, MonadShControl m) => Text -> m UserInfo
 userInfo email = do
     let safeGet item = Shelly.catchany item (const $ return "unknown")
+    uuid <- UUID.toText <$> newUuid
     ver  <- safeGet osVersion
     name <- safeGet osName
-    return $ UserInfo email name ver (convert arch)
+    return $ UserInfo uuid email name ver (convert arch)
 
 -- Checks whether we already have the user info saved in ~/.luna/user_info.json
 userInfoExists :: (MonadSh m, MonadIO m, MonadGetter InstallConfig m) => m Bool

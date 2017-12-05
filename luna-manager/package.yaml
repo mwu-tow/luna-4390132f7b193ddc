@@ -45,6 +45,7 @@ dependencies:
   - errors
   - aeson-pretty
   - time
+  - uuid
 
 
 default-extensions:
@@ -89,7 +90,6 @@ default-extensions:
     - TupleSections
     - TypeApplications
     - TypeFamilies
-    - TypeFamilyDependencies
     - TypeOperators
     - ViewPatterns
 
