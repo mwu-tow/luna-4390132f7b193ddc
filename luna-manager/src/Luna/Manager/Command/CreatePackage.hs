@@ -55,6 +55,7 @@ data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
                                    , _desktopFileName        :: Text
                                    , _versionFileName        :: FilePath
                                    , _permitNoTags           :: Bool
+                                   , _buildFromHead          :: Bool
                                    }
 
 makeLenses ''PackageConfig
@@ -80,6 +81,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Linux arch m where
         , _desktopFileName    = "app.desktop"
         , _versionFileName    = "version.txt"
         , _permitNoTags       = False
+        , _buildFromHead      = False
         }
 
 instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
@@ -332,6 +334,7 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
         appHeader  = app ^. header
         appName    = appHeader ^. name
         appType    = app ^. resolvedAppType
+        buildHead  = pkgConfig ^. buildFromHead
     appVersion <- do
         isNewest <- isNewestVersion (appHeader ^. version) appName
         if isNewest then return $ appHeader ^. version
@@ -342,7 +345,7 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
     mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
     -- Save the current branch to return from the detached head state after switching to the tag
     currBranch <- Shelly.silently $ Shelly.chdir appPath $ Text.strip <$> Shelly.cmd "git" "rev-parse" "--abbrev-ref" "HEAD"
-    prepareVersion appPath appVersion
+    unless buildHead $ prepareVersion appPath appVersion
 
     runPkgBuildScript appPath s3GuiURL
     copyFromDistToDistPkg appName appPath
@@ -362,7 +365,7 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
         Darwin  -> void $ createTarGzUnix mainAppDir appName
         Windows -> void $ zipFileWindows mainAppDir appName
 
-    Shelly.switchVerbosity $ Shelly.chdir appPath $ do
+    unless buildHead $ Shelly.switchVerbosity $ Shelly.chdir appPath $ do
         Shelly.cmd "git" "stash"
         Shelly.cmd "git" "checkout" currBranch
         Shelly.cmd "git" "stash" "pop"
@@ -388,7 +391,8 @@ run :: MonadCreatePackage m => MakePackageOpts -> m ()
 run opts = do
     guiInstaller <- guiInstallerOpt
     config       <- parseConfig $ convert (opts ^. Opts.cfgPath)
-    modify_ @PackageConfig (permitNoTags .~ True)
+    modify_ @PackageConfig (permitNoTags  .~ (opts ^. Opts.permitNoTags))
+    modify_ @PackageConfig (buildFromHead .~ (opts ^. Opts.buildFromHead))
 
     let cfgFolderPath = parent $ convert (opts ^. Opts.cfgPath)
         appsToPack    = config ^. apps
