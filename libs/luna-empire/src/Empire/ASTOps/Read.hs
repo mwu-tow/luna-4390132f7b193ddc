@@ -397,4 +397,6 @@ getFunByNodeId nodeId = do
         nid <- getNodeId fun
         return $ if nid == Just nodeId then Just fun else Nothing
     case catMaybes fs of
+        []  -> throwM $ NodeDoesNotExistException nodeId
         [f] -> return f
+        _   -> error $ "multiple functions with " <> show nodeId

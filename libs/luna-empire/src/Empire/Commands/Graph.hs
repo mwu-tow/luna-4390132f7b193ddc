@@ -996,14 +996,16 @@ extractMarkedMetasAndIds root = IR.matchExpr root $ \case
         expr   <- IR.source e
         rest   <- extractMarkedMetasAndIds expr
         nid    <- ASTRead.getNodeId  expr
-        return $ (marker, (meta, nid)) : rest
+        nid2   <- ASTRead.getNodeId  root
+        return $ (marker, (meta, nid <|> nid2)) : rest
     _ -> concat <$> (mapM (extractMarkedMetasAndIds <=< IR.source) =<< IR.inputs root)
 
 reloadCode :: GraphLocation -> Text -> Empire ()
 reloadCode loc@(GraphLocation file _) code = do
-    funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-        funs <- use Graph.clsFuns
-        return $ Map.keys funs
+    (funs, topMarkers) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        funs       <- use Graph.clsFuns
+        topMarkers <- runASTOp $ extractMarkedMetasAndIds =<< use Graph.clsClass
+        return (Map.keys funs, Map.fromList topMarkers)
     oldMetasAndIds <- forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
         root       <- ASTRead.getCurrentBody
         oldMetas   <- extractMarkedMetasAndIds root
@@ -1013,8 +1015,8 @@ reloadCode loc@(GraphLocation file _) code = do
         let lamItems = BH.getLamItems hierarchy
             elems    = map lamItemToMapping lamItems
         return $ Map.fromList elems
-    let previousNodeIds   = Map.unions $ Map.mapMaybe snd <$> oldMetasAndIds
-        previousNodeMetas = Map.unions $ Map.mapMaybe fst <$> oldMetasAndIds
+    let previousNodeIds   = Map.unions $ (Map.mapMaybe snd topMarkers) : (Map.mapMaybe snd <$> oldMetasAndIds)
+        previousNodeMetas = Map.unions $ (Map.mapMaybe fst topMarkers) : (Map.mapMaybe fst <$> oldMetasAndIds)
     withUnit (GraphLocation file (Breadcrumb [])) $ Graph.nodeCache .= NodeCache previousNodeIds previousNodeMetas (Map.unions previousPortMappings)
     loadCode loc code
 
@@ -1065,27 +1067,6 @@ removeMetadataNode = do
             Just (klass'' :: IR.Expr (IR.ClsASG)) <- IR.narrow klass'
             IR.modifyExprTerm klass'' $ wrapped . IR.termClsASG_decls .~ (map IR.unsafeGeneralize newLinks :: [IR.Link (IR.Expr IR.Draft) (IR.Expr Term.ClsASG)])
 
-renameFunction :: ClassOp m => String -> NodeRef -> m ()
-renameFunction newName astFunRef = IR.matchExpr astFunRef $ \case
-    IR.ASGRootedFunction n _ -> do
-        var <- IR.source n
-        ASTModify.renameVar var newName
-        return ()
-
-deduplicateFunctions :: ClassOp m => [(String, NodeRef, NodeRef)] -> m ([NodeRef], [(String, NodeRef, NodeRef)])
-deduplicateFunctions funs = deduplicateFunctions' [] funs
-
-deduplicateFunctions' :: ClassOp m => [NodeRef] -> [(String, NodeRef, NodeRef)] -> m ([NodeRef], [(String, NodeRef, NodeRef)])
-deduplicateFunctions' renamings funs = do
-    let names = Set.fromList $ map (view _1) funs
-        duplicateFunctions = List.deleteFirstsBy ((==) `on` view _1) funs $ map (\a -> (a, undefined, undefined)) $ Set.toList names
-    if null duplicateFunctions then return (renamings, funs) else do
-        let firstDuplicate = head duplicateFunctions
-            newName        = Text.unpack $ generateNewFunctionName (Set.map Text.pack names) $ firstDuplicate ^. _1 . packed
-            astFunRef      = firstDuplicate ^. _2
-        renameFunction newName astFunRef
-        deduplicateFunctions' (astFunRef:renamings) $ map (\orig@(_, fun, ref) -> if fun == astFunRef then (newName, fun, ref) else orig) funs
-
 getNextTopLevelMarker :: ClassOp m => m Word64
 getNextTopLevelMarker = do
     globalMarkers <- use Graph.clsCodeMarkers
@@ -1123,8 +1104,6 @@ loadCode (GraphLocation file _) code = do
     activeFiles . at file . traverse . Library.body . Graph.clsClass .= unit
     activeFiles . at file . traverse . Library.body . Graph.clsCodeMarkers .= (coerce exprMap)
     activeFiles . at file . traverse . Library.body . Graph.code .= code
-    funs <- use $ activeFiles . at file . traverse . Library.body . Graph.clsFuns
-    let funsUUIDs = Map.fromList $ map (\(k, fun) -> (fun ^. Graph.funName, k)) $ Map.assocs funs
     activeFiles . at file . traverse . Library.body . Graph.clsFuns .= Map.empty
     (codeHadMeta, prevParseError) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
         prevParseError <- use $ Graph.clsParseError
@@ -1141,27 +1120,19 @@ loadCode (GraphLocation file _) code = do
             forM_ metaRef IR.deepDelete
             return (codeWithoutMeta /= code, prevParseError)
     when (codeHadMeta && isJust prevParseError) $ resendCode loc
-    (renamed, functions) <- withUnit loc $ do
+    functions <- withUnit loc $ do
         klass <- use Graph.clsClass
         runASTOp $ do
             markFunctions klass
             funs <- ASTRead.classFunctions klass
-            functions <- forM funs $ \f -> ASTRead.cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
-                IR.ASGRootedFunction n _ -> do
-                    name <- ASTRead.getVarName' =<< IR.source n
-                    return (convert name, fun, f)
-            deduplicateFunctions functions
-    for_ functions $ \(name, ref, fun) -> do
-        let lastUUID = Map.lookup name funsUUIDs
+            forM funs $ \f -> IR.matchExpr f $ \case
+                IR.Marked m _e -> do
+                    marker <- getMarker =<< IR.source m
+                    uuid   <- use $ Graph.nodeCache . Graph.nodeIdMap . at marker
+                    return (uuid, f)
+    for_ functions $ \(lastUUID, fun) -> do
         uuid <- Library.withLibrary file (fst <$> makeGraph fun lastUUID)
         let loc' = GraphLocation file $ Breadcrumb [Breadcrumb.Definition uuid]
-        let renaming = ref `elem` renamed
-        when renaming $ do
-            withGraph loc' $ runASTOp $ do
-                self <- use $ Graph.breadcrumbHierarchy . BH.self
-                v    <- ASTRead.getVarNode self
-                ASTModify.renameVar v name
-                Code.replaceAllUses v $ convert name
         autolayout loc'
     autolayoutTopLevel loc
     return ()
