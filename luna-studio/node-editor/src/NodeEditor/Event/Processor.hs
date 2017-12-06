@@ -2,7 +2,6 @@ module NodeEditor.Event.Processor where
 
 import           Control.Concurrent.MVar
 import           Control.Exception                      (SomeException, handle)
-import           Data.DateTime                          (getCurrentTime)
 import           Data.Monoid                            (Last (..))
 import           GHCJS.Prim                             (JSException)
 
