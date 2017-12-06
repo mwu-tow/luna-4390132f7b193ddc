@@ -5,6 +5,7 @@ path    = require 'path'
 request = require 'request'
 yaml    = require 'js-yaml'
 InputView = require './input-view'
+report = require './report'
 
 recentProjectsPath    = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.yml'
 defaultProjectPath    = process.env.LUNA_PROJECTS
@@ -155,11 +156,7 @@ module.exports =
                         callback
                             error: 'Cannot download tutorial list.'
             catch error
-                atom.confirm
-                    message: "Error while getting tutorials"
-                    detailedMessage: error.message
-                    buttons:
-                        Ok: ->
+                report.displayError 'Error while getting tutorials', error.message
 
         open: (tutorial, progress, finalize) ->
             dstPath = tutorialsDownloadPath + '/' + tutorial.name
@@ -183,11 +180,7 @@ module.exports =
                 atom.project.setPaths [dstPath]
                 finalize()
             cloneError = (err) =>
-                atom.confirm
-                    message: "Error while cloning tutorial"
-                    detailedMessage: err
-                    buttons:
-                        Ok: ->
+                report.displayError 'Error while cloning tutorial', err
                 finalize()
             closeAllFiles()
             fse.remove dstPath, (err) =>

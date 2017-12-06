@@ -6,6 +6,7 @@ yaml      = require 'js-yaml'
 {VM}      = require 'vm2'
 showdown  = require 'showdown'
 converter = new showdown.Converter()
+report    = require './report'
 
 vm     = new VM
             timeout: 1000
@@ -75,7 +76,7 @@ module.exports =
                 try
                     vm.run @currentStep.after
                 catch error
-                    console.error error
+                    report.silentError 'Error while running guide "after" step', error
 
             @unsetHighlightedElem()
 
@@ -298,7 +299,7 @@ module.exports =
                 data = yaml.safeDump(@guide)
                 fs.writeFile @guidePath, data, encoding, (err) =>
                 if err?
-                    console.error err
+                    report.silentError 'Error when disabling guide', err
             else
                 atom.config.set('luna-studio.showWelcomeGuide', false)
 

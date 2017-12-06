@@ -3,6 +3,7 @@ fs = require 'fs'
 yaml = require 'js-yaml'
 request = require 'request'
 uuidv1 = require 'uuid/v1'
+report = require './report'
 
 timeStart = new Date()
 runtimeReport = {}
@@ -139,14 +140,14 @@ module.exports =
     initialize: ->
         @readUserInfo (error, userInfo) =>
             if error?
-                console.error error
+                report.displayError 'Cannot read user_info.json', error
             userInfo ?= {}
             unless userInfo.userInfoUUID?
                 userInfo.userInfoUUID = uuidv1()
                 @writeUserInfo userInfo
             @readVersionInfo (error, version) =>
                 if error?
-                    console.error error
+                    report.silentError 'Cannot read version info.', error
                 userInfo.version = version
                 analytics.setUserInfo userInfo
         try
@@ -155,7 +156,7 @@ module.exports =
                 analytics.setFilters filters
                 @collect()
         catch error
-            console.error error
+            report.displayError 'Cannot get analytics configuration', error
 
     finalize: =>
         timeEnd = new Date()
