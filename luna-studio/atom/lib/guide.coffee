@@ -333,4 +333,5 @@ module.exports =
 
         fastForward: =>
             @doIt()
-            setTimeout @fastForward, 100
+            if @nextStepNo < @guide.steps.length
+                setTimeout @fastForward, 100
