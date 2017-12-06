@@ -38,6 +38,8 @@ import qualified LunaStudio.API.Graph.SetNodesMeta           as SetNodesMeta
 import qualified LunaStudio.API.Graph.SetPortDefault         as SetPortDefault
 import qualified LunaStudio.API.Response                     as Response
 import           LunaStudio.Data.Breadcrumb                  (containsNode)
+import           LunaStudio.Data.Error                       (Error, GraphError (BreadcrumbDoesNotExist, Other), errorType,
+                                                              _BreadcrumbDoesNotExist)
 import qualified LunaStudio.Data.Graph                       as Graph
 import           LunaStudio.Data.GraphLocation               (GraphLocation)
 import qualified LunaStudio.Data.GraphLocation               as GraphLocation
@@ -73,19 +75,16 @@ import qualified NodeEditor.State.Global                     as Global
 
 
 applyResult :: GraphLocation -> Result.Result -> Command State ()
-applyResult gl res = do
-    inCurrentLocation gl $ applyResult' False res
-    checkBreadcrumb res
+applyResult gl res = inCurrentLocation gl $ applyResult' False res
 
 applyResultPreventingExpressionNodesPorts :: GraphLocation -> Result.Result -> Command State ()
-applyResultPreventingExpressionNodesPorts gl res = do
-    inCurrentLocation gl $ applyResult' True res
-    checkBreadcrumb res
+applyResultPreventingExpressionNodesPorts gl res = inCurrentLocation gl $ applyResult' True res
+
 
 applyResult' :: Bool -> Result.Result -> NodePath -> Command State ()
-applyResult' preventPorts res path = do
+applyResult' preventPorts res path = unlessM (checkBreadcrumb res) $
     case res ^. Result.graphUpdates of
-        Left errMsg -> setGraphStatus $ GraphError errMsg
+        Left err -> handleError err
         Right graphUpdates -> do
             let exprNodeUpdateFunction = if preventPorts then localUpdateOrAddExpressionNodePreventingPorts else localUpdateOrAddExpressionNode
             void $ localRemoveNodes       . map (convert . (path,)) $ res ^. Result.removedNodes
@@ -98,10 +97,22 @@ applyResult' preventPorts res path = do
             when (isJust outputSidebar) $ forM_ outputSidebar $ localUpdateOrAddOutputNode . convert . (path,)
             setGraphStatus GraphLoaded
 
-checkBreadcrumb :: Result.Result -> Command State ()
+handleError :: Error GraphError -> Command State ()
+handleError e = case e ^. errorType of
+    BreadcrumbDoesNotExist -> do
+        setGraphStatus (GraphError e)
+        mayWorkspace <- getWorkspace
+        let isOnTop = fromMaybe True (Workspace.isOnTopBreadcrumb <$> mayWorkspace)
+        if isOnTop then fatal "Cannot get file from backend" else exitBreadcrumb
+    Other                  -> setGraphStatus (GraphError e)
+
+checkBreadcrumb :: Result.Result -> Command State Bool
 checkBreadcrumb res = do
     bc <- maybe def (view (Workspace.currentLocation . GraphLocation.breadcrumb)) <$> getWorkspace
-    when (any (containsNode bc) $ res ^. Result.removedNodes) $ exitBreadcrumb
+    let nodeOnPathDeleted = any (containsNode bc) (res ^. Result.removedNodes)
+
+    when nodeOnPathDeleted $ exitBreadcrumb
+    return nodeOnPathDeleted
 
 handle :: Event.Event -> Maybe (Command State ())
 handle (Event.Batch ev) = Just $ case ev of
@@ -117,7 +128,7 @@ handle (Event.Batch ev) = Just $ case ev of
             setBreadcrumbs $ result ^. GetProgram.breadcrumb
             setCurrentImports $ result ^. GetProgram.availableImports
             case result ^. GetProgram.graph of
-                Left errMsg -> setGraphStatus $ GraphError errMsg
+                Left err    -> handleError err
                 Right graph -> do
                     let nodes       = convert . (NodeLoc.empty,) <$> graph ^. Graph.nodes
                         input       = convert . (NodeLoc.empty,) <$> graph ^. Graph.inputSidebar
@@ -130,7 +141,7 @@ handle (Event.Batch ev) = Just $ case ev of
                     whenM (isOwnRequest requestId) $ withJust (result ^. GetProgram.typeRepToVisMap) $ \visMap ->
                         Global.preferedVisualizers .= visMap
                     updateScene
-        failure _ = do
+        failure res = do
             mayWorkspace <- getWorkspace
             let isOnTop = fromMaybe True (Workspace.isOnTopBreadcrumb <$> mayWorkspace)
             if isOnTop

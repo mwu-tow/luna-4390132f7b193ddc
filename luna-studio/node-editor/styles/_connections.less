@@ -25,6 +25,7 @@
 }
 .luna-connection__line {
     stroke-width: @luna-connection-width * 1rem;
+    stroke-linecap: round;
 }
 .luna-connection__src,
 .luna-connection__dst {
@@ -36,7 +37,8 @@
     }
     line {
         opacity:        1;
-        stroke-linecap: butt;
+        stroke-linecap:  round;
+        stroke-linejoin: round;
     }
 }
 .luna-connection__select {

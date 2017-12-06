@@ -6,7 +6,6 @@ import           Common.Prelude
 import qualified Data.Map                                   as Map
 import           JS.Visualizers                             (notifyStreamRestart, registerVisualizerFrame, sendVisualizationData)
 import           LunaStudio.Data.NodeLoc                    (NodeLoc)
-import           LunaStudio.Data.NodeMeta                   (displayResult)
 import           LunaStudio.Data.NodeValue                  (VisualizerName)
 import           LunaStudio.Data.TypeRep                    (toConstructorRep)
 import           NodeEditor.Action.Basic                    (selectNode, setNodeMeta)

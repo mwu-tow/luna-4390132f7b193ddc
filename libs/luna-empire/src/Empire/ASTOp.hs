@@ -30,31 +30,30 @@ module Empire.ASTOp (
   ) where
 
 import           Empire.Prelude       hiding (Type, mempty, toList)
-import           Prologue             (Text, mempty, toListOf)
+import           Prologue             (mempty)
 
 import           Control.Monad.Catch  (MonadCatch(..))
-import           Control.Monad.State  (MonadState, StateT, evalStateT, runStateT, get, gets, put)
+import           Control.Monad.State  (MonadState, StateT, runStateT, get, put)
 import qualified Control.Monad.State.Dependent as DepState
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
-import           Data.Foldable        (toList)
 import           Empire.Data.Graph    (AST(..), ClsGraph, Graph, withVis)
 import qualified Empire.Data.Graph    as Graph
 import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Layers   (Marker, Meta, TypeLayer, attachEmpireLayers, SpanLength, SpanOffset)
+import           Empire.Data.Layers   (Marker, Meta, TypeLayer, SpanLength, SpanOffset)
 import           Empire.Empire        (Command)
 
 import           Data.Event           (Emitters, type (//))
 import           Data.Graph.Class     (MonadRefLookup(..), Net)
 import           Data.TypeDesc        (getTypeDesc)
-import           Luna.IR              as IR hiding (Marker, get, put, match)
+import           Luna.IR              as IR hiding (Marker, match)
 import           Luna.IR.Layer.Succs  (Succs)
 import qualified Luna.IR.Term.Unit    as Term
 import           OCI.IR.Layout.Typed  (type (>>))
 import           OCI.Pass.Class       (Inputs, Outputs, Preserves, KnownPass)
 import           OCI.IR.Class         (Import)
 import qualified OCI.Pass.Class       as Pass (SubPass, eval')
-import qualified OCI.Pass.Manager     as Pass (PassManager, Cache, setAttr, State)
+import qualified OCI.Pass.Manager     as Pass (PassManager, setAttr, State)
 
 import           System.Log                                   (Logger, DropLogger, dropLogs)
 import           Luna.Pass.Data.ExprRoots                     (ExprRoots(..))
@@ -64,7 +63,6 @@ import           Luna.Pass.Resolution.Data.UnresolvedConses   (UnresolvedConses(
 import qualified Luna.Pass.Resolution.AliasAnalysis           as AliasAnalysis
 import           Luna.Syntax.Text.Parser.Errors (Invalids)
 import qualified Luna.Syntax.Text.Parser.Parser               as Parser
-import qualified Luna.Syntax.Text.Parser.Parsing              as Parsing
 import qualified Luna.Syntax.Text.Parser.CodeSpan             as CodeSpan
 import           Luna.Syntax.Text.Parser.Marker               (MarkedExprMap)
 import           Luna.Syntax.Text.Source                      (Source)
@@ -81,9 +79,7 @@ import qualified Luna.Pass.UnitCompilation.ModuleProcessing as ModuleTC
 import qualified Luna.Pass.Sourcing.UnitLoader              as UnitLoader
 import           Luna.IR.Term.World                         (WorldExpr)
 import           Luna.IR.Term.Unit                          (UnitSet)
-import           Luna.Syntax.Text.Parser.Errors             (Invalids)
 
-import           GHC.Stack
 
 type PMStack m = PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger m)))
 

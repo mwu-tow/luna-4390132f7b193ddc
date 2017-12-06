@@ -19,7 +19,7 @@
 @w: (@sidebarPortRadius - @s ) * 2;
 
 
-.luna-sidebar {
+.luna-port-sidebar {
     z-index:         @luna-zindex-sidebars;
     display:         flex;
     justify-content: center;
@@ -31,26 +31,26 @@
     .luna-port__select { r: @sidebarPortWidth/2 !important }
 }
 
-.luna-sidebar--freezemode {
-    .luna-sidebar__body {
+.luna-port-sidebar--freezemode {
+    .luna-port-sidebar__body {
         position: absolute;
         bottom: 0;
     }
 }
 
-.luna-sidebar--dragmode {
-    .luna-sidebar__active-area {
+.luna-port-sidebar--dragmode {
+    .luna-port-sidebar__active-area {
         width: @sidebarActiveAreaWidthDragMode;
     }
 }
 
 
-.luna-sidebar__active-area {
+.luna-port-sidebar__active-area {
     width: @sidebarActiveAreaWidth;
     pointer-events: all;
 }
 
-.luna-sidebar__body {
+.luna-port-sidebar__body {
     display:        flex;
     flex-direction: column;
     width:          @sidebarWidth;
@@ -62,19 +62,19 @@
 //         edgeport        //
 /////////////////////////////
 
-.luna-sidebar__port {
+.luna-port-sidebar__port {
     height:   @sidebarPortHeight;
     position: relative;
 }
 
-.luna-sidebar__port__svg {
+.luna-port-sidebar__port__svg {
     height:   @sidebarPortHeight;
     width:    @sidebarPortWidth;
     overflow: inherit;
     position: absolute;
 }
 
-.luna-sidebar__port__name {
+.luna-port-sidebar__port__name {
     font-size:      calc(var(--ul-total-zoom) ~'*' 12px);
     line-height:    @sidebarPortHeight;
     color:          @luna-text-color;
@@ -87,7 +87,7 @@
     }
 }
 
-.luna-sidebar__port--dragged {
+.luna-port-sidebar__port--dragged {
     position:     absolute;
     padding-left: @sidebarWidth/2;
     .luna-port__shape {
@@ -99,9 +99,9 @@
 //          inputs         //
 /////////////////////////////
 
-.luna-sidebar--i {
+.luna-port-sidebar--i {
     left: 0;
-    .luna-sidebar__port__name {
+    .luna-port-sidebar__port__name {
         left: @sidebarWidth;
     }
 }
@@ -110,13 +110,13 @@
 //         outputs         //
 /////////////////////////////
 
-.luna-sidebar--o {
+.luna-port-sidebar--o {
     right: 0;
-    .luna-sidebar__body {
+    .luna-port-sidebar__body {
         right:          0;
         padding-bottom: @sidebarPortHeight * 1.5;
     }
-    .luna-sidebar__port__name {
+    .luna-port-sidebar__port__name {
         left:  inherit;
         right: @sidebarPortWidth;
     }
@@ -126,7 +126,7 @@
 //          icons          //
 /////////////////////////////
 
-.luna-sidebar__port .luna-port__plus {
+.luna-port-sidebar__port .luna-port__plus {
     transform: rotate(45deg);
     rect {
         opacity: 0;
@@ -141,14 +141,14 @@
     fill: @luna-graph-background-color;
 }
 
-.luna-sidebar__port__svg--inbetween {
+.luna-port-sidebar__port__svg--inbetween {
     position: absolute;
     left:     24px !important;
     top:      0px;
     z-index:  10000;
 }
 
-.luna-sidebar__port__svg--inbetween--last {
+.luna-port-sidebar__port__svg--inbetween--last {
     top:     inherit;
     bottom: -@sidebarPortHeight;
 }
@@ -184,12 +184,12 @@
     }
 }
 
-.luna-sidebar__port__svg--addbutton {
+.luna-port-sidebar__port__svg--addbutton {
     position:       relative;
 }
 
-.luna-sidebar__port__svg--inbetween--last:hover {
-    &+.luna-sidebar__port__svg--addbutton {
+.luna-port-sidebar__port__svg--inbetween--last:hover {
+    &+.luna-port-sidebar__port__svg--addbutton {
         circle { r: 0 }
         rect   { width:0; height:0 }
     }
@@ -240,9 +240,9 @@
     r:       @sidebarPortWidth/2 !important;
 }
 
-.luna-sidebar:not(.luna-sidebar--editmode) {
-    .luna-sidebar__port:hover {
-        .luna-sidebar__port__name {
+.luna-port-sidebar:not(.luna-port-sidebar--editmode) {
+    .luna-port-sidebar__port:hover {
+        .luna-port-sidebar__port__name {
             color: @luna-text-color;
         }
         .luna-port__shape {
@@ -253,7 +253,7 @@
         opacity: 0;
         circle { r: 0 }
     }
-    &.luna-sidebar--i {
+    &.luna-port-sidebar--i {
         &:hover {
             .luna-edit-icon {
                 opacity: 1;
@@ -261,7 +261,7 @@
             }
         }
     }
-    .luna-sidebar__port__svg--addbutton {
+    .luna-port-sidebar__port__svg--addbutton {
         .luna-port__shape {
             r:    @sidebarPortRadius !important;
             fill: @defaultIconFillColor;
@@ -286,7 +286,7 @@
 
 // edit mode
 
-.luna-sidebar--editmode {
+.luna-port-sidebar--editmode {
     .luna-port-add-inbetween  { display: block }
     .luna-port__plus {
         rect {
@@ -307,7 +307,7 @@
             fill: @highlightIconFillColor;
         }
     }
-    .luna-sidebar__port__svg--addbutton {
+    .luna-port-sidebar__port__svg--addbutton {
         .luna-port__shape { fill: @defaultIconFillColor }
         &:hover {
             .luna-port__shape { fill: @highlightIconFillColor }

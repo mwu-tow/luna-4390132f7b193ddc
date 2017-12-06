@@ -17,7 +17,7 @@ import           Data.Map.Lazy                            (Map)
 import           Data.Time.Clock                          (UTCTime)
 import           LunaStudio.API.Graph.CollaborationUpdate (ClientId)
 import           LunaStudio.Data.Breadcrumb               (BreadcrumbItem)
-import           LunaStudio.Data.Error                    (Error)
+import           LunaStudio.Data.Error                    (Error, NodeError)
 import           LunaStudio.Data.MonadPath                (MonadPath)
 import           LunaStudio.Data.Node                     (NodeId)
 import qualified LunaStudio.Data.Node                     as Empire
@@ -79,7 +79,7 @@ data Subgraph = Subgraph { _expressionNodes :: ExpressionNodesMap
                          } deriving (Default, Eq, Generic, NFData, Show)
 
 data Value = ShortValue ShortValue
-           | Error      Error
+           | Error      (Error NodeError)
            deriving (Eq, Generic, NFData, Show)
 
 data Collaboration = Collaboration { _touch  :: Map ClientId (UTCTime, Color)

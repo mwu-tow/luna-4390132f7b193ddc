@@ -7,7 +7,7 @@
 module Empire.Commands.Typecheck where
 
 import           Control.Arrow                    ((***), (&&&))
-import           Control.Concurrent               (MVar, forkIO, killThread, putMVar, readMVar, takeMVar)
+import           Control.Concurrent               (MVar, forkIO, killThread, readMVar)
 import qualified Control.Concurrent.MVar.Lifted   as Lifted
 import           Control.Monad                    (void)
 import           Control.Monad.Except             hiding (when)
@@ -16,20 +16,18 @@ import           Control.Monad.State              (execStateT)
 import qualified Data.Map                         as Map
 import           Data.Maybe                       (maybeToList)
 import           Empire.Prelude                   hiding (toList)
-import           Prologue                         (catMaybes)
+import           Prologue                         (catMaybes, mapping)
 import           System.Directory                 (withCurrentDirectory)
 import           System.FilePath                  (takeDirectory)
 
 import qualified LunaStudio.Data.Error            as APIError
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
-import           LunaStudio.Data.Node             (NodeId)
 import           LunaStudio.Data.NodeValue        (NodeValue (..), VisualizationValue (..))
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..))
 
 import           Empire.ASTOp                     (runASTOp, runTypecheck, runModuleTypecheck)
 import qualified Empire.ASTOps.Read               as ASTRead
 import           Empire.Commands.Breadcrumb       (zoomBreadcrumb')
-import           Empire.Commands.AST              as AST
 import qualified Empire.Commands.GraphBuilder     as GraphBuilder
 import qualified Empire.Commands.Publisher        as Publisher
 import           Empire.Data.BreadcrumbHierarchy  (topLevelIDs)
@@ -38,9 +36,8 @@ import           Empire.Data.Graph                (Graph)
 import qualified Empire.Data.Graph                as Graph
 import           Empire.Empire
 
-import           Luna.Builtin.Data.Class          (Class (..))
 import           Luna.Builtin.Data.LunaEff        (runError, runIO)
-import           Luna.Builtin.Data.Module         (Imports (..), importedClasses, unionImports, unionsImports)
+import           Luna.Builtin.Data.Module         (Imports (..), unionImports, unionsImports)
 import           Luna.Builtin.Prim                (SingleRep (..), ValueRep (..), getReps)
 import qualified Luna.Compilation                 as Compilation
 import qualified Luna.Project                     as Project

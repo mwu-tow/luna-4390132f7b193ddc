@@ -67,9 +67,9 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         mode           = node ^. SidebarNode.mode
         isPortDragged  = any isInMovedMode ports
         removablePorts = isInputSidebar node && countProjectionPorts node > minimalNumberOfPorts node
-        classes        = [ "sidebar", if isInputSidebar node then "sidebar--i" else "sidebar--o" ]
-                       <> if mode == AddRemove then ["sidebar--editmode"] else []
-                       <> ["sidebar--dragmode" | isPortDragged]
+        classes        = [ "port-sidebar", if isInputSidebar node then "port-sidebar--i" else "port-sidebar--o" ]
+                       <> if mode == AddRemove then ["port-sidebar--editmode"] else []
+                       <> ["port-sidebar--dragmode" | isPortDragged]
         addButtonHandlers = case mode of
                                 AddRemove   -> [ onMouseDown $ \e _ -> [stopPropagation e]
                                                , onClick     $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.AddPort portRef)
@@ -84,12 +84,12 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
         ] $
         div_
             [ "key" $= "activeArea"
-            , "className" $= Style.prefixFromList [ "sidebar__active-area", "noselect" ]
+            , "className" $= Style.prefixFromList [ "port-sidebar__active-area", "noselect" ]
             ] $
             div_
                 [ "key"       $= "SidebarPortsBody"
                 , "id"        $= if isInputSidebar node then inputSidebarId else outputSidebarId
-                , "className" $= Style.prefixFromList [ "sidebar__body", "noselect" ]
+                , "className" $= Style.prefixFromList [ "port-sidebar__body", "noselect" ]
                 ] $ do
                 forM_ ports $ \p -> if isInMovedMode p
                     then sidebarPlaceholderForPort_ >> sidebarDraggedPort_ ref p
@@ -97,7 +97,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
                 when (isInputSidebar node) $ do
 
                     svg_ (
-                        [ "className" $= Style.prefixFromList [ "sidebar__port__svg", "sidebar__port__svg--addbutton" ]
+                        [ "className" $= Style.prefixFromList [ "port-sidebar__port__svg", "port-sidebar__port__svg--addbutton" ]
                         , "viewBox"   $= portViewBox
                         , "key"       $= (name node <> "AddButton")
                         ] <> addButtonHandlers ) $ do
@@ -138,7 +138,7 @@ sidebar = React.defineView "sidebar" $ \(ref, maySearcher, node) -> do
 
 
 sidebarPortName_ :: IsRef ref => ref -> AnyPortRef -> Text -> Maybe (Searcher, FilePath) -> ReactElementM ViewEventHandler ()
-sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "sidebar__port__name", "noselect"] ] <> handlers') nameElement where
+sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefixFromList [ "port-sidebar__port__name", "noselect"] ] <> handlers') nameElement where
     regularName              = elemString $ convert portName
     (handlers', nameElement) = case portRef of
         OutPortRef' outPortRef -> do
@@ -156,8 +156,8 @@ sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
         color     = convert $ p ^. Port.color
         num       = getPortNumber portId
         highlight = ["hover" | isHighlighted p || isInNameEditMode p]
-        classes   = modeClass (p ^. Port.mode) <> if isInPort portId then [ "port", "sidebar__port", "sidebar__port--o", "sidebar__port--o--" <> show (num + 1) ] <> highlight
-                                                  else [ "port", "sidebar__port", "sidebar__port--i", "sidebar__port--i--" <> show (num + 1) ] <> highlight
+        classes   = modeClass (p ^. Port.mode) <> if isInPort portId then [ "port", "port-sidebar__port", "port-sidebar__port--o", "port-sidebar__port--o--" <> show (num + 1) ] <> highlight
+                                                  else [ "port", "port-sidebar__port", "port-sidebar__port--i", "port-sidebar__port--i--" <> show (num + 1) ] <> highlight
         handlers' = if isOutPort portId then portHandlers ref mode isPortDragged canBeRemoved portRef else handlers ref portRef False
     div_
         [ "key"       $= ( jsShow portId <> "-port-" <> jsShow num )
@@ -165,7 +165,7 @@ sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
         ] $ do
         when (isOutPort portId) $ addButton_ ref portRef
         svg_
-            [ "className" $= Style.prefix "sidebar__port__svg"
+            [ "className" $= Style.prefix "port-sidebar__port__svg"
             , "viewBox"   $= portViewBox
             ] $ do
             circle_
@@ -186,7 +186,7 @@ sidebarPort_ ref nl p mode isPortDragged canBeRemoved maySearcher = do
 
 addButton_ :: IsRef ref => ref -> AnyPortRef -> ReactElementM ViewEventHandler ()
 addButton_ ref portRef = do
-    let classes = ["sidebar__port__svg", "sidebar__port__svg--inbetween"]
+    let classes = ["port-sidebar__port__svg", "port-sidebar__port__svg--inbetween"]
     svg_
         [ "className"  $= Style.prefixFromList classes
         , onMouseDown  $ \e _ -> [stopPropagation e]
@@ -204,18 +204,18 @@ addButton_ ref portRef = do
 sidebarPlaceholderForPort_ :: ReactElementM ViewEventHandler ()
 sidebarPlaceholderForPort_ = div_
     [ "key"       $= "port-placeholder"
-    , "className" $= Style.prefixFromList [ "port", "sidebar__port", "sidebar__port--i", "noselect" ]
+    , "className" $= Style.prefixFromList [ "port", "port-sidebar__port", "port-sidebar__port--i", "noselect" ]
     ] mempty
 
 sidebarDraggedPort_ :: IsRef ref => ref -> AnyPort -> ReactElementM ViewEventHandler ()
 sidebarDraggedPort_ _ref p = withJust (getPositionInSidebar p) $ \pos ->
     div_
-        [ "className" $= Style.prefixFromList [ "port", "sidebar__port", "sidebar__port--dragged", "hover" ]
+        [ "className" $= Style.prefixFromList [ "port", "port-sidebar__port", "port-sidebar__port--dragged", "hover" ]
         , "style"     @= Aeson.object [ "transform"  Aeson..= ("translate(0px, " <> show (pos ^. y) <> "px)") ]
         ] $ do
-        div_ [ "className" $= Style.prefix "sidebar__port__name" ] $ elemString . convert $ p ^. Port.name
+        div_ [ "className" $= Style.prefix "port-sidebar__port__name" ] $ elemString . convert $ p ^. Port.name
         svg_
-            [ "className" $= Style.prefix "sidebar__port__svg" ] $
+            [ "className" $= Style.prefix "port-sidebar__port__svg" ] $
             circle_
                 [ "className" $= Style.prefix "port__shape"
                 , "r"         $= jsShow2 3

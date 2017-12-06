@@ -10,6 +10,8 @@ import           Common.Prelude                   hiding (set)
 import           Data.Convert                     (Convertible (convert))
 import qualified Data.Text                        as Text
 import           LunaStudio.Data.Angle            (Angle)
+import           LunaStudio.Data.Constants        (gridSize)
+import           LunaStudio.Data.Geometry         (Radius)
 import           LunaStudio.Data.LabeledTree      (LabeledTree (LabeledTree))
 import qualified LunaStudio.Data.LabeledTree      as LabeledTree
 import           LunaStudio.Data.Port             as X hiding (InPort, OutPort, Port (..), name, portId, state, valueType)
@@ -127,25 +129,29 @@ instance Convertible (Port i) (Empire.Port i) where
         {- state    -} (p ^. state)
 
 
-portGap :: Double -> Angle
+portGap :: Radius -> Angle
 portGap r = 0.2 * nodeRadius / r -- to avoid gap narrowing
 
 portAngle :: Int -> Angle
 portAngle numOfPorts = pi / fromIntegral numOfPorts
 
-portAngleStart :: Bool -> Int -> Int -> Double -> Angle
-portAngleStart isShape num numOfPorts r = pi - number * t + gap
-    where number = fromIntegral num + 1
-          gap    = if isShape then (portGap r)/2 else 0
-          t      = portAngle numOfPorts
+portAngleStart :: Bool -> Int -> Int -> Radius -> Angle
+portAngleStart trimmed portNumber numOfPorts r = n * t + trim
+    where n    = fromIntegral portNumber
+          trim = if trimmed then (portGap r)/2 else 0
+          t    = portAngle numOfPorts
 
-portAngleStop :: Bool -> Int -> Int -> Double -> Angle
-portAngleStop isShape num numOfPorts r = pi - number * t + t - gap
-    where number = fromIntegral num + 1
-          gap    = if isShape then (portGap r)/2 else 0
-          t      = portAngle numOfPorts
+portAngleStop :: Bool -> Int -> Int -> Radius -> Angle
+portAngleStop trimmed portNumber numOfPorts r = n * t + t - trim
+    where n    = fromIntegral portNumber
+          trim = if trimmed then (portGap r)/2 else 0
+          t    = portAngle numOfPorts
+
+argumentConstructorNumber :: Int -> Int
+argumentConstructorNumber = max 1
+
 
 argumentConstructorOffsetY :: Int -> Double
-argumentConstructorOffsetY numOfPorts = (fromIntegral $ max 1 numOfPorts) * lineHeight
+argumentConstructorOffsetY numOfPorts = (fromIntegral $ argumentConstructorNumber numOfPorts) * gridSize
 
 

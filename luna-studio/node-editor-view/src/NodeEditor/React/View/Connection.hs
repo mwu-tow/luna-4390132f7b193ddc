@@ -6,7 +6,7 @@ import           LunaStudio.Data.Position          (Position, averagePosition, x
 import qualified NodeEditor.Event.UI               as UI
 import           NodeEditor.React.Event.Connection (ModifiedEnd (Destination, Source))
 import qualified NodeEditor.React.Event.Connection as Connection
-import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Normal), PosConnection, PosHalfConnection)
+import           NodeEditor.React.Model.Connection (Mode (Dimmed, Highlighted, Internal, Normal), PosConnection, PosHalfConnection, toAngle, toInputAngle, toOutputAngle)
 import qualified NodeEditor.React.Model.Connection as Connection
 import           NodeEditor.React.IsRef            (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style       as Style

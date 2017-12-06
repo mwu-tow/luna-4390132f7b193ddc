@@ -7,14 +7,13 @@ yaml    = require 'js-yaml'
 InputView = require './input-view'
 
 recentProjectsPath    = process.env.LUNA_STUDIO_DATA_PATH + '/recent-projects.yml'
-defaultProjectPath    = process.env.LUNA_STUDIO_PROJECTS  or path.join(fs.getHomeDirectory(), 'projects')
-temporaryPath         = process.env.LUNA_STUDIO_TEMP      or '/tmp'
-tutorialsDownloadPath = process.env.LUNA_STUDIO_TUTORIALS or '/tmp/tutorials'
-devMode               = process.env.LUNA_STUDIO_DEVELOP?
+defaultProjectPath    = process.env.LUNA_PROJECTS
+temporaryPath         = process.env.LUNA_TMP
+tutorialsDownloadPath = process.env.LUNA_TUTORIALS
 
 temporaryProject = {
-    name: 'unsaved-luna-project',
-    path: '/tmp/unsaved-luna-project',
+    name: 'unsaved-luna-project'
+    path: path.join temporaryPath, 'unsaved-luna-project'
     srcDir: 'src'
     mainFile: 'Main.luna'
     mainContent: 'def main:\n    None'
@@ -51,7 +50,7 @@ loadRecentNoCheck = (callback) =>
 
 createTemporary = (callback) =>
     fse.remove temporaryProject.path, (err) =>
-        fs.mkdir temporaryProject.path, (err) =>
+        fse.mkdirs temporaryProject.path, (err) =>
             if err then throw err
             srcPath = path.join temporaryProject.path, temporaryProject.srcDir
             fs.mkdir srcPath, (err) =>
@@ -77,7 +76,7 @@ openMainIfExists = ->
     if fs.existsSync mainLocation
         atom.workspace.open(mainLocation, {split: atom.config.get('luna-studio.preferredCodeEditorPosition')})
 
-isTemporary = (projectPath) -> projectPath.startsWith temporaryPath
+isTemporary = (projectPath) -> (projectPath.startsWith temporaryPath) or (projectPath.startsWith tutorialsDownloadPath)
 
 selectLunaProject = (e) ->
     e.stopImmediatePropagation()
@@ -180,18 +179,21 @@ module.exports =
                                 progress p
                             catch error
                                 console.log error
+            clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then (repo) =>
+                atom.project.setPaths [dstPath]
+                finalize()
+            cloneError = (err) =>
+                atom.confirm
+                    message: "Error while cloning tutorial"
+                    detailedMessage: err
+                    buttons:
+                        Ok: ->
+                finalize()
             closeAllFiles()
             fse.remove dstPath, (err) =>
-                clone = -> Git.Clone(tutorial.uri, dstPath, cloneOpts).then((repo) =>
-                            atom.project.setPaths [dstPath]
-                            finalize())
-
-
-                clone().catch((error) =>
-                    clone().catch(error) =>
-                        atom.confirm
-                            message: "Error while cloning tutorial"
-                            detailedMessage: error.message
-                            buttons:
-                                Ok: ->
-                        finalize())
+                if err?
+                    cloneError err.toString()
+                else
+                    clone().catch (error) =>
+                        clone().catch (error) =>
+                            cloneError error

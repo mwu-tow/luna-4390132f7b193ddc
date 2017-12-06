@@ -6,9 +6,9 @@ import qualified Data.Text                                  as Text
 import qualified LunaStudio.Data.Error                      as LunaError
 import qualified NodeEditor.Event.UI                        as UI
 import qualified NodeEditor.React.Event.Node                as Node
+import           NodeEditor.React.IsRef                     (IsRef, dispatch)
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, Value (..))
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
-import           NodeEditor.React.IsRef                     (IsRef, dispatch)
 import qualified NodeEditor.React.View.Style                as Style
 import           React.Flux                                 hiding (image_)
 import qualified React.Flux                                 as React
@@ -39,10 +39,10 @@ strValue n = case n ^. Node.value of
     Just (ShortValue value) -> Text.unpack value
     Just (Error      msg  ) -> showError msg --limitString errorLen (convert $ showError msg)
 
-showError :: LunaError.Error -> String
+showError :: LunaError.Error LunaError.NodeError -> String
 showError = showErrorSep ""
 
-showErrorSep :: String -> LunaError.Error -> String
+showErrorSep :: String -> LunaError.Error LunaError.NodeError -> String
 showErrorSep sep err = case err of
     LunaError.Error LunaError.CompileError msg -> "Compile error: " <> sep <> convert msg
     LunaError.Error LunaError.RuntimeError msg -> "Runtime error: " <> sep <> convert msg

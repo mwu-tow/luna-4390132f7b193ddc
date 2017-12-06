@@ -12,6 +12,7 @@ import qualified LunaStudio.API.Response              as Response
 import qualified LunaStudio.API.Topic                 as T
 import           LunaStudio.Data.Breadcrumb           (Breadcrumb, BreadcrumbItem, Named)
 import           LunaStudio.Data.CameraTransformation (CameraTransformation)
+import           LunaStudio.Data.Error                (Error, GraphError)
 import           LunaStudio.Data.Graph                (Graph)
 import           LunaStudio.Data.GraphLocation        (GraphLocation)
 import           LunaStudio.Data.NodeSearcher         (ImportName)
@@ -26,9 +27,7 @@ data Request = Request { _location             :: GraphLocation
                        , _enterMain            :: Bool
                        } deriving (Eq, Generic, Show)
 
-type Error = String
-
-data Result  = Result  { _graph            :: Either Error Graph
+data Result  = Result  { _graph            :: Either (Error GraphError) Graph
                        , _code             :: Text
                        , _breadcrumb       :: Breadcrumb (Named BreadcrumbItem)
                        , _availableImports :: [ImportName]

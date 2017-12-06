@@ -20,7 +20,6 @@
     },
     "dependencies": {
         "atom-space-pen-views": "^2.0.x",
-        "collect-fps": "2.0.x",
         "etch": "0.12.x",
         "first-mate": "7.0.x",
         "fuzzaldrin": "^2.1.0",
@@ -32,7 +31,10 @@
         "react-dom": "15.6.x",
         "react": "15.6.x",
         "resize-observer-polyfill": "1.3.x",
+        "showdown": "1.8.x",
         "sub-atom": "1.0.x",
-        "underscore": "1.8.x"
+        "underscore": "1.8.x",
+        "uuid": "3.1.x",
+        "vm2": "3.5.x"
     }
 }

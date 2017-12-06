@@ -3,16 +3,33 @@
 module Common.Report where
 
 import           Atom                       (pushNotification)
-import           Common.Data.Notification
+import           Data.Aeson                 (ToJSON, toJSON)
+import           Common.Analytics
+import           Common.Data.Notification   (Notification(Notification))
+import qualified Common.Data.Notification   as Notification
 import           Common.Prelude
 
 
+data ErrorEvent = Fatal   { contents :: String }
+                | Error   { contents :: String }
+                | Warning { contents :: String }
+        deriving (Generic, Show, ToJSON)
+
+instance IsTrackedEvent ErrorEvent where
+    eventName = const $ Just "LunaStudio.Error"
+    eventData = toJSON
 
 error :: MonadIO m => String -> m ()
-error = liftIO . pushNotification . Notification Error
+error ev = do
+    track $ Error ev
+    liftIO $ pushNotification $ Notification Notification.Error ev
 
 fatal :: MonadIO m => String -> m ()
-fatal = liftIO . pushNotification . Notification FatalError
+fatal ev = do
+    track $ Fatal ev
+    liftIO $ pushNotification $ Notification Notification.FatalError ev
 
 warning :: MonadIO m => String -> m ()
-warning = liftIO . pushNotification . Notification Warning
+warning ev = do
+    track $ Warning ev
+    liftIO $ pushNotification $ Notification Notification.Warning ev

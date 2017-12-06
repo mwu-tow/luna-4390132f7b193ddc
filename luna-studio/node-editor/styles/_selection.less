@@ -50,23 +50,28 @@
 //         errors          //
 /////////////////////////////
 
-.luna-node--error {
+.luna-node--error {    
     .luna-error {
+        width:         auto;
+        height:        auto;
+        top:          -8rem;
+        left:         -8rem;
+        right:        -8rem;
+        bottom:       -8rem;
+        position:      absolute;
         opacity:       .3;
-        z-index:       -100;
+        z-index:      -100;
+        border-radius: @luna-border-radius-expanded-node-selection * 1rem;
         background:    repeating-linear-gradient(
-                           135deg,
-                           rgba(0,0,0,0),
-                           rgba(0,0,0,0) 8rem,
-                           red 8rem,
-                           red 16rem
-                        );
+                          135deg,
+                          rgba(0,0,0,0),
+                          rgba(0,0,0,0) 8rem,
+                          red 8rem,
+                          red 16rem
+                       );
         background-position: center center;
     }
     &.luna-node--expanded {
-        .luna-error {
-            border-radius: @luna-border-radius-expanded-node-selection * 1rem;
-        }
         .luna-node__controls {
             box-shadow: none;
         }

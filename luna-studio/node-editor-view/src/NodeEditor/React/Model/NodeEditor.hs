@@ -11,9 +11,10 @@ import           Common.Prelude
 import qualified Data.HashMap.Strict                        as HashMap
 import           Data.Map                                   (Map)
 import qualified Data.Map                                   as Map
-import           LunaStudio.API.Graph.GetProgram            (Error)
 import qualified LunaStudio.Data.Breadcrumb                 as B
 import           LunaStudio.Data.CameraTransformation       (CameraTransformation)
+import qualified LunaStudio.Data.Error                      as Error
+import           LunaStudio.Data.MonadPath                  (MonadPath)
 import           LunaStudio.Data.MonadPath                  (MonadPath)
 import qualified LunaStudio.Data.NodeLoc                    as NodeLoc
 import qualified LunaStudio.Data.PortRef                    as PortRef
@@ -39,7 +40,7 @@ import qualified NodeEditor.React.Model.Visualization       as Visualization
 data GraphStatus = GraphLoaded
                  | GraphLoading
                  | NoGraph
-                 | GraphError Error
+                 | GraphError (Error.Error Error.GraphError)
                  deriving (Eq, Generic)
 
 data NodeEditor = NodeEditor { _expressionNodes          :: ExpressionNodesMap
@@ -203,7 +204,7 @@ toPosConnection ne connection = do
         return $ PosConnection src dst srcPos dstPos sidebarConn mode (srcPort ^. Port.color)
     else if countArgPorts dstNode == getPortNumber dstPortId then case dstNode of
         Expression n -> fmap (Connection.toPosConnection src dstPortRef) $
-            toPosHalfConnection ne $ HalfConnection (OutPortRef' src) (Connection.argConstructorConnectionPos n) sidebarConn mode
+            toPosHalfConnection ne $ HalfConnection (OutPortRef' src) (Connection.argConstructorPosition n) sidebarConn mode
         _            -> Nothing
     else Nothing
 
@@ -222,7 +223,7 @@ toPosHalfConnection ne halfConnection = do
             srcPos <- Connection.halfConnectionSrcPosition node (convert port) dstPos (ne ^. layout)
             return (srcPos, port ^. Port.color)
         else if countArgPorts node == getPortNumber pid then case node of
-            Expression n -> return (Connection.argConstructorConnectionPos n, Color 0)
+            Expression n -> return (Connection.argConstructorPosition n, Color 0)
             _            -> Nothing
         else Nothing
     return $ PosHalfConnection srcPos dstPos sidebarConn mode c
