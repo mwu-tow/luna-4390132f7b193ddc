@@ -52,7 +52,7 @@ module.exports =
                 if @isDevMode()
                     console.log 'track.indentify: ', @userInfo.userInfoUUID
                 else
-                    mixpanel.identify userInfo.userInfoUUID
+                    mixpanel.identify @userInfo.userInfoUUID
 
     track: (title, data) ->
         data ?= {}
