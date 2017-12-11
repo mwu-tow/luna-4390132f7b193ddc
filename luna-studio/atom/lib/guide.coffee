@@ -22,7 +22,7 @@ pointerWindowClass = 'luna-guide__pointer--window'
 
 module.exports =
     class VisualGuide extends View
-        constructor: ->
+        constructor: (@nodeEditor) ->
             super
 
         @content: ->
