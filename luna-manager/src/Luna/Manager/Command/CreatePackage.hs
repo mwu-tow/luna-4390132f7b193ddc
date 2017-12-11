@@ -315,10 +315,7 @@ prepareVersion appPath version = Shelly.switchVerbosity $ do
         Logger.log $ "Tag " <> versionTxt <> " " <> (if exists then "exists" else "does not exist.")
         if exists then do
             Logger.log "Checking out the tag..."
-            changesPresent <- not . T.null <$> Shelly.cmd "git" "diff-index" "HEAD"
-            when changesPresent $ Shelly.cmd "git" "stash"
             Shelly.cmd "git" "checkout" versionTxt
-            when changesPresent $ Shelly.cmd "git" "stash" "pop"
         else if permitNoTagsFlag then Logger.log "[WARNING] No tag, building the package from head"
         else throwM $ NoTagException versionTxt
 
@@ -366,9 +363,7 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
         Windows -> void $ zipFileWindows mainAppDir appName
 
     unless buildHead $ Shelly.switchVerbosity $ Shelly.chdir appPath $ do
-        Shelly.cmd "git" "stash"
         Shelly.cmd "git" "checkout" currBranch
-        Shelly.cmd "git" "stash" "pop"
 
 updateConfig :: Repo -> ResolvedApplication -> Repo
 updateConfig config resolvedApplication =
