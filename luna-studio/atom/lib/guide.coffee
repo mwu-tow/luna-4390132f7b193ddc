@@ -195,6 +195,13 @@ module.exports =
                         @highlightedElem.dispatchEvent mkEvent 'mouseup'
                     @highlightedElem.dispatchEvent mkEvent action
 
+        setEventFilter: =>
+            @currentStep.allow ?= []
+            filters = []
+            for r in @currentStep.allow
+                filters.push new RegExp r
+            @nodeEditor.setEventFilter filters
+
         displayStep: (retry = false) =>
             @setHighlightedElem()
             windowRect = document.body.getBoundingClientRect()
@@ -216,6 +223,7 @@ module.exports =
                 return
 
             @installHandlers()
+            @setEventFilter()
 
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerHTML = converter.makeHtml @currentStep.description
