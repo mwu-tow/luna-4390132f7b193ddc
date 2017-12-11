@@ -1,7 +1,6 @@
-Mixpanel = require 'mixpanel'
+mixpanel = require 'mixpanel-browser'
 
-mixpanel = Mixpanel.init "0d906436719b047c86b7fee8ae550601",
-    protocol: 'https'
+mixpanel.init '0d906436719b047c86b7fee8ae550601'
 
 filters = []
 
