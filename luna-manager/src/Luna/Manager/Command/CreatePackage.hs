@@ -90,6 +90,7 @@ instance Monad m => MonadHostConfig PackageConfig 'Darwin arch m where
 instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & defaultPackagePath .~ "C:\\tmp\\luna-package"
+                           & buildScriptPath    .~ "scripts_build\\build.py"
 
 data AppimageException = AppimageException SomeException deriving (Show)
 instance Exception AppimageException where
@@ -196,9 +197,11 @@ runPkgBuildScript repoPath s3GuiURL = do
     Logger.log "Running package build script"
     pkgConfig <- get @PackageConfig
     buildPath <- expand $ repoPath </> (pkgConfig ^. buildScriptPath)
-
+    let guiUrl = maybeToList $ ("--gui_url=" <>) <$> s3GuiURL
     Shelly.chdir (parent buildPath) $ Shelly.switchVerbosity $
-        Shelly.run_ buildPath $ ["--release"] ++ (maybeToList $ ("--gui_url=" <>) <$> s3GuiURL)
+        case currentHost of
+            Windows -> Shelly.cmd "py" buildPath $ ["--release"] ++ guiUrl
+            _       -> Shelly.run_ buildPath $ ["--release"] ++ guiUrl
 
 copyFromDistToDistPkg :: MonadCreatePackage m => Text -> FilePath -> m ()
 copyFromDistToDistPkg appName repoPath = do
