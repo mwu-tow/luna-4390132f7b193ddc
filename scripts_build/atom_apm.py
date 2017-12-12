@@ -17,7 +17,6 @@ import system as system
 from common import working_directory
 import stack_build
 import atom_prepare
-
 import re, tempfile
 
 #########################################################
@@ -38,7 +37,7 @@ paths = {
     system.systems.WINDOWS: {
         'apm': '/Atom/resources/app/apm/bin/apm.cmd',
         'oniguruma': '/Atom/resources/app/node_modules/oniguruma',
-        'package_json': '', #check it!
+        'package_json': '/Atom/resources/app/package.json',
     },
     system.systems.LINUX: {
         'apm': '/atom/usr/share/atom/resources/app/apm/bin/apm',
