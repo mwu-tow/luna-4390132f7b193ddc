@@ -243,4 +243,17 @@ atom-workspace .luna-studio {
     background:    @luna-error-background;
     align-self:    flex-end;
     margin-bottom: unit(@luna-border-radius,px);
+    max-width:     calc(100% ~'-' 2 * unit(@luna-grid-size,px));
+    overflow:      hidden;
+    word-break:    break-word;    
+}
+atom-notifications atom-notification.error, 
+atom-notifications atom-notification.fatal, 
+atom-notifications atom-notification.warning, 
+atom-notifications atom-notification.info, 
+atom-notifications atom-notification.success {
+    &::before,
+    .content { 
+        border-color: @luna-graph-background-color !important;
+    }
 }
