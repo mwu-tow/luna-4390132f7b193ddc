@@ -82,10 +82,11 @@ nodeEditor = React.defineView name $ \(ref, ne, isTopLevel) -> do
     case ne ^. NodeEditor.graphStatus of
         GraphLoading -> noGraph_ LoadingMode "Loading…"
         NoGraph      -> noGraph_ EmptyMode ""
-        GraphLoaded  -> graph_ ref ne isTopLevel
-        GraphError e -> div_ $ do
-            div_ ["className" $= Style.prefix "graph-error"] $ elemString $ convert $ e ^. errorContent
+        GraphLoaded  -> div_ ["className" $= Style.prefix "graph-container" ] $ graph_ ref ne isTopLevel
+        GraphError e -> div_ ["className" $= Style.prefixFromList [ "graph-container", "graph-container--error" ] ] $ do
             graph_ ref ne isTopLevel
+            div_ ["className" $= Style.prefix "graph-error"] $ div_ ["className" $= Style.prefix "graph-error__message"] $ elemString $ convert $ e ^. errorContent
+            
 
 graph_ :: IsRef r => r -> NodeEditor -> Bool -> ReactElementM ViewEventHandler ()
 graph_ ref ne isTopLevel = React.viewWithSKey graph name (ref, ne, isTopLevel) mempty
