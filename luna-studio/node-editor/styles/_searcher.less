@@ -9,6 +9,12 @@
 
 @searcherWidth:      400px;
 
+.luna-studio-window--has-searcher {
+    .luna-studio-window__center {
+        z-index: @luna-zindex-searcher;
+    }
+}
+
 .luna-node__name,
 .luna-node__expression {
     min-height: calc(@ui ~'*' @luna-line-height);
