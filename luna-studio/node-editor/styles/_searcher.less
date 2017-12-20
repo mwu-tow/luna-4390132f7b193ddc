@@ -15,6 +15,15 @@
     }
 }
 
+.luna-port-sidebar {
+    @p: 10px; //calc(@ui ~'*' unit(@luna-grid-size, px) / 1.6);
+    .luna-searcher__input {
+        padding:  0 @p; 
+        position: relative;
+        left:    -@p;
+    }
+}
+
 .luna-node__name,
 .luna-node__expression {
     min-height: calc(@ui ~'*' @luna-line-height);
