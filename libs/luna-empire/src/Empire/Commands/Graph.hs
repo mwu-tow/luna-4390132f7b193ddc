@@ -1090,7 +1090,6 @@ markFunctions unit = do
     IR.matchExpr klass' $ \case
         IR.ClsASG _ _ _ _ funs -> do
             forM_ funs $ \fun -> IR.source fun >>= \asgFun -> IR.matchExpr asgFun $ \case
-                IR.Marked{}            -> return ()
                 IR.ASGRootedFunction{} -> do
                     newMarker <- getNextTopLevelMarker
                     funStart  <- Code.functionBlockStartRef asgFun
@@ -1104,6 +1103,7 @@ markFunctions unit = do
                     IR.putLayer @CodeSpan markedFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (prevLen + markerLength)))
                     IR.putLayer @CodeSpan asgFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 prevLen))
                     IR.replaceSource markedFun fun
+                _ -> return ()
 
 loadCode :: GraphLocation -> Text -> Empire ()
 loadCode (GraphLocation file _) code = do
