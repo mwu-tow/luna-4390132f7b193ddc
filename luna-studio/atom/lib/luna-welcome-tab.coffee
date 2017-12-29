@@ -20,7 +20,7 @@ class LunaWelcomeTab extends View
     @content: -> @div =>
         @div class: 'luna-welcome-scroll', outlet: 'welcomePanel', =>
             @div class: 'luna-welcome-background', outlet: 'background', =>
-                @div class: 'luna-welcome', =>
+                @div class: 'luna-welcome', outlet: 'welcomeModal', =>
                     @div class: 'luna-welcome__header', =>
                         @h1 class: 'luna-welcome__title', 'Welcome to Luna Studio'
                         @div class: 'luna-welcome__header__menu', =>
@@ -77,7 +77,7 @@ class LunaWelcomeTab extends View
         @comunnityNew = new ProjectItem({name: 'New Project', uri: null}, comunnityNewClasses, (progress, finalize) =>
             finalize()
             report.displayError 'Not supported yet', 'Community projects are not supported yet')
-        @welcomePanel.on 'click', (e) -> e.stopPropagation()
+        @welcomeModal.on 'click', (e) -> e.stopPropagation()
         @searchInput.on 'search', @search
         @searchInput.on 'keyup', @search
         @background.on 'click', @detach
