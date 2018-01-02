@@ -252,10 +252,13 @@ handleAddSubgraph = modifyGraph defInverse action replyResult where
 handleAutolayoutNodes :: Request AutolayoutNodes.Request -> StateT Env BusT ()
 handleAutolayoutNodes = modifyGraph inverse action replyResult where
     inverse (AutolayoutNodes.Request location nodeLocs _) = do
-        positions <- Graph.getNodePositions location nodeLocs
-        return $ AutolayoutNodes.Inverse $ catMaybes positions
+        let getNlAndPos :: NodeLoc -> Empire (Maybe (NodeLoc, Position))
+            getNlAndPos nl = do
+                mayMeta <- Graph.getNodeMeta location $ convert nl --TODO[PM -> MM] Use NodeLoc instead of NodeId
+                return $ (nl,) . view NodeMeta.position <$> mayMeta
+        AutolayoutNodes.Inverse . catMaybes <$> mapM getNlAndPos nodeLocs
     action (AutolayoutNodes.Request location nodeLocs _) = withDefaultResult location $
-        Graph.autolayoutNodes location (convert <$> nodeLocs) --TODO[PM -> MM] Use NodeLoc instead of NodeId
+        Graph.withGraph location $ runASTOp $ Graph.autolayoutNodes (convert <$> nodeLocs) --TODO[PM -> MM] Use NodeLoc instead of NodeId
 
 handleCollapseToFunction :: Request CollapseToFunction.Request -> StateT Env BusT ()
 handleCollapseToFunction = modifyGraph defInverse action replyResult where
