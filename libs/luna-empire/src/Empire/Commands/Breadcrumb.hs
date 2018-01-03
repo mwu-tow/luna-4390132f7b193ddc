@@ -70,7 +70,7 @@ makeGraphCls fun lastUUID = do
     uuid      <- maybe (liftIO UUID.nextRandom) return lastUUID
     (funName, IR.Rooted ir ref, fileOffset) <- runASTOp $ do
         IR.putLayer @Marker fun $ Just $ OutPortRef (NodeLoc def uuid) []
-        asgFun    <- ASTRead.cutThroughMarked fun
+        asgFun    <- ASTRead.cutThroughDocAndMarked fun
         IR.matchExpr asgFun $ \case
             IR.ASGRootedFunction n root -> do
                 offset <- functionBlockStartRef asgFun
@@ -140,7 +140,7 @@ withRootedFunction uuid act = do
     diffs <- runASTOp $ do
         cls <- use Graph.clsClass
         funs <- ASTRead.classFunctions cls
-        forM funs $ \fun -> ASTRead.cutThroughMarked fun >>= \f -> IR.matchExpr f $ \case
+        forM funs $ \fun -> ASTRead.cutThroughDocAndMarked fun >>= \f -> IR.matchExpr f $ \case
             IR.ASGRootedFunction n _ -> do
                 nodeId <- ASTRead.getNodeId fun
                 if (nodeId == Just uuid) then do

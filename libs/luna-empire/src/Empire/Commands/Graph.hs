@@ -264,7 +264,7 @@ addFunNode :: GraphLocation -> FunctionParsing -> NodeId -> Text -> NodeMeta -> 
 addFunNode loc parsing uuid expr meta = withUnit loc $ do
     (parse, code) <- ASTParse.runFunHackParser expr parsing
     (name, markedFunction, markedCode) <- runASTOp $ do
-        name <- IR.matchExpr parse $ \case
+        name <- ASTRead.cutThroughDocAndMarked parse >>= \x -> IR.matchExpr x $ \case
             IR.ASGRootedFunction n _ -> do
                 name <- ASTRead.getVarName' =<< IR.source n
                 return $ nameToString name
@@ -562,8 +562,6 @@ removeNodes :: GraphLocation -> [NodeId] -> Empire ()
 removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
     withUnit loc $ do
         funs <- use Graph.clsFuns
-        let funsUUIDs = Map.fromList $ map (\(k, fun) -> (k, fun ^. Graph.funName)) $ Map.assocs funs
-            funsToRemove = catMaybes $ map (flip Map.lookup funsUUIDs) nodeIds
 
         let graphsToRemove = Map.elems $ Map.filterWithKey (\a _ -> a `elem` nodeIds) funs
         Graph.clsFuns .= Map.filterWithKey (\a _ -> a `notElem` nodeIds) funs
@@ -576,12 +574,10 @@ removeNodes loc@(GraphLocation file (Breadcrumb [])) nodeIds = do
                 IR.ClsASG _ _ _ _ f -> do
                     links <- mapM (\link -> (link,) <$> IR.source link) f
                     forM links $ \(link, fun) -> do
-                        fun' <- ASTRead.cutThroughMarked fun
-                        IR.matchExpr fun' $ \case
-                            IR.ASGRootedFunction n _ -> do
-                                name <- ASTRead.getVarName' =<< IR.source n
-                                return $ if convert name `elem` funsToRemove then Left link else Right link
-                            IR.Metadata{} -> return $ Right link
+                        nid <- ASTRead.getNodeId fun
+                        return $ case nid of
+                            Just i -> if i `elem` nodeIds then Left link else Right link
+                            _      -> Right link
             let (toRemove, left) = partitionEithers funs
             spans <- forM toRemove $ \candidate -> do
                 ref <- IR.source candidate
@@ -899,10 +895,9 @@ renameNode loc nid name
             oldName <- use $ Graph.clsFuns . ix nid . Graph.funName
             Graph.clsFuns %= Map.adjust (Graph.funName .~ (Text.unpack stripped)) nid
             runASTOp $ do
-                fun     <- ASTRead.getFunByNodeId nid >>= ASTRead.cutThroughMarked
+                fun     <- ASTRead.getFunByNodeId nid >>= ASTRead.cutThroughDocAndMarked
                 IR.matchExpr fun $ \case
                     IR.ASGRootedFunction n _ -> flip ASTModify.renameVar (convert stripped) =<< IR.source n
-                    _                        -> return ()
         withGraph (GraphLocation f (Breadcrumb [Breadcrumb.Definition nid])) $ runASTOp $ do
             self <- use $ Graph.breadcrumbHierarchy . BH.self
             v    <- ASTRead.getVarNode self
@@ -1103,25 +1098,36 @@ getNextTopLevelMarker = do
     Code.invalidateMarker newMarker
     return newMarker
 
+getASGRootedFunctionLink :: ClassOp m => EdgeRef -> m EdgeRef
+getASGRootedFunctionLink link = do
+    ref <- IR.source link
+    IR.matchExpr ref $ \case
+        IR.Documented _d e -> return e
+        IR.Marked     _m e -> return e
+        _                  -> return link
+
 markFunctions :: ClassOp m => NodeRef -> m ()
 markFunctions unit = do
     klass' <- ASTRead.classFromUnit unit
     IR.matchExpr klass' $ \case
         IR.ClsASG _ _ _ _ funs -> do
-            forM_ funs $ \fun -> IR.source fun >>= \asgFun -> IR.matchExpr asgFun $ \case
+            forM_ funs $ \fun -> IR.source fun >>= \asgFun -> ASTRead.cutThroughDoc asgFun >>= \f -> IR.matchExpr f $ \case
+                IR.Marked{}            -> return ()
                 IR.ASGRootedFunction{} -> do
                     newMarker <- getNextTopLevelMarker
-                    funStart  <- Code.functionBlockStartRef asgFun
+                    funStart  <- Code.functionBlockStartRef f
                     Code.insertAt funStart (Code.makeMarker newMarker)
                     marker    <- IR.marker' newMarker
-                    markedFun <- IR.marked' marker asgFun
+                    markedFun <- IR.marked' marker f
                     Graph.clsCodeMarkers . at newMarker ?= markedFun
-                    LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan asgFun
+                    LeftSpacedSpan (SpacedSpan off prevLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan f
                     let markerLength = convert $ Text.length $ Code.makeMarker newMarker
                     IR.putLayer @CodeSpan marker $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 markerLength))
-                    IR.putLayer @CodeSpan markedFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (prevLen + markerLength)))
-                    IR.putLayer @CodeSpan asgFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 prevLen))
-                    IR.replaceSource markedFun fun
+                    IR.putLayer @CodeSpan markedFun $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off prevLen))
+                    IR.putLayer @CodeSpan f $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan 0 prevLen))
+                    asgLink <- getASGRootedFunctionLink fun
+                    IR.replaceSource markedFun asgLink
+                    Code.gossipLengthsChangedByCls markerLength markedFun
                 _ -> return ()
 
 loadCode :: GraphLocation -> Text -> Empire ()
@@ -1152,7 +1158,7 @@ loadCode (GraphLocation file _) code = do
         runASTOp $ do
             markFunctions klass
             funs <- ASTRead.classFunctions klass
-            forM funs $ \f -> IR.matchExpr f $ \case
+            forM funs $ \f -> ASTRead.cutThroughDoc f >>= \fun -> IR.matchExpr fun $ \case
                 IR.Marked m _e -> do
                     marker <- getMarker =<< IR.source m
                     uuid   <- use $ Graph.nodeCache . nodeIdMap . at marker

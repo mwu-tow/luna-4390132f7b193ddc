@@ -373,5 +373,17 @@ gossipLengthsChangedBy delta ref = do
     succNodes <- mapM IR.readTarget succs
     mapM_ (gossipLengthsChangedBy delta) succNodes
 
+addToLengthCls :: ClassOp m => NodeRef -> Delta -> m ()
+addToLengthCls ref delta = do
+    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
+    IR.putLayer @CodeSpan ref $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (len + delta)))
+
+gossipLengthsChangedByCls :: ClassOp m => Delta -> NodeRef -> m ()
+gossipLengthsChangedByCls delta ref = do
+    addToLengthCls ref delta
+    succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
+    succNodes <- mapM IR.readTarget succs
+    mapM_ (gossipLengthsChangedByCls delta) succNodes
+
 makeMarker :: Word64 -> Text
 makeMarker s = Text.pack $ "«" <> show s <> "»"

@@ -47,6 +47,17 @@ cutThroughMarked r = match r $ \case
     Marked m expr -> cutThroughMarked =<< IR.source expr
     _             -> return r
 
+cutThroughDoc :: ClassOp m => NodeRef -> m NodeRef
+cutThroughDoc r = match r $ \case
+    Documented _d expr -> cutThroughDoc =<< IR.source expr
+    _                  -> return r
+
+cutThroughDocAndMarked :: ClassOp m => NodeRef -> m NodeRef
+cutThroughDocAndMarked r = match r $ \case
+    Marked _m expr  -> cutThroughDocAndMarked =<< IR.source expr
+    Documented _d a -> cutThroughDocAndMarked =<< IR.source a
+    _               -> return r
+
 isInputSidebar :: GraphOp m => NodeId -> m Bool
 isInputSidebar nid = do
     lambda <- use Graph.breadcrumbHierarchy
@@ -377,7 +388,7 @@ classFunctions unit = do
     IR.matchExpr klass' $ \case
         IR.ClsASG _ _ _ _ funs -> do
             funs' <- mapM IR.source funs
-            catMaybes <$> forM funs' (\f -> cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
+            catMaybes <$> forM funs' (\f -> cutThroughDocAndMarked f >>= \fun -> IR.matchExpr fun $ \case
                 IR.ASGRootedFunction{} -> return (Just f)
                 _                      -> return Nothing)
         _ -> return []
