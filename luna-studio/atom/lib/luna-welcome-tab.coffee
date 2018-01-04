@@ -18,7 +18,7 @@ class LunaWelcomeTab extends View
         super
 
     @content: -> @div =>
-        @div class: 'luna-welcome-scroll', outlet: 'welcomePanel', =>
+        @div class: 'luna-welcome-scroll', =>
             @div class: 'luna-welcome-background', outlet: 'background', =>
                 @div class: 'luna-welcome', outlet: 'welcomeModal', =>
                     @div class: 'luna-welcome__header', =>
