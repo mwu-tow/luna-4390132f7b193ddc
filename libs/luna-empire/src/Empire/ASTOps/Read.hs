@@ -47,6 +47,17 @@ cutThroughMarked r = match r $ \case
     Marked m expr -> cutThroughMarked =<< IR.source expr
     _             -> return r
 
+cutThroughDoc :: ClassOp m => NodeRef -> m NodeRef
+cutThroughDoc r = match r $ \case
+    Documented _d expr -> cutThroughDoc =<< IR.source expr
+    _                  -> return r
+
+cutThroughDocAndMarked :: ClassOp m => NodeRef -> m NodeRef
+cutThroughDocAndMarked r = match r $ \case
+    Marked _m expr  -> cutThroughDocAndMarked =<< IR.source expr
+    Documented _d a -> cutThroughDocAndMarked =<< IR.source a
+    _               -> return r
+
 isInputSidebar :: GraphOp m => NodeId -> m Bool
 isInputSidebar nid = do
     lambda <- use Graph.breadcrumbHierarchy
@@ -89,7 +100,10 @@ getNodeId :: ASTOp g m => NodeRef -> m (Maybe NodeId)
 getNodeId node = do
     rootNodeId <- preview (_Just . PortRef.srcNodeLoc . NodeLoc.nodeId) <$> IR.getLayer @Marker node
     varNodeId  <- (getVarNode node >>= getNodeId) `catch` (\(_e :: NotUnifyException) -> return Nothing)
-    return $ rootNodeId <|> varNodeId
+    varsInside <- (getVarsInside =<< getVarNode node) `catch` (\(_e :: NotUnifyException) -> return [])
+    varsNodeIds <- mapM getNodeId varsInside
+    let leavesNodeId = foldl' (<|>) Nothing varsNodeIds
+    return $ rootNodeId <|> varNodeId <|> leavesNodeId
 
 getPatternNames :: GraphOp m => NodeRef -> m [String]
 getPatternNames node = match node $ \case
@@ -117,7 +131,7 @@ getVarName' node = match node $ \case
 getVarName :: ASTOp a m => NodeRef -> m String
 getVarName = fmap nameToString . getVarName'
 
-getVarsInside :: GraphOp m => NodeRef -> m [NodeRef]
+getVarsInside :: ASTOp g m => NodeRef -> m [NodeRef]
 getVarsInside e = do
     isVar <- isJust <$> IRExpr.narrowTerm @IR.Var e
     if isVar then return [e] else concat <$> (mapM (getVarsInside <=< IR.source) =<< IR.inputs e)
@@ -374,7 +388,7 @@ classFunctions unit = do
     IR.matchExpr klass' $ \case
         IR.ClsASG _ _ _ _ funs -> do
             funs' <- mapM IR.source funs
-            catMaybes <$> forM funs' (\f -> cutThroughMarked f >>= \fun -> IR.matchExpr fun $ \case
+            catMaybes <$> forM funs' (\f -> cutThroughDocAndMarked f >>= \fun -> IR.matchExpr fun $ \case
                 IR.ASGRootedFunction{} -> return (Just f)
                 _                      -> return Nothing)
         _ -> return []

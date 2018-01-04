@@ -40,6 +40,7 @@ import           Luna.Syntax.Text.Analysis.SpanTree as SpanTree
 
 import           LunaStudio.Data.Breadcrumb         (Breadcrumb(..), BreadcrumbItem(..))
 import           LunaStudio.Data.Node               (NodeId)
+import qualified LunaStudio.Data.NodeCache          as NodeCache
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 
 import           LunaStudio.Data.Point (Point(Point))
@@ -216,10 +217,10 @@ getNextExprMarker = do
 
 invalidateMarker :: (ASTOp g m, HasNodeCache g) => Word64 -> m ()
 invalidateMarker index = do
-    oldId <- use $ Graph.nodeCache . Graph.nodeIdMap . at index
-    Graph.nodeCache . Graph.nodeIdMap . at index .= Nothing
-    Graph.nodeCache . Graph.nodeMetaMap . at index .= Nothing
-    Graph.nodeCache . Graph.portMappingMap %= Map.filterWithKey (\(nid,_) _ -> Just nid /= oldId)
+    oldId <- use $ Graph.nodeCache . NodeCache.nodeIdMap . at index
+    Graph.nodeCache . NodeCache.nodeIdMap . at index .= Nothing
+    Graph.nodeCache . NodeCache.nodeMetaMap . at index .= Nothing
+    Graph.nodeCache . NodeCache.portMappingMap %= Map.filterWithKey (\(nid,_) _ -> Just nid /= oldId)
 
 addCodeMarker :: GraphOp m => Delta -> EdgeRef -> m NodeRef
 addCodeMarker beg edge = do
@@ -371,6 +372,18 @@ gossipLengthsChangedBy delta ref = do
     succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
     succNodes <- mapM IR.readTarget succs
     mapM_ (gossipLengthsChangedBy delta) succNodes
+
+addToLengthCls :: ClassOp m => NodeRef -> Delta -> m ()
+addToLengthCls ref delta = do
+    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
+    IR.putLayer @CodeSpan ref $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (len + delta)))
+
+gossipLengthsChangedByCls :: ClassOp m => Delta -> NodeRef -> m ()
+gossipLengthsChangedByCls delta ref = do
+    addToLengthCls ref delta
+    succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
+    succNodes <- mapM IR.readTarget succs
+    mapM_ (gossipLengthsChangedByCls delta) succNodes
 
 makeMarker :: Word64 -> Text
 makeMarker s = Text.pack $ "«" <> show s <> "»"
