@@ -27,10 +27,10 @@
     shell: 'source {{ luna_studio_dir }}/luna-shell.sh && luna-manager next-version {{ luna_studio_dir }}/luna-package.yaml'
     args:
       executable: /bin/bash
-      chdir: {{ luna_manager_dir }}
+      chdir: '{{ luna_manager_dir }}'
 
   - name: build luna luna package
     shell: 'source {{ luna_studio_dir }}/luna-shell.sh && python deploy/build_package.py -p {{ luna_studio_dir }}'
     args:
       executable: /bin/bash
-      chdir: {{ luna_manager_dir }}
+      chdir: '{{ luna_manager_dir }}'

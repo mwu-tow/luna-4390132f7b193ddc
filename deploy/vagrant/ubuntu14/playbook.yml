@@ -49,8 +49,6 @@
       name: pip
       state: latest
 
-  - debug: msg={{ home }}
-
   - name: download luna manager
     get_url:
       url: '{{ luna_manager_url }}'
