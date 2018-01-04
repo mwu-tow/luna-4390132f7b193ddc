@@ -27,11 +27,11 @@
 @width:                 52.5*@grid;
 @padding:               2*@grid;
 
-.hide-scrollbar() {
-	&::-webkit-scrollbar {
-	    display: none;
-	}
-}
+// .hide-scrollbar() {
+// 	&::-webkit-scrollbar {
+// 	   display: none;
+// 	}
+// }
 
 atom-panel.modal.overlay.from-top::before { // TODO: Make it more specific - use a global class?
 	background-color: #000;
@@ -47,10 +47,10 @@ atom-panel.modal.overlay.from-top { // TODO: Make it more specific - use a globa
 	top:        0;
 	bottom:     0;
 	left:       0;
-	overflow-y: scroll;
-	overflow-x: hidden;
+	overflow-y: auto;
+	overflow-x: auto;
 	width:      100%;
-	.hide-scrollbar;
+	//.hide-scrollbar;
 }
 
 .luna-welcome {
