@@ -199,7 +199,7 @@ module.exports =
             allowed = []
             @currentStep.allow ?= []
             for r in @currentStep.allow
-                regexp = if r.regexp then r.regexp else r
+                regexp = if r.regexp? then r.regexp else r
                 temp = {}
                 temp.regexp   = new RegExp regexp
                 temp.nodeName = r.nodeName
@@ -209,7 +209,7 @@ module.exports =
             blocked = []
             @currentStep.block ?= []
             for r in @currentStep.block
-                regexp = if r.regexp then r.regexp else r
+                regexp = if r.regexp? then r.regexp else r
                 temp = {}
                 temp.regexp   = new RegExp regexp
                 temp.nodeName = r.nodeName

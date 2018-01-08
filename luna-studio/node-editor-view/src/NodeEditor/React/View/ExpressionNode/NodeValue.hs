@@ -5,7 +5,7 @@ import           Common.Prelude
 import qualified Data.Text                                  as Text
 import qualified LunaStudio.Data.Error                      as LunaError
 import qualified NodeEditor.Event.UI                        as UI
-import qualified NodeEditor.React.Event.Node                as Node hiding (nodeLoc)
+import qualified NodeEditor.React.Event.Node                as Node
 import           NodeEditor.React.IsRef                     (IsRef, dispatch)
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, Value (..))
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
@@ -30,7 +30,7 @@ nodeValue = React.defineView nodeValueName $ \(ref, n) ->
             [ "key"       $= "shortValue"
             , "className" $= Style.prefixFromList ["node__short-value", "noselect" ]
             , onDoubleClick $ \e _ -> [stopPropagation e]
-            , onClick       $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.ShowFullError $ n ^. Node.nodeLoc
+            , onClick       $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.Event (n ^. Node.nodeLoc) Node.ShowFullError
             ] $ elemString $ strValue n
 
 strValue :: ExpressionNode -> String
