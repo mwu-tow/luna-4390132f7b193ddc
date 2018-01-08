@@ -5,7 +5,7 @@ import           Common.Prelude
 import qualified Data.Text                                  as Text
 import qualified LunaStudio.Data.Error                      as LunaError
 import qualified NodeEditor.Event.UI                        as UI
-import qualified NodeEditor.React.Event.Node                as Node
+import qualified NodeEditor.React.Event.Node                as Node hiding (nodeLoc)
 import           NodeEditor.React.IsRef                     (IsRef, dispatch)
 import           NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, Value (..))
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node

@@ -2,24 +2,16 @@
 {-# LANGUAGE StrictData     #-}
 module NodeEditor.React.Event.Node where
 
+import           Common.Data.Event       (EventName)
 import           Common.Prelude
-import           Common.Data.Event           (EventName)
-import           LunaStudio.Data.NodeLoc     (NodeLoc)
-import           LunaStudio.Data.PortDefault (PortDefault)
-import           LunaStudio.Data.PortRef     (InPortRef)
-import           NodeEditor.Data.Slider      (InitValue)
-import           React.Flux                  (KeyboardEvent, MouseEvent)
+import           LunaStudio.Data.NodeLoc (NodeLoc)
+import           React.Flux              (KeyboardEvent, MouseEvent)
 
 
 data Event = EditExpression                     NodeLoc
            | EditName                           NodeLoc
            | Enter                              NodeLoc
            | MouseDown            MouseEvent    NodeLoc
-           | PortApplyString      KeyboardEvent InPortRef PortDefault
-           | EditTextPortControl                InPortRef Text
-           | EditTextPortControlBlur
-           | PortInitSlider       MouseEvent    InPortRef InitValue
-           | PortSetPortDefault                 InPortRef PortDefault
            | Select               MouseEvent    NodeLoc
            | SetExpression                      NodeLoc Text
            | MouseEnter                         NodeLoc
@@ -28,3 +20,15 @@ data Event = EditExpression                     NodeLoc
             deriving (Show, Generic, NFData, Typeable)
 
 instance EventName Event
+
+nodeLoc :: Getter Event NodeLoc
+nodeLoc = to nodeLoc' where
+    nodeLoc' (EditExpression   nl)   = nl
+    nodeLoc' (EditName         nl)   = nl
+    nodeLoc' (Enter            nl)   = nl
+    nodeLoc' (MouseDown      _ nl)   = nl
+    nodeLoc' (Select         _ nl)   = nl
+    nodeLoc' (SetExpression    nl _) = nl
+    nodeLoc' (MouseEnter       nl)   = nl
+    nodeLoc' (MouseLeave       nl)   = nl
+    nodeLoc' (ShowFullError    nl)   = nl

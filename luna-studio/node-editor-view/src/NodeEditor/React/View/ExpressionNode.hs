@@ -21,10 +21,10 @@ import           LunaStudio.Data.PortRef                              (InPortRef
 import qualified LunaStudio.Data.PortRef                              as PortRef
 import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
-import qualified NodeEditor.React.Event.Node                          as Node
+import qualified NodeEditor.React.Event.Node                          as Node hiding (nodeLoc)
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants                     (nodeRadius, selectionPadding, expandedNodePadding)
+import           NodeEditor.React.Model.Constants                     (expandedNodePadding, nodeRadius, selectionPadding)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
                                                                        countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,

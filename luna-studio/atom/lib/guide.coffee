@@ -196,11 +196,26 @@ module.exports =
                     @highlightedElem.dispatchEvent mkEvent action
 
         setEventFilter: =>
+            allowed = []
             @currentStep.allow ?= []
-            filters = []
             for r in @currentStep.allow
-                filters.push new RegExp r
-            @nodeEditor.setEventFilter filters
+                regexp = if r.regexp then r.regexp else r
+                temp = {}
+                temp.regexp   = new RegExp regexp
+                temp.nodeName = r.nodeName
+                temp.portId   = r.portId
+                allowed.push temp
+
+            blocked = []
+            @currentStep.block ?= []
+            for r in @currentStep.block
+                regexp = if r.regexp then r.regexp else r
+                temp = {}
+                temp.regexp   = new RegExp regexp
+                temp.nodeName = r.nodeName
+                temp.portId   = r.portId
+                blocked.push temp
+            @nodeEditor.setEventFilter blocked, allowed
 
         displayStep: (retry = false) =>
             @setHighlightedElem()
@@ -306,7 +321,7 @@ module.exports =
 
         detach: =>
             if @panel.isVisible()
-                @nodeEditor.setEventFilter []
+                @nodeEditor.setEventFilter [], []
                 @panel.hide()
 
         disable: =>
