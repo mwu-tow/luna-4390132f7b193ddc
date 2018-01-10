@@ -196,25 +196,20 @@ module.exports =
                     @highlightedElem.dispatchEvent mkEvent action
 
         setEventFilter: =>
-            allowed = []
-            @currentStep.allow ?= []
-            for r in @currentStep.allow
-                regexp = if r.regexp? then r.regexp else r
-                temp = {}
-                temp.regexp   = new RegExp regexp
-                temp.nodeName = r.nodeName
-                temp.portId   = r.portId
-                allowed.push temp
+            prepareRestriction = (entry) ->
+                regexp = if entry.regexp? then entry.regexp else entry
+                result =
+                    regexp:   new RegExp regexp
+                    nodeName: entry.nodeName
+                    portId:   entry.portId
+                return result;
 
-            blocked = []
+            @currentStep.allow ?= []
+            allowed = @currentStep.allow.map prepareRestriction
+
             @currentStep.block ?= []
-            for r in @currentStep.block
-                regexp = if r.regexp? then r.regexp else r
-                temp = {}
-                temp.regexp   = new RegExp regexp
-                temp.nodeName = r.nodeName
-                temp.portId   = r.portId
-                blocked.push temp
+            blocked = @currentStep.block.map prepareRestriction
+
             @nodeEditor.setEventFilter blocked, allowed
 
         displayStep: (retry = false) =>

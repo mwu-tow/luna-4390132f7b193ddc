@@ -66,17 +66,15 @@ module.exports =
         eventFilters = { blockedEvents: blocked, allowedEvents: allowed }
     acceptEvent: (event) =>
         event    = JSON.parse event
-        nodeInfo = event.eventInfo.nodeInfo
-        nodeName = if nodeInfo? then nodeInfo.nodeName else null
-        portId   = if nodeInfo? and nodeInfo.portInfo? then nodeInfo.portInfo.portId else null
-        if eventFilters.blockedEvents.length == 0 and eventFilters.allowedEvents.length == 0
-            return true
-        for p in eventFilters.allowedEvents
-            if (p.regexp.test event.name) and ((not p.nodeName?) or (p.nodeName == nodeName)) and ((not p.portId?) or (p.portId == portId))
-                return true
-        if eventFilters.blockedEvents.length == 0
-            return false
-        for p in eventFilters.blockedEvents
-            if (p.regexp.test event.name) and ((not p.nodeName?) or (p.nodeName == nodeName)) and ((not p.portId?) or (p.portId == portId))
-                return false
-        return true
+        eventMatchesRestriction = (evt, restriction) ->
+            nodeInfo = evt.eventInfo.nodeInfo
+            nodeName = nodeInfo?.nodeName
+            portId   = nodeInfo?.portInfo?.portId
+            eventNameMatches = restriction.regexp.test event.name
+            nodeNameMatches  = (not restriction.nodeName?) or (restriction.nodeName == nodeName)
+            portIdMatches    = (not restriction.portId?)   or (restriction.portId   == portId)
+            eventNameMatches and nodeNameMatches and portIdMatches
+        noRestrictions = eventFilters.blockedEvents.length == 0 and eventFilters.allowedEvents.length == 0
+        matchesAllowed = eventFilters.allowedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+        matchesBlocked = eventFilters.blockedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+        noRestrictions or matchesAllowed or not (eventFilters.blockedEvents.length == 0 or matchesBlocked)
