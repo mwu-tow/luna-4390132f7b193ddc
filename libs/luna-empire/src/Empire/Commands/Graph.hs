@@ -11,7 +11,8 @@
 {-# LANGUAGE ViewPatterns          #-}
 
 module Empire.Commands.Graph
-    ( addNode
+    ( addImports
+    , addNode
     , addNodeCondTC
     , addNodeWithConnection
     , addPort
@@ -190,6 +191,10 @@ import qualified Path
 import qualified Safe
 import           System.Directory                 (canonicalizePath)
 import           System.Environment               (getEnv)
+
+addImports :: GraphLocation -> [Text] -> Empire ()
+addImports (GraphLocation file _) modules = withUnit (GraphLocation file def) $ do
+    return ()
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True

@@ -55,6 +55,7 @@ import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Control.Interpreter      as Interpreter
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
+import qualified LunaStudio.API.Graph.AddImports         as AddImports
 import qualified LunaStudio.API.Graph.AddNode            as AddNode
 import qualified LunaStudio.API.Graph.AddPort            as AddPort
 import qualified LunaStudio.API.Graph.AddSubgraph        as AddSubgraph
@@ -235,6 +236,11 @@ handleAddConnection = modifyGraph inverse action replyResult where
             OutPortRef' portRef -> InPortRef (portRef ^. PortRef.nodeLoc) []
     action  (AddConnection.Request location src' dst') = withDefaultResult location $
         Graph.connectCondTC True location (getSrcPort src') (getDstPort dst')
+
+handleAddImports :: Request AddImports.Request -> StateT Env BusT ()
+handleAddImports = modifyGraph defInverse action replyResult where
+    action (AddImports.Request location modules) = withDefaultResult location $
+        Graph.addImports location modules
 
 handleAddNode :: Request AddNode.Request -> StateT Env BusT ()
 handleAddNode = modifyGraph defInverse action replyResult where
