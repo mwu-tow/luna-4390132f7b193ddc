@@ -800,10 +800,10 @@ class Map k v:
             False: case (k < ky) of
                 True:
                     newL = l.insert k v
-                    Map._bin ky y newL r . _balanceL
+                    Map._bin ky y newL r
                 False:
                     newR = r.insert k v
-                    Map._bin ky y l newR . _balanceR
+                    Map._bin ky y l newR
 
     ## Map equality. Two maps are equal when they contain the same keys and the elements associated with each key are equal.
     def == that:
