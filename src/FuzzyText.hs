@@ -6,9 +6,11 @@ module FuzzyText
     , EntryType (..)
     , Match (..)
     , Scoring (..)
+    , ImportInfo(..)
     , Range
     , Score
     , ClassName
+    , ImportName
     , Bonus
     , Query
     , name
@@ -20,6 +22,9 @@ module FuzzyText
     , weight
     , entryType
     , className
+    , importInfo
+    , importName
+    , imported
     ) where
 
 import           Data.Char
@@ -31,18 +36,26 @@ import           Prologue
 
 
 
-type Score     = Bonus
-type Range     = (Int, Int)
-type Bonus     = Int
-type ClassName = Text
-type Query     = Text
+type Score      = Bonus
+type Range      = (Int, Int)
+type Bonus      = Int
+type ClassName  = Text
+type Query      = Text
+type ImportName = Text
 
 data EntryType = Function | Method ClassName | Constructor ClassName | Command deriving (Show, Eq)
 
-data RawEntry = RawEntry { _rName       :: Text
-                         , _rDoc        :: Text
-                         , _rEntryType  :: EntryType
-                         , _rWeight     :: Double 
+
+data ImportInfo = ImportInfo { _importName :: ImportName
+                             , _imported   :: Bool
+                             } deriving (Eq, Show)
+makeLenses ''ImportInfo
+
+data RawEntry = RawEntry { _rName      :: Text
+                         , _rDoc       :: Text
+                         , _rEntryType :: EntryType
+                         , _rWeight    :: Double 
+                         , _rImport    :: Maybe ImportInfo
                          } deriving (Show, Eq)
 makeLenses ''RawEntry
 
@@ -85,11 +98,12 @@ matchState :: Query -> (Maybe Scoring) -> RawEntry -> MatchState
 matchState q mayS e = MatchState q e (fromJust def mayS) def def def def
 
 class Entry a where
-    name      :: Getter a Text
-    doc       :: Getter a Text
-    weight    :: Getter a Double
-    entryType :: Getter a EntryType
-    className :: Getter a Text
+    name       :: Getter a Text
+    doc        :: Getter a Text
+    weight     :: Getter a Double
+    entryType  :: Getter a EntryType
+    importInfo :: Getter a (Maybe ImportInfo)
+    className  :: Getter a Text
     className = to className' where
         className' e = case e ^. entryType of
             Function       -> def
@@ -98,35 +112,48 @@ class Entry a where
             Command        -> def
 
 instance Entry RawEntry where
-    name      = rName
-    doc       = rDoc
-    weight    = rWeight
-    entryType = rEntryType
+    name       = rName
+    doc        = rDoc
+    weight     = rWeight
+    entryType  = rEntryType
+    importInfo = rImport
 
 instance Entry Match where
-    name      = entry . name
-    doc       = entry . doc
-    weight    = entry . weight
-    entryType = entry . entryType
+    name       = entry . name
+    doc        = entry . doc
+    weight     = entry . weight
+    entryType  = entry . entryType
+    importInfo = entry . importInfo
 
 instance Entry MatchState where
-    name      = msEntry . name
-    doc       = msEntry . doc
-    weight    = msEntry . weight
-    entryType = msEntry . entryType
+    name       = msEntry . name
+    doc        = msEntry . doc
+    weight     = msEntry . weight
+    entryType  = msEntry . entryType
+    importInfo = msEntry . importInfo
 
 instance Ord Match where
     m1 `compare` m2 = let 
         m1score = fromIntegral (m1 ^. score) * (m1 ^. weight)
         m2score = fromIntegral (m2 ^. score) * (m2 ^. weight)
+        exactMatchOrd =
+            if      m1 ^. exactMatch && not (m2 ^. exactMatch) then LT
+            else if not (m1 ^. exactMatch) && m2 ^. exactMatch then GT
+            else EQ            
+        importOrd = case (,) <$> (m1 ^. importInfo) <*> (m2 ^. importInfo) of
+            Nothing ->  EQ
+            Just (mi1, mi2) -> if mi1 ^. imported && not (mi2 ^. imported) then LT
+                else if not (mi1 ^. imported) && mi2 ^. imported then GT
+                else EQ
+
         compareScore = 
             if m1 ^. score == 0 && m2 ^. score == 0 then (m2 ^. weight) `compare` (m1 ^. weight)
             else if m1 ^. score < 0 && m2 ^. score < 0 then (1/m2score) `compare` (1/m1score)
             else m2score `compare` m1score
         in 
-            if m1 ^. exactMatch && not (m2 ^. exactMatch) then LT
-            else if not (m1 ^. exactMatch) && m2 ^. exactMatch then GT
-            else if compareScore /= EQ then compareScore
+            if      exactMatchOrd /= EQ then exactMatchOrd
+            else if importOrd     /= EQ then importOrd
+            else if compareScore  /= EQ then compareScore
             else (m1 ^. name) `compare` (m2 ^. name)
 
 
