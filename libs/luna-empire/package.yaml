@@ -36,6 +36,7 @@ ghc-options: -Wall
 dependencies:
     - aeson
     - aeson-pretty
+    - bimap
     - base
     - bytestring
     - containers

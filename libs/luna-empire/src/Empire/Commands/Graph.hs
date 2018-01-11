@@ -97,6 +97,7 @@ import           Control.Monad.State              hiding (when)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
 import qualified Data.Aeson.Text                  as Aeson
+import qualified Data.Bimap                       as Bimap
 import           Data.Coerce                      (coerce)
 import           Data.Char                        (isSeparator, isSpace, isUpper)
 import           Data.Foldable                    (toList)
@@ -187,6 +188,7 @@ import qualified LunaStudio.Data.Position         as Position
 import           LunaStudio.Data.Range            (Range(..))
 import qualified LunaStudio.Data.Range            as Range
 import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, replace)
+import           OCI.IR.Name.Qualified            (QualName)
 import qualified Path
 import qualified Safe
 import           System.Directory                 (canonicalizePath)
@@ -1724,24 +1726,30 @@ filterPrimMethods (Module.Imports classes funs) = Module.Imports classes properF
         properFuns = Map.filterWithKey (\k _ -> not $ isPrimMethod k) funs
         isPrimMethod (nameToString -> n) = "prim" `List.isPrefixOf` n || n == "#uminus#"
 
-getImports :: GraphLocation -> [ImportName] -> Empire ImportsHints
-getImports (GraphLocation file _) imports = do
+qualNameToText :: QualName -> Text
+qualNameToText = convert
+
+getImports :: GraphLocation -> [Text] -> Empire ImportsHints
+getImports loc _ = getSearcherHints loc
+
+getSearcherHints :: GraphLocation -> Empire ImportsHints
+getSearcherHints (GraphLocation file _) = do
     lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
     currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
+    lunaRootSources <- liftIO $ Project.findProjectSources =<< Path.parseAbsDir (lunaroot <> "/Std")
+    let stdModules   = map ((Text.append "Std.") . qualNameToText) $ Bimap.elems lunaRootSources
+    projectSources  <- liftIO $ case currentProjPath of
+        Nothing -> return []
+        Just p  -> Bimap.elems <$> Project.findProjectSources p
     let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
     importsMVar     <- view modules
-    hints <- forM imports $ \i -> do
-        cmpModules <- liftIO $ readMVar importsMVar
-        if i == nativeModuleName then return (i, cmpModules ^. Compilation.prims . to filterPrimMethods) else do
-            case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
-                Just m -> return (i, m)
-                _      -> do
-                    Lifted.modifyMVar importsMVar $ \imps -> do
-                        (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-                            let defaultModule = (Module.Imports def def, Compilation.CompiledModules def def)
-                            fromRight defaultModule <$> runModuleTypecheck (Map.fromList importPaths) imps
-                        return (nimps, (i, f))
-    return $ Map.fromList $ map (_2 %~ importsToHints) hints
+    let allModules = stdModules ++ map qualNameToText projectSources
+    cmpModules <- liftIO $ readMVar importsMVar
+    res        <- liftIO $ Compilation.requestModules (Map.fromList importPaths) (map convert allModules) cmpModules
+    let imports = case res of
+            Left err           -> def
+            Right (imports, _) -> imports
+    return $ Map.fromList $ map (\(a, b) -> (qualNameToText a, importsToHints b)) $ Map.toList imports
 
 setInterpreterState :: Interpreter.Request -> Empire ()
 setInterpreterState (Interpreter.Start loc) = do
