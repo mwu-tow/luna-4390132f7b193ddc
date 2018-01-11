@@ -1,30 +1,35 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE StrictData     #-}
-module NodeEditor.React.Event.Node where
+module NodeEditor.React.Event.Node
+    ( module NodeEditor.React.Event.Node
+    , nodeLoc
+    ) where
 
+import           Common.Data.Event       (EventName)
+import           Common.Data.Event       (EventName, eventName)
 import           Common.Prelude
-import           Common.Data.Event           (EventName)
-import           LunaStudio.Data.NodeLoc     (NodeLoc)
-import           LunaStudio.Data.PortDefault (PortDefault)
-import           LunaStudio.Data.PortRef     (InPortRef)
-import           NodeEditor.Data.Slider      (InitValue)
-import           React.Flux                  (KeyboardEvent, MouseEvent)
+import           LunaStudio.Data.NodeLoc (HasNodeLoc (nodeLoc), NodeLoc)
+import           React.Flux              (KeyboardEvent, MouseEvent)
 
 
-data Event = EditExpression                     NodeLoc
-           | EditName                           NodeLoc
-           | Enter                              NodeLoc
-           | MouseDown            MouseEvent    NodeLoc
-           | PortApplyString      KeyboardEvent InPortRef PortDefault
-           | EditTextPortControl                InPortRef Text
-           | EditTextPortControlBlur
-           | PortInitSlider       MouseEvent    InPortRef InitValue
-           | PortSetPortDefault                 InPortRef PortDefault
-           | Select               MouseEvent    NodeLoc
-           | SetExpression                      NodeLoc Text
-           | MouseEnter                         NodeLoc
-           | MouseLeave                         NodeLoc
-           | ShowFullError                      NodeLoc
-            deriving (Show, Generic, NFData, Typeable)
 
-instance EventName Event
+data Event = Event { _nodeLoc' :: NodeLoc
+                   , _evtType  :: EventType
+                   } deriving (Show, Generic, NFData, Typeable)
+
+data EventType = EditExpression
+               | EditName
+               | Enter
+               | MouseDown       MouseEvent
+               | Select          MouseEvent
+               | SetExpression   Text
+               | MouseEnter
+               | MouseLeave
+               | ShowFullError
+               deriving (Show, Generic, NFData, Typeable)
+
+makeLenses ''Event
+instance EventName EventType
+instance EventName Event where
+    eventName e = eventName $ e ^. evtType
+instance HasNodeLoc Event where nodeLoc = nodeLoc'

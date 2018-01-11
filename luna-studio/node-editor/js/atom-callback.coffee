@@ -8,7 +8,9 @@ listeners =
     onEvent: []
 
 globalRegistry = null
-eventFilters = []
+eventFilters = 
+    blockedEvents: []
+    allowedEvents: []
 
 module.exports =
     connector: (otherGlobal) => globalRegistry = otherGlobal
@@ -60,11 +62,19 @@ module.exports =
     unOnEvent: (listener) => removeFromArray listeners.onEvent, listener
     pushEvent: (data) =>
         listeners.onEvent.forEach (listener) => listener(data)
-    setEventFilter: (filters) => eventFilters = filters
-    acceptEvent: (eventName) =>
-        if eventFilters.length == 0
-            return true
-        for regexp in eventFilters
-            if regexp.test eventName
-                return true
-        return false
+    setEventFilter: (blocked, allowed) => 
+        eventFilters = { blockedEvents: blocked, allowedEvents: allowed }
+    acceptEvent: (event) =>
+        event    = JSON.parse event
+        eventMatchesRestriction = (evt, restriction) ->
+            nodeInfo = evt.eventInfo.nodeInfo
+            nodeName = nodeInfo?.nodeName
+            portId   = nodeInfo?.portInfo?.portId
+            eventNameMatches = restriction.regexp.test event.name
+            nodeNameMatches  = (not restriction.nodeName?) or (restriction.nodeName == nodeName)
+            portIdMatches    = (not restriction.portId?)   or (restriction.portId   == portId)
+            eventNameMatches and nodeNameMatches and portIdMatches
+        noRestrictions = eventFilters.blockedEvents.length == 0 and eventFilters.allowedEvents.length == 0
+        matchesAllowed = eventFilters.allowedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+        matchesBlocked = eventFilters.blockedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+        noRestrictions or matchesAllowed or not (eventFilters.blockedEvents.length == 0 or matchesBlocked)

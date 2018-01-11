@@ -21,10 +21,10 @@ import           LunaStudio.Data.PortRef                              (InPortRef
 import qualified LunaStudio.Data.PortRef                              as PortRef
 import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
-import qualified NodeEditor.React.Event.Node                          as Node
+import qualified NodeEditor.React.Event.Node                          as Node hiding (nodeLoc)
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
 import           NodeEditor.React.IsRef                               (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants                     (nodeRadius, selectionPadding, expandedNodePadding)
+import           NodeEditor.React.Model.Constants                     (expandedNodePadding, nodeRadius, selectionPadding)
 import qualified NodeEditor.React.Model.Field                         as Field
 import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
                                                                        countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,
@@ -69,7 +69,7 @@ focusNameLabel = UI.focus nameLabelId
 handleMouseDown :: IsRef ref => ref -> NodeLoc -> Event -> MouseEvent -> [SomeStoreAction]
 handleMouseDown ref nodeLoc e m =
     if Mouse.withoutMods m Mouse.leftButton || Mouse.withShift m Mouse.leftButton
-    then stopPropagation e : dispatch ref (UI.NodeEvent $ Node.MouseDown m nodeLoc)
+    then stopPropagation e : dispatch ref (UI.NodeEvent $ Node.Event nodeLoc $ Node.MouseDown m)
     else []
 
 nodeName_ :: IsRef ref => ref -> NodeLoc -> Maybe Text -> Maybe Bool -> Maybe (Searcher, FilePath) -> ReactElementM ViewEventHandler ()
@@ -77,7 +77,7 @@ nodeName_ ref nl name' visVisible mayS = React.viewWithSKey nodeName  "node-name
 
 nodeName :: IsRef ref => ReactView (ref, NodeLoc, Maybe Text, Maybe Bool, Maybe (Searcher, FilePath))
 nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisible, mayS) -> do
-    let regularHandlersAndElem = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditName nl)]
+    let regularHandlersAndElem = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.Event nl Node.EditName)]
                                  , elemString . convert $ fromMaybe def name' )
         (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \(s, visLibPath) -> case s ^. Searcher.mode of
             Searcher.NodeName snl _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s visLibPath)
@@ -97,7 +97,7 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
                     , "xmlns"     $= "http://www.w3.org/2000/svg"
                     , "viewBox"   $= "0 0 24 24"
                     , onDoubleClick $ \e _ -> [stopPropagation e]
-                    , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.ToggleVisualizations (Vis.Node nl)
+                    , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.Event (Vis.Node nl) Visualization.ToggleVisualizations
                     ] $ if isVisualization
                         then path_ [ "d"         $= Style.iconEye
                                    , "className" $= Style.prefix "icon--on"
@@ -114,7 +114,7 @@ nodeExpression :: IsRef ref => ReactView (ref, NodeLoc, Text, Maybe (Searcher, F
 nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> do
     let isLong = Text.length expr > 64
 
-        regularHandlersAndElem  = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.EditExpression nl)]
+        regularHandlersAndElem  = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.Event nl Node.EditExpression)]
                                   , colorizedExpression_ expr )
         (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \(s, visLibPath) -> case s ^. Searcher.mode of
             Searcher.Node snl _ _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s visLibPath)
@@ -169,10 +169,10 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
                             )
             , "style"     @= Aeson.object [ "zIndex" Aeson..= show z ]
             , onMouseDown   $ handleMouseDown ref nodeLoc
-            , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Select m nodeLoc
-            , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Enter nodeLoc)
-            , onMouseEnter  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseEnter nodeLoc
-            , onMouseLeave  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.MouseLeave nodeLoc
+            , onClick       $ \_ m -> dispatch ref $ UI.NodeEvent $ Node.Event nodeLoc $ Node.Select m
+            , onDoubleClick $ \e _ -> stopPropagation e : (dispatch ref $ UI.NodeEvent $ Node.Event nodeLoc Node.Enter)
+            , onMouseEnter  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.Event nodeLoc Node.MouseEnter
+            , onMouseLeave  $ \_ _ -> dispatch ref $ UI.NodeEvent $ Node.Event nodeLoc Node.MouseLeave
             ] $ do
             div_
                 [ "className" $= Style.prefixFromList [ "node-translate","node__text", "noselect" ]
@@ -215,7 +215,7 @@ nodeBody = React.defineView objNameBody $ \(ref, n, mayEditedTextPortControlPort
             Node.Expanded Node.Controls -> nodeProperties_ ref (Prop.fromNode n) mayEditedTextPortControlPortRef $ max (countVisibleInPorts n) $ countVisibleOutPorts n
             Node.Expanded Node.Editor   -> multilineField_ [] "editor"
                 $ Field.mk ref (n ^. Node.code)
-                & Field.onCancel .~ Just (UI.NodeEvent . Node.SetExpression nodeLoc)
+                & Field.onCancel .~ Just (UI.NodeEvent . Node.Event nodeLoc . Node.SetExpression)
             _                           -> ""
 
 nodePorts_ :: IsRef ref => ref -> ExpressionNode -> Bool -> Bool -> Bool -> ReactElementM ViewEventHandler ()
