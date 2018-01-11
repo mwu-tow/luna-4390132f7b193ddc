@@ -726,7 +726,6 @@ spec = around withChannels $ parallel $ do
                 u2 <- mkUUID
                 Graph.addNode loc u1 "foo = 3 + 5"   (atXPos 20.0)
                 Graph.addNode loc u2 "bar = 20 + 30" (atXPos 30.0)
-
         it "adds and removes nodes inside a lambda" $ let
             expectedCode = [r|
                 def main:
@@ -1853,8 +1852,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    p1 = n1*5
                     n1 = 5
+                    p1 = n1*5
                     n1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
@@ -1885,8 +1884,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    p1 = _*5
                     n1 = 5
+                    p1 = _*5
                     n1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
@@ -1902,8 +1901,8 @@ spec = around withChannels $ parallel $ do
                 |]
             expectedCode = [r|
                 def main:
-                    p1 = _*n1
                     n1 = 5
+                    p1 = _*n1
                     n1
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
@@ -1939,6 +1938,42 @@ spec = around withChannels $ parallel $ do
                 (i, _) <- Graph.withGraph fooLoc $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.addPortWithConnections fooLoc (outPortRef i [Port.Projection 0]) Nothing [InPortRef' $ inPortRef (s ^. Node.nodeId) [Port.Arg 1]]
                 return ()
+        it "reorders nodes if required for connection" $ let
+            initialCode = [r|
+                def main:
+                    «0»foo = 1
+                    «1»bar = _ + 2
+                    «2»baz = foo + 1
+                    «3»quux = baz + 3
+                    quux
+                |]
+            expectedCode = [r|
+                def main:
+                    foo = 1
+                    baz = foo + 1
+                    quux = baz + 3
+                    bar = quux + 2
+                    quux
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just bar, Just quux] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [1,3]
+                Graph.connect loc (outPortRef quux []) (InPortRef' $ inPortRef bar [Port.Arg 0])
+        it "reorders nodes if required for connection - cyclic case" $ let
+            initialCode = [r|
+                def main:
+                    «0»sum1 = _ + 2
+                    «1»sum2 = sum1 + 4
+                    None
+                |]
+            expectedCode = [r|
+                def main:
+                    sum1 = sum2 + 2
+                    sum2 = sum1 + 4
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                [Just sum1, Just sum2] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [0,1]
+                Graph.connect loc (outPortRef sum2 []) (InPortRef' $ inPortRef sum1 [Port.Arg 0])
         it "sets expression for lambdas with markers inside" $ let
             initialCode = testLuna
             expectedCode = [r|
