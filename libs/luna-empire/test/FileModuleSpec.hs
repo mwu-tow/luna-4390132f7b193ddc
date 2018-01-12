@@ -102,6 +102,93 @@ specifyCodeChange initialCode expectedCode act env = do
 
 spec :: Spec
 spec = around withChannels $ parallel $ do
+    describe "imports" $ do
+        it "adds import" $
+            let initialCode = multiFunCode
+                expectedCode = [r|
+                    import Foo
+                    ## Docs
+                    def foo:
+                        5
+
+                    ## Docs
+                    def bar:
+                        "bar"
+
+                    ## Docs
+                    def main:
+                        print bar
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.addImports loc ["Foo"]
+        it "adds import 2" $
+            let initialCode = [r|
+                    import A
+                    import Std
+                    import Time
+                    import XML
+
+                    def foo:
+                        5
+
+                    def bar:
+                        "bar"
+
+                    def main:
+                        print bar
+                    |]
+                expectedCode = [r|
+                    import Foo
+                    import A
+                    import Std
+                    import Time
+                    import XML
+
+                    def foo:
+                        5
+
+                    def bar:
+                        "bar"
+
+                    def main:
+                        print bar
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.addImports loc ["Foo"]
+        it "adds import 3" $
+            let initialCode = [r|
+                    import Std.Geo
+                    import Time
+                    import XML
+
+                    def foo:
+                        5
+
+                    def bar:
+                        "bar"
+
+                    def main:
+                        print bar
+                    |]
+                expectedCode = [r|
+                    import Foo
+                    import Bar
+                    import Baz.Quux
+                    import Std.Geo
+                    import Time
+                    import XML
+
+                    def foo:
+                        5
+
+                    def bar:
+                        "bar"
+
+                    def main:
+                        print bar
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                Graph.addImports loc ["Foo", "Bar", "Baz.Quux"]
     describe "multi-module files" $ do
         it "shows functions at file top-level" $ \env -> do
             nodes <- evalEmp env $ do
