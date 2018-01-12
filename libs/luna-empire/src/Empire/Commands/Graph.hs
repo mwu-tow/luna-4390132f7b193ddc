@@ -195,8 +195,15 @@ import           System.Directory                 (canonicalizePath)
 import           System.Environment               (getEnv)
 
 addImports :: GraphLocation -> [Text] -> Empire ()
-addImports (GraphLocation file _) modules = withUnit (GraphLocation file def) $ do
-    return ()
+addImports loc@(GraphLocation file _) modules = do
+    newCode <- withUnit (GraphLocation file def) $ do
+        existingImports <- runASTOp getImportsInFile
+        let imports = nativeModuleName : "Std.Base" : existingImports
+        let neededImports = filter (`notElem` imports) modules
+        code <- use Graph.code
+        let newImports = map (\i -> Text.concat ["import ", i, "\n"]) neededImports
+        return $ Text.concat $ newImports ++ [code]
+    reloadCode loc newCode
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True
@@ -1674,23 +1681,26 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
 nativeModuleName :: Text
 nativeModuleName = "Native"
 
+getImportsInFile :: ClassOp m => m [Text]
+getImportsInFile = do
+    unit <- use Graph.clsClass
+    IR.matchExpr unit $ \case
+        IR.Unit imps _ _ -> do
+            imps' <- IR.source imps
+            IR.matchExpr imps' $ \case
+                IR.UnresolvedImportHub imps -> forM imps $ \imp -> do
+                    imp' <- IR.source imp
+                    IR.matchExpr imp' $ \case
+                        IR.UnresolvedImport a _ -> do
+                            a' <- IR.source a
+                            IR.matchExpr a' $ \case
+                                IR.UnresolvedImportSrc n -> case n of
+                                    Term.Absolute n -> return $ convert n
+        IR.ClsASG{} -> return [] -- why does it put ClsASG and not Unit when file does not parse???
+
 getAvailableImports :: GraphLocation -> Empire [ImportName]
 getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Breadcrumb [])) $ do
-    explicitImports <- runASTOp $ do
-        unit <- use Graph.clsClass
-        IR.matchExpr unit $ \case
-            IR.Unit imps _ _ -> do
-                imps' <- IR.source imps
-                IR.matchExpr imps' $ \case
-                    IR.UnresolvedImportHub imps -> forM imps $ \imp -> do
-                        imp' <- IR.source imp
-                        IR.matchExpr imp' $ \case
-                            IR.UnresolvedImport a _ -> do
-                                a' <- IR.source a
-                                IR.matchExpr a' $ \case
-                                    IR.UnresolvedImportSrc n -> case n of
-                                        Term.Absolute n -> return $ convert n
-            IR.ClsASG{} -> return [] -- why does it put ClsASG and not Unit when file does not parse???
+    explicitImports <- runASTOp getImportsInFile
     let implicitImports = Set.fromList [nativeModuleName, "Std.Base"]
         resultSet       = Set.fromList explicitImports `Set.union` implicitImports
     return $ Set.toList resultSet
