@@ -195,15 +195,24 @@ import           System.Directory                 (canonicalizePath)
 import           System.Environment               (getEnv)
 
 addImports :: GraphLocation -> [Text] -> Empire ()
-addImports loc@(GraphLocation file _) modules = do
+addImports loc@(GraphLocation file _) modulesToImport = do
     newCode <- withUnit (GraphLocation file def) $ do
         existingImports <- runASTOp getImportsInFile
         let imports = nativeModuleName : "Std.Base" : existingImports
-        let neededImports = filter (`notElem` imports) modules
+        let neededImports = filter (`notElem` imports) modulesToImport
         code <- use Graph.code
         let newImports = map (\i -> Text.concat ["import ", i, "\n"]) neededImports
         return $ Text.concat $ newImports ++ [code]
     reloadCode loc newCode
+    withUnit (GraphLocation file def) $ do
+        modulesMVar <- view modules
+        importPaths <- liftIO $ getImportPaths loc
+        Lifted.modifyMVar modulesMVar $ \cmpModules -> do
+            res     <- runModuleTypecheck importPaths cmpModules
+            case res of
+                Left err                          -> liftIO (print err) >> return (cmpModules, ())
+                Right (newImports, newCmpModules) -> return (newCmpModules, ())
+
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True
@@ -1743,22 +1752,29 @@ qualNameToText = convert
 getImports :: GraphLocation -> [Text] -> Empire ImportsHints
 getImports loc _ = getSearcherHints loc
 
-getSearcherHints :: GraphLocation -> Empire ImportsHints
-getSearcherHints (GraphLocation file _) = do
+getImportPaths :: GraphLocation -> IO (Map.Map IR.Name FilePath)
+getImportPaths (GraphLocation file _) = do
     lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
     currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
-    lunaRootSources <- liftIO $ Project.findProjectSources =<< Path.parseAbsDir (lunaroot <> "/Std")
-    let stdModules   = map ((Text.append "Std.") . qualNameToText) $ Bimap.elems lunaRootSources
+    let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
+    return $ Map.fromList importPaths
+
+getSearcherHints :: GraphLocation -> Empire ImportsHints
+getSearcherHints (GraphLocation file _) = do
+    currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
     projectSources  <- liftIO $ case currentProjPath of
         Nothing -> return []
         Just p  -> Bimap.elems <$> Project.findProjectSources p
+    lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
+    lunaRootSources <- liftIO $ Project.findProjectSources =<< Path.parseAbsDir (lunaroot <> "/Std")
+    let stdModules   = map ((Text.append "Std.") . qualNameToText) $ Bimap.elems lunaRootSources
     let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
     importsMVar     <- view modules
     cmpModules  <- liftIO $ readMVar importsMVar
     std         <- liftIO $ Compilation.requestModules (Map.fromList importPaths) (map convert stdModules) cmpModules
     proj        <- liftIO $ Compilation.requestModules (Map.fromList importPaths) projectSources cmpModules
-    stdImports  <- either (const $ return def) (return . fst) std
-    projImports <- either (const $ return def) (return . fst) std
+    stdImports  <- either (\e -> liftIO (print e) >> return def) (return . fst) std
+    projImports <- either (\e -> liftIO (print e) >> return def) (return . fst) std
     let allImports = Map.union stdImports projImports
     return $ Map.fromList $ map (\(a, b) -> (qualNameToText a, importsToHints b)) $ Map.toList allImports
 
