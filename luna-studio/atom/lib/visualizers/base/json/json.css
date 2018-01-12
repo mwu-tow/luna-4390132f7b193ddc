@@ -1,7 +1,3 @@
 .json-formatter-dark.json-formatter-row {
-    color: #777;
     font-family: 'hasklig-regular', 'hasklig', monospace !important;
-}
-.json-formatter-dark.json-formatter-row .json-formatter-string {
-    color: #777;
 }
