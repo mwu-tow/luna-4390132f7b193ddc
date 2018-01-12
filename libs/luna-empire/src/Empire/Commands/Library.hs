@@ -64,12 +64,3 @@ withLibrary file cmd = do
             Just lib -> do
                 let result = (_2 %~ Just) <$> Empire.runEmpire notifEnv lib cmd
                 Empire.empire $ const $ const result
-                -- (result, state) <- liftIO $ Empire.runEmpire notifEnv lib cmd
-                -- put $ Just state
-                -- -- pure result
-                -- Empire.empire $ const $ const result
---
--- getBuffer :: FilePath -> Maybe (Int, Int) -> Empire Text
--- getBuffer path Nothing = withLibrary path $ do
---     source <- use $ Library.body . Graph.code
---     pure source
