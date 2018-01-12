@@ -1743,13 +1743,13 @@ getSearcherHints (GraphLocation file _) = do
         Just p  -> Bimap.elems <$> Project.findProjectSources p
     let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
     importsMVar     <- view modules
-    let allModules = stdModules ++ map qualNameToText projectSources
-    cmpModules <- liftIO $ readMVar importsMVar
-    res        <- liftIO $ Compilation.requestModules (Map.fromList importPaths) (map convert allModules) cmpModules
-    let imports = case res of
-            Left err           -> def
-            Right (imports, _) -> imports
-    return $ Map.fromList $ map (\(a, b) -> (qualNameToText a, importsToHints b)) $ Map.toList imports
+    cmpModules  <- liftIO $ readMVar importsMVar
+    std         <- liftIO $ Compilation.requestModules (Map.fromList importPaths) (map convert stdModules) cmpModules
+    proj        <- liftIO $ Compilation.requestModules (Map.fromList importPaths) projectSources cmpModules
+    stdImports  <- either (const $ return def) (return . fst) std
+    projImports <- either (const $ return def) (return . fst) std
+    let allImports = Map.union stdImports projImports
+    return $ Map.fromList $ map (\(a, b) -> (qualNameToText a, importsToHints b)) $ Map.toList allImports
 
 setInterpreterState :: Interpreter.Request -> Empire ()
 setInterpreterState (Interpreter.Start loc) = do
