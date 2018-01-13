@@ -85,56 +85,9 @@ handleMessage = do
 
 type LogFormatter = (forall a. Show a => a -> String) -> ByteString -> String
 
--- How existentials should be used:
--- newtype Ex1 = forall a. Show a => Ex1 a
--- type LogFormatter = (Ex1 -> String) -> ByteString -> String
-
 logMessage :: String -> String -> ByteString -> StateT LoggerEnv BusT ()
 logMessage logMsg topic content = do
     return ()
---     formatted <- use Env.formatLog
---     logger Logger.info logMsg
---     let logFormatter = Map.findWithDefault defaultLogFormatter topic loggFormattersMap :: LogFormatter
---     logger Logger.debug $ logFormatter (Utils.display formatted) content
-
--- TODO: Fix this
--- makeHandler :: (Topic.MessageTopic a, Bin.Binary a, Show a) => Proxy a -> (String, LogFormatter)
--- makeHandler h = (Topic.topic h, process) where
---    process display content = display request where request = ((Bin.decode . fromStrict $ content) :: a)
-
--- loggFormattersMap :: Map String LogFormatter
--- loggFormattersMap = Map.fromList
---     [ makeHandler (Proxy :: Proxy (Request AddNode.Request          ))
---     , makeHandler (Proxy :: Proxy (AddNode.Response         ))
---     , makeHandler (Proxy :: Proxy (Request RemoveNodes.Request       ))
---     , makeHandler (Proxy :: Proxy (RemoveNodes.Response      ))
---     , makeHandler (Proxy :: Proxy (Request SetNodesMeta.Request   ))
---     , makeHandler (Proxy :: Proxy (SetNodesMeta.Response  ))
---     , makeHandler (Proxy :: Proxy (SetNodesMeta.Update    ))
---     , makeHandler (Proxy :: Proxy (Request RenameNode.Request       ))
---     , makeHandler (Proxy :: Proxy (RenameNode.Response      ))
---     , makeHandler (Proxy :: Proxy (Request Connect.Request          ))
---     , makeHandler (Proxy :: Proxy (Connect.Response         ))
---     , makeHandler (Proxy :: Proxy (Connect.Update           ))
---     , makeHandler (Proxy :: Proxy (Request RemoveConnection.Request       ))
---     , makeHandler (Proxy :: Proxy (RemoveConnection.Response      ))
---     , makeHandler (Proxy :: Proxy (RemoveConnection.Update        ))
---     , makeHandler (Proxy :: Proxy (Request GetProgram.Request       ))
---     , makeHandler (Proxy :: Proxy (GetProgram.Response      ))
---     , makeHandler (Proxy :: Proxy (NodesUpdate.Update        ))
---     , makeHandler (Proxy :: Proxy (NodeResultUpdate.Update  ))
---     , makeHandler (Proxy :: Proxy (Request CreateLibrary.Request    ))
---     , makeHandler (Proxy :: Proxy (CreateLibrary.Response   ))
---     , makeHandler (Proxy :: Proxy (CreateLibrary.Update     ))
---     , makeHandler (Proxy :: Proxy (Request ListLibraries.Request    ))
---     , makeHandler (Proxy :: Proxy (ListLibraries.Response   ))
---     , makeHandler (Proxy :: Proxy (Request SetPortDefault.Request  ))
---     , makeHandler (Proxy :: Proxy (SetPortDefault.Response ))
---     , makeHandler (Proxy :: Proxy (EmpireStarted.Status     ))
---     , makeHandler (Proxy :: Proxy (Request DumpGraphViz.Request     ))
---     , makeHandler (Proxy :: Proxy (Request TypeCheck.Request       ))
---     , makeHandler (Proxy :: Proxy (TypeCheck.Response       ))
---     ]
 
 defaultLogFormatter :: LogFormatter
 defaultLogFormatter = \display _ -> "Not recognized message"

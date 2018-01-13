@@ -40,7 +40,6 @@ import           Empire.Commands.Autolayout              (autolayoutNodes)
 import qualified Empire.Commands.Graph                   as Graph
 import           Empire.Commands.GraphBuilder            (buildClassGraph, buildConnections, buildGraph, buildNodes, getNodeName)
 import qualified Empire.Commands.GraphUtils              as GraphUtils
-import qualified Empire.Commands.Persistence             as Persistence
 import           Empire.Data.AST                         (SomeASTException, astExceptionFromException, astExceptionToException)
 import qualified Empire.Data.Graph                       as Graph (code, nodeCache)
 import           Empire.Empire                           (Empire)
@@ -55,6 +54,7 @@ import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Control.Interpreter      as Interpreter
 import qualified LunaStudio.API.Graph.AddConnection      as AddConnection
+import qualified LunaStudio.API.Graph.AddImports         as AddImports
 import qualified LunaStudio.API.Graph.AddNode            as AddNode
 import qualified LunaStudio.API.Graph.AddPort            as AddPort
 import qualified LunaStudio.API.Graph.AddSubgraph        as AddSubgraph
@@ -130,13 +130,6 @@ import qualified ZMQ.Bus.Trans                           as BusT
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
-
-saveCurrentProject :: GraphLocation -> StateT Env BusT ()
-saveCurrentProject loc = do
-  currentEmpireEnv <- use Env.empireEnv
-  empireNotifEnv   <- use Env.empireNotif
-  projectRoot      <- use Env.projectRoot
-  void $ liftIO $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Persistence.saveLocation projectRoot loc
 
 -- helpers
 
@@ -235,6 +228,11 @@ handleAddConnection = modifyGraph inverse action replyResult where
             OutPortRef' portRef -> InPortRef (portRef ^. PortRef.nodeLoc) []
     action  (AddConnection.Request location src' dst') = withDefaultResult location $
         Graph.connectCondTC True location (getSrcPort src') (getDstPort dst')
+
+handleAddImports :: Request AddImports.Request -> StateT Env BusT ()
+handleAddImports = modifyGraph defInverse action replyResult where
+    action (AddImports.Request location modules) = withDefaultResult location $
+        Graph.addImports location modules
 
 handleAddNode :: Request AddNode.Request -> StateT Env BusT ()
 handleAddNode = modifyGraph defInverse action replyResult where

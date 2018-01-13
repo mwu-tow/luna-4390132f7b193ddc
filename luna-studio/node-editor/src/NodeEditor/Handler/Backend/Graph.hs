@@ -12,6 +12,7 @@ import qualified LunaStudio.API.Atom.MoveProject             as MoveProject
 import qualified LunaStudio.API.Atom.Paste                   as AtomPaste
 import qualified LunaStudio.API.Atom.Substitute              as Substitute
 import qualified LunaStudio.API.Graph.AddConnection          as AddConnection
+import qualified LunaStudio.API.Graph.AddImports             as AddImports
 import qualified LunaStudio.API.Graph.AddNode                as AddNode
 import qualified LunaStudio.API.Graph.AddPort                as AddPort
 import qualified LunaStudio.API.Graph.AddSubgraph            as AddSubgraph
@@ -48,6 +49,7 @@ import qualified LunaStudio.Data.GraphLocation               as GraphLocation
 import           LunaStudio.Data.Node                        (nodeId)
 import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
+import qualified LunaStudio.Data.NodeSearcher                as NS
 import           NodeEditor.Action.Basic                     (centerGraph, exitBreadcrumb, localAddConnections, localAddSearcherHints,
                                                               localMerge, localMoveProject, localRemoveConnections, localRemoveNodes,
                                                               localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
@@ -155,6 +157,14 @@ handle (Event.Batch ev) = Just $ case ev of
         location    = request  ^. AddConnection.location
         failure _ _ = whenM (isOwnRequest requestId) $ revertAddConnection request
         success     = applyResult location
+
+    AddImportsResponse response -> handleResponse response success doNothing2 where
+        request     = response ^. Response.request
+        newImports  = request  ^. AddImports.modules
+        location    = request  ^. AddImports.location
+        success res = do
+            Global.nodeSearcherData . NS.currentImports %= nub . (newImports <>)
+            applyResult location res
 
     AddNodeResponse response -> handleResponse response success failure where
         requestId      = response ^. Response.requestId

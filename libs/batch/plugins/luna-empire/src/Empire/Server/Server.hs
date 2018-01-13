@@ -22,7 +22,6 @@ import           System.Environment            (getEnv)
 import           System.FilePath               (replaceFileName, (</>))
 
 import qualified Empire.Commands.Graph         as Graph
-import qualified Empire.Commands.Persistence   as Persistence
 import           Empire.Data.AST               (SomeASTException)
 import           Empire.Empire                 (Empire, runEmpire)
 import           Empire.Env                    (Env)
@@ -48,13 +47,6 @@ import           ZMQ.Bus.Trans                 (BusT (..))
 
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
-
-saveCurrentProject :: GraphLocation -> StateT Env BusT ()
-saveCurrentProject loc = do
-  currentEmpireEnv <- use Env.empireEnv
-  empireNotifEnv   <- use Env.empireNotif
-  projectRoot      <- use Env.projectRoot
-  void $ liftIO $ runEmpire empireNotifEnv currentEmpireEnv $ Persistence.saveLocation projectRoot loc
 
 sendToBus :: Binary a => String -> a -> StateT Env BusT ()
 sendToBus topic bin = do
@@ -119,7 +111,6 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
                 Right (result, newEmpireEnv) -> do
                     Env.empireEnv .= newEmpireEnv
                     success origReq inv result
-                    saveCurrentProject $ request ^. G.location
 
 modifyGraphOk :: forall req inv res . (Bin.Binary req, G.GraphRequest req, Response.ResponseResult req inv ()) => (req -> Empire inv) -> (req -> Empire res) -> Request req -> StateT Env BusT ()
 modifyGraphOk inverse action = modifyGraph inverse action (\req@(Request uuid guiID request) inv _ -> replyOk req inv)
