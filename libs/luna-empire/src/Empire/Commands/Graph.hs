@@ -11,7 +11,8 @@
 {-# LANGUAGE ViewPatterns          #-}
 
 module Empire.Commands.Graph
-    ( addNode
+    ( addImports
+    , addNode
     , addNodeCondTC
     , addNodeWithConnection
     , addPort
@@ -96,6 +97,7 @@ import           Control.Monad.State              hiding (when)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.Aeson                       as Aeson
 import qualified Data.Aeson.Text                  as Aeson
+import qualified Data.Bimap                       as Bimap
 import           Data.Coerce                      (coerce)
 import           Data.Char                        (isSeparator, isSpace, isUpper)
 import           Data.Foldable                    (toList)
@@ -186,10 +188,31 @@ import qualified LunaStudio.Data.Position         as Position
 import           LunaStudio.Data.Range            (Range(..))
 import qualified LunaStudio.Data.Range            as Range
 import qualified OCI.IR.Combinators               as IR (replaceSource, deleteSubtree, narrow, replace)
+import           OCI.IR.Name.Qualified            (QualName)
 import qualified Path
 import qualified Safe
 import           System.Directory                 (canonicalizePath)
 import           System.Environment               (getEnv)
+
+addImports :: GraphLocation -> [Text] -> Empire ()
+addImports loc@(GraphLocation file _) modulesToImport = do
+    newCode <- withUnit (GraphLocation file def) $ do
+        existingImports <- runASTOp getImportsInFile
+        let imports = nativeModuleName : "Std.Base" : existingImports
+        let neededImports = filter (`notElem` imports) modulesToImport
+        code <- use Graph.code
+        let newImports = map (\i -> Text.concat ["import ", i, "\n"]) neededImports
+        return $ Text.concat $ newImports ++ [code]
+    reloadCode loc newCode
+    withUnit (GraphLocation file def) $ do
+        modulesMVar <- view modules
+        importPaths <- liftIO $ getImportPaths loc
+        Lifted.modifyMVar modulesMVar $ \cmpModules -> do
+            res     <- runModuleTypecheck importPaths cmpModules
+            case res of
+                Left err                          -> liftIO (print err) >> return (cmpModules, ())
+                Right (newImports, newCmpModules) -> return (newCmpModules, ())
+
 
 addNode :: GraphLocation -> NodeId -> Text -> NodeMeta -> Empire ExpressionNode
 addNode = addNodeCondTC True
@@ -251,7 +274,8 @@ insertFunAfter previousFunction function code = do
                              <> Text.replicate (fromIntegral off') "\n"
             Code.insertAt funBlockStart indentedCode
             LeftSpacedSpan (SpacedSpan _ funLen) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan function
-            IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off funLen))
+            let newOffset = if funBlockStart == 0 then 0 else off
+            IR.putLayer @CodeSpan function $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan newOffset funLen))
             return $ Text.length indentedCode
         Just pf -> do
             funBlockStart <- Code.functionBlockStartRef pf
@@ -1716,23 +1740,26 @@ pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
 nativeModuleName :: Text
 nativeModuleName = "Native"
 
+getImportsInFile :: ClassOp m => m [Text]
+getImportsInFile = do
+    unit <- use Graph.clsClass
+    IR.matchExpr unit $ \case
+        IR.Unit imps _ _ -> do
+            imps' <- IR.source imps
+            IR.matchExpr imps' $ \case
+                IR.UnresolvedImportHub imps -> forM imps $ \imp -> do
+                    imp' <- IR.source imp
+                    IR.matchExpr imp' $ \case
+                        IR.UnresolvedImport a _ -> do
+                            a' <- IR.source a
+                            IR.matchExpr a' $ \case
+                                IR.UnresolvedImportSrc n -> case n of
+                                    Term.Absolute n -> return $ convert n
+        IR.ClsASG{} -> return [] -- why does it put ClsASG and not Unit when file does not parse???
+
 getAvailableImports :: GraphLocation -> Empire [ImportName]
 getAvailableImports (GraphLocation file _) = withUnit (GraphLocation file (Breadcrumb [])) $ do
-    explicitImports <- runASTOp $ do
-        unit <- use Graph.clsClass
-        IR.matchExpr unit $ \case
-            IR.Unit imps _ _ -> do
-                imps' <- IR.source imps
-                IR.matchExpr imps' $ \case
-                    IR.UnresolvedImportHub imps -> forM imps $ \imp -> do
-                        imp' <- IR.source imp
-                        IR.matchExpr imp' $ \case
-                            IR.UnresolvedImport a _ -> do
-                                a' <- IR.source a
-                                IR.matchExpr a' $ \case
-                                    IR.UnresolvedImportSrc n -> case n of
-                                        Term.Absolute n -> return $ convert n
-            IR.ClsASG{} -> return [] -- why does it put ClsASG and not Unit when file does not parse???
+    explicitImports <- runASTOp getImportsInFile
     let implicitImports = Set.fromList [nativeModuleName, "Std.Base"]
         resultSet       = Set.fromList explicitImports `Set.union` implicitImports
     return $ Set.toList resultSet
@@ -1768,24 +1795,37 @@ filterPrimMethods (Module.Imports classes funs) = Module.Imports classes properF
         properFuns = Map.filterWithKey (\k _ -> not $ isPrimMethod k) funs
         isPrimMethod (nameToString -> n) = "prim" `List.isPrefixOf` n || n == "#uminus#"
 
-getImports :: GraphLocation -> [ImportName] -> Empire ImportsHints
-getImports (GraphLocation file _) imports = do
+qualNameToText :: QualName -> Text
+qualNameToText = convert
+
+getImports :: GraphLocation -> [Text] -> Empire ImportsHints
+getImports loc _ = getSearcherHints loc
+
+getImportPaths :: GraphLocation -> IO (Map.Map IR.Name FilePath)
+getImportPaths (GraphLocation file _) = do
     lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
     currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
     let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
+    return $ Map.fromList importPaths
+
+getSearcherHints :: GraphLocation -> Empire ImportsHints
+getSearcherHints (GraphLocation file _) = do
+    currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
+    projectSources  <- liftIO $ case currentProjPath of
+        Nothing -> return []
+        Just p  -> Bimap.elems <$> Project.findProjectSources p
+    lunaroot        <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
+    lunaRootSources <- liftIO $ Project.findProjectSources =<< Path.parseAbsDir (lunaroot <> "/Std")
+    let stdModules   = map ((Text.append "Std.") . qualNameToText) $ Bimap.elems lunaRootSources
+    let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
     importsMVar     <- view modules
-    hints <- forM imports $ \i -> do
-        cmpModules <- liftIO $ readMVar importsMVar
-        if i == nativeModuleName then return (i, cmpModules ^. Compilation.prims . to filterPrimMethods) else do
-            case Map.lookup (convert i) (cmpModules ^. Compilation.modules) of
-                Just m -> return (i, m)
-                _      -> do
-                    Lifted.modifyMVar importsMVar $ \imps -> do
-                        (f, nimps) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-                            let defaultModule = (Module.Imports def def, Compilation.CompiledModules def def)
-                            fromRight defaultModule <$> runModuleTypecheck (Map.fromList importPaths) imps
-                        return (nimps, (i, f))
-    return $ Map.fromList $ map (_2 %~ importsToHints) hints
+    cmpModules  <- liftIO $ readMVar importsMVar
+    std         <- liftIO $ Compilation.requestModules (Map.fromList importPaths) (map convert stdModules) cmpModules
+    proj        <- liftIO $ Compilation.requestModules (Map.fromList importPaths) projectSources cmpModules
+    stdImports  <- either (\e -> liftIO (print e) >> return def) (return . fst) std
+    projImports <- either (\e -> liftIO (print e) >> return def) (return . fst) std
+    let allImports = Map.union stdImports projImports
+    return $ Map.fromList $ map (\(a, b) -> (qualNameToText a, importsToHints b)) $ Map.toList allImports
 
 setInterpreterState :: Interpreter.Request -> Empire ()
 setInterpreterState (Interpreter.Start loc) = do
