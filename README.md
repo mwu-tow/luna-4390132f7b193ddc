@@ -8,6 +8,8 @@ Luna is a developer’s whiteboard on steroids. Design, prototype, develop and r
 
 Visit www.luna-lang.org to learn more!
 
+
+
 ## Quick installation
 
 The easiest way of installing Luna Studio is by using the graphical Luna Installer, which can be downloaded using the following links:
