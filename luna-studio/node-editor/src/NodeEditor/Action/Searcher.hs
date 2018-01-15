@@ -76,6 +76,11 @@ emptyInputError m = fieldName <> " cannot be empty." where
 clearSearcherError :: Command State ()
 clearSearcherError = modifySearcher $ Searcher.searcherError .= def
 
+editSelectedNodeExpression :: Command State ()
+editSelectedNodeExpression = getSelectedNodes >>= \case
+    [n] -> editExpression $ n ^. ExpressionNode.nodeLoc
+    _   -> return ()
+
 editExpression :: NodeLoc -> Command State ()
 editExpression nodeLoc = do
     let getClassName n = case n ^? ExpressionNode.inPortAt [Port.Self] . Port.valueType of
