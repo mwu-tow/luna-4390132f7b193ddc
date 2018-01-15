@@ -50,25 +50,26 @@ module.exports =
 
     onNotification: (notification) =>
         errorReport = createErrorReport notification.message
-        options =
+        copyOptions =
             dismissable: true
             description: notification.message
             buttons: [
                 text: 'Copy to clipboard'
                 onDidClick: => atom.clipboard.write errorReport
             ]
+        reportOptions =
+            dismissable: true
+            description: notification.message + '<br>Please report this bug on our github'
+            buttons: [
+                text: 'Copy to clipboard and report'
+                onDidClick: =>
+                    atom.clipboard.write errorReport
+                    shell.openExternal 'https://github.com/luna/luna-studio/issues'
+            ]
         switch notification.level
             when 0
-                atom.notifications.addError "Fatal Error",
-                    dismissable: true
-                    description: notification.message + '<br>Please report this bug on our github'
-                    buttons: [
-                        text: 'Copy to clipboard and report'
-                        onDidClick: =>
-                            atom.clipboard.write errorReport
-                            shell.openExternal 'https://github.com/luna/luna-studio/issues'
-                    ]
+                atom.notifications.addError "Fatal Error", reportOptions
             when 1
-                atom.notifications.addError "Error", options
+                atom.notifications.addError "Error", reportOptions
             else
-                atom.notifications.addWarning "Warning", options
+                atom.notifications.addWarning "Warning", copyOptions
