@@ -1,6 +1,6 @@
 # Luna Studio
 
-<img src="https://github.com/luna/luna-studio/raw/master/resources/logo.ico" align="left">
+<img src="https://github.com/luna/luna-studio/raw/master/resources/logo.ico" align="right" style="margin: 0 auto;">
 
 ### Visual and textual functional programming language with a focus on productivity, collaboration and development ergonomics.
 
