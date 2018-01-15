@@ -36,6 +36,7 @@ import qualified LunaStudio.Data.GraphLocation  as GraphLocation
 
 import           Debug
 import qualified Empire.Commands.Graph          as Graph
+import qualified Empire.Commands.Publisher      as Publisher
 import           Empire.Data.AST                (SomeASTException)
 import qualified Empire.Data.Graph              as Graph
 import qualified Empire.Data.Library            as Library
@@ -134,6 +135,9 @@ handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
 handleCloseFile :: Request CloseFile.Request -> StateT Env BusT ()
 handleCloseFile (Request _ _ (CloseFile.Request path)) = do
     Env.empireEnv . Empire.activeFiles . at path .= Nothing
+    empireNotifEnv   <- use Env.empireNotif
+    currentEmpireEnv <- use Env.empireEnv
+    void $ liftIO $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Publisher.stopTC
 
 handleIsSaved :: Request IsSaved.Request -> StateT Env BusT ()
 handleIsSaved (Request _ _ _) = $_NOT_IMPLEMENTED
