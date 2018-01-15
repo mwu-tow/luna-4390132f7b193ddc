@@ -11,8 +11,8 @@ The graphical installer can be downloaded using the following links:
 
 If you only need the binary, we are maintaining up-to-date prebuilt binaries for each system:
 * Mac OS: http://packages.luna-lang.org/darwin/lunaManager.zip
-* Linux: http://packages.luna-lang.org/linux/lunaManager.tar.gz
-* Windows: http://packages.luna-lang.org/windows/lunaManager.zip
+* Linux: http://packages.luna-lang.org/linux/luna-manager
+* Windows: http://packages.luna-lang.org/windows/luna-manager.exe
 
 ## Command reference
 
