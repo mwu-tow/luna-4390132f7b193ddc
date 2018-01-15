@@ -224,6 +224,8 @@ copyResourcesLinux = when linux $ do
       desktopFile      = resources </> "app_shared.desktop"
       localDesktop     = localShareFolder </> "applications" </> fromText (T.concat ["LunaStudio", versionN, ".desktop"])
   Shelly.shelly $ do
+      Shelly.mkdir_p $ parent localShareFolder
+      Shelly.mkdir_p $ parent localDesktop
       Shelly.cmd "cp" "-r" iconsFolder localShareFolder
       Shelly.cp desktopFile localDesktop
 
