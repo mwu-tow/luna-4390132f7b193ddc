@@ -8,23 +8,23 @@ import           JS.Atom                                    (acceptEvent)
 import qualified JS.Event                                   as JS
 import           LunaStudio.Data.Port                       (AnyPortId (InPortId', OutPortId'), isSelf)
 import qualified LunaStudio.Data.PortRef                    as PortRef
-import           NodeEditor.Event.Event                     (Event (UI))
+import           NodeEditor.Event.Event                     (Event (Shortcut, UI))
+import qualified NodeEditor.Event.Shortcut                  as Shortcut
 import           NodeEditor.Event.UI                        (UIEvent (NodeEvent, PortEvent, VisualizationEvent))
 import qualified NodeEditor.React.Event.Node                as NodeEvent
 import qualified NodeEditor.React.Event.Port                as PortEvent
 import qualified NodeEditor.React.Event.Visualization       as VisualizationEvent
 import qualified NodeEditor.React.Model.App                 as App
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
-import           NodeEditor.React.Model.NodeEditor          (getExpressionNode)
+import           NodeEditor.React.Model.NodeEditor          (getExpressionNode, returnsGraphError)
 import qualified NodeEditor.React.Store.Ref                 as Ref
-import           NodeEditor.State.Global                    (State)
+import           NodeEditor.State.Global                    (State, getNodeEditor)
 import qualified NodeEditor.State.Global                    as Global
 import qualified NodeEditor.State.UI                        as UI
 
 
 toJSEvent :: Event -> State -> IO JS.Event
-toJSEvent evt state = JS.Event (Text.pack $ eventName evt) . nodeEditorEvent <$> getNodeEditor where
-    getNodeEditor = view App.nodeEditor <$> Ref.get (state ^. Global.ui . UI.app)
+toJSEvent evt state = JS.Event (Text.pack $ eventName evt) . nodeEditorEvent <$> getNodeEditor state where
     portRef (UI (PortEvent e))          = Just $ e ^. PortEvent.portRef
     portRef _                           = Nothing
     nodeLoc (UI (NodeEvent e))          = Just $ e ^. NodeEvent.nodeLoc
@@ -38,7 +38,22 @@ toJSEvent evt state = JS.Event (Text.pack $ eventName evt) . nodeEditorEvent <$>
     nodeEditorEvent ne                  = JS.GraphEvent . JS.GraphInfo $ getNodeInfo ne
 
 
+alwaysAcceptedCommands :: [Shortcut.Command]
+alwaysAcceptedCommands = [ Shortcut.Copy
+                         , Shortcut.Cut
+                         , Shortcut.Paste
+                         , Shortcut.Undo
+                         , Shortcut.Redo
+                         ]
+
+graphErrorFilter :: MonadIO m => State -> Event -> m Bool
+graphErrorFilter state event = check . view returnsGraphError <$> getNodeEditor state where
+    check isError = if not isError then True else case event of
+        Shortcut evt -> elem (evt ^. Shortcut.shortcut) alwaysAcceptedCommands
+        UI       _   -> False
+        _            -> True
+
 filterEvents :: State -> Event -> IO State -> IO State
-filterEvents state event action = toJSEvent event state >>= \evt -> if acceptEvent evt
-    then action
-    else return state
+filterEvents state event action = do
+    accept <- (&&) <$> (acceptEvent <$> toJSEvent event state) <*> graphErrorFilter state event
+    if accept then action else return state
