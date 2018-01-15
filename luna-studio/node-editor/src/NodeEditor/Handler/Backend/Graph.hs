@@ -94,11 +94,11 @@ applyResult' preventPorts res path = unlessM (checkBreadcrumb res) $
             void $ localRemoveNodes       . map (convert . (path,)) $ res ^. Result.removedNodes
             void $ localRemoveConnections . map (prependPath path)  $ res ^. Result.removedConnections
             mapM_ (exprNodeUpdateFunction . convert . (path,)) $ graphUpdates ^. Graph.nodes
-            void $ localAddConnections . map (\(src', dst') -> (prependPath path src', prependPath path dst')) $ graphUpdates ^. Graph.connections
             let inputSidebar  = graphUpdates ^. Graph.inputSidebar
                 outputSidebar = graphUpdates ^. Graph.outputSidebar
             when (isJust inputSidebar)  $ forM_ inputSidebar  $ localUpdateOrAddInputNode  . convert . (path,)
             when (isJust outputSidebar) $ forM_ outputSidebar $ localUpdateOrAddOutputNode . convert . (path,)
+            void $ localAddConnections . map (\(src', dst') -> (prependPath path src', prependPath path dst')) $ graphUpdates ^. Graph.connections
             setGraphStatus GraphLoaded
 
 handleGraphError :: Error GraphError -> Command State ()
