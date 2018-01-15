@@ -6,7 +6,7 @@ Even though most of the users should simply use the graphical installer, for Lun
 
 The graphical installer can be downloaded using the following links:
 * Mac OS: http://packages.luna-lang.org/darwin/lunaInstaller.zip
-* Linux: http://packages.luna-lang.org/linux/lunaInstaller.tar.gz
+* Linux: http://packages.luna-lang.org/linux/lunaInstaller.zip
 * Windows: http://packages.luna-lang.org/windows/lunaInstaller.zip
 
 If you only need the binary, we are maintaining up-to-date prebuilt binaries for each system:
