@@ -1,7 +1,7 @@
-# Luna Manager
-
-<img src="https://github.com/luna/luna-studio/raw/master/resources/logo.ico" align="right" style="margin: 0 auto;">
-
+<p align="center">
+  <img src="https://github.com/luna/luna-studio/raw/master/resources/logo.ico" align="right" style="margin: 0 auto;">
+</p>
+<h1 align="center">Luna Manager</h1>
 The Luna Manager provides various utilities for managing Luna installations as well as creating and managing new versions.
 
 Even though most of the users should simply use the graphical installer, for Luna development and more detailed management, the command line tool provides a variety of additional commands.
