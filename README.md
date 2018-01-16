@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/luna/luna-studio/raw/master/resources/logo.ico" align="right" style="margin: 0 auto;">
+  <img src="https://github.com/luna/luna-studio/raw/master/resources/logo.ico" style="margin: 0 auto;">
 </p>
 <h1 align="center">Luna Manager</h1>
 The Luna Manager provides various utilities for managing Luna installations as well as creating and managing new versions.
