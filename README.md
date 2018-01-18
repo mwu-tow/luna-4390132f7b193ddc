@@ -13,7 +13,7 @@ The graphical installer can be downloaded using the following links:
 * Linux: http://packages.luna-lang.org/linux/lunaInstaller.zip
 * Windows: http://packages.luna-lang.org/windows/lunaInstaller.zip
 
-If you only need the binary, we are maintaining up-to-date prebuilt binaries for each system:
+If you only need the command line installer, we are maintaining up-to-date prebuilt binaries for each system:
 * Mac OS: http://packages.luna-lang.org/darwin/lunaManager.zip
 * Linux: http://packages.luna-lang.org/linux/luna-manager
 * Windows: http://packages.luna-lang.org/windows/luna-manager.exe
