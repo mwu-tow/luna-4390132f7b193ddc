@@ -13,7 +13,7 @@
 module Main where
 
 import           Prelude                       hiding (FilePath)
-import           Control.Exception.Safe        (MonadMask, bracket_)
+import           Control.Exception.Safe        (MonadMask, MonadCatch, bracket_, catch)
 import           Control.Lens.Aeson
 import           Control.Lens
 import           Control.Monad
@@ -36,6 +36,7 @@ import           System.Process.Typed          (shell, runProcess, runProcess_, 
 import           System.Environment            (getExecutablePath, getArgs)
 import qualified System.Environment            as Environment
 import qualified System.IO                     as IO
+import           System.IO.Error               (isDoesNotExistError)
 import qualified Shelly.Lifted                 as Shelly
 import           System.Host
 
@@ -146,6 +147,11 @@ version :: MonadRun m => m FilePath
 version = do
     versionTxt <- versionText
     return $ fromText versionTxt
+
+printVersion :: (MonadRun m, MonadCatch m) => m ()
+printVersion = do
+    versionTxt <- catch versionText $ \e -> return $ if (isDoesNotExistError e) then "develop" else T.pack $ show e
+    liftIO $ print versionTxt
 
 -- paths --
 backendBinsPath, configPath, atomAppPath, backendDir                           :: MonadRun m => m FilePath
@@ -381,7 +387,8 @@ data Options = Options
     , backend  :: Bool
     , develop  :: Bool
     , forceRun :: Bool
-    , atom     :: Maybe String} deriving Show
+    , atom     :: Maybe String
+    , versioncheck  :: Bool} deriving Show
 
 optionParser :: Parser Options
 optionParser = Options
@@ -390,12 +397,14 @@ optionParser = Options
     <*> switch (long "develop"    <> short 'd')
     <*> switch (long "force-run"  <> short 'r')
     <*> (optional $ strOption $ long "atom" <> short 'a')
+    <*> switch (long "version")
 
 run :: Options -> IO ()
-run (Options frontend backend develop forceRun atom) = do
+run (Options frontend backend develop forceRun atom versionCheck) = do
     hostConfig <- defHostConfig @RunnerConfig
     flip evalStateT hostConfig $ do
-        if  frontend
+        if versionCheck then printVersion
+        else if  frontend
         then runFrontend $ T.pack <$> atom
         else if backend
         then runBackend forceRun
