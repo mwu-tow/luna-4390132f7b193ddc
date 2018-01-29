@@ -358,16 +358,15 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
     mainAppDir <- case currentHost of
         Windows -> return $ (pkgConfig ^. defaultPackagePath) </> convert appName
         _       -> expand $ appPath </> (pkgConfig ^. defaultPackagePath) </> convert appName
-    let binsFolder  = mainAppDir </> (pkgConfig ^. binFolder)    </> (pkgConfig ^. binsPrivate)
+    let binsFolder  = mainAppDir </> (pkgConfig ^. binFolder) </> (pkgConfig ^. binsPrivate)
         libsFolder  = mainAppDir </> (pkgConfig ^. libPath)
 
 
     when (currentHost == Darwin) $ Shelly.silently $ linkLibs binsFolder libsFolder
 
     case currentHost of
-        Linux   -> createAppimage appName appVersion appPath
-        Darwin  -> void . createTarGzUnix mainAppDir $ appName <> "-" <> showPretty currentHost <> "-" <> (showPretty appVersion)
-        Windows -> void . zipFileWindows mainAppDir $ appName <> "-" <> showPretty currentHost <> "-" <> (showPretty appVersion)
+        Linux -> createAppimage appName appVersion appPath
+        _     -> void . Archive.pack mainAppDir $ appName <> "-" <> showPretty currentHost <> "-" <> showPretty appVersion
 
     unless buildHead $ Shelly.switchVerbosity $ Shelly.chdir appPath $ do
         Shelly.cmd "git" "checkout" currBranch
