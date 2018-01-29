@@ -143,27 +143,28 @@ module.exports =
                 nextStepNo = @nextStepNo
                 highlightedRect = hgElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
+                    @buttonDoIt.show()
                     if @target.action is 'value'
-                        @buttonDoIt.show()
                         oldHandlers = hgElem.oninput
                         hgElem.oninput = =>
                             if hgElem? and (hgElem.value is @target.value)
                                 hgElem.oninput = oldHandlers
-                                setTimeout => @nextStep nextStepNo
+                                if not @currentStep.expected?.length
+                                    setTimeout => @nextStep nextStepNo
                     else if @target.action.includes ':'
-                        @buttonDoIt.show()
                         handler = {}
                         handler[@target.action] = =>
                             @disposable.dispose()
-                            setTimeout => @nextStep nextStepNo
+                            if not @currentStep.expected?.length
+                                setTimeout => @nextStep nextStepNo
                         @disposable = atom.commands.add hgElem, handler
                     else if hgElem?
-                        @buttonDoIt.show()
                         oldHandlers = hgElem[@target.action]
                         hgElem[@target.action] = =>
                             if hgElem?
                                 hgElem[@target.action] = oldHandlers
-                                setTimeout => @nextStep nextStepNo
+                                if not @currentStep.expected?.length
+                                    setTimeout => @nextStep nextStepNo
 
         proceed: =>
             @buttonContinue.hide()
@@ -199,9 +200,10 @@ module.exports =
             prepareRestriction = (entry) ->
                 regexp = if entry.regexp? then entry.regexp else entry
                 result =
-                    regexp:   new RegExp regexp
-                    nodeName: entry.nodeName
-                    portId:   entry.portId
+                    regexp:        new RegExp regexp
+                    nodeName:      entry.nodeName
+                    portId:        entry.portId
+                    searcherInput: entry.searcherInput
                 return result;
 
             @currentStep.allow ?= []
@@ -210,7 +212,10 @@ module.exports =
             @currentStep.block ?= []
             blocked = @currentStep.block.map prepareRestriction
 
-            @nodeEditor.setEventFilter blocked, allowed
+            @currentStep.expected ?= []
+            expected = @currentStep.expected.map prepareRestriction
+
+            @nodeEditor.setEventFilter blocked, allowed, expected
 
         displayStep: (retry = false) =>
             @setHighlightedElem()
@@ -232,8 +237,8 @@ module.exports =
                 setTimeout (=> @displayStep(true)), 300
                 return
 
-            @installHandlers()
             @setEventFilter()
+            @installHandlers()
 
             @guideTitle[0].innerText = @currentStep.title
             @guideDescription[0].innerHTML = converter.makeHtml @currentStep.description
@@ -313,11 +318,16 @@ module.exports =
         attach: =>
             @panel ?= atom.workspace.addHeaderPanel({item: this, visible: false})
             @panel.show()
+            @nodeEditor.onExpectedEvent =>
+                @proceed()
+
 
         detach: =>
             if @panel.isVisible()
-                @nodeEditor.setEventFilter [], []
+                @nodeEditor.setEventFilter [], [], []
                 @panel.hide()
+            @nodeEditor.onExpectedEvent null
+
 
         disable: =>
             @disableGuide()

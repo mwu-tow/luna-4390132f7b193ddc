@@ -10,6 +10,7 @@ globalRegistry = null
 eventFilters =
     blockedEvents: []
     allowedEvents: []
+    expectedEvents: []
 
 module.exports =
     connector: (otherGlobal) => globalRegistry = otherGlobal
@@ -35,19 +36,27 @@ module.exports =
     unOnEvent: (listener) => removeFromArray listeners.onEvent, listener
     pushEvent: (data) =>
         listeners.onEvent.forEach (listener) => listener(data)
-    setEventFilter: (blocked, allowed) =>
-        eventFilters = { blockedEvents: blocked, allowedEvents: allowed }
+    setEventFilter: (blocked, allowed, expected) =>
+        eventFilters = { blockedEvents: blocked, allowedEvents: allowed, expectedEvents: expected }
+    onExpectedEvent: (callback) => listeners.onExpectedEvent = callback
     acceptEvent: (event) =>
-        event    = JSON.parse event
+        event = JSON.parse event
         eventMatchesRestriction = (evt, restriction) ->
             nodeInfo = evt.eventInfo.nodeInfo
             nodeName = nodeInfo?.nodeName
             portId   = nodeInfo?.portInfo?.portId
-            eventNameMatches = restriction.regexp.test event.name
-            nodeNameMatches  = (not restriction.nodeName?) or (restriction.nodeName == nodeName)
-            portIdMatches    = (not restriction.portId?)   or (restriction.portId   == portId)
-            eventNameMatches and nodeNameMatches and portIdMatches
-        noRestrictions = eventFilters.blockedEvents.length == 0 and eventFilters.allowedEvents.length == 0
-        matchesAllowed = eventFilters.allowedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
-        matchesBlocked = eventFilters.blockedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
-        noRestrictions or matchesAllowed or not (eventFilters.blockedEvents.length == 0 or matchesBlocked)
+            searcherInput = evt.eventInfo.searcherInfo?.input
+            eventNameMatches     = restriction.regexp.test event.name
+            nodeNameMatches      = (not restriction.nodeName?)      or (restriction.nodeName      == nodeName)
+            portIdMatches        = (not restriction.portId?)        or (restriction.portId        == portId)
+            searcherInputMatches = (not restriction.searcherInput?) or (restriction.searcherInput == searcherInput)
+            eventNameMatches and nodeNameMatches and portIdMatches and searcherInputMatches
+        isExpected = eventFilters.expectedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+        if isExpected
+            listeners?.onExpectedEvent?()
+            isExpected
+        else
+            noRestrictions = eventFilters.blockedEvents.length == 0 and eventFilters.allowedEvents.length == 0
+            matchesAllowed = eventFilters.allowedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+            matchesBlocked = eventFilters.blockedEvents.some((restriction) -> eventMatchesRestriction event, restriction)
+            noRestrictions or matchesAllowed or not (eventFilters.blockedEvents.length == 0 or matchesBlocked)

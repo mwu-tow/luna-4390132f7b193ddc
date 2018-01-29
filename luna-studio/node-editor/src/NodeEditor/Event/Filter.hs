@@ -10,13 +10,15 @@ import           LunaStudio.Data.Port                       (AnyPortId (InPortId
 import qualified LunaStudio.Data.PortRef                    as PortRef
 import           NodeEditor.Event.Event                     (Event (Shortcut, UI))
 import qualified NodeEditor.Event.Shortcut                  as Shortcut
-import           NodeEditor.Event.UI                        (UIEvent (NodeEvent, PortEvent, VisualizationEvent))
+import           NodeEditor.Event.UI                        (UIEvent (NodeEvent, PortEvent, SearcherEvent, VisualizationEvent))
 import qualified NodeEditor.React.Event.Node                as NodeEvent
 import qualified NodeEditor.React.Event.Port                as PortEvent
+import qualified NodeEditor.React.Event.Searcher            as Searcher
 import qualified NodeEditor.React.Event.Visualization       as VisualizationEvent
 import qualified NodeEditor.React.Model.App                 as App
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
 import           NodeEditor.React.Model.NodeEditor          (getExpressionNode, returnsGraphError)
+import qualified NodeEditor.React.Model.NodeEditor          as NE
 import qualified NodeEditor.React.Store.Ref                 as Ref
 import           NodeEditor.State.Global                    (State, getNodeEditor)
 import qualified NodeEditor.State.Global                    as Global
@@ -35,7 +37,9 @@ toJSEvent evt state = JS.Event (Text.pack $ eventName evt) . nodeEditorEvent <$>
     toPortInfo n (OutPortId' pid)       = JS.PortInfo $ "OutPort " <> convert (show $ Node.visibleOutPortNumber n pid)
     toPortInfo n (InPortId'  pid)       = JS.PortInfo $ (if isSelf pid then "Self " else "InPort ") <> convert (show $ Node.visibleInPortNumber n pid)
     getPortInfo n                       = toPortInfo n . view PortRef.portId <$> portRef evt
-    nodeEditorEvent ne                  = JS.GraphEvent . JS.GraphInfo $ getNodeInfo ne
+    getSearcherInfo (UI (SearcherEvent (Searcher.InputChanged input _ _))) = Just $ JS.SearcherInfo input
+    getSearcherInfo _                   = Nothing
+    nodeEditorEvent ne                  = JS.GraphEvent $ JS.GraphInfo (getNodeInfo ne) (getSearcherInfo evt)
 
 
 alwaysAcceptedCommands :: [Shortcut.Command]
