@@ -19,7 +19,13 @@ data NodeInfo = NodeInfo { nodeLoc  :: NodeLoc
 
 instance ToJSON NodeInfo
 
-data GraphInfo = GraphInfo { nodeInfo :: Maybe NodeInfo
+data SearcherInfo = SearcherInfo { input :: Text
+                                 } deriving (Eq, Generic, Show)
+
+instance ToJSON SearcherInfo
+
+data GraphInfo = GraphInfo { nodeInfo     :: Maybe NodeInfo
+                           , searcherInfo :: Maybe SearcherInfo
                            } deriving (Default, Eq, Generic, Show)
 
 instance ToJSON GraphInfo
