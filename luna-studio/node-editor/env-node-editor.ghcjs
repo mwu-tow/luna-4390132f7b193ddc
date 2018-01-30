@@ -22,4 +22,5 @@ return { start:                run
        , onNotification:       atomCallback.onNotification
        , pushEvent:            atomCallback.pushEvent
        , setEventFilter:       atomCallback.setEventFilter
+       , onExpectedEvent:      atomCallback.onExpectedEvent
        }
