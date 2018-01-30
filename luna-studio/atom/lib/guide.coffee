@@ -143,8 +143,8 @@ module.exports =
                 nextStepNo = @nextStepNo
                 highlightedRect = hgElem.getBoundingClientRect()
                 if highlightedRect.width != 0 and highlightedRect.height != 0
-                    @buttonDoIt.show()
                     if @target.action is 'value'
+                        @buttonDoIt.show()
                         oldHandlers = hgElem.oninput
                         hgElem.oninput = =>
                             if hgElem? and (hgElem.value is @target.value)
@@ -152,6 +152,7 @@ module.exports =
                                 if not @currentStep.expected?.length
                                     setTimeout => @nextStep nextStepNo
                     else if @target.action.includes ':'
+                        @buttonDoIt.show()
                         handler = {}
                         handler[@target.action] = =>
                             @disposable.dispose()
@@ -159,6 +160,7 @@ module.exports =
                                 setTimeout => @nextStep nextStepNo
                         @disposable = atom.commands.add hgElem, handler
                     else if hgElem?
+                        @buttonDoIt.show()
                         oldHandlers = hgElem[@target.action]
                         hgElem[@target.action] = =>
                             if hgElem?
