@@ -53,6 +53,7 @@ def commit(v: str, path: str) -> None:
     git('commit', '-m', commit_msg)
     git('tag', v)
     git('push', 'origin', production_branch)
+    git('push', 'origin', '--tags')
 
 
 def get_name(version: str) -> str:
@@ -75,7 +76,7 @@ def get_release(repo: str, tag: str, draft: bool=False) -> github3.repos.release
         if r.tag_name == tag:
             return r
 
-    return repository.create_release(tag_name=version, draft=draft, prerelease=True)
+    return repo.create_release(tag_name=tag, draft=draft, prerelease=True)
 
 
 def deploy(version: str, draft: bool=False) -> None:
@@ -84,15 +85,23 @@ def deploy(version: str, draft: bool=False) -> None:
     tkn = os.environ.get('GITHUB_TOKEN')
     if not tkn:
         raise Exception('The GITHUB_TOKEN env variable not set.')
-    gh = github3.login(tkn)
+    print('token: ', tkn)
+    gh = github3.login(token=tkn)
+    if not gh:
+        raise Exception('Failed to login to GitHub')
     repo = gh.repository('luna', 'luna-manager')
+    if not repo:
+        raise Exception('Failed to find the repository')
     release = get_release(repo, version, draft)
+    if not release:
+        raise Exception('Failed to get the release from GitHub')
     name = get_name(version)
     with open(binary_path, 'rb') as asset:
         release.upload_asset(name=name, asset=asset, content_type='application_binary')
 
 
-def run(version: str, dry_run: bool=False, draft: bool=False) -> None:
+def new_version(version: str) -> None:
+    """Create the new version (modify package.yaml, tag, commit and push)"""
     package_yaml_path = os.path.join('luna-manager', 'package.yaml')
     print('Creating a new version: {}.'.format(version))
     ver_exists = write_version(version, package_yaml_path)
@@ -105,6 +114,11 @@ def run(version: str, dry_run: bool=False, draft: bool=False) -> None:
 
     print('Building the application.')
     subprocess.run(['stack', 'install'])
+
+
+def run(version: str, dry_run: bool=False, draft: bool=False, deploy_only: bool=False) -> None:
+    if not deploy_only:
+        new_version(version)
 
     if not dry_run:
         print('Deploying the release to GitHub.')
@@ -119,6 +133,8 @@ if __name__ == '__main__':
                         help='Create a draft release instead of the real one')
     parser.add_argument('--dry-run', dest='dry_run', default=False, action='store_true',
                         help='Create the new version without deploying anything')
+    parser.add_argument('--deploy-only', dest='deploy_only', default=False, action='store_true',
+                        help='Deploy the existing version to GitHub.')
     args = parser.parse_args()
 
-    run(args.version, dry_run=args.dry_run, draft=args.draft)
+    run(args.version, dry_run=args.dry_run, draft=args.draft, deploy_only=args.deploy_only)
