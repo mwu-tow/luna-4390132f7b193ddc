@@ -9,6 +9,8 @@ import Luna.Manager.System.Path
 import Luna.Manager.System.Env
 import Luna.Manager.Component.Pretty
 import Luna.Manager.Network
+import qualified Luna.Manager.Logger as Logger
+import Luna.Manager.Shell.Shelly (toTextIgnore, MonadSh, MonadShControl)
 
 import Control.Lens.Aeson
 import Control.Monad.Raise
@@ -103,24 +105,26 @@ resolve repo pkg = (errs <> subErrs, oks <> subOks) where
     subErrs      = concat $ fst <$> subRes
     subOks       = concat $ snd <$> subRes
 
-versionsMap :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m VersionMap
+versionsMap :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m) => Repo -> Text -> m VersionMap
 versionsMap repo appName = do
-    appPkg <- tryJust unresolvedDepError $ Map.lookup appName $ repo ^. packages
+    appPkg <- Logger.tryJustWithLog "Repo.versionsMap" unresolvedDepError $ Map.lookup appName $ repo ^. packages
     return $ appPkg ^. versions
 
-getFullVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m [Version]
+getFullVersionsList :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m) => Repo -> Text -> m [Version]
 getFullVersionsList repo appName = do
     vmap <- versionsMap repo appName
     return $ reverse . sort . Map.keys $ vmap
 
-getVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m [Version]
+getVersionsList :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m, Logger.LoggerMonad m) => Repo -> Text -> m [Version]
 getVersionsList repo appName = do
     vmap <- versionsMap repo appName
+    Logger.logObject "[getVersionsList] vmap" vmap
     let filteredVmap = Map.filter (Map.member currentSysDesc) vmap
+    Logger.logObject "[getVersionsList] filteredVmap" filteredVmap
     return $ reverse . sort . Map.keys $ filteredVmap
 
 -- Gets versions grouped by type (dev, nightly, release)
-getGroupedVersionsList :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ([Version], [Version], [Version])
+getGroupedVersionsList :: (MonadIO m, MonadException SomeException m, Logger.LoggerMonad m) => Repo -> Text -> m ([Version], [Version], [Version])
 getGroupedVersionsList repo appName = do
     versions <- getVersionsList repo appName
     let appendVersion (ds, ns, rs) v = if isDev v then (v:ds, ns, rs)
@@ -130,22 +134,26 @@ getGroupedVersionsList repo appName = do
         reversed = groupedVersions & over _1 reverse . over _2 reverse . over _3 reverse
     return reversed
 
-resolvePackageApp :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m ResolvedApplication
+resolvePackageApp :: (MonadIO m, MonadException SomeException m, Logger.LoggerMonad m) => Repo -> Text -> m ResolvedApplication
 resolvePackageApp repo appName = do
-    appPkg       <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
+    appPkg       <- Logger.tryJustWithLog "Repo.resolvePackageApp" undefinedPackageError $ Map.lookup appName (repo ^. packages)
     versionsList <- getVersionsList repo appName
+    Logger.logObject "[resolvePackageApp] versionsList" versionsList
     let version         = head versionsList
         applicationType = appPkg ^. appType
-    desc <- tryJust (toException UnresolvedDepError) $ Map.lookup version $ appPkg ^. versions
-    appDesc <- tryJust (toException $ MissingPackageDescriptionError version) $ Map.lookup currentSysDesc desc
+    Logger.logObject "[resolvePackageApp] version" version
+    desc <- Logger.tryJustWithLog "Repo.resolvePackageApp" (toException UnresolvedDepError) $ Map.lookup version $ appPkg ^. versions
+    Logger.logObject "[resolvePackageApp] desc" desc
+    appDesc <- Logger.tryJustWithLog "Repo.resolvePackageApp" (toException $ MissingPackageDescriptionError version) $ Map.lookup currentSysDesc desc
+    Logger.logObject "[resolvePackageApp] appDesc" appDesc
     return $ ResolvedApplication (ResolvedPackage (PackageHeader appName version) appDesc applicationType) (snd $ resolve repo appDesc)
 
-getSynopis :: (MonadIO m, MonadException SomeException m) => Repo -> Text -> m Text
+getSynopis :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m) => Repo -> Text -> m Text
 getSynopis repo appName = do
-    appPkg <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
+    appPkg <- Logger.tryJustWithLog "Repo.getSynopsis" undefinedPackageError $ Map.lookup appName (repo ^. packages)
     return $ appPkg ^. synopsis
 
-generatePackage :: (MonadIO m, MonadException SomeException m) => Repo -> Maybe FilePath -> ResolvedPackage -> m (Text, Package)
+generatePackage :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m) => Repo -> Maybe FilePath -> ResolvedPackage -> m (Text, Package)
 generatePackage repo repoPath resPkg = do
     let pkgName = resPkg ^. header . name
     pkgSynopsis <- getSynopis repo pkgName
@@ -164,7 +172,7 @@ addPackageToMap pkgMap pkg = Map.insert (fst pkg) (snd pkg) pkgMap
 emptyMapPkgs :: Map Text Package
 emptyMapPkgs = Map.empty
 
-generateYaml :: (MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> m ()
+generateYaml :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m) => Repo -> ResolvedApplication -> FilePath -> m ()
 generateYaml repo resolvedApplication filePath = do
     let appName = resolvedApplication ^. resolvedApp . header . name
     pkg <- generatePackage repo (Just ".") $ resolvedApplication ^. resolvedApp

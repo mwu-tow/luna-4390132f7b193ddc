@@ -149,7 +149,6 @@ unzipFileWindows zipFile = do
 untarWin :: UnpackContext m => Double -> Text.Text -> FilePath -> m FilePath
 untarWin totalProgress progressFieldName zipFile = do
     let scriptPath = "http://packages.luna-lang.org/windows/tar2.exe"
-
     guiInstaller <- Opts.guiInstallerOpt
     script       <- downloadFromURL scriptPath "Downloading archiving tool"
     let dir = directory zipFile

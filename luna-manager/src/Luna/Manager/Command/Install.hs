@@ -16,6 +16,7 @@ import qualified Luna.Manager.Logger          as Logger
 import Luna.Manager.Shell.Question
 import           Luna.Manager.Command.Options (Options, InstallOpts)
 import qualified Luna.Manager.Command.Options as Opts
+import qualified Luna.Manager.Logger          as Logger
 import Luna.Manager.System.Path
 import Luna.Manager.System (makeExecutable, exportPathUnix, exportPathWindows, checkShell, runServicesWindows, stopServicesWindows, exportPathWindows)
 
@@ -111,7 +112,7 @@ instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
 
 instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & defaultBinPathGuiApp   .~ "C:\\Program Files"
+        reconfig cfg = cfg & defaultBinPathGuiApp .~ "C:\\Program Files"
 
 
 
@@ -128,7 +129,6 @@ instance Exception UnresolvedDepsError where
     displayException err = "Following dependencies were unable to be resolved: " <> show (showPretty <$> unwrap err)
 
 type MonadInstall m = (MonadGetter Options m, MonadStates '[EnvConfig, InstallConfig, RepoConfig, MPUserData] m, MonadNetwork m, Shelly.MonadSh m, Shelly.MonadShControl m, Logger.LoggerMonad m)
-
 
 -- === Utils === --
 
@@ -192,9 +192,6 @@ downloadAndUnpackApp pkgPath installPath appName appType pkgVersion = do
              Shelly.mkdir_p installPath
              Shelly.mv unpacked $ installPath </> convert appName
          _  -> Shelly.mv unpacked  installPath
-    -- Shelly.rm_rf tmp -- FIXME[WD -> SB]: I commented it out, we use downloadWithProgressBar now which automatically downloads to tmp.
-                        --                  However, manuall tmp removing is error prone! Create a wrapper like `withTmp $ \tmp -> downloadWithProgressBarTo pkgPath tmp; ...`
-                        --                  which automatically removes tmp on the end!
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
@@ -261,7 +258,8 @@ linkingLocalBin currentBin appName = do
     home          <- getHomePath
     installConfig <- get @InstallConfig
     case currentHost of
-        Windows -> exportPathWindows currentBin
+        Windows -> do
+            exportPathWindows currentBin
         _       -> do
             localBin <- expand (installConfig ^. localBinPath)
             linking currentBin $ localBin </> convert appName
@@ -345,7 +343,7 @@ copyUserConfig installPath package = do
 -- === MacOS specific === --
 
 touchApp :: MonadInstall m => FilePath -> AppType -> m ()
-touchApp appPath appType = when (currentHost == Darwin && appType == GuiApp) $
+touchApp appPath appType = when (currentHost == Darwin && appType == GuiApp) $ do
         Shelly.switchVerbosity $ Shelly.cmd "touch" $ toTextIgnore appPath
 
 -- === Installation utils === --
@@ -358,7 +356,7 @@ askLocation opts appType appName = do
             BatchApp -> installConfig ^. defaultBinPathBatchApp
     binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question ("Select installation path for " <> appName) plainTextReader
-        & defArg .~ Just (toTextIgnore pkgInstallDefPath) --TODO uzyć toText i złapać tryRight'
+        & defArg .~ Just (toTextIgnore pkgInstallDefPath) 
     return binPath
 
 installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
@@ -417,16 +415,25 @@ run opts = do
 
         let install = JSON.decode $ BSL.fromStrict options :: Maybe Initilize.Option
         forM_ install $ \(Initilize.Option (Initilize.Install appName appVersion emailM)) -> do
+            Logger.logObject "[run] appName"    appName
+            Logger.logObject "[run] appVersion" appVersion
             Analytics.mpRegisterUser userInfoPath $ fromMaybe "" emailM
             Analytics.mpTrackEvent "LunaInstaller.Started"
-            appPkg           <- tryJust undefinedPackageError $ Map.lookup appName (repo ^. packages)
-            evaluatedVersion <- tryJust (toException $ VersionException $ convert $ show appVersion) $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
-            appDesc          <- tryJust (toException $ MissingPackageDescriptionError appVersion) $ Map.lookup currentSysDesc evaluatedVersion
+            appPkg           <- Logger.tryJustWithLog "Install.run" undefinedPackageError $ Map.lookup appName (repo ^. packages)
+            Logger.logObject "[run] App package" appPkg
+            evaluatedVersion <- Logger.tryJustWithLog "Install.run" (toException $ VersionException $ convert $ show appVersion) $ Map.lookup appVersion $ appPkg ^. versions --tryJust missingPackageDescriptionError $ Map.lookup currentSysDesc $ snd $ Map.lookup appVersion $ appPkg ^. versions
+            Logger.logObject "[run] evaluated version" evaluatedVersion
+            appDesc          <- Logger.tryJustWithLog "Install.run" (toException $ MissingPackageDescriptionError appVersion) $ Map.lookup currentSysDesc evaluatedVersion
+            Logger.logObject "[run] app description" appDesc
             let (unresolvedLibs, pkgsToInstall) = Repo.resolve repo appDesc
-            when (not $ null unresolvedLibs) . raise' $ UnresolvedDepsError unresolvedLibs
+            when (not $ null unresolvedLibs) $ do
+                let e = UnresolvedDepsError unresolvedLibs
+                Logger.exception "Install.run" $ toException e
+                raise' e
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
                 resolvedApp   = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
                 allApps       = resolvedApp : appsToInstall
+            Logger.logObject "[run] allApps" allApps
 
             mapM_ (installApp opts) $ allApps
             print $ encode $ InstallationProgress 1

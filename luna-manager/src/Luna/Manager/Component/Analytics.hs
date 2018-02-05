@@ -14,6 +14,7 @@ module Luna.Manager.Component.Analytics (
 
 import           Prologue                      hiding ((.=), FilePath)
 
+import           Control.Exception.Safe        (handleAny, catchAnyDeep)
 import           Control.Lens.Aeson            (lensJSONToJSON, lensJSONToEncoding, lensJSONParse)
 import           Control.Monad.State.Layered   as SL
 import           Control.Monad.Trans.Resource  (MonadBaseControl)
@@ -34,11 +35,13 @@ import qualified Data.UUID.V4                  as UUID
 import           Filesystem.Path.CurrentOS     (FilePath)
 import qualified Filesystem.Path.CurrentOS     as FilePath
 import qualified Network.HTTP.Simple           as HTTP
+import           Safe                          (atMay, headMay)
 import qualified System.IO                     as SIO
 
 import           Luna.Manager.Command.Options  (Options)
 import           Luna.Manager.Component.Pretty (showPretty)
 import qualified Luna.Manager.Logger           as Logger
+import           Luna.Manager.Logger           (LoggerMonad)
 import           Luna.Manager.Shell.Shelly     (MonadSh, MonadShControl)
 import qualified Luna.Manager.Shell.Shelly     as Shelly
 import           Luna.Manager.System.Host
@@ -122,35 +125,45 @@ stripVarName varName txt = fromMaybe "unknown" stripped
     where stripped = Text.filter (/= '"') <$> (Text.stripPrefix varName $ Text.strip txt)
 
 -- (linux) lookup a var in /etc/*-release files
-lookupSysVar :: (MonadShControl m, MonadSh m) => Text -> m Text
+lookupSysVar :: LoggerMonad m => Text -> m Text
 lookupSysVar varName = do
+    Logger.log "Analytics.lookupSysVar"
     let awkClause = "'/^" <> varName <> "=/'"
     line <- Shelly.escaping False $ Shelly.cmd "awk" awkClause "/etc/*-release"
     return $ stripVarName (varName <> "=") line
 
-osVersion :: (MonadShControl m, MonadSh m) => m Text
+extractWindowsVersion :: Text -> Maybe Text
+extractWindowsVersion systemInfo = Text.strip <$> version
+    where filtered  = filter ("OS Name" `Text.isPrefixOf`) $ Text.lines systemInfo
+          firstLine = Text.splitOn ":" <$> headMay filtered
+          version   = firstLine >>= flip atMay 1
+
+osVersion :: LoggerMonad m => m Text
 osVersion = do
+    Logger.log "Analytics.osVersion"
     Shelly.silently $ case currentHost of
-        Windows ->   Text.strip . (!! 1) . Text.splitOn ":" . head
-                 .   filter ("OS Name" `Text.isPrefixOf`) . Text.lines
-                 <$> Shelly.cmd "systeminfo"
+        Windows -> (fromMaybe "unknown" . extractWindowsVersion) <$> Shelly.cmd "systeminfo"
         Linux   -> lookupSysVar "VERSION"
         Darwin  -> Text.strip <$> Shelly.cmd "sw_vers" "-productVersion"
 
-osDistro :: (MonadShControl m, MonadSh m) => m Text
+osDistro :: LoggerMonad m => m Text
 osDistro = Shelly.silently $ case currentHost of
         Windows -> return "N/A"
         Linux   -> lookupSysVar "NAME"
         Darwin  -> return "N/A"
 
 -- Gets basic info about the operating system the installer is running on.
-userInfo :: (MonadIO m, MonadBaseControl IO m, MonadSh m, MonadShControl m) =>
+userInfo :: (LoggerMonad m, MonadCatch m, MonadBaseControl IO m) =>
              Text -> m MPUserData
 userInfo email = do
-    let safeGet item = Shelly.catchany item (const $ return "unknown")
+    Logger.log "Analytics.userInfo"
+    let safeGet item = catchAnyDeep item (const $ return "unknown")
     uuid <- newUuid
+    Logger.logObject "uuid" uuid
     ver  <- safeGet osVersion
+    Logger.logObject "ver" ver
     dist <- safeGet osDistro
+    Logger.logObject "dist" dist
     return $ MPUserData { _userInfoUUID   = uuid
                         , _userInfoEmail  = email
                         , _userInfoOsType = currentHost
@@ -170,26 +183,46 @@ strictWrite filePath s = do
     return ()
 
 -- Checks whether we already have the right user info saved in ~/.luna/user_info.json
-userInfoExists :: (MonadSh m, MonadIO m) => FilePath -> m Bool
+userInfoExists :: (LoggerMonad m, MonadSh m, MonadIO m) => FilePath -> m Bool
 userInfoExists userInfoPath = do
+    Logger.log "Analytics.userInfoExists"
     path <- expand userInfoPath
     fileExists <- Shelly.test_f path
     if not fileExists then return False
     else do
+        Logger.log "Reading from user_info"
         bytes <- liftIO $ BSL.readFile $ FilePath.encodeString path
+        Logger.log "Decoding JSON from user_info"
         let userInfoM = JSON.decode bytes :: Maybe MPUserData
             userInfo  = fromMaybe def userInfoM
         return . not . UUID.null $ userInfo ^. userInfoUUID
 
 -- Saves the email, along with some OS info, to a file user_info.json.
-processUserEmail :: (MonadSh m, MonadShControl m, MonadIO m, MonadBaseControl IO m) =>
+processUserEmail :: (LoggerMonad m, MonadSh m, MonadShControl m, MonadIO m, MonadBaseControl IO m, MonadCatch m) =>
                      FilePath -> Text -> m MPUserData
 processUserEmail userInfoPath email = do
-    info  <- userInfo email
-    Shelly.mkdir_p $ FilePath.parent userInfoPath
-    Shelly.touchfile userInfoPath
-    liftIO $ strictWrite userInfoPath info
-    return info
+    let handler = \(e::SomeException) -> do
+            Logger.log $ convert $  "Caught exception: " <> displayException e
+            Logger.log "Returning empty data"
+            return def
+    handleAny handler $ do
+        Logger.log "Analytics.processUserEmail"
+        info  <- userInfo email
+        Logger.log $ convert $ show info
+        Logger.log "Making the user info dir"
+        Shelly.mkdir_p $ FilePath.parent userInfoPath
+        Logger.log "Touching the user info file"
+        Shelly.touchfile userInfoPath
+        Logger.log "Encoding the path to info"
+        let p = FilePath.encodeString userInfoPath
+        Logger.log $ convert p
+        Logger.log "Encoding info"
+        let i = JSON.encode info
+        Logger.log $ convert $ show i
+        Logger.log "Writing to the file"
+        liftIO $ BSL.writeFile p i
+        Logger.log "Returning the info"
+        return info
 
 
 -----------------------------------------------------------------
@@ -209,18 +242,20 @@ serialize :: ToJSON s => s -> ByteString
 serialize = Base64.encode . toStrict . JSON.encode
 
 -- Generic wrapper around Mixpanel requests.
-sendMpRequest :: (ToJSON s, MonadIO m, MonadThrow m) => String -> s -> m ()
+sendMpRequest :: (LoggerMonad m, ToJSON s, MonadIO m, MonadThrow m) => String -> s -> m ()
 sendMpRequest endpoint s = do
+    Logger.log "Analytics.sendMpRequest"
     let payload = serialize s
     request <- HTTP.setRequestQueryString [("data", Just payload)] <$>
                HTTP.parseRequest endpoint
     liftIO $ void $ HTTP.httpNoBody request
 
 -- Register a new user within Mixpanel.
-mpRegisterUser :: (MonadIO m, MonadSetter MPUserData m, MonadThrow m,
-                   MonadShControl m, MonadSh m, MonadBaseControl IO m) =>
+mpRegisterUser :: (LoggerMonad m, MonadIO m, MonadSetter MPUserData m, MonadThrow m,
+                   MonadShControl m, MonadSh m, MonadBaseControl IO m, MonadCatch m) =>
                    FilePath -> Text -> m ()
 mpRegisterUser userInfoPath email = Shelly.unlessM (userInfoExists userInfoPath) $ do
+    Logger.log "Analytics.mpRegisterUser"
     path     <- expand userInfoPath
     userData <- processUserEmail path email
     let uuid   = UUID.toText $ userData ^. userInfoUUID
@@ -228,14 +263,18 @@ mpRegisterUser userInfoPath email = Shelly.unlessM (userInfoExists userInfoPath)
                               , _did = uuid
                               , _set = userData
                               }
+    Logger.log "Putting user data to the state"
     put @MPUserData userData
+    Logger.log "Sending MP request"
     sendMpRequest userUpdateEndpoint mpData
+    Logger.log "Done sending the request"
     return ()
 
 -- Send a single event to Mixpanel.
-mpTrackEvent :: (MonadIO m, MonadGetters '[MPUserData, Options, EnvConfig] m,
+mpTrackEvent :: (LoggerMonad m, MonadIO m, MonadGetters '[MPUserData, Options, EnvConfig] m,
                  MonadThrow m, MonadSh m, MonadShControl m) => Text -> m ()
 mpTrackEvent eventName = do
+    Logger.log "Analytics.mpTrackEvent"
     uuid <- gets @MPUserData userInfoUUID
     let mpProps = MPEventProps { _token       = projectToken
                                , _distinct_id = UUID.toText uuid
@@ -243,4 +282,6 @@ mpTrackEvent eventName = do
         mpData  = MPEvent  { _event      = eventName
                            , _properties = mpProps
                            }
+    Logger.log "Sending MP request"
     sendMpRequest eventEndpoint mpData
+    Logger.log "Done sending MP request"
