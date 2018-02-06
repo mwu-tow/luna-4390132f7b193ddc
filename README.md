@@ -129,7 +129,7 @@ file.
 
 ## License
 This repository is licensed under the
-[GNU GPL 3.0](https://opensource.org/licenses/GPL-3.0), as specified in the
+[GNU Affero GPL 3.0](https://opensource.org/licenses/AGPL-3.0), as specified in the
 [LICENSE](https://github.com/luna/luna-studio/blob/master/LICENSE) file. 
 
 Please be aware that, as the commercial backing for Luna, 
@@ -151,9 +151,4 @@ this CLA.
 The CLA you sign applies to all repositories associated with the Luna project 
 ([Luna](https://github.com/luna/luna), 
 [Luna RFCs](https://github.com/luna/luna-rfcs), etc), so you will only have 
-to sign it once at the start of your contributions. 
-
-## License
-This repository is licensed under the
-[Apache 2.0](https://opensource.org/licenses/apache-2.0), as specified in the
-[LICENSE](https://github.com/luna/luna/blob/master/LICENSE) file. 
+to sign it once at the start of your contributions.
