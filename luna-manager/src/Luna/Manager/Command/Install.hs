@@ -332,13 +332,17 @@ copyUserConfig installPath package = do
     let pkgName               = package ^. header . name
         pkgVersion            = showPretty $ package ^. header . version
         packageUserConfigPath = installPath </> "user-config"
-    homeUserConfigPath <- expand $ (installConfig ^. defaultConfPath) </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
+    homeLunaPath      <- expand $ installConfig ^. defaultConfPath
+    let homeUserConfigPath = homeLunaPath </> (installConfig ^. configPath) </> convert pkgName </> convert pkgVersion
     userConfigExists   <- Shelly.test_d packageUserConfigPath
     when userConfigExists $ do
         Shelly.rm_rf homeUserConfigPath
         Shelly.mkdir_p homeUserConfigPath
         listedPackageUserConfig <- Shelly.ls packageUserConfigPath
         mapM_ (flip Shelly.cp_r homeUserConfigPath) $ map (packageUserConfigPath </>) listedPackageUserConfig
+    when (currentHost == Windows) $ do
+        exitCode <- liftIO $ Process.runProcess $ Process.shell $ "attrib +h " <> encodeString homeLunaPath
+        unless (exitCode == ExitSuccess) $ Logger.warning $ "Setting hidden attribute for .luna folder failed"
 
 -- === MacOS specific === --
 
