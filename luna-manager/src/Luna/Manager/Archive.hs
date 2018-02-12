@@ -154,6 +154,8 @@ untarWin totalProgress progressFieldName zipFile = do
     let dir = directory zipFile
         name = dir </> basename zipFile
 
+    Shelly.mv script dir
+    
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
         if guiInstaller
