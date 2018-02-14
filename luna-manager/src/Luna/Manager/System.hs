@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Luna.Manager.System where
 
-import           Prologue                     hiding (FilePath,null, filter, appendFile, readFile, toText, fromText)
+import           Prologue                     hiding (FilePath,null, filter, appendFile, readFile, toText, fromText, (<.>))
 
 import qualified Control.Exception.Safe       as Exception
 import           Control.Monad.Raise
@@ -10,12 +11,16 @@ import           Control.Monad.State.Layered
 import           Control.Monad.Trans.Resource (MonadBaseControl)
 import           Data.ByteString.Lazy         (ByteString, null)
 import           Data.ByteString.Lazy.Char8   (filter, unpack)
+import qualified Crypto.Hash                  as Crypto
+import qualified Crypto.Hash.Conduit          as Crypto
+import qualified Data.ByteString              as ByteString
 import           Data.Maybe                   (listToMaybe)
 import           Data.List                    (isInfixOf)
 import           Data.List.Split              (splitOn)
 import           Data.Text.IO                 (appendFile, readFile)
 import qualified Data.Text                    as Text
-import           Filesystem.Path.CurrentOS    (FilePath, (</>), encodeString, toText, parent)
+import qualified Data.Text.Encoding           as Text
+import           Filesystem.Path.CurrentOS    (FilePath, (</>), (<.>), encodeString, toText, parent, directory, dropExtension)
 import           System.Directory             (executable, setPermissions, getPermissions, doesDirectoryExist, doesPathExist, getHomeDirectory)
 import qualified System.Environment           as Environment
 import           System.Exit
@@ -30,6 +35,10 @@ import           Luna.Manager.Shell.Shelly    (MonadSh, MonadShControl)
 import           Luna.Manager.System.Env
 import           Luna.Manager.System.Host
 
+
+---------------------------
+-- === Paths exports === --
+---------------------------
 
 data Shell = Bash | Zsh | Unknown deriving (Show)
 
@@ -123,13 +132,19 @@ exportPathWindows path = do
     let pathToexport = Path.dropTrailingPathSeparator $ encodeString $ parent path
         systemPath   = unpack pathenv
     unless (isInfixOf pathToexport systemPath) $ do
-        (exitCode, out, err) <- Process.readProcess $ Process.shell $ "setx PATH \"%PATH%;" ++ pathToexport ++ "\""
+        (exitCode, out, err) <- Process.readProcess $ Process.shell $ "setx PATH \"%PATH%;" <> pathToexport <> "\""
         unless (exitCode == ExitSuccess) $ Logger.warning $ "Path was not exported."
 
 makeExecutable :: MonadIO m => FilePath -> m ()
 makeExecutable file = unless (currentHost == Windows) $ liftIO $ do
         p <- getPermissions $ encodeString file
         setPermissions (encodeString file) (p {executable = True})
+
+
+------------------------------
+-- === Windows Services === --
+------------------------------
+
 
 runServicesWindows :: (LoggerMonad m, MonadSh m, MonadIO m, MonadShControl m) => FilePath -> FilePath -> m ()
 runServicesWindows path logsPath = Shelly.chdir path $ do
@@ -146,3 +161,34 @@ stopServicesWindows path = Shelly.chdir path $ do
         Shelly.silently $ Shelly.cmd uninstallPath `catch` handler where
             handler :: (LoggerMonad m, MonadSh m) => SomeException -> m ()
             handler ex = Logger.exception "System.stopServicesWindows" ex -- Shelly.liftSh $ print ex --TODO create proper error
+
+-----------------------
+-- === Checksums === --
+-----------------------
+
+-- === Errors === --
+
+data SHAChecksumDoesNotMatchError = SHAChecksumDoesNotMatchError FilePath Text Text  deriving (Show)
+instance Exception SHAChecksumDoesNotMatchError where
+    displayException (SHAChecksumDoesNotMatchError file checksum expectedChecksum) =
+        "File " <> show file <> " checksum does not match with the one provided with package." <> "\n" <>
+        "Expected checksum: " <> Text.unpack expectedChecksum <> "\n" <>
+        "Calculated checksum: " <> Text.unpack checksum <> "\n" <>
+        "Installation interrupted."
+
+-- === Utils === --
+
+generateChecksum :: forall hash m . (Crypto.HashAlgorithm hash, MonadIO m) => FilePath -> m ()
+generateChecksum file = do
+    sha <- Crypto.hashFile @m @hash $ encodeString file
+    let shaFilePath = dropExtension file <.>  "sha256"
+    liftIO $ writeFile (encodeString shaFilePath) (show sha)
+
+-- checking just strings because converting to ByteString will prevent user to check it without manager and
+-- comparing Digests is nontrivial due to lack of read function working opposite to Show in Crypto.Hash library
+checkChecksum :: forall hash m . (Crypto.HashAlgorithm hash, MonadIO m, MonadThrow m, MonadException SomeException m) => FilePath -> FilePath -> m ()
+checkChecksum file shaFile = do
+    sha            <- Crypto.hashFile @m @hash $ encodeString file
+    shaSaved       <- liftIO $ readFile $ encodeString shaFile
+    let shaString = Text.pack $ show sha
+    unless (shaString == shaSaved) $ throwM $ toException $ SHAChecksumDoesNotMatchError file shaSaved shaString
