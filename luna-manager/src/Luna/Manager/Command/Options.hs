@@ -21,9 +21,10 @@ data Options = Options
     } deriving (Show)
 
 data GlobalOpts = GlobalOpts
-    { _batchMode      :: Bool
-    , _guiInstaller   :: Bool
-    , _verbose        :: Bool
+    { _batchMode       :: Bool
+    , _guiInstaller    :: Bool
+    , _verbose         :: Bool
+    , _selectedTmpPath :: Maybe Text
     } deriving (Show)
 
 data Command = Install       InstallOpts
@@ -125,6 +126,7 @@ parseOptions = liftIO $ customExecParser (prefs showHelpOnEmpty) optsParser wher
     optsGlobal         = GlobalOpts        <$> Opts.switch (long "batch"   <> help "Do not run interactive mode")
                                            <*> Opts.switch (long "gui"     <> help "Used by the graphic installer to instruct the installer it's being run in a graphical mode")
                                            <*> Opts.switch (long "verbose" <> help "Print more output from the commands ran by the manager.")
+                                           <*> (optional . strOption $ long "tmp" <> metavar "TMP_PATH" <> help "Temporary folder path.")
     optsMkpkg          = MakePackage       <$> optsMkpkg'
     optsMkpkg'         = MakePackageOpts   <$> strArgument (metavar "CONFIG"  <> help "Config (luna-package.yaml) file path, usually found in the Luna Studio repo")
                                            <*> (optional . strOption $ long "gui" <> metavar "GUI_URL" <> help "Path to gui package on S3")
