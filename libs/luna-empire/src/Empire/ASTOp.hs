@@ -18,6 +18,7 @@ module Empire.ASTOp (
   , ASTOpReq
   , EmpirePass
   , PMStack
+  , getImportedModules
   , putNewIR
   , putNewIRCls
   , runAliasAnalysis
@@ -33,6 +34,7 @@ import           Empire.Prelude       hiding (Type, mempty, toList)
 import           Prologue             (mempty)
 
 import           Control.Monad.Catch  (MonadCatch(..))
+import           Control.Monad.Raise  (MonadException)
 import           Control.Monad.State  (MonadState, StateT, runStateT, get, put)
 import qualified Control.Monad.State.Dependent as DepState
 import qualified Data.Map             as Map
@@ -50,12 +52,14 @@ import           Luna.IR              as IR hiding (Marker, match)
 import           Luna.IR.Layer.Succs  (Succs)
 import qualified Luna.IR.Term.Unit    as Term
 import           OCI.IR.Layout.Typed  (type (>>))
+import           OCI.IR.Name.Qualified (QualName)
 import           OCI.Pass.Class       (Inputs, Outputs, Preserves, KnownPass)
 import           OCI.IR.Class         (Import)
 import qualified OCI.Pass.Class       as Pass (SubPass, eval')
 import qualified OCI.Pass.Manager     as Pass (PassManager, setAttr, State)
 
-import           System.Log                                   (Logger, DropLogger, dropLogs)
+import           System.Log                                   (DropLogger(..), dropLogs)
+import           System.Log.Logger.Class                      (Logger(..), IdentityLogger(..))
 import           Luna.Pass.Data.ExprRoots                     (ExprRoots(..))
 import qualified Empire.Pass.PatternTransformation            as PatternTransformation
 import           Luna.Pass.Resolution.Data.UnresolvedVars     (UnresolvedVars(..))
@@ -133,6 +137,10 @@ type instance Outputs    Attr  EmpirePass = '[Source, Parser.ParsedExpr, MarkedE
 type instance Outputs    Event EmpirePass = EmpireEmitters
 
 type instance Preserves        EmpirePass = '[]
+
+deriving instance MonadMask m => MonadMask (Pass.PassManager m)
+deriving instance MonadMask m => MonadMask (DepState.StateT t m)
+deriving instance MonadMask m => MonadMask (Logger (IdentityLogger l) m)
 
 instance MonadPassManager m => MonadRefLookup Net (Pass.SubPass pass m) where
     uncheckedLookupRef = lift . uncheckedLookupRef
@@ -245,36 +253,58 @@ runTypecheck imports = do
         return (st, passSt)
     put $ newG & Graph.ast .~ AST st passSt
 
+evalTC :: ClsGraph
+       -> IR
+       -> State (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT ClsGraph IO))))))
+       -> Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT ClsGraph IO))))) a
+       -> IO (a, ClsGraph)
+evalTC g ir pmState = flip runStateT g
+                    . withVis
+                    . dropLogs
+                    . DepState.evalDefStateT @Cache
+                    . flip evalIRBuilder ir
+                    . flip evalPassManager pmState
+
+tcInit :: MonadPassManager m => m ()
+tcInit = do
+    Pass.setAttr (getTypeDesc @WorldExpr)                 $ error "Data not provided: WorldExpr"
+    Pass.setAttr (getTypeDesc @UnitLoader.UnitsToLoad)    $ error "Data not provided: UnitsToLoad"
+    Pass.setAttr (getTypeDesc @UnitLoader.SourcesManager) $ error "Data not provided: SourcesManager"
+    Pass.setAttr (getTypeDesc @UnitSet)                   $ error "Data not provided: UnitSet"
+    Pass.setAttr (getTypeDesc @Invalids)                  $ (mempty :: Invalids)
+    initNameGen
+
+extractImportedModules :: (MonadPassManager m, MonadException PassEvalError m) => Expr Unit -> m (Set.Set QualName)
+extractImportedModules unit = do
+    impNames <- Pass.eval' $ do
+        imphub   <- unit @^. Term.imports
+        imps     <- readWrappedSources (unsafeGeneralize imphub :: Expr (UnresolvedImportHub >> UnresolvedImport >> UnresolvedImportSrc))
+        impNames <- for imps $ \imp -> do
+            src <- imp @^. Term.termUnresolvedImport_source
+            Term.Absolute path <- src @. wrapped
+            return path
+        cls <- IR.matchExpr unit $ \case
+            IR.Unit _ _ c -> IR.source c
+        UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
+        return impNames
+    let impNamesWithBase = Set.insert "Std.Base" $ Set.fromList impNames
+    return impNamesWithBase
+
+getImportedModules :: Command ClsGraph (Set.Set QualName)
+getImportedModules = do
+    unit :: Expr Unit <- uses Graph.clsClass unsafeGeneralize
+    g <- get
+    AST ir pmState <- use Graph.clsAst
+    fst <$> liftIO (evalTC g ir pmState $ tcInit >> extractImportedModules unit)
+
 runModuleTypecheck :: Map.Map Name FilePath -> CompiledModules -> Command ClsGraph (Either Compilation.ModuleCompilationError (Imports, CompiledModules))
 runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
     unit :: Expr Unit <- uses Graph.clsClass unsafeGeneralize
     g <- get
     AST ir pmState <- use Graph.clsAst
-    let evalIR = flip runStateT g
-               . withVis
-               . dropLogs
-               . DepState.evalDefStateT @Cache
-               . flip evalIRBuilder ir
-               . flip evalPassManager pmState
-    (res, newG) <- liftIO $ evalIR $ do
-        Pass.setAttr (getTypeDesc @WorldExpr)                 $ error "Data not provided: WorldExpr"
-        Pass.setAttr (getTypeDesc @UnitLoader.UnitsToLoad)    $ error "Data not provided: UnitsToLoad"
-        Pass.setAttr (getTypeDesc @UnitLoader.SourcesManager) $ error "Data not provided: SourcesManager"
-        Pass.setAttr (getTypeDesc @UnitSet)                   $ error "Data not provided: UnitSet"
-        Pass.setAttr (getTypeDesc @Invalids)                  $ (mempty :: Invalids)
-        initNameGen
-        impNames <- Pass.eval' $ do
-            imphub   <- unit @^. Term.imports
-            imps     <- readWrappedSources (unsafeGeneralize imphub :: Expr (UnresolvedImportHub >> UnresolvedImport >> UnresolvedImportSrc))
-            impNames <- for imps $ \imp -> do
-                src <- imp @^. Term.termUnresolvedImport_source
-                Term.Absolute path <- src @. wrapped
-                return path
-            cls <- IR.matchExpr unit $ \case
-                IR.Unit _ _ c -> IR.source c
-            UnitLoader.partitionASGCls $ IR.unsafeGeneralize cls
-            return impNames
-        let impNamesWithBase = Set.toList $ Set.insert "Std.Base" $ Set.fromList impNames
+    (res, newG) <- liftIO $ evalTC g ir pmState $ do
+        tcInit
+        impNamesWithBase <- Set.toList <$> extractImportedModules unit
         result <- liftIO $ Compilation.requestModules sources impNamesWithBase cmpMods
         case result of
             Right (imports, newCmpMods) -> do
@@ -294,26 +324,3 @@ putNewIRCls ir = do
     newAST <- liftIO $ Graph.emptyClsAST
     Graph.clsAst .= (newAST & Graph.ir .~ ir)
 
-
--- runPass :: forall pass g b a. KnownPass pass
---         => Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO))))) b
---         -> Pass.SubPass pass (Pass.PassManager (IRBuilder (DepState.StateT Cache (Logger DropLogger (Vis.VisStateT (StateT g IO)))))) a
---         -> Command g a
--- runPass inits pass = do
---     g <- get
---     AST currentStateIR currentStatePass <- use Graph.ast
---     let evalIR = flip runStateT g
---                . withVis
---                . dropLogs
---                . DepState.evalDefStateT @Cache
---                . flip evalIRBuilder currentStateIR
---                . flip evalPassManager currentStatePass
---     ((a, (st, passSt)), newG) <- liftIO $ evalIR $ do
---         inits
---         a      <- Pass.eval' @pass pass
---         st     <- snapshot
---         passSt <- DepState.get @Pass.State
---         return (a, (st, passSt))
---     put $ newG & Graph.ast .~ AST st passSt
---
---     return a

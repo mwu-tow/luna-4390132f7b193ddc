@@ -62,6 +62,7 @@ module Empire.Commands.Graph
     , withGraph'
     , withUnit
     , runTC
+    , typecheckWithRecompute
     , getName
     , MarkerNodeMeta(..)
     , FileMetadata(..)
@@ -205,6 +206,7 @@ addImports loc@(GraphLocation file _) modulesToImport = do
         let newImports = map (\i -> Text.concat ["import ", i, "\n"]) neededImports
         return $ Text.concat $ newImports ++ [code]
     reloadCode loc newCode
+    typecheckWithRecompute loc
     withUnit (GraphLocation file def) $ do
         modulesMVar <- view modules
         importPaths <- liftIO $ getImportPaths loc

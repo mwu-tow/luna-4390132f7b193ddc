@@ -127,7 +127,6 @@ import qualified ZMQ.Bus.EndPoint                        as EP
 import           ZMQ.Bus.Trans                           (BusT (..))
 import qualified ZMQ.Bus.Trans                           as BusT
 
-
 logger :: Logger.Logger
 logger = Logger.getLogger $(Logger.moduleName)
 
@@ -487,9 +486,14 @@ handleSubstitute = modifyGraph defInverse action replyResult where
     action req@(Substitute.Request location diffs) = do
         let file = location ^. GraphLocation.filePath
         prevImports <- Graph.getAvailableImports location
-        res         <- withDefaultResultTC location $ Graph.substituteCodeFromPoints file diffs
+        res         <- withDefaultResult location $ Graph.substituteCodeFromPoints file diffs
         newImports  <- Graph.getAvailableImports location
-        return $ Substitute.Result res $ if Set.fromList prevImports == Set.fromList newImports then def else return newImports
+        let importChange = if Set.fromList prevImports == Set.fromList newImports then Nothing else Just newImports
+        if isJust importChange then do
+            Graph.typecheckWithRecompute location
+        else do
+            Graph.withTC location False (return ())
+        return $ Substitute.Result res importChange
 
 
 handleGetBuffer :: Request GetBuffer.Request -> StateT Env BusT ()

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -8,11 +9,13 @@ module Empire.Server where
 
 import qualified Compress
 import           Control.Concurrent                   (forkIO, forkOn)
+import           Control.Concurrent.Async             (Async)
+import qualified Control.Concurrent.Async             as Async
 import           Control.Concurrent.MVar
 import           Control.Concurrent.STM               (STM)
 import           Control.Concurrent.STM.TChan         (TChan, newTChan, readTChan, tryPeekTChan)
+import qualified Control.Exception.Safe               as Exception
 import           Control.Monad                        (forM_, forever)
-import           Control.Monad.Catch                  (catchAll, try)
 import           Control.Monad.State                  (StateT, evalStateT)
 import           Control.Monad.STM                    (atomically)
 import qualified Data.Binary                          as Bin
@@ -53,6 +56,7 @@ import           Prologue                             hiding (Text)
 import           System.Directory                     (canonicalizePath)
 import           System.Environment                   (getEnv)
 import qualified System.Log.MLogger                   as Logger
+import           System.IO.Unsafe                     (unsafePerformIO)
 import           System.Mem                           (performGC)
 
 import           System.Remote.Monitoring
@@ -94,7 +98,14 @@ run endPoints topics formatted projectRoot = do
     let commEnv = env ^. Env.empireNotif
     forkIO $ void $ Bus.runBus endPoints $ BusT.runBusT $ evalStateT (startAsyncUpdateWorker fromEmpireChan) env
     forkIO $ void $ Bus.runBus endPoints $ startToBusWorker toBusChan
-    forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker commEnv
+    compiledStdlib <- newEmptyMVar
+    forkOn tcCapability $ do
+        writeIORef minCapabilityNumber 1
+        updateCapabilities
+        (std, cleanup) <- prepareStdlib
+        pmState <- Graph.defaultPMState
+        putMVar compiledStdlib (std, cleanup, pmState)
+    forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker compiledStdlib commEnv
     waiting <- newEmptyMVar
     requestThread <- forkOn requestCapability $ void $ Bus.runBus endPoints $ do
         mapM_ Bus.subscribe topics
@@ -115,26 +126,42 @@ prepareStdlib = do
     (cleanup, std) <- Typecheck.createStdlib $ lunaroot <> "/Std/"
     return (std, cleanup)
 
-startTCWorker :: Empire.CommunicationEnv -> Bus ()
-startTCWorker env = liftIO $ do
+killPreviousTC :: Empire.CommunicationEnv -> Maybe (Async Empire.InterpreterEnv) -> IO ()
+killPreviousTC env prevAsync = case prevAsync of
+    Just a -> Async.poll a >>= \case
+        Just finished -> case finished of
+            Left exc     -> logger Logger.warning $ "[TCWorker]: TC failed with: " <> displayException exc
+            Right intEnv -> do
+                logger Logger.info "[TCWorker]: killing listeners"
+                void $ Empire.evalEmpire env intEnv Typecheck.stop
+        _      -> do
+            logger Logger.info "[TCWorker]: cancelling previous request"
+            Async.uninterruptibleCancel a
+    _      -> return ()
+
+startTCWorker :: MVar (Scope, IO (), Graph.PMState ClsGraph) -> Empire.CommunicationEnv -> Bus ()
+startTCWorker compiledStdlib env = liftIO $ do
+    tcAsync <- newEmptyMVar
     let reqs = env ^. Empire.typecheckChan
         modules = env ^. Empire.modules
-    writeIORef minCapabilityNumber 1
-    updateCapabilities
-    (std, cleanup) <- prepareStdlib
+    (std, cleanup, pmState) <- readMVar compiledStdlib
     putMVar modules $ unwrap std
-    pmState <- Graph.defaultPMState
     let interpreterEnv = Empire.InterpreterEnv def def def undefined cleanup def
-    void $ Empire.runEmpire env interpreterEnv $ forever $ do
-        Empire.TCRequest loc g flush interpret recompute stop <- liftIO $ takeMVar reqs
-        case stop of
-            True  -> Typecheck.stop
-            False -> do
-                when flush
-                    Typecheck.flushCache
-                Empire.graph .= (g & Graph.clsAst . Graph.pmState .~ pmState)
-                liftIO performGC
-                catchAll (Typecheck.run modules loc interpret recompute) print
+    forever $ do
+        Empire.TCRequest loc g flush interpret recompute stop <- takeMVar reqs
+        prevAsync <- tryTakeMVar tcAsync
+        killPreviousTC env prevAsync
+        async     <- Async.asyncOn tcCapability (Empire.evalEmpire env interpreterEnv $ do
+            case stop of
+                True  -> Typecheck.stop
+                False -> do
+                    when flush
+                        Typecheck.flushCache
+                    Empire.graph .= (g & Graph.clsAst . Graph.pmState .~ pmState)
+                    liftIO performGC
+                    Typecheck.run modules loc interpret recompute `Exception.onException` Typecheck.stop)
+        when recompute $ void (Async.waitCatch async)
+        putMVar tcAsync async
 
 startToBusWorker :: TChan Message -> Bus ()
 startToBusWorker toBusChan = forever $ do
@@ -162,7 +189,7 @@ loadAllProjects = do
   projects <- liftIO $ projectFiles projectRoot
   loadedProjects <- flip mapM projects $ \proj -> do
     currentEmpireEnv <- use Env.empireEnv
-    result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Graph.openFile proj
+    result <- liftIO $ Exception.try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Graph.openFile proj
     case result of
         Left (exc :: SomeASTException) -> do
           logger Logger.error $ "Cannot load project [" <> proj <> "]: " <> (displayException exc)
@@ -173,7 +200,7 @@ loadAllProjects = do
 
   when ((catMaybes loadedProjects) == []) $ do
     currentEmpireEnv <- use Env.empireEnv
-    result <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $  Persistence.createDefaultProject
+    result <- liftIO $ Exception.try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $  Persistence.createDefaultProject
     case result of
         Right (_, newEmpireEnv) -> Env.empireEnv .= newEmpireEnv
         Left (exc :: SomeASTException) -> return ()
