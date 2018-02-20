@@ -109,7 +109,7 @@ directProgressLogger progressFieldName totalProgress actualProgress = do
         Left err -> raise' $ ProgressException err
 
 progressBarLogger :: Text.Text -> IO ()
-progressBarLogger pg = do 
+progressBarLogger pg = do
     let parsedProgress = Text.rational pg
     case parsedProgress of
         Right x -> do
@@ -165,7 +165,7 @@ untarWin totalProgress progressFieldName zipFile = do
         name = dir </> basename zipFile
 
     Shelly.mv script dir
-    
+
     Shelly.chdir dir $ do
         Shelly.mkdir_p name
         if guiInstaller

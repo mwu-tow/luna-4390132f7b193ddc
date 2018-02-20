@@ -72,9 +72,9 @@ log msg = do
     if verb && (not gui) then liftIO $ logToStdout msg' else logToTmpFile msg'
 
 logProcess :: LoggerMonad m => Text -> m ()
-logProcess cmd = do 
+logProcess cmd = do
     logToTmpFile $ cmd <> "\n"
-    (exit, out, err) <- Process.readProcess $ Process.shell $ unpack cmd 
+    (exit, out, err) <- Process.readProcess $ Process.shell $ unpack cmd
     logToTmpFile $ "output: " <> pack (show out) <> "\n"
     logToTmpFile $ "error: "  <> pack (show err) <> "\n"
 
