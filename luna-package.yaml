@@ -61,7 +61,7 @@ packages:
     appType: BatchApp
   luna-studio:
     versions:
-      1.0.3:
+      1.1.1:
         windows.x64:
           path: ./
           deps:
