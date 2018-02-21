@@ -492,7 +492,7 @@ handleSubstitute = modifyGraph defInverse action replyResult where
         if isJust importChange then do
             Graph.typecheckWithRecompute location
         else do
-            Graph.withTC location False (return ())
+            Graph.typecheck location
         return $ Substitute.Result res importChange
 
 
