@@ -52,12 +52,14 @@ import           Luna.Compilation                 (CompiledModules (..))
 import qualified Luna.IR                          as IR
 import           Luna.Pass.Data.ExprMapping
 import qualified Luna.Pass.Evaluation.Interpreter as Interpreter
+import           Luna.Pass.Resolution.Data.CurrentTarget (CurrentTarget(TgtDef))
 import qualified Luna.IR.Layer.Errors             as Errors
 import           OCI.IR.Name.Qualified            (QualName)
 
-runTC :: Imports -> Command Graph ()
-runTC imports = do
-    runTypecheck imports
+runTC :: QualName -> String -> Imports -> Command Graph ()
+runTC moduleName functionName imports = do
+    let currentTarget = TgtDef (convert moduleName) (convert functionName)
+    runTypecheck currentTarget imports
     runASTOp $ do
         mapping <- unwrap <$> IR.getAttr @ExprMapping
         Graph.breadcrumbHierarchy . BH.refs %= (\x -> Map.findWithDefault x x mapping)
@@ -90,7 +92,11 @@ updateNodes loc@(GraphLocation _ br) = do
             errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
             case errs of
                 []     -> return Nothing
-                e : es -> return $ Just $ (nid, NodeError $ APIError.Error APIError.CompileError $ e ^. Errors.description)
+                e : es -> do
+                    let toSrcLoc (Errors.ModuleTagged mod (Errors.FromMethod klass method)) = APIError.SourceLocation (convert mod) (Just (convert klass)) (convert method)
+                        toSrcLoc (Errors.ModuleTagged mod (Errors.FromFunction function))   = APIError.SourceLocation (convert mod) Nothing (convert function)
+                        errorDetails = APIError.CompileErrorDetails (map toSrcLoc (e ^. Errors.arisingFrom)) (map toSrcLoc (e ^. Errors.requiredBy))
+                    return $ Just $ (nid, NodeError $ APIError.Error (APIError.CompileError errorDetails) $ e ^. Errors.description)
         return (sidebarUpdates <> nodeUpdates, errors)
     mask_ $ do
         traverse_ (Publisher.notifyNodeTypecheck loc) updates
@@ -155,12 +161,12 @@ recomputeCurrentScope imports file = do
         lunaroot    <- liftIO $ canonicalizePath =<< getEnv "LUNAROOT"
         currentProjPath <- liftIO $ Project.findProjectRootForFile =<< Path.parseAbsFile file
         let importPaths = ("Std", lunaroot <> "/Std/") : ((Project.getProjectName &&& Path.toFilePath) <$> maybeToList currentProjPath)
+        qualName <- filePathToQualName file
         (f, nimps) <- zoom graph $ do
-            t <- runModuleTypecheck (Map.fromList importPaths) imps
+            t <- runModuleTypecheck qualName (Map.fromList importPaths) imps
             case t of
                 Right (a, b) -> return (a, b)
                 Left e  -> error $ show e <> " " <> file
-        qualName <- filePathToQualName file
         let nimpsF = nimps & Compilation.modules . at qualName ?~ f
         return (nimpsF, f)
 
@@ -193,8 +199,10 @@ run imports loc@(GraphLocation file br) interpret recompute = do
                 let CompiledModules cmpMods cmpPrims = std
                     visibleModules = CompiledModules (Map.restrictKeys cmpMods importedModules) cmpPrims
                     moduleEnv      = unionImports (flattenScope $ Scope visibleModules) scope
+                modName <- filePathToQualName file
+                funName <- preuse $ Graph.clsFuns . at uuid . _Just . Graph.funName
                 withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) $ do
-                    runTC moduleEnv
+                    runTC modName (fromMaybe "unknown function" funName) moduleEnv
                     updateNodes  loc
                     {-updateMonads loc-}
                     if interpret then do

@@ -235,8 +235,8 @@ runAliasAnalysis = do
     runPass inits PatternTransformation.runPatternTransformation
     runPass inits AliasAnalysis.runAliasAnalysis
 
-runTypecheck :: Imports -> Command Graph ()
-runTypecheck imports = do
+runTypecheck :: CurrentTarget -> Imports -> Command Graph ()
+runTypecheck currentTarget imports = do
     g <- get
     AST currentStateIR currentStatePass <- use Graph.ast
     root <- use $ Graph.breadcrumbHierarchy . BH.self
@@ -247,7 +247,7 @@ runTypecheck imports = do
                . flip evalIRBuilder currentStateIR
                . flip evalPassManager currentStatePass
     ((st, passSt), newG) <- liftIO $ evalIR $ do
-        Typecheck.typecheck TgtNone imports [unsafeGeneralize root]
+        Typecheck.typecheck currentTarget imports [unsafeGeneralize root]
         st     <- snapshot
         passSt <- DepState.get @Pass.State
         return (st, passSt)
@@ -297,8 +297,8 @@ getImportedModules = do
     AST ir pmState <- use Graph.clsAst
     fst <$> liftIO (evalTC g ir pmState $ tcInit >> extractImportedModules unit)
 
-runModuleTypecheck :: Map.Map Name FilePath -> CompiledModules -> Command ClsGraph (Either Compilation.ModuleCompilationError (Imports, CompiledModules))
-runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
+runModuleTypecheck :: QualName -> Map.Map Name FilePath -> CompiledModules -> Command ClsGraph (Either Compilation.ModuleCompilationError (Imports, CompiledModules))
+runModuleTypecheck moduleName sources cmpMods@(CompiledModules _ prims) = do
     unit :: Expr Unit <- uses Graph.clsClass unsafeGeneralize
     g <- get
     AST ir pmState <- use Graph.clsAst
@@ -309,7 +309,7 @@ runModuleTypecheck sources cmpMods@(CompiledModules _ prims) = do
         case result of
             Right (imports, newCmpMods) -> do
                 let imps = unionsImports $ prims : Map.elems imports
-                res <- ModuleTC.processModule imps "<<interactive>>" (IR.unsafeGeneralize unit)
+                res <- ModuleTC.processModule imps (convert moduleName) (IR.unsafeGeneralize unit)
                 return $ Right (res, newCmpMods)
             Left err -> return $ Left err
     return res
