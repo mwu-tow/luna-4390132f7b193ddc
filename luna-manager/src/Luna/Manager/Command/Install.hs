@@ -435,7 +435,7 @@ run :: MonadInstall m => InstallOpts -> m ()
 run opts = do
     userInfoPath <- gets @InstallConfig userInfoFile
     guiInstaller <- Opts.guiInstallerOpt
-    repo <- maybe getRepo (parseConfig <$> convert) (opts ^. Opts.localConfig)
+    repo <- maybe getRepo (parseConfig . convert) (opts ^. Opts.localConfig)
     if guiInstaller then do
         Initilize.generateInitialJSON repo =<< (Analytics.userInfoExists userInfoPath)
         liftIO $ hFlush stdout
