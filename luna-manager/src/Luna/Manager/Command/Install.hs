@@ -25,6 +25,7 @@ import           Luna.Manager.System.Env
 import           Luna.Manager.System.Host
 import           Luna.Manager.System.Path
 
+import           Control.Concurrent                (forkIO)
 import qualified Control.Exception.Safe            as Exception
 import           Control.Lens.Aeson
 import           Control.Monad.Raise
@@ -148,7 +149,7 @@ prepareInstallPath :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m
 prepareInstallPath appType appPath appName appVersion = expand $ case currentHost of
     Linux   -> appPath </> convert appName </> convert appVersion
     Windows -> case appType of
-        GuiApp -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+        GuiApp   -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
         BatchApp -> appPath </> convert appName </> convert appVersion
     Darwin  -> case appType of
         GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
@@ -426,8 +427,34 @@ readVersion v = case readPretty v of
 askUserEmail :: MonadIO m => m Text
 askUserEmail = liftIO $ do
     putStrLn $  "Please enter your email address (it is optional"
-             <> " but will help us greatly in the early alpha stage):"
+             <> " but will help us greatly in the early beta stage):"
     Text.getLine
+
+runApp :: MonadInstall m => Text -> Text -> AppType -> m ()
+runApp appName version appType = do
+    installConfig <- get @InstallConfig
+    installPath <- prepareInstallPath appType (installConfig ^. defaultBinPathGuiApp) appName version
+    let runPath = installPath </> (case currentHost of Linux -> ""; _ -> "bin" </> "main") </> fromText appName
+    threadID <- liftIO $ forkIO $ Process.runProcess_ $ Process.shell $ encodeString $ runPath
+    Logger.log $ Text.pack $ show threadID
+
+askToRunApp :: MonadInstall m => Text -> Text -> AppType -> m ()
+askToRunApp appName version appType = when (appType == GuiApp) $ do
+    guiInstaller <- Opts.guiInstallerOpt
+    if guiInstaller then do
+        Logger.log $ "ApplicationRun json" <> (Text.pack $ show $ encode $ ApplicationRun appName)
+        print $ encode $ ApplicationRun appName
+        liftIO $ hFlush stdout
+        doesRun <- liftIO $ BS.getLine
+        Logger.log $ "ApplicationRun answear " <> (Text.pack $ show doesRun)
+        let runOpt = JSON.decode $ BSL.fromStrict doesRun :: Maybe Run
+        when (isJust runOpt) $ Shelly.silently $ runApp appName version appType
+        print $ encode $ ApplicationClose True
+        else do
+            liftIO $ Text.putStrLn $  "Do you want to run " <> appName <> "? yes/no [yes]"
+            ans <- liftIO $ Text.getLine
+            when (ans == "yes" || ans == "") $ runApp appName version appType
+
 
 -- === Running === --
 
@@ -466,6 +493,7 @@ run opts = do
             mapM_ (installApp opts) $ allApps
             print $ encode $ InstallationProgress 1
             liftIO $ hFlush stdout
+            askToRunApp appName (showPretty appVersion) (appPkg ^. appType)
             Analytics.mpTrackEvent "LunaInstaller.Finished"
 
         else do
@@ -500,3 +528,5 @@ run opts = do
                 resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
                 allApps = resolvedApp : appsToInstall
             mapM_ (installApp opts) $ allApps
+
+            askToRunApp appName appVersion (appPkg ^. appType)
