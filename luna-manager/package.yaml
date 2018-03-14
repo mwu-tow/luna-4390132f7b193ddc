@@ -45,6 +45,7 @@ dependencies:
   - split
   - system-filepath
   - template-haskell
+  - temporary
   - text
   - time
   - transformers
