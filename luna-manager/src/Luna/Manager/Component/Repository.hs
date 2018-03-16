@@ -61,7 +61,7 @@ unresolvedDepError = toException UnresolvedDepError
 -- === Definition === --
 data AppType = BatchApp | GuiApp | Lib deriving (Show, Generic, Eq)
 
-
+-- TODO change _apps to _visibleApps
 -- Core
 data Repo          = Repo          { _packages :: Map Text Package , _apps     :: [Text]                            } deriving (Show, Generic, Eq)
 data Package       = Package       { _synopsis :: Text             , _appType  :: AppType , _versions :: VersionMap } deriving (Show, Generic, Eq)
