@@ -39,7 +39,7 @@ packages:
     appType: BatchApp
   zmq:
     versions:
-      1.0.0:
+      1.1.0:
         windows.x64:
           path: http://packages.luna-lang.org/windows/zmq/zmq1.zip
           deps: []
