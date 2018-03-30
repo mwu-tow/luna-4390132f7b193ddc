@@ -10,7 +10,8 @@ import           Luna.Manager.Archive as Archive
 import           Luna.Manager.Command.Options (Options, MakePackageOpts, guiInstallerOpt)
 import qualified Luna.Manager.Logger as Logger
 import           Luna.Manager.Component.Pretty
-import           Luna.Manager.Component.Repository as Repo
+import qualified Luna.Manager.Component.Repository as Repository
+import           Luna.Manager.Component.Version    (readVersion)
 import           Luna.Manager.Network
 import           Luna.Manager.System            (makeExecutable, generateChecksum)
 import           Luna.Manager.System.Env
@@ -26,7 +27,7 @@ import qualified Data.Text                      as Text
 import qualified Data.Yaml                      as Yaml
 import qualified Luna.Manager.Command.Options   as Opts
 import qualified Luna.Manager.Shell.Shelly      as Shelly
-import qualified Safe                           as Safe
+import qualified Safe
 import qualified System.Process.Typed           as Process
 import System.Exit
 import System.Directory                         (renameDirectory)
@@ -62,7 +63,7 @@ data PackageConfig = PackageConfig { _defaultPackagePath     :: FilePath
 
 makeLenses ''PackageConfig
 
-type MonadCreatePackage m = (MonadGetter Options m, MonadStates '[EnvConfig, PackageConfig, RepoConfig] m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadIO m)
+type MonadCreatePackage m = (MonadGetter Options m, MonadStates '[EnvConfig, PackageConfig, Repository.RepoConfig] m, MonadNetwork m, MonadSh m, Shelly.MonadShControl m, MonadIO m)
 
 
 -- === Instances === --
@@ -93,6 +94,10 @@ instance Monad m => MonadHostConfig PackageConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
         reconfig cfg = cfg & defaultPackagePath .~ "C:\\lp"
                            & buildScriptPath    .~ "scripts_build\\build.py"
+
+data NoAppException = NoAppException deriving(Show)
+instance Exception NoAppException  where
+    displayException NoAppException = "No Applicattions defined to create package."
 
 data AppimageException = AppimageException SomeException deriving (Show)
 instance Exception AppimageException where
@@ -230,20 +235,20 @@ copyFromDistToDistPkg appName repoPath = do
     Shelly.mv expandedCopmponents packageRepoFolder
     removeGitFolders packageRepoFolder
 
-downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> ResolvedPackage -> m ()
+downloadAndUnpackDependency :: MonadCreatePackage m => FilePath -> Repository.ResolvedPackage -> m ()
 downloadAndUnpackDependency repoPath resolvedPackage = do
     pkgConfig <- get @PackageConfig
-    let depName          = resolvedPackage ^. header . name
-        packageType      = resolvedPackage ^. resolvedAppType
+    let depName          = resolvedPackage ^. Repository.header . Repository.name
+        packageType      = resolvedPackage ^. Repository.resolvedAppType
         componentsFolder = pkgConfig ^. componentsToCopy
     thirdPartyFullPath <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. thirdPartyPath)
     libFullPath        <- expand $ repoPath </> componentsFolder </> (pkgConfig ^. libPath)
-    downloadedPkg      <- downloadFromURL (resolvedPackage ^. desc . path) $ "Downloading dependency files " <> depName
+    downloadedPkg      <- downloadFromURL (resolvedPackage ^. Repository.desc . Repository.path) $ "Downloading dependency files " <> depName
     unpacked           <- Archive.unpack 1.0 "unpacking_progress" downloadedPkg
     unpackedIsDir      <- Shelly.test_d unpacked
     Shelly.mkdir_p thirdPartyFullPath
     case packageType of
-        Lib -> do
+        Repository.Lib -> do
             Shelly.rm_rf libFullPath
             if unpackedIsDir then do
                 listed <- Shelly.ls unpacked
@@ -261,8 +266,8 @@ downloadAndUnpackDependency repoPath resolvedPackage = do
 isNewestVersion :: MonadCreatePackage m => Version -> Text -> m Bool
 isNewestVersion appVersion appName = do
     Logger.log "Checking if the repo is at the newest version..."
-    repo        <- getRepo
-    versionList <- Repo.getVersionsList repo appName
+    repo        <- Repository.getRepo
+    versionList <- Repository.getVersionsList repo appName
     if Prologue.null versionList then do
         Logger.log "> Yes"
         return True
@@ -340,24 +345,24 @@ prepareVersion appPath version = Shelly.switchVerbosity $ do
         commitHash <- Shelly.cmd "git" "rev-parse" "--short" "HEAD"
         Logger.log $ "Building from commit: " <> commitHash
 
-createPkg :: MonadCreatePackage m => FilePath -> Maybe Text -> ResolvedApplication -> m ()
+createPkg :: MonadCreatePackage m => FilePath -> Maybe Text -> Repository.ResolvedApplication -> m ()
 createPkg cfgFolderPath s3GuiURL resolvedApplication = do
     pkgConfig <- get @PackageConfig
-    let app        = resolvedApplication ^. resolvedApp
-        appDesc    = app ^. desc
-        appPath    = if (appDesc ^. path) == "./" then cfgFolderPath else convert (appDesc ^. path)
-        appHeader  = app ^. header
-        appName    = appHeader ^. name
-        appType    = app ^. resolvedAppType
+    let app        = resolvedApplication ^. Repository.resolvedApp
+        appDesc    = app ^. Repository.desc
+        appPath    = if (appDesc ^. Repository.path) == "./" then cfgFolderPath else convert (appDesc ^. Repository.path)
+        appHeader  = app ^. Repository.header
+        appName    = appHeader ^. Repository.name
+        appType    = app ^. Repository.resolvedAppType
         buildHead  = pkgConfig ^. buildFromHead
     appVersion <- do
-        isNewest <- isNewestVersion (appHeader ^. version) appName
-        if isNewest then return $ appHeader ^. version
-                    else throwM $ ExistingVersionException (appHeader ^. version)
+        isNewest <- isNewestVersion (appHeader ^. Repository.version) appName
+        if isNewest then return $ appHeader ^. Repository.version
+                    else throwM $ ExistingVersionException (appHeader ^. Repository.version)
 
     Logger.log $ "Creating version: " <> (showPretty appVersion)
 
-    mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. pkgsToPack
+    mapM_ (downloadAndUnpackDependency appPath) $ resolvedApplication ^. Repository.pkgsToPack
     -- Save the current branch to return from the detached head state after switching to the tag
     currBranch <- Shelly.silently $ Shelly.chdir appPath $ Text.strip <$> Shelly.cmd "git" "rev-parse" "--abbrev-ref" "HEAD"
     unless buildHead $ prepareVersion appPath appVersion
@@ -392,17 +397,21 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
 run :: MonadCreatePackage m => MakePackageOpts -> m ()
 run opts = do
     guiInstaller <- guiInstallerOpt
-    config       <- parseConfig $ convert (opts ^. Opts.cfgPath)
+    version      <- readVersion (opts ^. Opts.pkgVersion)
+    config       <- Repository.parseConfig $ convert (opts ^. Opts.cfgPath)
     modify_ @PackageConfig (permitNoTags  .~ (opts ^. Opts.permitNoTags))
     modify_ @PackageConfig (buildFromHead .~ (opts ^. Opts.buildFromHead))
 
     let cfgFolderPath = parent $ convert (opts ^. Opts.cfgPath)
-        appsToPack    = config ^. apps
+        appToPack     = Safe.headMay $ config ^. Repository.apps
         s3GuiUrl      = opts ^. Opts.guiURL
+    case appToPack of
+        Nothing -> throwM NoAppException
+        Just a -> do
+            resolved <- Repository.resolvePackageApp config a
+            let resolvedWithVersion = resolved & Repository.resolvedApp . Repository.header . Repository.version .~ version
+            createPkg cfgFolderPath s3GuiUrl resolvedWithVersion
 
-    resolved <- mapM (resolvePackageApp config) appsToPack
-
-    mapM_ (createPkg cfgFolderPath s3GuiUrl) resolved
-    repo <- getRepo
-    let updatedConfig = foldl' updateConfig config resolved
-    generateConfigYamlWithNewPackage repo updatedConfig $ cfgFolderPath </> "config.yaml"
+            repo <- Repository.getRepo
+            let updateConfig = Repository.updateConfig config resolvedWithVersion
+            Repository.generateConfigYamlWithNewPackage repo updateConfig $ cfgFolderPath </> "config.yaml"
