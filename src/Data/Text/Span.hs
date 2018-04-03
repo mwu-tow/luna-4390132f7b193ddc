@@ -3,9 +3,10 @@
 
 module Data.Text.Span where
 
-import Prologue_old            hiding (length)
+import qualified Control.Monad.State.Layered as State
+
+import Prologue            hiding (length)
 import Data.Maybe          (isJust)
-import Control.Monad.State.Dependent
 
 
 ----------------------------

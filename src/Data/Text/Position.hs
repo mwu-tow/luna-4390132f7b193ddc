@@ -1,10 +1,12 @@
 module Data.Text.Position where
 
-import Prologue_old hiding (range)
+import Prologue hiding (range)
+
+import qualified Control.Monad.State.Layered as State
+
 import Data.Bits
 import Text.Printf
 import Foreign.Storable
-import Control.Monad.State.Dependent
 
 
 -- FIXME[WD]: We should remove Delta and rename Offset -> Offset Linear or something like that
@@ -17,7 +19,7 @@ import Control.Monad.State.Dependent
 -- === Definition === --
 
 newtype Delta = Delta Int deriving (Bits, Bounded, Data, Enum, Eq, FiniteBits, Generic, Integral, Ix, NFData, Num, Ord, PrintfArg, Read, Real, Storable)
-makeWrapped ''Delta
+makeLenses ''Delta
 
 
 -- === Instances === --
@@ -47,11 +49,11 @@ makeLenses ''Offset
 
 -- === Utils === --
 
-succOffset :: MonadState Offset m => m ()
+succOffset :: State.Monad Offset m => m ()
 succOffset = incOffset 1
 
-incOffset :: MonadState Offset m => Offset -> m ()
-incOffset i = modify_ @Offset (+i)
+incOffset :: State.Monad Offset m => Offset -> m ()
+incOffset i = State.modify_ @Offset (+i)
 
 
 -- === Instances === --
@@ -91,23 +93,23 @@ makeClassy ''Position
 
 -- === Utils === --
 
-getLine :: MonadGetter Position m => m Delta
-getLine = view line <$> get @Position
+getLine :: State.Getter Position m => m Delta
+getLine = view line <$> State.get @Position
 
-getColumn :: MonadGetter Position m => m Delta
-getColumn = view column <$> get @Position
+getColumn :: State.Getter Position m => m Delta
+getColumn = view column <$> State.get @Position
 
-modColumn :: MonadState Position m => (Delta -> Delta) -> m ()
-modColumn f = modify_ @Position $ column %~ f
+modColumn :: State.Monad Position m => (Delta -> Delta) -> m ()
+modColumn f = State.modify_ @Position $ column %~ f
 
-incColumn :: MonadState Position m => Delta -> m ()
+incColumn :: State.Monad Position m => Delta -> m ()
 incColumn = modColumn . (+)
 
-succColumn :: MonadState Position m => m ()
+succColumn :: State.Monad Position m => m ()
 succColumn = modColumn succ
 
-succLine :: MonadState Position m => m ()
-succLine = modify_ @Position $ (column .~ 0) . (line %~ succ)
+succLine :: State.Monad Position m => m ()
+succLine = State.modify_ @Position $ (column .~ 0) . (line %~ succ)
 
 
 -- === Instances === --

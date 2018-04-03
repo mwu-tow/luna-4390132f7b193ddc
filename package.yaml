@@ -9,7 +9,7 @@ default-extensions: [AllowAmbiguousTypes, ApplicativeDo, Arrows, BangPatterns, B
   RecursiveDo, ScopedTypeVariables, StandaloneDeriving, TemplateHaskell, TupleSections,
   TypeApplications, TypeFamilies, TypeFamilyDependencies, TypeOperators, ViewPatterns,
   LiberalTypeSynonyms, RelaxedPolyRec]
-dependencies: [base, lens, prologue, dependent-state]
+dependencies: [base, lens, prologue, layered-state]
 github: https://github.com/luna/text-processing
 library: {ghc-options: -Wall -O2, source-dirs: src}
 license: Apache-2.0
@@ -17,4 +17,4 @@ maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: text-processing
 stability: experimental
 synopsis: Text processing primitives.
-version: 1.0.7
+version: '1.1'
