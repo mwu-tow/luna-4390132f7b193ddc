@@ -1,20 +1,77 @@
-author: Wojciech Danilo
-bug-reports: https://github.com/wdanilo/typelevel/issues
-category: Text
-copyright: Copyright (C) 2014 Wojciech Danilo
-default-extensions: [ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTypeable,
-  DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable, DoAndIfThenElse,
-  EmptyDataDecls, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GeneralizedNewtypeDeriving,
-  InstanceSigs, LambdaCase, MultiParamTypeClasses, OverloadedStrings, StandaloneDeriving,
-  TemplateHaskell, TupleSections, TypeOperators, ViewPatterns, TypeFamilies, GADTs]
-dependencies: [base, exceptions, lens, mtl, pretty, pretty-show, primitive, transformers,
-  constraints, convert]
-ghc-options: [-Wall, -O2]
-homepage: https://github.com/wdanilo/typelevel
-library: {source-dirs: src}
-license: Apache-2.0
-maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: typelevel
-stability: experimental
+version: 1.2.2
 synopsis: Useful type level operations (type families and related operators).
-version: 1.2.1
+category: Data
+license: Apache-2.0
+stability: experimental
+homepage: https://github.com/luna/typelevel
+bug-reports: https://github.com/luna/typelevel/issues
+author: Luna Team
+copyright: Copyright (C) 2018 Luna Team
+maintainer: Wojciech Danilo <wojciech.danilo@luna-lang.org>
+
+ghc-options:
+- -Wall
+- -O2
+
+library:
+  source-dirs:
+  - src
+  dependencies:
+  - base >= 4.10 && < 4.12
+  - exceptions
+  - lens
+  - mtl
+  - pretty
+  - pretty-show
+  - primitive
+  - transformers
+  - constraints
+  - convert
+
+default-extensions:
+- AllowAmbiguousTypes
+- ApplicativeDo
+- BangPatterns
+- BinaryLiterals
+- ConstraintKinds
+- DataKinds
+- DefaultSignatures
+- DeriveDataTypeable
+- DeriveFoldable
+- DeriveFunctor
+- DeriveGeneric
+- DeriveTraversable
+- DoAndIfThenElse
+- DuplicateRecordFields
+- EmptyDataDecls
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
+- GeneralizedNewtypeDeriving
+- InstanceSigs
+- LambdaCase
+- MonadComprehensions
+- MultiWayIf
+- NamedWildCards
+- NegativeLiterals
+- NumDecimals
+- OverloadedLabels
+- PackageImports
+- QuasiQuotes
+- PatternSynonyms
+- RankNTypes
+- RecursiveDo
+- ScopedTypeVariables
+- StandaloneDeriving
+- TemplateHaskell
+- TupleSections
+- TypeApplications
+- TypeFamilies
+- TypeFamilyDependencies
+- TypeOperators
+- UnicodeSyntax
+- ViewPatterns
+- LiberalTypeSynonyms
+- RelaxedPolyRec
