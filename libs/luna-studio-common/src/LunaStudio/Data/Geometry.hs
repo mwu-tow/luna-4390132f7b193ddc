@@ -3,7 +3,7 @@ module LunaStudio.Data.Geometry where
 import           LunaStudio.Data.Constants (gridSize)
 import           LunaStudio.Data.Position  (Position, distanceSquared, fromDoubles, move, vector, x, y)
 import           LunaStudio.Data.Vector2   (dotV, scalarProduct)
-import           Prologue                  hiding (p)
+import           Prologue
 
 type Radius = Double
 
@@ -50,22 +50,39 @@ closestPointOnLine line@(p1, p2) p3 = move shift p1 where
 --
 {-# INLINE closestPointOnLineParam #-}
 closestPointOnLineParam :: (Position, Position) -> Position -> Double
-closestPointOnLineParam (p1, p2) p3 = (v3 - v1) `dotV` (v2 - v1) / (v2 - v1) `dotV` (v2 - v1) where
-    v1 = p1 ^. vector
-    v2 = p2 ^. vector
-    v3 = p3 ^. vector
+closestPointOnLineParam (p1, p2) p3
+    = (v3 - v1) `dotV` (v2 - v1) / (v2 - v1) `dotV` (v2 - v1) where
+        v1 = p1 ^. vector
+        v2 = p2 ^. vector
+        v3 = p3 ^. vector
 
-doesSegmentsIntersects :: (Position, Position) -> (Position, Position) -> Bool
-doesSegmentsIntersects seg1@(beg1, end1) seg2@(beg2, end2) = if beg1 == end1 || beg2 == end2 then False else
-    case intersectLineLine seg1 seg2 of
-        Nothing -> isBeg1OnSeg2 || isBeg2OnSeg1 where
-            isBeg1OnSeg2 = distanceSquared beg1 beg2 + distanceSquared beg1 end2 == distanceSquared beg2 end2
-            isBeg2OnSeg1 = distanceSquared beg2 beg1 + distanceSquared beg2 end1 == distanceSquared beg1 end1
-        Just p  -> isPointInRectangle p (leftTop1, rightBottom1) && isPointInRectangle p (leftTop2, rightBottom2) where
-                leftTop1     = fromDoubles (min (beg1 ^. x) (end1 ^. x)) (min (beg1 ^. y) (end1 ^. y))
-                rightBottom1 = fromDoubles (max (beg1 ^. x) (end1 ^. x)) (max (beg1 ^. y) (end1 ^. y))
-                leftTop2     = fromDoubles (min (beg2 ^. x) (end2 ^. x)) (min (beg2 ^. y) (end2 ^. y))
-                rightBottom2 = fromDoubles (max (beg2 ^. x) (end2 ^. x)) (max (beg2 ^. y) (end2 ^. y))
+doSegmentsIntersect :: (Position, Position) -> (Position, Position) -> Bool
+doSegmentsIntersect seg1@(beg1, end1) seg2@(beg2, end2)
+    = not (beg1 == end1 || beg2 == end2) && doIntersect where
+        isBeg1OnSeg2    = distanceSquared beg1 beg2 + distanceSquared beg1 end2
+            == distanceSquared beg2 end2
+        isBeg2OnSeg1    = distanceSquared beg2 beg1 + distanceSquared beg2 end1
+            == distanceSquared beg1 end1
+        leftTop1        = fromDoubles
+            (min (beg1 ^. x) (end1 ^. x))
+            (min (beg1 ^. y) (end1 ^. y))
+        rightBottom1    = fromDoubles
+            (max (beg1 ^. x) (end1 ^. x))
+            (max (beg1 ^. y) (end1 ^. y))
+        leftTop2        = fromDoubles
+            (min (beg2 ^. x) (end2 ^. x))
+            (min (beg2 ^. y) (end2 ^. y))
+        rightBottom2    = fromDoubles
+            (max (beg2 ^. x) (end2 ^. x))
+            (max (beg2 ^. y) (end2 ^. y))
+        isInRectangle p
+            =  isPointInRectangle p (leftTop1, rightBottom1)
+            && isPointInRectangle p (leftTop2, rightBottom2)
+        doIntersect = maybe
+            (isBeg1OnSeg2 || isBeg2OnSeg1)
+            isInRectangle
+            $ intersectLineLine seg1 seg2
+
 
 -- Line-Line intersection from Graphics.Gloss.Geometry.Line
 -- | Given four points specifying two lines, get the point where the two lines
@@ -81,7 +98,8 @@ doesSegmentsIntersects seg1@(beg1, end1) seg2@(beg2, end2) = if beg1 == end1 || 
 --      P3  P2
 --     /     \\
 -- @
-intersectLineLine :: (Position, Position) -> (Position, Position) -> Maybe Position
+intersectLineLine :: (Position, Position) -> (Position, Position)
+    -> Maybe Position
 intersectLineLine (p1, p2) (p3, p4) = do
     let x1   = p1 ^. x
         y1   = p1 ^. y
@@ -106,10 +124,12 @@ intersectLineLine (p1, p2) (p3, p4) = do
         Just $ fromDoubles (numx / den) (numy / den)
 
 isPointInCircle :: Position -> (Position, Double) -> Bool
-isPointInCircle p (circleCenter, radius) = distanceSquared p circleCenter <= radius ^ (2 :: Integer)
+isPointInCircle p (circleCenter, radius)
+    = distanceSquared p circleCenter <= radius ^ (2 :: Integer)
 
 isPointInRectangle :: Position -> (Position, Position) -> Bool
-isPointInRectangle pos (leftTop, rightBottom) = pos ^. x >= leftTop ^. x     - epsilon
-                                             && pos ^. x <= rightBottom ^. x + epsilon
-                                             && pos ^. y >= leftTop ^. y     - epsilon
-                                             && pos ^. y <= rightBottom ^. y + epsilon
+isPointInRectangle pos (leftTop, rightBottom)
+    =  pos ^. x >= leftTop     ^. x - epsilon
+    && pos ^. x <= rightBottom ^. x + epsilon
+    && pos ^. y >= leftTop     ^. y - epsilon
+    && pos ^. y <= rightBottom ^. y + epsilon

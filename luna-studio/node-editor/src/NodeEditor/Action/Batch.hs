@@ -2,7 +2,12 @@ module NodeEditor.Action.Batch  where
 
 import           Common.Action.Command               (Command)
 import           Common.Prelude
+import           Data.Map                            (Map)
+import qualified Data.Map                            as Map
+import           Data.Set                            (Set)
+import qualified Data.Set                            as Set
 import           Data.UUID.Types                     (UUID)
+import           LunaStudio.Data.Connection          (Connection)
 import           LunaStudio.Data.GraphLocation       (GraphLocation)
 import           LunaStudio.Data.NodeMeta            (NodeMeta)
 import           LunaStudio.Data.NodeSearcher        (ImportName)
@@ -27,7 +32,8 @@ withWorkspace act = do
     withJustM getWorkspace $ \workspace' ->
         liftIO $ act workspace' uuid $ Just guiID
 
-withMayWorkspace :: (Maybe Workspace -> UUID -> Maybe UUID -> IO ()) -> Command State ()
+withMayWorkspace :: (Maybe Workspace -> UUID -> Maybe UUID -> IO ())
+    -> Command State ()
 withMayWorkspace act = do
     uuid       <- registerRequest
     guiID      <- use $ backend . clientId
@@ -55,7 +61,8 @@ getProgram :: Maybe (GraphLocation, LocationSettings) -> Bool -> Command State (
 getProgram = withWorkspace .: BatchCmd.getProgram
 
 
-addConnection :: Either OutPortRef NodeLoc -> Either AnyPortRef NodeLoc -> Command State ()
+addConnection :: Either OutPortRef NodeLoc -> Either AnyPortRef NodeLoc
+    -> Command State ()
 addConnection src dst = do
     let nl = case dst of
             Left (OutPortRef' (OutPortRef nl' _)) -> nl'
@@ -64,25 +71,28 @@ addConnection src dst = do
     collaborativeModify [nl]
     withWorkspace $ BatchCmd.addConnection src dst
 
-addImport :: Text -> Command State ()
-addImport = addImports . return
+addImport :: ImportName -> Command State ()
+addImport = addImports . Set.singleton
 
-addImports :: [Text] -> Command State ()
+addImports :: Set ImportName -> Command State ()
 addImports = withWorkspace . BatchCmd.addImports
 
 addNode :: NodeLoc -> Text -> NodeMeta -> Maybe NodeLoc -> Command State ()
-addNode nl expr nm connectTo = withWorkspace $ BatchCmd.addNode nl expr nm connectTo
+addNode nl expr nm connectTo
+    = withWorkspace $ BatchCmd.addNode nl expr nm connectTo
 
 addPort :: OutPortRef -> Maybe InPortRef -> Maybe Text -> Command State ()
 addPort = withWorkspace .:. BatchCmd.addPort
 
-addSubgraph :: [ExpressionNode] -> [(OutPortRef, InPortRef)] -> Command State ()
+addSubgraph :: [ExpressionNode] -> [Connection] -> Command State ()
 addSubgraph [] []       = return ()
-addSubgraph nodes conns = withWorkspace $ BatchCmd.addSubgraph (convert <$> nodes) (convert <$> conns)
+addSubgraph nodes conns
+    = withWorkspace $ BatchCmd.addSubgraph (convert <$> nodes) conns
 
 autolayoutNodes :: [NodeLoc] -> Bool -> Command State ()
 autolayoutNodes []  _            = return ()
-autolayoutNodes nls shouldCenter = withWorkspace $ BatchCmd.autolayoutNodes nls shouldCenter
+autolayoutNodes nls shouldCenter
+    = withWorkspace $ BatchCmd.autolayoutNodes nls shouldCenter
 
 collapseToFunction :: [NodeLoc] -> Command State ()
 collapseToFunction []  = return ()
@@ -125,19 +135,19 @@ paste = withWorkspace .: BatchCmd.paste
 saveSettings :: LocationSettings -> Command State ()
 saveSettings = withWorkspace . BatchCmd.saveSettings
 
-searchNodes :: [ImportName] -> Command State ()
+searchNodes :: Set ImportName -> Command State ()
 searchNodes = withWorkspace . BatchCmd.searchNodes
 
 setNodeExpression :: NodeLoc -> Text -> Command State ()
 setNodeExpression = withWorkspace .: BatchCmd.setNodeExpression
 
-setNodesMeta :: [(NodeLoc, NodeMeta)] -> Command State ()
-setNodesMeta []      = return ()
-setNodesMeta updates = withWorkspace $ BatchCmd.setNodesMeta updates
+setNodesMeta :: Map NodeLoc NodeMeta -> Command State ()
+setNodesMeta updates = unless (Map.null updates) . withWorkspace
+    $ BatchCmd.setNodesMeta updates
 
-sendNodesMetaUpdate :: [(NodeLoc, NodeMeta)] -> Command State ()
-sendNodesMetaUpdate []      = return ()
-sendNodesMetaUpdate updates = withWorkspace $ BatchCmd.sendNodesMetaUpdate updates
+sendNodesMetaUpdate :: Map NodeLoc NodeMeta -> Command State ()
+sendNodesMetaUpdate updates = unless (Map.null updates) . withWorkspace
+    $ BatchCmd.sendNodesMetaUpdate updates
 
 setPortDefault :: InPortRef -> PortDefault -> Command State ()
 setPortDefault portRef portDefault = do

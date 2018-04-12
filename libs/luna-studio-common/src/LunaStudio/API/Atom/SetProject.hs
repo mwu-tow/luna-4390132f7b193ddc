@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Atom.SetProject where
 
 import           Data.Aeson.Types        (ToJSON)
@@ -10,18 +8,21 @@ import qualified LunaStudio.API.Topic    as T
 import           Prologue
 
 
-data Request = Request { _rootPath :: FilePath
-                       } deriving (Eq, Generic, Show)
+data Request = Request { _rootPath :: FilePath } deriving (Eq, Generic, Show)
 
 makeLenses ''Request
+
 instance Binary Request
 instance NFData Request
 instance ToJSON Request
+
 
 type Response = Response.SimpleResponse Request ()
 instance Response.ResponseResult Request () ()
 
 topicPrefix :: T.Topic
 topicPrefix = "empire.atom.project.set"
-instance T.MessageTopic (R.Request Request) where topic _ = topicPrefix <> T.request
-instance T.MessageTopic Response            where topic _ = topicPrefix <> T.response
+instance T.MessageTopic (R.Request Request) where
+    topic _ = topicPrefix <> T.request
+instance T.MessageTopic Response            where
+    topic _ = topicPrefix <> T.response

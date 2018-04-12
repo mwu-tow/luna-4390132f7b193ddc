@@ -10,8 +10,7 @@ import           Prologue
 
 data UndoRequest = UndoRequest deriving (Eq, Generic, Show)
 
-data Request = Request { _request :: UndoRequest
-                       } deriving (Eq, Generic, Show)
+data Request = Request { _request :: UndoRequest } deriving (Eq, Generic, Show)
 
 makeLenses ''UndoRequest
 makeLenses ''Request
@@ -22,10 +21,13 @@ instance Binary Request
 instance NFData Request
 instance ToJSON Request
 
+
 type Response = Response.Response Request () ()
 instance Response.ResponseResult Request () ()
 
 topicPrefix :: T.Topic
 topicPrefix = "empire.undo"
-instance T.MessageTopic (R.Request Request) where topic _ = topicPrefix <> T.request
-instance T.MessageTopic Response            where topic _ = topicPrefix <> T.response
+instance T.MessageTopic (R.Request Request) where
+    topic _ = topicPrefix <> T.request
+instance T.MessageTopic Response            where
+    topic _ = topicPrefix <> T.response

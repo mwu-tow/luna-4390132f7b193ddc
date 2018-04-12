@@ -41,7 +41,8 @@ instance Action (Command State) NodeDrag where
     continue     = continueActionWithKey nodeDragAction
     update       = updateActionWithKey   nodeDragAction
     end nodeDrag = do
-            metaUpdate <- map (view nodeLoc &&& view position) <$> getSelectedNodes
+            metaUpdate <- Map.fromList . fmap (view nodeLoc &&& view position)
+                <$> getSelectedNodes
             moveNodes metaUpdate
             clearSnappedConnection nodeDrag
             removeActionFromState nodeDragAction
@@ -57,7 +58,7 @@ startNodeDrag coord nl snapped = do
         if snapped then do
             let snappedNodes = Map.map snap nodesPos
             begin $ NodeDrag coord nl snappedNodes Nothing
-            void . localMoveNodes $ Map.toList snappedNodes
+            void $ localMoveNodes snappedNodes
         else begin $ NodeDrag coord nl nodesPos Nothing
 
 nodesDrag :: MouseEvent -> Bool -> NodeDrag -> Command State ()
@@ -71,7 +72,7 @@ nodesDrag evt snapped nodeDrag = do
                      Just pos -> snap (move delta pos) ^. vector - pos ^. vector
                      Nothing  -> delta
                  else delta
-    void $ localMoveNodes . Map.toList $ Map.map (move shift') nodesStartPos
+    void . localMoveNodes $ Map.map (move shift') nodesStartPos
     snapConnectionsForNodes coord $ Map.keys nodesStartPos
 
 clearSnappedConnection :: NodeDrag -> Command State ()
@@ -80,37 +81,60 @@ clearSnappedConnection nodeDrag = do
     modifyNodeEditor $ halfConnections .= def
     withJust (nodeDrag ^. nodeDragSnappedConnId) $ \connId -> do
         mayNode <- getNode $ connId ^. PortRef.nodeLoc
-        modifyConnection connId $ Connection.mode .= maybe Connection.Normal (getConnectionMode connId) mayNode
+        modifyConnection connId $ Connection.mode .= maybe
+            Connection.Normal
+            (getConnectionMode connId)
+            mayNode
         updatePortsModeForNode $ connId ^. PortRef.nodeLoc
-        withJustM (getConnection connId) $ updatePortsModeForNode . view (src . PortRef.nodeLoc)
+        withJustM (getConnection connId)
+            $ updatePortsModeForNode . view (src . PortRef.nodeLoc)
         updatePortsModeForNode nl
-        continue $ \nodeDrag' -> update $ nodeDrag' & nodeDragSnappedConnId .~ Nothing
+        continue $ \nodeDrag' ->
+            update $ nodeDrag' & nodeDragSnappedConnId .~ Nothing
 
 snapConnectionsForNodes :: Position -> [NodeLoc] -> Command State ()
-snapConnectionsForNodes mousePos nodeLocs = when (length nodeLocs == 1) $ forM_ nodeLocs $ \nl -> do
-    continue clearSnappedConnection
-    mayNode <- getExpressionNode nl
-    withJust mayNode $ \node -> do
-        mayConnId <- getIntersectingConnections node mousePos
-        let maySelfPortRef = fmap (InPortRef nl) . find isSelf . map (view portId) $ inPortsList node
-        withJust ((,) <$> mayConnId <*> maySelfPortRef) $ \(connId, selfPortRef) -> do
-            let outPortRef  = OutPortRef nl []
-            mayConn       <- getConnection connId
-            mayConnModel1 <- fmap join . mapM (`createConnectionModel` selfPortRef) $ view src <$> mayConn
-            mayConnModel2 <- fmap join $ mapM (createConnectionModel outPortRef)       $ view dst <$> mayConn
-            withJust ((,,) <$> mayConn <*> mayConnModel1 <*> mayConnModel2) $ \(conn, connModel1, connModel2) -> do
-                ne <- getNodeEditor
-                let conns = map (Connection.mode .~ Highlighted) [connModel1, connModel2]
-                    conns' = mapMaybe (toPosConnection ne) conns
-                modifyNodeEditor $ halfConnections .= map convert conns'
-                continue $ \nodeDrag -> when (Just connId /= nodeDrag ^. nodeDragSnappedConnId)
-                                            $ update $ nodeDrag & nodeDragSnappedConnId ?~ connId
-                modifyConnection connId $ Connection.mode .= Dimmed
-                modifyExpressionNode nl $ do
-                    outPortAt []                                . mode .= Port.Highlighted
-                    inPortAt (selfPortRef ^. PortRef.dstPortId) . mode .= Port.Highlighted
-                modifyOutPort (conn ^. src) $ mode .= Port.Highlighted
-                modifyInPort  (conn ^. dst) $ mode .= Port.Highlighted
+snapConnectionsForNodes mousePos nodeLocs = when (length nodeLocs == 1)
+    $ forM_ nodeLocs $ \nl -> do
+        continue clearSnappedConnection
+        mayNode <- getExpressionNode nl
+        withJust mayNode $ \node -> do
+            mayConnId <- getIntersectingConnections node mousePos
+            let maySelfPortRef = fmap (InPortRef nl) . find isSelf
+                    $ (view portId) <$> inPortsList node
+            withJust ((,) <$> mayConnId <*> maySelfPortRef)
+                $ \(connId, selfPortRef) -> do
+                    let outPortRef  = OutPortRef nl []
+                    mayConn       <- getConnection connId
+                    mayConnModel1 <- fmap join .
+                        mapM (`createConnectionModel` selfPortRef)
+                            $ view src <$> mayConn
+                    mayConnModel2 <- fmap join
+                        $ mapM (createConnectionModel outPortRef)
+                            $ view dst <$> mayConn
+                    withJust ((,,) <$> mayConn <*> mayConnModel1 <*> mayConnModel2)
+                        $ \(conn, connModel1, connModel2) -> do
+                            ne <- getNodeEditor
+                            let conns = (Connection.mode .~ Highlighted)
+                                    <$> [connModel1, connModel2]
+                                conns' = mapMaybe (toPosConnection ne) conns
+                            modifyNodeEditor
+                                $ halfConnections .= map convert conns'
+                            let connIdsMatch nodeDrag
+                                    = Just connId
+                                    == nodeDrag ^. nodeDragSnappedConnId
+                            continue $ \nodeDrag ->
+                                unless (connIdsMatch nodeDrag)
+                                    $ update $ nodeDrag & nodeDragSnappedConnId
+                                        ?~ connId
+                            modifyConnection connId $ Connection.mode .= Dimmed
+                            modifyExpressionNode nl $ do
+                                outPortAt [] . mode .= Port.Highlighted
+                                inPortAt (selfPortRef ^. PortRef.dstPortId)
+                                    . mode .= Port.Highlighted
+                            modifyOutPort (conn ^. src)
+                                $ mode .= Port.Highlighted
+                            modifyInPort (conn ^. dst)
+                                $ mode .= Port.Highlighted
 
 handleNodeDragMouseUp :: MouseEvent -> NodeDrag -> Command State ()
 handleNodeDragMouseUp evt nodeDrag = do
@@ -120,7 +144,8 @@ handleNodeDragMouseUp evt nodeDrag = do
     if startPos == coord then
         selectNodes [nl]
     else do
-        metaUpdate <- map (view nodeLoc &&& view position) <$> getSelectedNodes
+        metaUpdate <- Map.fromList . fmap (view nodeLoc &&& view position)
+            <$> getSelectedNodes
         moveNodes metaUpdate
         withJust (nodeDrag ^. nodeDragSnappedConnId) $ \connId -> do
             mayConn <- getConnection connId

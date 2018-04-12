@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 module LunaStudio.API.Atom.FileChanged where
 
 import           Data.Aeson.Types        (ToJSON)
@@ -10,10 +8,10 @@ import qualified LunaStudio.API.Topic    as T
 import           Prologue
 
 
-data Request = Request { _filePath :: FilePath
-                       } deriving (Eq, Generic, Show)
+data Request = Request { _filePath :: FilePath } deriving (Eq, Generic, Show)
 
 makeLenses ''Request
+
 instance Binary Request
 instance NFData Request
 instance ToJSON Request
@@ -24,5 +22,7 @@ instance Response.ResponseResult Request () ()
 
 topicPrefix :: T.Topic
 topicPrefix = "empire.atom.file.changed"
-instance T.MessageTopic (R.Request Request) where topic _ = topicPrefix <> T.request
-instance T.MessageTopic Response            where topic _ = topicPrefix <> T.response
+instance T.MessageTopic (R.Request Request) where
+    topic _ = topicPrefix <> T.request
+instance T.MessageTopic Response            where
+    topic _ = topicPrefix <> T.response

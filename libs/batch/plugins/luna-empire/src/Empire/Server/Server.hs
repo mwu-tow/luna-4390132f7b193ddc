@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE Rank2Types          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Empire.Server.Server where
 
 import qualified Compress
@@ -29,11 +26,11 @@ import qualified Empire.Env                    as Env
 import           Empire.Utils                  (currentISO8601Time)
 import qualified Luna.Project                  as Project
 import qualified LunaStudio.API.Graph.Request  as G
-import qualified LunaStudio.API.Graph.Result   as Result
 import           LunaStudio.API.Request        (Request (..))
 import qualified LunaStudio.API.Response       as Response
 import           LunaStudio.API.Topic          (MessageTopic)
 import qualified LunaStudio.API.Topic          as Topic
+import           LunaStudio.Data.Diff          (Diff, diff)
 import           LunaStudio.Data.Error         (Error, LunaError, errorContent)
 import           LunaStudio.Data.Graph         (Graph (..))
 import qualified LunaStudio.Data.Graph         as GraphAPI
@@ -53,24 +50,30 @@ logger = Logger.getLogger $(Logger.moduleName)
 sendToBus :: Binary a => String -> a -> StateT Env BusT ()
 sendToBus topic bin = do
     chan <- use Env.toBusChan
-    liftIO $ atomically $ writeTChan chan $ Message.Message topic $ Compress.pack $ Bin.encode bin
+    liftIO $ atomically $ writeTChan chan
+        $ Message.Message topic $ Compress.pack $ Bin.encode bin
 
 sendToBus' :: (MessageTopic a, Binary a) => a -> StateT Env BusT ()
 sendToBus' msg = sendToBus (Topic.topic msg) msg
 
-replyFail :: forall a b c. Response.ResponseResult a b c => Logger.Logger -> Error LunaError -> Request a -> Response.Status b -> StateT Env BusT ()
+replyFail :: forall a b c. Response.ResponseResult a b c
+    => Logger.Logger -> Error LunaError -> Request a -> Response.Status b
+    -> StateT Env BusT ()
 replyFail logger err req inv = do
     time <- liftIO currentISO8601Time
-    logger Logger.error $ time <> "\t:: " <> formatErrorMessage req (Text.unpack $ err ^. errorContent)
+    logger Logger.error $ time
+        <> "\t:: " <> formatErrorMessage req (Text.unpack $ err ^. errorContent)
     sendToBus' $ Response.error req inv err
 
-replyOk :: forall a b. Response.ResponseResult a b () => Request a -> b -> StateT Env BusT ()
+replyOk :: forall a b. Response.ResponseResult a b ()
+    => Request a -> b -> StateT Env BusT ()
 replyOk req inv = do
     time <- liftIO currentISO8601Time
     logger Logger.info $ time <> "\t:: sending ok for " <> Topic.topic req
     sendToBus' $ Response.ok req inv
 
-replyResult :: forall a b c. (Response.ResponseResult a b c, Show c) => Request a -> b -> c -> StateT Env BusT ()
+replyResult :: forall a b c. (Response.ResponseResult a b c, Show c)
+    => Request a -> b -> c -> StateT Env BusT ()
 replyResult req inv res = do
     time <- liftIO currentISO8601Time
     logger Logger.info $ time <> "\t:: sending response for " <> Topic.topic req
@@ -91,8 +94,9 @@ webGUIHack req = do
     let path = lunaroot </> "projects" </> defaultLibraryPath
         realLocation = req ^. G.location
         realFile     = realLocation ^. GraphLocation.filePath
-        hackedReq    = if null realFile then req & G.location . GraphLocation.filePath .~ path
-                                        else req
+        hackedReq    = if null realFile
+            then req & G.location . GraphLocation.filePath .~ path
+            else req
     return hackedReq
 
 prettyException :: Exception e => e -> IO String
@@ -100,21 +104,29 @@ prettyException e = do
     stack <- whoCreated e
     return $ displayException e ++ "\n" ++ renderStack stack
 
-modifyGraph :: forall req inv res res'. (Show req, G.GraphRequest req, Response.ResponseResult req inv res') => (req -> Empire inv) -> (req -> Empire res) -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req -> StateT Env BusT ()
+modifyGraph :: forall req inv res res'.
+    ( Show req
+    , G.GraphRequest req
+    , Response.ResponseResult req inv res')
+    => (req -> Empire inv) -> (req -> Empire res)
+    -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req
+    -> StateT Env BusT ()
 modifyGraph inverse action success origReq@(Request uuid guiID request') = do
     logger Logger.info $ Topic.topic origReq <> ": " <> show request'
     request          <- liftIO $ webGUIHack request'
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
     endPoints        <- use $ Env.config . to EP.clientFromConfig
-    inv'             <- liftIO $ try $ runEmpire empireNotifEnv currentEmpireEnv $ inverse request
+    inv'             <- liftIO $ try
+        $ runEmpire empireNotifEnv currentEmpireEnv $ inverse request
     case inv' of
         Left (exc :: SomeException) -> do
             err <- liftIO $ Graph.prepareLunaError exc
             replyFail logger err origReq (Response.Error err)
         Right (inv, _) -> do
             let invStatus = Response.Ok inv
-            result <- liftIO $ try $ runEmpire empireNotifEnv currentEmpireEnv $ action request
+            result <- liftIO $ try
+                $ runEmpire empireNotifEnv currentEmpireEnv $ action request
             case result of
                 Left  (exc :: SomeException) -> do
                     err <- liftIO $ Graph.prepareLunaError exc
@@ -123,47 +135,34 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
                     Env.empireEnv .= newEmpireEnv
                     success origReq inv result
 
-modifyGraphOk :: forall req inv res . (Show req, Bin.Binary req, G.GraphRequest req, Response.ResponseResult req inv ()) => (req -> Empire inv) -> (req -> Empire res) -> Request req -> StateT Env BusT ()
-modifyGraphOk inverse action = modifyGraph inverse action (\req@(Request uuid guiID request) inv _ -> replyOk req inv)
+modifyGraphOk :: forall req inv res .
+    ( Show req
+    , Bin.Binary req
+    , G.GraphRequest req
+    , Response.ResponseResult req inv ()
+    ) => (req -> Empire inv) -> (req -> Empire res) -> Request req
+    -> StateT Env BusT ()
+modifyGraphOk inverse action = modifyGraph inverse action reply where
+    reply req inv _ = replyOk req inv
 
 defInverse :: a -> Empire ()
-defInverse = const $ return ()
-
-constructResult :: GraphAPI.Graph -> GraphAPI.Graph -> Result.Result
-constructResult oldGraph newGraph = Result.Result removedNodeIds removedConnIds (Right updatedInGraph) where
-    updatedInGraph = GraphAPI.Graph updatedNodes updatedConns updatedInputSidebar updatedOutputSidebar []
-    oldNodesMap    = Map.fromList . map (view Node.nodeId &&& id) $ oldGraph ^. GraphAPI.nodes
-    newNodeIdsSet  = Set.fromList . map (view Node.nodeId) $ newGraph ^. GraphAPI.nodes
-    removedNodeIds = filter (flip Set.notMember newNodeIdsSet) $ Map.keys oldNodesMap
-    updatedNodes   = filter (\n -> Just n /= Map.lookup (n ^. Node.nodeId) oldNodesMap) $ newGraph ^. GraphAPI.nodes
-    oldConnsMap    = Map.fromList . map (snd &&& id) $ oldGraph ^. GraphAPI.connections
-    newConnIdsSet  = Set.fromList . map snd $ newGraph ^. GraphAPI.connections
-    removedConnIds = filter (flip Set.notMember newConnIdsSet) $ Map.keys oldConnsMap
-    updatedConns   = filter (\c@(_, dst) -> Just c /= Map.lookup dst oldConnsMap) $ newGraph ^. GraphAPI.connections
-    updatedInputSidebar = if oldGraph ^. GraphAPI.inputSidebar /= newGraph ^. GraphAPI.inputSidebar
-        then newGraph ^. GraphAPI.inputSidebar else Nothing
-    updatedOutputSidebar = if oldGraph ^. GraphAPI.outputSidebar /= newGraph ^. GraphAPI.outputSidebar
-        then newGraph ^. GraphAPI.outputSidebar else Nothing
+defInverse = const $ pure ()
 
 catchAllExceptions :: Empire a -> Empire (Either SomeException a)
 catchAllExceptions act = try act
 
-withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation
+    -> Empire a -> Empire Diff
 withDefaultResult' getFinalGraph location action = do
-    oldGraph <- catchAllExceptions $ Graph.getGraphNoTC location
+    oldGraph <- (_Left %~ Graph.prepareGraphError)
+        <$> catchAllExceptions (Graph.getGraphNoTC location)
     void action
-    newGraph <- catchAllExceptions $ getFinalGraph location
-    return $ case (oldGraph, newGraph) of
-        (Left _, Right g)    -> Result.Result def def (Right g)
-        (Left _, Left exc)   -> def & Result.graphUpdates .~ Left (Graph.prepareGraphError exc)
-        (Right g, Left exc)  -> Result.Result (g ^.. GraphAPI.nodes . traverse . Node.nodeId)
-                                              (g ^.. GraphAPI.connections . traverse . _2)
-                                              (Left (Graph.prepareGraphError exc))
-        (Right og, Right ng) -> constructResult og ng
+    newGraph <- (_Left %~ Graph.prepareGraphError)
+        <$> catchAllExceptions (getFinalGraph location)
+    pure $ diff oldGraph newGraph
 
-
-withDefaultResult :: GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResult :: GraphLocation -> Empire a -> Empire Diff
 withDefaultResult = withDefaultResult' Graph.getGraphNoTC
 
-withDefaultResultTC :: GraphLocation -> Empire a -> Empire Result.Result
+withDefaultResultTC :: GraphLocation -> Empire a -> Empire Diff
 withDefaultResultTC = withDefaultResult' Graph.getGraph

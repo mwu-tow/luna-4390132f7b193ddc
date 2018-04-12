@@ -32,7 +32,6 @@ import           Empire.Empire                    (CommunicationEnv (..), Empire
 import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
 import qualified Luna.Syntax.Text.Parser.Parser   as Parser (ReparsingChange (..), ReparsingStatus (..))
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem (Definition))
-import           LunaStudio.Data.Diff             (Diff (..))
 import qualified LunaStudio.Data.Graph            as Graph
 import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
 import qualified LunaStudio.Data.Node             as Node
@@ -43,6 +42,7 @@ import           LunaStudio.Data.Point            (Point (Point))
 import qualified LunaStudio.Data.Port             as Port
 import           LunaStudio.Data.PortRef          (AnyPortRef (..), InPortRef (..), OutPortRef (..))
 import qualified LunaStudio.Data.Position         as Position
+import           LunaStudio.Data.TextDiff         (TextDiff (..))
 import           LunaStudio.Data.TypeRep          (TypeRep (TStar))
 import           LunaStudio.Data.Vector2          (Vector2 (..))
 
@@ -524,7 +524,7 @@ def bar:
                 Graph.loadCode loc testLuna
                 --FIXME[MM]: we need this test to behave like Atom, so end column is
                 --           4 characters further than it is in the file
-                Graph.substituteCodeFromPoints "TestPath" $ [Diff (Just (Point 4 12, Point 36 14)) "5" Nothing]
+                Graph.substituteCodeFromPoints "TestPath" $ [TextDiff (Just (Point 4 12, Point 36 14)) "5" Nothing]
                 Graph.withUnit loc $ use Graph.code
             code `shouldBe` [r|«18»def main:
     «0»pi = 3.14
