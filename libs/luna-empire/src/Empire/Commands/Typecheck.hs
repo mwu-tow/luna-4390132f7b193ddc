@@ -17,7 +17,8 @@ import           Control.Exception.Safe           (mask_)
 import           Control.Monad                    (void)
 import           Control.Monad.Except             hiding (when)
 import           Control.Monad.Reader             (ask, runReaderT)
-import           Control.Monad.State              (execStateT)
+import           Control.Monad.State.Strict       (execStateT)
+import qualified Data.IORef                       as IORef
 import qualified Data.Map                         as Map
 import           Data.Maybe                       (catMaybes, maybeToList)
 import           Empire.Prelude                   hiding (mapping, toList)
@@ -73,11 +74,11 @@ runInterpreter path imports = runASTOp $ do
         IR.ASGFunction _ [] b -> do
             bodyRef <- IR.source b
             res     <- Interpreter.interpret' imports . IR.unsafeGeneralize $ bodyRef
-            mask_ $ do
-                result  <- liftIO $ withCurrentDirectory (maybe (takeDirectory path) Path.toFilePath rootPath) $ runIO $ runError $ execStateT res def
-                case result of
-                    Left e  -> return Nothing
-                    Right r -> return $ Just r
+            mask_ $ liftIO $ do
+                ref <- IORef.newIORef def
+                withCurrentDirectory (maybe (takeDirectory path) Path.toFilePath rootPath)
+                    $ runIO $ runError $ execStateT (Interpreter.unScopeT res) ref
+                Just <$> IORef.readIORef ref
         _ -> return Nothing
 
 updateNodes :: GraphLocation -> Command Graph ()
