@@ -88,7 +88,7 @@ Once the `develop` command finishes executing, you are ready to start developing
 Luna Studio. To rebuild the whole application use:
 
 ```sh
-./build
+./build_luna
 ```
 
 You can choose to rebuild only the frontend or backend part by passing an 
