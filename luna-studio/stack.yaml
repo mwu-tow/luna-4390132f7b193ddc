@@ -50,7 +50,7 @@ packages:
 - extra-dep: true
   location: {commit: 3ba7d5da78aab023fc74c44fc7445ffab0bc18e0, git: 'git@github.com:luna/lens-utils.git'}
 - extra-dep: true
-  location: {commit: 9c5d7adce748594b0ba1d86fa30ba6f140901c13, git: 'git@github.com:luna/luna.git'}
+  location: {commit: bfd3f25a617308fe7eabd012019413e7eb8cdcb6, git: 'git@github.com:luna/luna.git'}
   subdirs: [syntax/text/lexer]
 - extra-dep: true
   location: {commit: e63e373d67cd8dd7c179a618f5d32f6ffb3abdd3, git: 'git@github.com:luna/monoid'}
