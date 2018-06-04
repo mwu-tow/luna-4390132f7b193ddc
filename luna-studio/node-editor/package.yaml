@@ -48,7 +48,7 @@ dependencies:
   - hashable
   - lens
   - luna-studio-common
-  - luna-syntax-text-lexer
+  - luna-lexer
   - luna-node-editor-view
   - matrix
   - mtl

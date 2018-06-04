@@ -43,7 +43,7 @@ dependencies:
   - ghcjs-prim
   - lens
   - luna-studio-common
-  - luna-syntax-text-lexer
+  - luna-lexer
   - mtl
   - prologue
   - random
