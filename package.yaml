@@ -11,4 +11,4 @@ maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
 name: data-prop
 stability: experimental
 synopsis: Abstraction for storing and accessing data properties.
-version: '0.4'
+version: '0.5'
