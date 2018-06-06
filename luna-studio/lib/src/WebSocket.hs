@@ -1,22 +1,29 @@
 {-# LANGUAGE JavaScriptFFI #-}
 
 module WebSocket (WebSocket
-                    , connect
-                    , getCode
-                    , getData
-                    , getWebSocket
-                    , isOpen
-                    , onClose
-                    , onError
-                    , onMessage
-                    , onOpen
-                    , send
-                    ) where
+                 , connect
+                 , getCode
+                 , getData
+                 , getWebSocket
+                 , isOpen
+                 , onClose
+                 , onError
+                 , onMessage
+                 , onOpen
+                 , send
+                 ) where
 
+import           Data.ByteString                   (ByteString)
 import           Data.JSString
 import           GHCJS.Foreign.Callback
-import           GHCJS.Marshal.Pure     (PFromJSVal (..), PToJSVal (..))
-import           GHCJS.Types            (IsJSVal)
+import           GHCJS.Marshal.Pure                ( PFromJSVal (..)
+                                                   , PToJSVal (..))
+import           GHCJS.Types                       (IsJSVal)
+import           GHCJS.Buffer                      ( toByteString
+                                                   , createFromArrayBuffer
+                                                   , fromByteString
+                                                   , getArrayBuffer)
+import           JavaScript.TypedArray.ArrayBuffer (ArrayBuffer)
 import           Common.Prelude
 
 newtype WebSocket      = WebSocket      JSVal deriving (PFromJSVal, PToJSVal)
@@ -27,7 +34,7 @@ instance IsJSVal WebSocket
 instance IsJSVal WSMessageEvent
 
 foreign import javascript safe "$1.data"
-    getData :: WSMessageEvent -> IO JSVal
+    js_getData :: WSMessageEvent -> IO ArrayBuffer
 
 foreign import javascript safe "$1.code"
     getCode :: WSClosedEvent -> IO Int
@@ -64,13 +71,20 @@ foreign import javascript safe "$1.unOnError()"
     unOnError' :: WebSocket -> Callback (IO ()) -> IO ()
 
 foreign import javascript safe "$1.send($2)"
-    send :: WebSocket -> JSString -> IO ()
+    js_send :: WebSocket -> ArrayBuffer -> IO ()
 
-foreign import javascript safe "$1.connect($2)"
-    connect' :: WebSocket -> JSString -> IO ()
+foreign import javascript safe "$1.connect($2, $3)"
+    connect' :: WebSocket -> JSString -> JSString -> IO ()
 
-connect :: WebSocket -> String -> IO ()
-connect ws addr = connect' ws $ convert addr
+connect :: WebSocket -> String -> String -> IO ()
+connect ws listenAddr sendAddr = connect' ws (convert listenAddr)
+                                             (convert sendAddr)
+
+getData :: WSMessageEvent -> IO ByteString
+getData = fmap (toByteString 0 Nothing . createFromArrayBuffer) . js_getData
+
+send :: WebSocket -> ByteString -> IO ()
+send ws = js_send ws . getArrayBuffer . view _1 . fromByteString
 
 onOpen :: WebSocket -> IO () -> IO (IO ())
 onOpen ws callback = do
