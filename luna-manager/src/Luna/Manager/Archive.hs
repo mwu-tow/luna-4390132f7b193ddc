@@ -37,9 +37,11 @@ type UnpackContext m = (MonadGetter Options m, MonadNetwork m, MonadSh m, Shelly
 plainTextPath :: FilePath -> Text
 plainTextPath = either id id . FP.toText
 
+
 data ExtensionError = ExtensionError { exPath :: FilePath } deriving (Show)
 instance Exception ExtensionError where
-    displayException (ExtensionError p) = "ExtensionError: cannot get extension from path " <> (Text.unpack $ plainTextPath p)
+    displayException (ExtensionError p) = "ExtensionError: cannot get extension from path "
+                                       <> (Text.unpack $ plainTextPath p)
 
 extensionError :: FilePath -> SomeException
 extensionError = toException . ExtensionError
@@ -48,9 +50,17 @@ data ProgressException = ProgressException String deriving (Show)
 instance Exception ProgressException where
     displayException (ProgressException err) = "Can not return progress. " <> err
 
+data UnknownExtensionError = UnknownExtensionError { exPath :: FilePath } deriving (Show)
+instance Exception UnknownExtensionError where
+    displayException (UnknownExtensionError p) = "UnknownExtensionError: cannot unpack file."
+                                               <> (Text.unpack $ plainTextPath p)
+                                               <> "Unsupported file format."
+
 data UnpackingException = UnpackingException Text SomeException deriving (Show)
 instance Exception UnpackingException where
-    displayException (UnpackingException file exception) = "Archive cannot be unpacked: " <> convert file <> " because of: " <> displayException exception
+    displayException (UnpackingException file exception) = "Archive cannot be unpacked: "
+                                                         <> convert file <> " because of: "
+                                                         <> displayException exception
 
 unpackingException :: Text -> SomeException -> SomeException
 unpackingException t e = toException $ UnpackingException t e
@@ -58,16 +68,21 @@ unpackingException t e = toException $ UnpackingException t e
 unpack :: UnpackContext m => Double -> Text.Text -> FilePath -> m FilePath
 unpack totalProgress progressFieldName file = do
     Logger.info $ "Unpacking archive: " <> plainTextPath file
-    ext          <- tryJust (extensionError file) $ extension file
+    let ext = fromMaybe "" $ extension file
     case currentHost of
         Windows -> case ext of
             "zip" -> unzipFileWindows file
             "gz"  -> untarWin totalProgress progressFieldName file
+            "exe" -> return file
+            _     -> throwM $ UnknownExtensionError file
         Darwin  -> case ext of
             "gz"  -> unpackTarGzUnix totalProgress progressFieldName file
             "zip" -> unzipUnix file
+            ""    -> return file
+            _     -> throwM $ UnknownExtensionError file
         Linux   -> case ext of
             "AppImage" -> return file
+            ""         -> return file
             "gz"       -> unpackTarGzUnix totalProgress progressFieldName file
             "rpm"      -> do
                 let name = basename file
@@ -78,6 +93,7 @@ unpack totalProgress progressFieldName file = do
                 unpackRPM (dir </> name </> fullFilename) (dir </> name)
                 Shelly.rm $ dir </> name </> (filename file)
                 return $ dir </> name
+            _          -> throwM $ UnknownExtensionError file
 
 unzipUnix :: UnpackContext m => FilePath -> m FilePath
 unzipUnix file = do

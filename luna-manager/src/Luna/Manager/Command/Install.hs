@@ -111,7 +111,8 @@ instance Monad m => MonadHostConfig InstallConfig 'Darwin arch m where
 
 instance Monad m => MonadHostConfig InstallConfig 'Windows arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & defaultBinPathGuiApp .~ "C:\\Program Files"
+        reconfig cfg = cfg & defaultBinPathGuiApp    .~ "C:\\Program Files\\Luna"
+                           & defaultBinPathBatchApp  .~ "C:\\Program Files\\Luna"
 
 
 
@@ -149,11 +150,11 @@ prepareInstallPath :: MonadInstall m => AppType -> FilePath -> Text -> Text -> m
 prepareInstallPath appType appPath appName appVersion = expand $ case currentHost of
     Linux   -> appPath </> convert appName </> convert appVersion
     Windows -> case appType of
-        GuiApp   -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
-        BatchApp -> appPath </> convert appName </> convert appVersion
+        GuiApp     -> appPath </> convert (mkSystemPkgName appName) </> convert appVersion
+        BatchApp _ -> appPath </> convert appName </> convert appVersion
     Darwin  -> case appType of
-        GuiApp   -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
-        BatchApp -> appPath </> convert appName </> convert appVersion
+        GuiApp     -> appPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "Resources" </> convert appVersion
+        BatchApp _ -> appPath </> convert appName </> convert appVersion
 
 data TheSameVersionException = TheSameVersionException Version  deriving (Show)
 instance Exception TheSameVersionException where
@@ -194,10 +195,13 @@ downloadAndUnpackApp pkgPath installPath appName appType pkgVersion = do
     stopServices installPath appType
     when guiInstaller $ downloadProgress (Progress 0 1)
     Shelly.mkdir_p $ parent installPath
-    pkgPathNoExtension <- tryJust (shaUriError pkgPath) $ case currentHost of
-            Linux -> Text.stripSuffix "AppImage" pkgPath
-            _     -> Text.stripSuffix "tar.gz" pkgPath
-    let pkgShaPath = pkgPathNoExtension <> "sha256"
+    let maybePkgPathNoExtension = case currentHost of
+            Linux   -> Text.stripSuffix ".AppImage" pkgPath
+            Darwin  -> Text.stripSuffix ".tar.gz" pkgPath
+            Windows -> if Text.isSuffixOf ".tar.gz" pkgPath
+                then Text.stripSuffix ".tar.gz" pkgPath
+                else Text.stripSuffix ".exe" pkgPath
+        pkgShaPath = (fromMaybe pkgPath maybePkgPathNoExtension) <> ".sha256"
     pkg    <- downloadIfUri pkgPath
     pkgSha <- downloadIfUri pkgShaPath
 
@@ -209,7 +213,10 @@ downloadAndUnpackApp pkgPath installPath appName appType pkgVersion = do
          Linux   -> do
              Shelly.mkdir_p installPath
              Shelly.mv unpacked $ installPath </> convert appName
-         _  -> Shelly.mv unpacked  installPath
+         _  -> if appType == BatchApp Manager then do
+             Shelly.mkdir_p installPath
+             Shelly.mv unpacked $ installPath </> convert appName
+                else Shelly.mv unpacked installPath
 
 linkingCurrent :: MonadInstall m => AppType -> FilePath -> m ()
 linkingCurrent appType installPath = do
@@ -233,24 +240,24 @@ postInstallation appType installPath binPath appName version = do
     installConfig <- get @InstallConfig
     packageBin    <- return $ installPath </> case currentHost of
         Linux   -> convert appName
-        Darwin  -> (installConfig ^. mainBinPath) </> convert appName
+        Darwin  -> if appType == BatchApp Manager then convert appName else (installConfig ^. mainBinPath) </> convert appName
         Windows -> (installConfig ^. mainBinPath) </> convert (appName <> ".exe")
     currentBin    <- case currentHost of
         Linux   -> return $ parent installPath </> (installConfig ^. selectedVersionPath)  </> convert (mkSystemPkgName appName)
         Darwin  -> case appType of
             --TODO[1.1] lets think about making it in config
             GuiApp   -> expand $ convert binPath </> convert ((mkSystemPkgName appName) <> ".app") </> "Contents" </> "MacOS" </> convert (mkSystemPkgName appName)
-            BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. mainBinPath) </> convert appName
+            BatchApp Regular -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. mainBinPath) </> convert appName
+            BatchApp Manager -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert appName
         Windows -> case appType of
-            BatchApp -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
-            GuiApp   -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. mainBinPath) </> convert (appName <> ".exe")
+            BatchApp _ -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> convert (appName <> ".exe")
+            GuiApp     -> return $ parent installPath </> (installConfig ^. selectedVersionPath) </> (installConfig ^. mainBinPath) </> convert (appName <> ".exe")
     makeExecutable packageBin
     when (currentHost == Darwin && appType == GuiApp) $ linking packageBin currentBin
     linkingLocalBin currentBin appName
-
     copyResources appType installPath appName
     runServices installPath appType appName version
-    makeShortcuts packageBin appName
+    when (appType==GuiApp) $ makeShortcuts packageBin appName
 
 copyResources :: MonadInstall m => AppType -> FilePath -> Text -> m ()
 copyResources appType installPath appName = when (currentHost == Darwin && appType == GuiApp) $ do
@@ -381,24 +388,37 @@ askLocation :: (MonadStates '[EnvConfig, InstallConfig, RepoConfig] m, MonadNetw
 askLocation opts appType appName = do
     installConfig <- get @InstallConfig
     let pkgInstallDefPath = case appType of
-            GuiApp   -> installConfig ^. defaultBinPathGuiApp
-            BatchApp -> installConfig ^. defaultBinPathBatchApp
+            GuiApp     -> installConfig ^. defaultBinPathGuiApp
+            BatchApp _ -> installConfig ^. defaultBinPathBatchApp
     binPath <- askOrUse (opts ^. Opts.selectedInstallationPath)
         $ question ("Select installation path for " <> appName) plainTextReader
         & defArg .~ Just (toTextIgnore pkgInstallDefPath)
     return binPath
 
-installApp :: MonadInstall m => InstallOpts -> ResolvedPackage -> m ()
-installApp opts package = do
+defBinPath :: MonadInstall m => AppType -> m Text
+defBinPath appType = do
+    installConfig <- get @InstallConfig
+    case appType of
+        GuiApp     -> return $ toTextIgnore $ installConfig ^. defaultBinPathGuiApp
+        BatchApp _ -> return $ toTextIgnore $ installConfig ^. defaultBinPathBatchApp
+
+data ApplicationType = Main | Extra deriving (Eq)
+
+installApp :: MonadInstall m => InstallOpts -> ApplicationType -> ResolvedPackage -> m ()
+installApp opts applicationType package = do
     installConfig <- get @InstallConfig
     guiInstaller  <- Opts.guiInstallerOpt
     let pkgName    = package ^. header . name
         appType    = package ^. resolvedAppType
-    binPath     <- if guiInstaller then return $ toTextIgnore $
-        case appType of
-                GuiApp   -> installConfig ^. defaultBinPathGuiApp
-                BatchApp -> installConfig ^. defaultBinPathBatchApp
-        else askLocation opts appType pkgName
+    binPath     <- if guiInstaller then defBinPath appType
+        else case currentHost of
+            Darwin -> askLocation opts appType pkgName
+            _      -> if applicationType == Main then do
+                path <- askLocation opts appType pkgName
+                modify_ @InstallConfig (defaultBinPathGuiApp   .~ fromText path)
+                modify_ @InstallConfig (defaultBinPathBatchApp .~ fromText path)
+                return path
+                    else defBinPath appType
     installApp' binPath package
 
 installApp' :: MonadInstall m => Text -> ResolvedPackage -> m ()
@@ -408,7 +428,7 @@ installApp' binPath package = do
         pkgVersion = showPretty $ package ^. header . version
     installPath <- prepareInstallPath appType (convert binPath) pkgName $ pkgVersion
     downloadAndUnpackApp (package ^. desc . path) installPath pkgName appType $ package ^. header . version
-    prepareWindowsPkgForRunning installPath
+    unless (appType == BatchApp Manager) $ prepareWindowsPkgForRunning installPath
     postInstallation appType installPath binPath pkgName pkgVersion
     copyUserConfig installPath package
     let appName = mkSystemPkgName pkgName <> ".app"
@@ -482,10 +502,8 @@ run opts = do
                 raise' e
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
                 resolvedApp   = ResolvedPackage (PackageHeader appName appVersion) appDesc (appPkg ^. appType)
-                allApps       = resolvedApp : appsToInstall
-            Logger.logObject "[run] allApps" allApps
-
-            mapM_ (installApp opts) $ allApps
+            installApp opts Main resolvedApp
+            mapM_ (installApp opts Extra) appsToInstall
             print $ encode $ InstallationProgress 1
             liftIO $ hFlush stdout
             askToRunApp appName (showPretty appVersion) (appPkg ^. appType)
@@ -521,7 +539,7 @@ run opts = do
             let appsToInstall = filter (( <$> (^. header . name)) (`elem` (repo ^.apps))) pkgsToInstall
 
                 resolvedApp = ResolvedPackage (PackageHeader appName version) appPkgDesc (appPkg ^. appType)
-                allApps = resolvedApp : appsToInstall
-            mapM_ (installApp opts) $ allApps
+            installApp opts Main resolvedApp
+            mapM_ (installApp opts Extra) appsToInstall
 
             askToRunApp appName appVersion (appPkg ^. appType)
