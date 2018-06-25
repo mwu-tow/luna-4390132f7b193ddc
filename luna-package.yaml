@@ -49,6 +49,10 @@ packages:
         linux.x64:
           path: http://packages.luna-lang.org/linux/zmq/lib-1.1.tar.gz
           deps: []
+      1.2.0:
+        linux.x64:
+          path: http://packages.luna-lang.org/linux/libs/lib-1.2.tar.gz
+          deps: []
     synopsis: zmq synopsis
     appType: Lib
   winSW:
@@ -78,7 +82,7 @@ packages:
         linux.x64:
           path: ./
           deps:
-          - zmq-1.1.0
+          - zmq-1.2.0
           - supervisord-4.0.0
           - atom-1.18.0
           - kill-1.0.0

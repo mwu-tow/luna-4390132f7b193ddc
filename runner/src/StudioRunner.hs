@@ -167,7 +167,7 @@ packageStudioAtomHome, userStudioAtomHome, localLogsDirectory, versionFilePath :
 resourcesDirectory, windowsLogsDirectory                                       :: MonadRun m => m FilePath
 userLogsDirectory, userdataStorageDirectory, localdataStorageDirectory         :: MonadRun m => m FilePath
 lunaTmpPath, lunaProjectsPath, lunaTutorialsPath, userInfoPath                 :: MonadRun m => m FilePath
-sharePath, windowsScriptsPath                                                  :: MonadRun m => m FilePath
+sharePath, windowsScriptsPath, backendLdLibraryPath                            :: MonadRun m => m FilePath
 
 backendBinsPath           = relativeToMainDir [binsFolder, backendBinsFolder]
 configPath                = relativeToMainDir [configFolder]
@@ -204,6 +204,11 @@ lunaTutorialsPath = do
     runnerCfg <- get @RunnerConfig
     lunaTmp   <- lunaTmpPath
     return $ lunaTmp </> (runnerCfg ^. tutorialsDirectory)
+backendLdLibraryPath = do
+    ldLibPath <- liftIO $ getCurrentDirectory
+    return $ decodeString ldLibPath </> "lib" </> "zeromq"
+
+
 
 atomHomeDir, logsDir, windowsLogsDir, dataStorageDirectory :: MonadRun m => Bool -> m FilePath
 atomHomeDir          develop = if develop then packageStudioAtomHome     else userStudioAtomHome
@@ -381,6 +386,9 @@ runPackage develop forceRun = case currentHost of
         setEnv "LUNA_USER_INFO"              =<< userInfoPath
         setEnv "LUNA_VERSION_PATH"           =<< versionFilePath
         when develop   $ liftIO $ Environment.setEnv "LUNA_STUDIO_DEVELOP" "True"
+        if develop then
+            liftIO $ Environment.setEnv "LUNA_STUDIO_BACKEND_LD_LIBRARY_PATH" "\"\""
+            else setEnv "LUNA_STUDIO_BACKEND_LD_LIBRARY_PATH" =<< backendLdLibraryPath
         createStorageDataDirectory develop
         unless develop $ do
             checkLunaHome
