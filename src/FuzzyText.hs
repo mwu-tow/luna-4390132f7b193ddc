@@ -33,6 +33,7 @@ import           Data.IntMap                  (IntMap)
 import qualified Data.IntMap                  as IntMap
 import qualified Data.Text                    as Text
 import           Prologue
+import           Control.Lens ((?~), Getter, to)
 
 
 
