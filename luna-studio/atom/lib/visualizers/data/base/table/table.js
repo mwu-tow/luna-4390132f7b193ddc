@@ -68,11 +68,17 @@
     return eachHasProperLen;
   }
 
-  var genMatrix = function (data, level) {
+  var genMatrix = function (data, level, header) {
     var result = "<tr><th></th>";
-    data[0].forEach(function (elt, ix) {
-      result += ("<th>" + ix + "</th>");
-    });
+    if (header) {
+        header.forEach(function (elt, ix) {
+          result += ("<th>" + elt + "</th>");
+        });
+    } else {
+        data[0].forEach(function (elt, ix) {
+          result += ("<th>" + ix + "</th>");
+        });
+    };
     result += "</tr>";
     data.forEach(function (row, ix) {
       result += ("<tr><th>" + ix + "</th>");
@@ -118,9 +124,9 @@
     }
   }
 
-  var genTable = function (data, level) {
+  var genTable = function (data, level, header) {
     if (isMatrix(data)) {
-      return genMatrix(data, level);
+      return genMatrix(data, level, header);
     } else if (isObjectMatrix(data)) {
       return genObjectMatrix(data, level);
     } else {
@@ -130,7 +136,7 @@
 
   var render = function (json) {
     var data  = JSON.parse(json);
-    var table = genTable(data, 0);
+    var table = genTable(data.data || data, 0, data.header);
     document.body.innerHTML = table;
   };
   window.addEventListener("message", function (evt) {
