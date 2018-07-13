@@ -94,9 +94,9 @@ class LunaWelcomeTab extends View
 
     redrawTutorials: =>
         @tutorialsContainer[0].innerText = @noTutorialsMsg
-        tutorialItems = @projects.tutorial.getItems()
-        for name in Object.keys tutorialItems
-            @tutorialsContainer.append(tutorialItems[name].element)
+        @tutorialItems = @projects.tutorial.getItems()
+        for k, tutorialItem of @tutorialItems
+            @tutorialsContainer.append(tutorialItem.element)
 
     getFilterKey: ->
         return 'name'
@@ -134,8 +134,8 @@ class LunaWelcomeTab extends View
         else
             fuzzyFilter ?= require('fuzzaldrin').filter
             allItems = []
-            for itemName in Object.keys @tutorialItems
-                allItems.push @tutorialItems[itemName]
+            for k, tutorialItem of @tutorialItems
+                allItems.push tutorialItem
 
             allItems = allItems.concat @projects.recent.getItems()
             filteredItems = fuzzyFilter(allItems, filterQuery, key: @getFilterKey())
