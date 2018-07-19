@@ -4,7 +4,7 @@ import           Common.Action.Command                   (Command)
 import           Common.Prelude
 import           LunaStudio.Data.Connection              (Connection (Connection))
 import           LunaStudio.Data.LabeledTree             (value)
-import           LunaStudio.Data.PortRef                 (OutPortRef (OutPortRef), srcPortId)
+import           LunaStudio.Data.PortRef                 (OutPortRef, OutPortRef (OutPortRef), srcPortId)
 import           NodeEditor.Action.Basic.AddConnection   (localAddConnection)
 import           NodeEditor.Action.Basic.UpdateNode      (localUpdateInputNode)
 import qualified NodeEditor.Action.Batch                 as Batch

@@ -3,6 +3,8 @@ module LunaStudio.Data.Port
     , module X
     ) where
 
+import           Control.Lens                (_Just, anyOf, FunctorWithIndex(..),
+                                              makePrisms, makeWrapped)
 import           Data.Aeson.Types            (FromJSON, ToJSON)
 import           Data.Binary                 (Binary)
 import           LunaStudio.Data.LabeledTree as X (LabeledTree (LabeledTree))
@@ -27,7 +29,7 @@ type InPortId = [InPortIndex]
 
 makeLenses ''InPorts
 
-data OutPortIndex = Projection Int deriving (Eq, Generic, Ord, Read, Show)
+newtype OutPortIndex = Projection Int deriving (Eq, Generic, Ord, Read, Show)
 
 newtype OutPorts s = OutPorts [s]
     deriving (Default, Eq, Foldable, Functor, Generic, Show, Traversable)

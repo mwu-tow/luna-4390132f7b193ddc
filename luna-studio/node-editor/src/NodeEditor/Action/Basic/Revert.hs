@@ -20,7 +20,7 @@ import qualified LunaStudio.API.Response                   as Response
 import           LunaStudio.Data.Connection                (Connection (Connection), dst, src)
 import qualified LunaStudio.Data.Connection                as Connection
 import           LunaStudio.Data.Node                      (nodeId)
-import           LunaStudio.Data.NodeLoc                   (prependPath)
+import           LunaStudio.Data.NodeLoc                   (NodeLoc, prependPath)
 import           LunaStudio.Data.PortRef                   (AnyPortRef (InPortRef'), OutPortRef (OutPortRef))
 import           NodeEditor.Action.Basic.AddConnection     (localAddConnection, localAddConnections)
 import           NodeEditor.Action.Basic.AddPort           (localAddPort)

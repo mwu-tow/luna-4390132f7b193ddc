@@ -1,11 +1,3 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE ViewPatterns        #-}
-
 module Empire.Commands.AST where
 
 import           Control.Monad.State
@@ -13,8 +5,9 @@ import           Data.Function                     (on)
 import           Data.List                         (sortBy)
 import           Empire.Prelude
 
-import           LunaStudio.Data.NodeId            (NodeId)
+import           LunaStudio.Data.Node              (NodeId)
 import           LunaStudio.Data.NodeMeta          (NodeMeta)
+import qualified LunaStudio.Data.NodeMeta          as NodeMeta
 import           Empire.Data.AST                   (NodeRef, NotLambdaException(..))
 import           Empire.Data.Layers                (Meta, SpanOffset, SpanLength)
 
@@ -25,22 +18,21 @@ import qualified Empire.ASTOps.Read                as ASTRead
 import           Data.Text.Position                (Delta(..))
 
 import qualified Luna.IR as IR
-import           Luna.IR.Term.Uni
-import qualified OCI.IR.Repr.Vis as Vis
+-- import qualified OCI.IR.Repr.Vis as Vis
 
 
 addNode :: GraphOp m => NodeId -> Maybe Text -> m Text -> NodeRef -> m (NodeRef, Maybe Text)
 addNode nid name genName node = do
     ASTBuilder.makeNodeRep nid name genName node
 
-readMeta :: (IR.Reader IR.Layer (IR.AnyExpr IR.// Meta) m, IR.MonadRef m) => NodeRef -> m (Maybe NodeMeta)
-readMeta ref = IR.getLayer @Meta ref
+readMeta :: ASTOp g m => NodeRef -> m (Maybe NodeMeta)
+readMeta ref = traverse toNodeMeta =<< getLayer @Meta ref
 
 getNodeMeta :: GraphOp m => NodeId -> m (Maybe NodeMeta)
 getNodeMeta = ASTRead.getASTRef >=> readMeta
 
-writeMeta :: (IR.Writer IR.Layer (IR.AnyExpr IR.// Meta) m, IR.MonadRef m) => NodeRef -> NodeMeta -> m ()
-writeMeta ref newMeta = IR.putLayer @Meta ref $ Just newMeta
+writeMeta :: ASTOp g m => NodeRef -> NodeMeta -> m ()
+writeMeta ref newMeta = putLayer @Meta ref . Just =<< fromNodeMeta newMeta
 
 sortByPosition :: GraphOp m => [NodeId] -> m [NodeRef]
 sortByPosition nodeIds = do
@@ -56,49 +48,49 @@ makeSeq [node] = pure $ Just node
 makeSeq (n:ns) = Just <$> foldM f n ns
     where
         f :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
-        f l r = IR.generalize <$> IR.seq l r
+        f l r = generalize <$> IR.seq l r
 
 readSeq :: GraphOp m => NodeRef -> m [NodeRef]
 readSeq node = match node $ \case
     Seq l r -> do
-        previous  <- IR.source l >>= readSeq
-        rightmost <- IR.source r
+        previous  <- source l >>= readSeq
+        rightmost <- source r
         pure (previous <> [rightmost])
     _       -> pure [node]
 
 getSeqs' :: GraphOp m => NodeRef -> m [NodeRef]
 getSeqs' node = match node $ \case
     Seq l r -> do
-        previous <- IR.source l >>= getSeqs'
+        previous <- source l >>= getSeqs'
         pure $ previous <> [node]
     _ -> pure []
 
 getSeqs :: GraphOp m => NodeRef -> m [NodeRef]
 getSeqs node = match node $ \case
     Seq l r -> do
-        previous <- IR.source l >>= getSeqs'
+        previous <- source l >>= getSeqs'
         pure $ previous <> [node]
     _ -> pure [node]
 
 previousNodeForSeq :: GraphOp m => NodeRef -> m (Maybe NodeRef)
 previousNodeForSeq node = match node $ \case
     Seq l r -> do
-        previousNode <- IR.source l
+        previousNode <- source l
         match previousNode $ \case
-            Seq l r -> Just <$> IR.source r
+            Seq l r -> Just <$> source r
             _       -> pure $ Just previousNode
     _ -> pure Nothing
 
 getLambdaInputRef :: GraphOp m => NodeRef -> Int -> m NodeRef
 getLambdaInputRef node pos = do
     match node $ \case
-        Grouped g      -> IR.source g >>= flip getLambdaInputRef pos
+        Grouped g      -> source g >>= flip getLambdaInputRef pos
         Lam _args _out -> (!! pos) <$> ASTDeconstruct.extractArguments node
         _              -> throwM $ NotLambdaException node
 
 isTrivialLambda :: GraphOp m => NodeRef -> m Bool
 isTrivialLambda node = match node $ \case
-    Grouped g -> IR.source g >>= isTrivialLambda
+    Grouped g -> source g >>= isTrivialLambda
     Lam{} -> do
         args <- ASTDeconstruct.extractArguments node
         vars <- concat <$> mapM ASTRead.getVarsInside args
@@ -106,11 +98,11 @@ isTrivialLambda node = match node $ \case
         pure $ out' `elem` vars
     _ -> throwM $ NotLambdaException node
 
-dumpGraphViz :: ASTOp g m => String -> m ()
-dumpGraphViz name = Vis.snapshotWith nodeVis edgeVis name where
-    edgeVis e = do
-        off <- IR.getLayer @SpanOffset e
-        pure $ Just $ convert $ "[" <> show (unwrap off) <> "]"
-    nodeVis n = do
-        len <- IR.getLayer @SpanLength n
-        pure $ Just $ convert $ "[" <> show (unwrap len) <> "]"
+-- dumpGraphViz :: ASTOp g m => String -> m ()
+-- dumpGraphViz name = Vis.snapshotWith nodeVis edgeVis name where
+--     edgeVis e = do
+--         off <- IR.getLayer @SpanOffset e
+--         pure $ Just $ convert $ "[" <> show (unwrap off) <> "]"
+--     nodeVis n = do
+--         len <- IR.getLayer @SpanLength n
+--         pure $ Just $ convert $ "[" <> show (unwrap len) <> "]"

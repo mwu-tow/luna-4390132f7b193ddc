@@ -26,13 +26,15 @@ import           Empire.ASTOp            (ASTOp, ClassOp, GraphOp, runASTOp)
 import           Empire.ASTOps.Read      as ASTRead
 
 import qualified Luna.IR                 as IR
-import qualified OCI.IR.Combinators      as IR (replace, substitute, replaceSource)
+-- import qualified OCI.IR.Combinators      as IR (replace, substitute, replaceSource)
 import           Data.Text.Position      (Delta)
-import           Empire.Data.Layers      (SpanOffset, SpanLength)
-import           Data.Text.Span          (LeftSpacedSpan(..), SpacedSpan(..), leftSpacedSpan)
-import qualified Luna.Syntax.Text.Parser.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.CodeSpan (CodeSpan, realSpan)
-import qualified Luna.Syntax.Text.Parser.Marker   as Luna
+-- import           Empire.Data.Layers      (SpanOffset, SpanLength)
+import           Luna.Pass.Data.Layer.SpanLength (SpanLength)
+import           Luna.Pass.Data.Layer.SpanOffset (SpanOffset)
+import           Data.Text.Span          (SpacedSpan(..), leftSpacedSpan)
+import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
+import           Luna.Syntax.Text.Parser.Data.CodeSpan (CodeSpan, realSpan)
+import qualified Luna.Syntax.Text.Parser.State.Marker   as Luna
 
 import           Luna.Syntax.Text.Lexer.Grammar     (isOperator)
 import qualified Luna.Syntax.Text.Lexer             as Lexer
@@ -62,7 +64,7 @@ removeMarkers (convert -> code) = convertVia @String $ SpanTree.foldlSpans conca
     lexerStream = Lexer.evalDefLexer code
     concatNonMarker t (Spanned span t1) = if span ^. spanType == MarkerSpan then t else t <> t1
 
-extractMarkers :: Text -> Set.Set Luna.MarkerId
+extractMarkers :: Text -> Set.Set Graph.MarkerId
 extractMarkers (convert -> code) = Set.fromList markers where
     markers     = mapMaybe (\(Lexer.Token _ _ symbol) -> Lexer.matchMarker symbol) lexerStream
     lexerStream = Lexer.evalDefLexer code
@@ -70,7 +72,7 @@ extractMarkers (convert -> code) = Set.fromList markers where
 readMarker :: Text -> Either String Word64
 readMarker text = fst <$> Text.decimal (Text.tail text)
 
-remarkerCode :: Text -> Set.Set Luna.MarkerId -> (Text, Map.Map Luna.MarkerId Luna.MarkerId)
+remarkerCode :: Text -> Set.Set Graph.MarkerId -> (Text, Map.Map Graph.MarkerId Graph.MarkerId)
 remarkerCode orig@(convert -> code) reservedMarkers = (remarkedCode, substitutions) where
     concatAll   subst t1 (Spanned span t2) = t1 <>
         if span ^. spanType /= MarkerSpan then t2 else (case readMarker (convert t2) of
@@ -82,9 +84,9 @@ remarkerCode orig@(convert -> code) reservedMarkers = (remarkedCode, substitutio
     remarkedCode = convertVia @String $ SpanTree.foldlSpans (concatAll substitutions) "" spanTree
     spanTree     = SpanTree.buildSpanTree code lexerStream
     (remarkedStream, substitutions, _) = foldl' f ([], Map.empty, reservedMarkers) lexerStream
-    f :: ([Lexer.Token Lexer.Symbol], Map.Map Luna.MarkerId Luna.MarkerId, Set.Set Luna.MarkerId)
+    f :: ([Lexer.Token Lexer.Symbol], Map.Map Graph.MarkerId Graph.MarkerId, Set.Set Graph.MarkerId)
       -> Lexer.Token Lexer.Symbol
-      -> ([Lexer.Token Lexer.Symbol], Map.Map Luna.MarkerId Luna.MarkerId, Set.Set Luna.MarkerId)
+      -> ([Lexer.Token Lexer.Symbol], Map.Map Graph.MarkerId Graph.MarkerId, Set.Set Graph.MarkerId)
     f (remarkedStream, substitutions, reservedMarkers) token@(Lexer.Token s o el) =
         case el of
             Lexer.Marker m ->
@@ -152,51 +154,51 @@ getASTTargetBeginning :: GraphOp m => NodeId -> m Delta
 getASTTargetBeginning id = do
     ref      <- ASTRead.getASTRef id
     Just beg <- getOffsetRelativeToFile ref
-    IR.matchExpr ref $ \case
-        IR.Marked _ b' -> do
-            b    <- IR.source b'
-            boff <- getOffsetRelativeToTarget b'
-            IR.matchExpr b $ \case
-                IR.Unify l r -> do
-                    roff <- getOffsetRelativeToTarget r
+    matchExpr ref $ \case
+        Marked _ b' -> do
+            b    <- source b'
+            boff <- getOffsetRelativeToTarget $ generalize b'
+            matchExpr b $ \case
+                Unify l r -> do
+                    roff <- getOffsetRelativeToTarget $ generalize r
                     return $ boff + roff + beg
                 _ -> return $ beg + boff
 
 isOperatorVar :: GraphOp m => NodeRef -> m Bool
-isOperatorVar expr = IR.matchExpr expr $ \case
-    IR.Var n -> return $ isOperator n
+isOperatorVar expr = matchExpr expr $ \case
+    Var n -> return $ isOperator n
     _        -> return False
 
 getOffsetRelativeToTarget :: GraphOp m => EdgeRef -> m Delta
 getOffsetRelativeToTarget edge = do
-    ref  <- IR.readTarget edge
+    ref  <- target edge
     let fallback = do
-            inps <- IR.inputs ref
+            inps <- inputs ref
             let before = takeWhile (/= edge) inps
             lens <- forM before $ \e -> do
-                off <- IR.getLayer @SpanOffset e
-                len <- IR.getLayer @SpanLength =<< IR.source e
+                off <- getLayer @SpanOffset e
+                len <- getLayer @SpanLength =<< source e
                 return $ off <> len
-            currentOff <- IR.getLayer @SpanOffset edge
+            currentOff <- getLayer @SpanOffset edge
             return $ currentOff <> foldl (<>) mempty lens
-    let whenOp f a | a == edge = IR.getLayer @SpanOffset a
+    let whenOp f a | a == edge = getLayer @SpanOffset a
                    | otherwise = do
-                       alen <- IR.getLayer @SpanLength =<< IR.source a
-                       aoff <- IR.getLayer @SpanOffset a
-                       foff <- IR.getLayer @SpanOffset f
+                       alen <- getLayer @SpanLength =<< source a
+                       aoff <- getLayer @SpanOffset a
+                       foff <- getLayer @SpanOffset f
                        return $ aoff <> alen <> foff
-    IR.matchExpr ref $ \case
-        IR.App f a -> do
-            isOp <- isOperatorVar =<< IR.source f
-            if isOp then whenOp f a else fallback
-        IR.RightSection f a -> whenOp f a
+    matchExpr ref $ \case
+        App f a -> do
+            isOp <- isOperatorVar =<< source f
+            if isOp then whenOp f (generalize a) else fallback
+        -- RightSection f a -> whenOp f a
         _ -> fallback
 
 
-getExprMap :: GraphOp m => m (Map.Map Luna.MarkerId NodeRef)
+getExprMap :: GraphOp m => m (Map.Map Graph.MarkerId NodeRef)
 getExprMap = use Graph.codeMarkers
 
-setExprMap :: GraphOp m => Map.Map Luna.MarkerId NodeRef -> m ()
+setExprMap :: GraphOp m => Map.Map Graph.MarkerId NodeRef -> m ()
 setExprMap exprMap = Graph.codeMarkers .= exprMap
 
 addExprMapping :: GraphOp m => Word64 -> NodeRef -> m ()
@@ -224,17 +226,17 @@ invalidateMarker index = do
 
 addCodeMarker :: GraphOp m => Delta -> EdgeRef -> m NodeRef
 addCodeMarker beg edge = do
-    ref    <- IR.source edge
+    ref    <- source edge
     index  <- getNextExprMarker
-    marker <- IR.marker' index
+    marker <- IR.marker index
     markedNode <- IR.marked' marker ref
-    exprLength <- IR.getLayer @SpanLength ref
+    exprLength <- getLayer @SpanLength ref
     let markerLength = convert $ Text.length $ makeMarker index
-    IR.putLayer @SpanLength marker markerLength
-    IR.putLayer @SpanLength markedNode (exprLength + markerLength)
+    putLayer @SpanLength marker markerLength
+    putLayer @SpanLength markedNode (exprLength + markerLength)
     addExprMapping index markedNode
     insertAt beg (makeMarker index)
-    IR.replaceSource markedNode edge
+    replaceSource markedNode $ generalize edge
     gossipUsesChangedBy (fromIntegral $ Text.length $ makeMarker index) markedNode
     return markedNode
 
@@ -247,12 +249,22 @@ getOffsetRelativeToFile ref = do
 
 getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
 getAllBeginningsOf ref = do
-    succs <- toList <$> IR.getLayer @IR.Succs ref
-    case succs of
-        [] -> pure <$> use Graph.fileOffset
-        _  -> fmap concat $ forM succs $ \s -> do
+    succs <- fmap coerce <$> ociSetToList =<< getLayer @IR.Users ref
+    uniSuccs <- mapM (\a -> target a >>= \b -> matchExpr b (return . show)) succs
+    succsSuccs <- mapM (\a -> target a >>= \b -> getLayer @IR.Users b >>= \c -> ociSetToList c) succs
+    uniSuccsSuccs <- mapM (\a -> target a >>= \b -> ASTRead.isRecord b) $ concat succsSuccs
+
+    isFun <- ASTRead.isASGFunction ref
+    -- FIXME[MM]: this looks fishy, did something change regarding
+    -- function successors?
+    let succs' = if uniSuccsSuccs == [True] then [] else succs
+    case succs' of
+        [] -> do
+            off <- use Graph.fileOffset
+            return [off]
+        _  -> fmap concat $ forM succs' $ \s -> do
             off  <- getOffsetRelativeToTarget s
-            begs <- getAllBeginningsOf =<< IR.readTarget s
+            begs <- getAllBeginningsOf =<< target s
             return $ (off <>) <$> begs
 
 getAnyBeginningOf :: GraphOp m => NodeRef -> m (Maybe Delta)
@@ -261,19 +273,19 @@ getAnyBeginningOf ref = listToMaybe <$> getAllBeginningsOf ref
 getCodeOf :: GraphOp m => NodeRef -> m Text
 getCodeOf ref = do
     Just beg <- getAnyBeginningOf ref
-    len <- IR.getLayer @SpanLength ref
+    len <- getLayer @SpanLength ref
     getAt beg (beg + len)
 
 getCodeWithIndentOf :: GraphOp m => NodeRef -> m Text
 getCodeWithIndentOf ref = do
     Just beg <- getAnyBeginningOf ref
-    len <- IR.getLayer @SpanLength ref
+    len <- getLayer @SpanLength ref
     off <- getCurrentIndentationLength
     getAt (beg - off) (beg + len)
 
 replaceAllUses :: GraphOp m => NodeRef -> Text -> m ()
 replaceAllUses ref new = do
-    len         <- IR.getLayer @SpanLength ref
+    len         <- getLayer @SpanLength ref
     occurrences <- getAllBeginningsOf ref
     let fromFileEnd = reverse $ sort occurrences
     for_ fromFileEnd $ \beg -> applyDiff beg (beg + len) new
@@ -281,12 +293,12 @@ replaceAllUses ref new = do
 
 computeLength :: GraphOp m => NodeRef -> m Delta
 computeLength ref = do
-    ins  <- IR.inputs ref
+    ins  <- inputs ref
     case ins of
-        [] -> IR.getLayer @SpanLength ref
+        [] -> getLayer @SpanLength ref
         _  -> do
-            offs <- mapM (IR.getLayer @SpanOffset) ins
-            lens <- mapM (IR.getLayer @SpanLength <=< IR.source) ins
+            offs <- mapM (getLayer @SpanOffset) ins
+            lens <- mapM (getLayer @SpanLength <=< source) ins
             return $ mconcat offs <> mconcat lens
 
 functionBlockStart :: ClassOp m => NodeId -> m Delta
@@ -299,19 +311,20 @@ functionBlockStartRef ref = do
     LeftSpacedSpan (SpacedSpan off len) <- getOffset ref
     return $ off + len
 
+
 getOffset :: ClassOp m => NodeRef -> m (LeftSpacedSpan Delta)
 getOffset ref = do
-    succs    <- toList <$> IR.getLayer @IR.Succs ref
+    succs    <- ociSetToList =<< getLayer @IR.Users ref
     leftSpan <- case succs of
         []     -> return $ LeftSpacedSpan (SpacedSpan 0 0)
         [more] -> do
-            inputs         <- IR.inputs =<< IR.readTarget more
-            realInputs     <- mapM IR.readSource inputs
+            inputs         <- inputs =<< target more
+            realInputs     <- mapM source inputs
             let leftInputs = takeWhile (/= ref) realInputs
-            moreOffset     <- getOffset =<< IR.readTarget more
-            lefts          <- mconcat <$> mapM (fmap (view CodeSpan.realSpan) . IR.getLayer @CodeSpan) leftInputs
-            return $ moreOffset <> lefts
-    LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
+            moreOffset     <- getOffset =<< target more
+            lefts          <- mapM (fmap (view CodeSpan.realSpan) . getLayer @CodeSpan) leftInputs
+            return $ moreOffset <> (mconcat lefts)
+    LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> getLayer @CodeSpan ref
     return $ leftSpan <> LeftSpacedSpan (SpacedSpan off 0)
 
 getCurrentBlockBeginning :: GraphOp m => m Delta
@@ -322,20 +335,20 @@ getCurrentBlockBeginning = do
     return $ defBegin <> off
 
 getFirstNonLambdaOffset :: GraphOp m => NodeRef -> m Delta
-getFirstNonLambdaOffset ref = IR.matchExpr ref $ \case
-    IR.Lam i o -> do
-        ioff  <- IR.getLayer @SpanOffset i
-        ooff  <- IR.getLayer @SpanOffset o
-        ilen  <- IR.getLayer @SpanLength =<< IR.source i
-        recur <- getFirstNonLambdaOffset =<< IR.source o
+getFirstNonLambdaOffset ref = matchExpr ref $ \case
+    Lam i o -> do
+        ioff  <- getLayer @SpanOffset i
+        ooff  <- getLayer @SpanOffset o
+        ilen  <- getLayer @SpanLength =<< source i
+        recur <- getFirstNonLambdaOffset =<< source o
         return $ ioff + ooff + ilen + recur
-    IR.ASGFunction n as o -> getOffsetRelativeToTarget o
+    ASGFunction n as o -> getOffsetRelativeToTarget $ generalize o
     _ -> return 0
 
 getCurrentBlockEnd :: GraphOp m => m Delta
 getCurrentBlockEnd = do
     body <- ASTRead.getCurrentBody
-    len  <- IR.getLayer @SpanLength body
+    len  <- getLayer @SpanLength body
     beg  <- getCurrentBlockBeginning
     return $ len + beg
 
@@ -350,39 +363,39 @@ getCurrentIndentationLength = do
 
 propagateLengths :: GraphOp m => NodeRef -> m ()
 propagateLengths node = do
-    LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) $ IR.getLayer @CodeSpan node
-    IR.putLayer @SpanLength node len
-    mapM_ propagateOffsets =<< IR.inputs node
+    LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) $ getLayer @CodeSpan node
+    putLayer @SpanLength node len
+    mapM_ propagateOffsets =<< inputs node
 
 propagateOffsets :: GraphOp m => EdgeRef -> m ()
 propagateOffsets edge = do
-    LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) . IR.getLayer @CodeSpan =<< IR.readSource edge
-    IR.putLayer @SpanOffset edge off
-    propagateLengths =<< IR.readSource edge
+    LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) . getLayer @CodeSpan =<< source edge
+    putLayer @SpanOffset edge off
+    propagateLengths =<< source edge
 
 gossipUsesChangedBy :: GraphOp m => Delta -> NodeRef -> m ()
-gossipUsesChangedBy delta ref = mapM_ (gossipLengthsChangedBy delta) =<< mapM IR.readTarget =<< (Set.toList <$> IR.getLayer @IR.Succs ref)
+gossipUsesChangedBy delta ref = mapM_ (gossipLengthsChangedBy delta) =<< mapM target =<< ociSetToList =<< getLayer @IR.Users ref
 
 addToLength :: GraphOp m => NodeRef -> Delta -> m ()
-addToLength ref delta = IR.modifyLayer_ @SpanLength ref (+ delta)
+addToLength ref delta = modifyLayer_ @SpanLength ref (+ delta)
 
 gossipLengthsChangedBy :: GraphOp m => Delta -> NodeRef -> m ()
 gossipLengthsChangedBy delta ref = do
     addToLength ref delta
-    succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
-    succNodes <- mapM IR.readTarget succs
+    succs     <- ociSetToList =<< getLayer @IR.Users ref
+    succNodes <- mapM target succs
     mapM_ (gossipLengthsChangedBy delta) succNodes
 
 addToLengthCls :: ClassOp m => NodeRef -> Delta -> m ()
 addToLengthCls ref delta = do
-    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> IR.getLayer @CodeSpan ref
-    IR.putLayer @CodeSpan ref $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (len + delta)))
+    LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> getLayer @CodeSpan ref
+    putLayer @CodeSpan ref $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (len + delta)))
 
 gossipLengthsChangedByCls :: ClassOp m => Delta -> NodeRef -> m ()
 gossipLengthsChangedByCls delta ref = do
     addToLengthCls ref delta
-    succs     <- Set.toList <$> IR.getLayer @IR.Succs ref
-    succNodes <- mapM IR.readTarget succs
+    succs     <- ociSetToList =<< getLayer @IR.Users ref
+    succNodes <- mapM target succs
     mapM_ (gossipLengthsChangedByCls delta) succNodes
 
 makeMarker :: Word64 -> Text

@@ -1,6 +1,7 @@
 module LunaStudio.Data.Error where
 
 import           Control.DeepSeq  (NFData)
+import           Control.Lens     (makePrisms)
 import           Data.Aeson.Types (FromJSON, ToJSON)
 import           Data.Binary      (Binary)
 import           Prologue

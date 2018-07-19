@@ -3,6 +3,7 @@
 module Empire.Server.Atom where
 
 import           Control.Exception.Safe         (try, catchAny)
+import           Control.Lens                   ((.=), use)
 import qualified Control.Monad.Catch            as MC
 import           Control.Monad.State            (StateT)
 import           Data.List                      (stripPrefix)
@@ -77,11 +78,11 @@ handleMoveProject req@(Request _ _ (MoveProject.Request oldPath newPath)) = do
             err <- liftIO $ Graph.prepareLunaError e
             replyFail logger err req (Response.Error err)
         Right _ -> do
-            activeFiles <- use $ Env.empireEnv . Empire.activeFiles
+            activeFiles <- use $ Env.empireEnv . Graph.userState . Empire.activeFiles
             let activeFilesList = Map.toList activeFiles
                 changePath = replaceDir oldPath newPath
                 newFiles = map (\(k, v) -> (changePath k, v & Library.path %~ changePath)) activeFilesList
-            Env.empireEnv . Empire.activeFiles .= Map.fromList newFiles
+            Env.empireEnv . Graph.userState . Empire.activeFiles .= Map.fromList newFiles
             replyOk req ()
 
 handleOpenFile :: Request OpenFile.Request -> StateT Env BusT ()
@@ -112,7 +113,7 @@ handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
     empireNotifEnv   <- use Env.empireNotif
     res <- liftIO $ try $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ do
         (parseError, code) <- Graph.withUnit (GraphLocation inPath (Breadcrumb [])) $ do
-            (,) <$> use Graph.clsParseError <*> use Graph.code
+            (,) <$> use (Graph.userState . Graph.clsParseError) <*> use Graph.code
         case parseError of
             Just _ -> return code
             _      -> Graph.addMetadataToCode inPath
@@ -136,7 +137,7 @@ handleSaveFile req@(Request _ _ (SaveFile.Request inPath)) = do
 
 handleCloseFile :: Request CloseFile.Request -> StateT Env BusT ()
 handleCloseFile (Request _ _ (CloseFile.Request path)) = do
-    Env.empireEnv . Empire.activeFiles . at path .= Nothing
+    Env.empireEnv . Graph.userState . Empire.activeFiles . at path .= Nothing
     empireNotifEnv   <- use Env.empireNotif
     currentEmpireEnv <- use Env.empireEnv
     void $ liftIO $ Empire.runEmpire empireNotifEnv currentEmpireEnv $ Publisher.stopTC

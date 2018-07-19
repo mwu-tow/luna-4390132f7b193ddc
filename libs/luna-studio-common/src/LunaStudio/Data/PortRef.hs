@@ -3,13 +3,14 @@ module LunaStudio.Data.PortRef
     , nodeLoc
     ) where
 
+import           Control.Lens            (makePrisms)
 import           Control.DeepSeq         (NFData)
 import           Data.Aeson.Types        (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import           Data.Binary             (Binary)
-import           LunaStudio.Data.NodeId  (NodeId)
+import           LunaStudio.Data.Node    (NodeId)
 import           LunaStudio.Data.NodeLoc (HasNodeLoc (..), NodeLoc)
 import qualified LunaStudio.Data.NodeLoc as NodeLoc
-import           LunaStudio.Data.Port    (AnyPortId (..), InPortId, OutPortId)
+import           LunaStudio.Data.Port    (AnyPortId (..), InPortId, OutPortId, OutPortIndex(Projection))
 import           Prologue
 
 
@@ -18,10 +19,9 @@ data InPortRef = InPortRef
     , _dstPortId :: InPortId
     } deriving (Eq, Generic, Ord, Show)
 
-data OutPortRef = OutPortRef
-    { _srcNodeLoc :: NodeLoc
-    , _srcPortId :: OutPortId
-    } deriving (Eq, Generic, Ord, Show)
+data OutPortRef = OutPortRef { _srcNodeLoc :: NodeLoc
+                             , _srcPortId  :: OutPortId
+                             } deriving (Eq, Generic, Ord, Show)
 
 data AnyPortRef
     = OutPortRef' OutPortRef

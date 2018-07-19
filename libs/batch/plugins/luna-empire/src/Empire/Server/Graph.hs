@@ -6,6 +6,8 @@ import           Control.Concurrent                      (forkIO)
 import           Control.Concurrent.MVar                 (readMVar)
 import           Control.Concurrent.STM.TChan            (writeTChan)
 import           Control.Error                           (runExceptT)
+import           Control.Lens                            ((.=), (^..), to,
+                                                          traversed, use)
 import           Control.Monad                           (when)
 import           Control.Monad.Catch                     (handle, try)
 import           Control.Monad.Reader                    (asks)
@@ -44,7 +46,7 @@ import qualified Empire.Env                              as Env
 import           Empire.Server.Server                    (defInverse, errorMessage, modifyGraph, modifyGraphOk, prettyException, replyFail,
                                                           replyOk, replyResult, sendToBus', webGUIHack, withDefaultResult,
                                                           withDefaultResultTC)
-import           Luna.Project                            (findProjectFileForFile, getRelativePathForModule)
+import           Luna.Package                            (findPackageFileForFile, getRelativePathForModule)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Control.Interpreter      as Interpreter
@@ -181,7 +183,7 @@ getProjectPathAndRelativeModulePath modulePath = do
     mayProjectPathAndRelModulePath <- liftIO . runMaybeT $ do
         absModulePath  <- MaybeT $
             eitherToMaybe =<< try (parseAbsFile modulePath)
-        absProjectPath <- MaybeT $ findProjectFileForFile absModulePath
+        absProjectPath <- MaybeT $ findPackageFileForFile absModulePath
         relModulePath  <- MaybeT $
             getRelativePathForModule absProjectPath absModulePath
         pure (fromAbsFile absProjectPath, fromRelFile relModulePath)
