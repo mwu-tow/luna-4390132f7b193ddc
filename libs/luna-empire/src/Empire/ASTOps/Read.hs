@@ -36,40 +36,40 @@ import qualified Luna.IR as IR
 
 import qualified System.IO as IO
 
-cutThroughGroups :: GraphOp m => NodeRef -> m NodeRef
+cutThroughGroups :: NodeRef -> GraphOp NodeRef
 cutThroughGroups r = match r $ \case
     Grouped g -> cutThroughGroups =<< source g
     _         -> return r
 
-cutThroughMarked :: ClassOp m => NodeRef -> m NodeRef
+cutThroughMarked :: NodeRef -> ClassOp NodeRef
 cutThroughMarked r = match r $ \case
     Marked m expr -> cutThroughMarked =<< source expr
     _             -> return r
 
-cutThroughDoc :: ClassOp m => NodeRef -> m NodeRef
+cutThroughDoc :: NodeRef -> ClassOp NodeRef
 cutThroughDoc r = match r $ \case
     Documented _d expr -> cutThroughDoc =<< source expr
     _                  -> return r
 
-cutThroughDocAndMarked :: ClassOp m => NodeRef -> m NodeRef
+cutThroughDocAndMarked :: NodeRef -> ClassOp NodeRef
 cutThroughDocAndMarked r = match r $ \case
     Marked _m expr  -> cutThroughDocAndMarked =<< source expr
     Documented _d a -> cutThroughDocAndMarked =<< source a
     _               -> return r
 
-isInputSidebar :: GraphOp m => NodeId -> m Bool
+isInputSidebar :: NodeId -> GraphOp Bool
 isInputSidebar nid = do
     lambda <- use Graph.breadcrumbHierarchy
     return $ lambda ^. BH.portMapping . _1 == nid
 
-getASTOutForPort :: GraphOp m => NodeId -> OutPortId -> m NodeRef
+getASTOutForPort :: NodeId -> OutPortId -> GraphOp NodeRef
 getASTOutForPort nodeId port = do
     isSidebar <- isInputSidebar nodeId
     if isSidebar
       then getLambdaInputForPort port =<< getTargetFromMarked =<< use (Graph.breadcrumbHierarchy . BH.self)
       else getOutputForPort      port =<< getASTVar nodeId
 
-getLambdaInputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
+getLambdaInputForPort :: OutPortId -> NodeRef -> GraphOp NodeRef
 getLambdaInputForPort []                           lam = throwM $ PortDoesNotExistException []
 getLambdaInputForPort portId@(Projection 0 : rest) lam = cutThroughGroups lam >>= flip match `id` \case
     Lam i _             -> getOutputForPort rest =<< source i
@@ -88,7 +88,7 @@ getLambdaInputForPort portId@(Projection i : rest) lam = cutThroughGroups lam >>
             _      -> throwM $ PortDoesNotExistException portId
     _                  -> throwM $ PortDoesNotExistException portId
 
-getOutputForPort :: GraphOp m => OutPortId -> NodeRef -> m NodeRef
+getOutputForPort :: OutPortId -> NodeRef -> GraphOp NodeRef
 getOutputForPort []                           ref = cutThroughGroups ref
 getOutputForPort portId@(Projection i : rest) ref = cutThroughGroups ref >>= flip match `id` \case
     Cons _ as' -> do
@@ -126,7 +126,7 @@ getNodeId node = do
     let leavesNodeId = foldl' (<|>) Nothing varsNodeIds
     return $ rootNodeId <|> varNodeId <|> leavesNodeId
 
-getPatternNames :: GraphOp m => NodeRef -> m [String]
+getPatternNames :: NodeRef -> GraphOp [String]
 getPatternNames node = match node $ \case
     Var n     -> return [nameToString n]
     Cons _ as' -> do
@@ -143,14 +143,14 @@ instance Exception NoNameException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-getVarName' :: ASTOp a m => NodeRef -> m IR.Name
+getVarName' :: NodeRef -> ASTOp g IR.Name
 getVarName' node = match node $ \case
     Var n    -> return n
     Cons n _ -> return n
     Blank{}  -> return "_"
     _        -> throwM $ NoNameException node
 
-getVarName :: ASTOp a m => NodeRef -> m String
+getVarName :: NodeRef -> ASTOp g String
 getVarName = fmap nameToString . getVarName'
 
 getVarsInside ::
@@ -161,12 +161,12 @@ getVarsInside e = do
     var <- isVar e
     if var then return [e] else concat <$> (mapM (getVarsInside <=< source) =<< inputs e)
 
-rightMatchOperand :: GraphOp m => NodeRef -> m EdgeRef
+rightMatchOperand :: NodeRef -> GraphOp EdgeRef
 rightMatchOperand node = match node $ \case
     Unify _ b -> pure $ generalize b
     _         -> throwM $ NotUnifyException node
 
-getTargetNode :: GraphOp m => NodeRef -> m NodeRef
+getTargetNode :: NodeRef -> GraphOp NodeRef
 getTargetNode node = rightMatchOperand node >>= source
 
 leftMatchOperand ::
@@ -199,28 +199,28 @@ instance Exception MalformedASTRef where
 
 
 
-getASTRef :: GraphOp m => NodeId -> m NodeRef
+getASTRef :: NodeId -> GraphOp NodeRef
 getASTRef nodeId = preuse (Graph.breadcrumbHierarchy . BH.children . ix nodeId . BH.self) <?!> NodeDoesNotExistException nodeId
 
-getASTPointer :: GraphOp m => NodeId -> m NodeRef
+getASTPointer :: NodeId -> GraphOp NodeRef
 getASTPointer nodeId = do
     marked <- getASTRef nodeId
     match marked $ \case
         Marked _m expr -> source expr
         _                 -> return marked
 
-getCurrentASTPointer :: GraphOp m => m NodeRef
+getCurrentASTPointer :: GraphOp NodeRef
 getCurrentASTPointer = do
     ref <- getCurrentASTRef
     match ref $ \case
         Marked _ expr -> source expr
         _                -> return ref
 
-getCurrentASTRef :: GraphOp m => m NodeRef
+getCurrentASTRef :: GraphOp NodeRef
 getCurrentASTRef = use $ Graph.breadcrumbHierarchy . BH.self
 
 -- TODO[MK]: Fail when not marked and unify with getTargetEdge
-getTargetFromMarked :: GraphOp m => NodeRef -> m NodeRef
+getTargetFromMarked :: NodeRef -> GraphOp NodeRef
 getTargetFromMarked marked = match marked $ \case
     Marked _m expr -> do
         expr' <- source expr
@@ -230,7 +230,7 @@ getTargetFromMarked marked = match marked $ \case
     _ -> return marked
 
 
-getVarEdge :: GraphOp m => NodeId -> m EdgeRef
+getVarEdge :: NodeId -> GraphOp EdgeRef
 getVarEdge nid = do
     ref <- getASTRef nid
     match ref $ \case
@@ -241,7 +241,7 @@ getVarEdge nid = do
                 _            -> throwM $ NotUnifyException expr'
         _ -> throwM $ MalformedASTRef ref
 
-getTargetEdge :: GraphOp m => NodeId -> m EdgeRef
+getTargetEdge :: NodeId -> GraphOp EdgeRef
 getTargetEdge nid = do
     ref <- getASTRef nid
     match ref $ \case
@@ -252,64 +252,64 @@ getTargetEdge nid = do
                 _            -> return $ generalize expr
         _ -> throwM $ MalformedASTRef ref
 
-getNameOf :: GraphOp m => NodeRef -> m (Maybe Text)
+getNameOf :: NodeRef -> GraphOp (Maybe Text)
 getNameOf ref = match ref $ \case
     Marked _ e -> getNameOf =<< source e
     Unify  l _ -> getNameOf =<< source l
     Var    n   -> return $ Just $ convert $ convertTo @String n
     _             -> return Nothing
 
-getASTMarkerPosition :: GraphOp m => NodeId -> m NodeRef
+getASTMarkerPosition :: NodeId -> GraphOp NodeRef
 getASTMarkerPosition nodeId = do
     ref <- getASTPointer nodeId
     match ref $ \case
         Unify l r -> source l
         _            -> return ref
 
-getMarkerNode :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+getMarkerNode :: NodeRef -> GraphOp (Maybe NodeRef)
 getMarkerNode ref = match ref $ \case
     Marked m _expr -> Just <$> source m
     _                 -> return Nothing
 
-getASTTarget :: GraphOp m => NodeId -> m NodeRef
+getASTTarget :: NodeId -> GraphOp NodeRef
 getASTTarget nodeId = do
     ref   <- getASTRef nodeId
     getTargetFromMarked ref
 
-getCurrentASTTarget :: GraphOp m => m NodeRef
+getCurrentASTTarget :: GraphOp NodeRef
 getCurrentASTTarget = do
     ref <- use $ Graph.breadcrumbHierarchy . BH.self
     getTargetFromMarked ref
 
-getCurrentBody :: GraphOp m => m NodeRef
+getCurrentBody :: GraphOp NodeRef
 getCurrentBody = getFirstNonLambdaRef =<< getCurrentASTTarget
 
-getASTVar :: GraphOp m => NodeId -> m NodeRef
+getASTVar :: NodeId -> GraphOp NodeRef
 getASTVar nodeId = do
     matchNode <- getASTPointer nodeId
     getVarNode matchNode
 
-getCurrentASTVar :: GraphOp m => m NodeRef
+getCurrentASTVar :: GraphOp NodeRef
 getCurrentASTVar = getVarNode =<< getCurrentASTPointer
 
-getSelfNodeRef :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+getSelfNodeRef :: NodeRef -> GraphOp (Maybe NodeRef)
 getSelfNodeRef = getSelfNodeRef' False
 
-getSelfNodeRef' :: GraphOp m => Bool -> NodeRef -> m (Maybe NodeRef)
+getSelfNodeRef' :: Bool -> NodeRef -> GraphOp (Maybe NodeRef)
 getSelfNodeRef' seenAcc node = match node $ \case
     Acc t _ -> source t >>= getSelfNodeRef' True
     App t _ -> source t >>= getSelfNodeRef' seenAcc
     _       -> return $ if seenAcc then Just node else Nothing
 
-getLambdaBodyRef :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+getLambdaBodyRef :: NodeRef -> GraphOp (Maybe NodeRef)
 getLambdaBodyRef lam = match lam $ \case
     Lam _ o -> getLambdaBodyRef =<< source o
     _       -> return $ Just lam
 
-getLambdaSeqRef :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+getLambdaSeqRef :: NodeRef -> GraphOp (Maybe NodeRef)
 getLambdaSeqRef = getLambdaSeqRef' False
 
-getLambdaSeqRef' :: GraphOp m => Bool -> NodeRef -> m (Maybe NodeRef)
+getLambdaSeqRef' :: Bool -> NodeRef -> GraphOp (Maybe NodeRef)
 getLambdaSeqRef' firstLam node = match node $ \case
     Grouped g  -> source g >>= getLambdaSeqRef' firstLam
     Lam _ next -> do
@@ -318,7 +318,7 @@ getLambdaSeqRef' firstLam node = match node $ \case
     Seq{}     -> if firstLam then return $ Just node else throwM $ NotLambdaException node
     _         -> if firstLam then return Nothing     else throwM $ NotLambdaException node
 
-getLambdaOutputRef :: GraphOp m => NodeRef -> m NodeRef
+getLambdaOutputRef :: NodeRef -> GraphOp NodeRef
 getLambdaOutputRef node = match node $ \case
     ASGFunction _ _ b -> source b >>= getLambdaOutputRef
     Grouped g         -> source g >>= getLambdaOutputRef
@@ -327,12 +327,12 @@ getLambdaOutputRef node = match node $ \case
     Marked _ m        -> source m >>= getLambdaOutputRef
     _                 -> return node
 
-getFirstNonLambdaRef :: GraphOp m => NodeRef -> m NodeRef
+getFirstNonLambdaRef :: NodeRef -> GraphOp NodeRef
 getFirstNonLambdaRef ref = do
     link <- getFirstNonLambdaLink ref
     maybe (return ref) (source) link
 
-getFirstNonLambdaLink :: GraphOp m => NodeRef -> m (Maybe EdgeRef)
+getFirstNonLambdaLink :: NodeRef -> GraphOp (Maybe EdgeRef)
 getFirstNonLambdaLink node = match node $ \case
     ASGFunction _ _ o -> return $ Just $ generalize o
     Grouped g         -> source g >>= getFirstNonLambdaLink
@@ -343,38 +343,38 @@ getFirstNonLambdaLink node = match node $ \case
             _     -> return $ Just $ generalize next
     _         -> return Nothing
 
-isApp :: GraphOp m => NodeRef -> m Bool
+isApp :: NodeRef -> GraphOp Bool
 -- isApp expr = isJust <$> narrowTerm @IR.App expr
 isApp expr = match expr $ \case
     App{} -> return True
     _     -> return False
 
-isBlank :: GraphOp m => NodeRef -> m Bool
+isBlank :: NodeRef -> GraphOp Bool
 -- isBlank expr = isJust <$> narrowTerm @IR.Blank expr
 isBlank expr = match expr $ \case
     Blank{} -> return True
     _     -> return False
 
-isLambda :: GraphOp m => NodeRef -> m Bool
+isLambda :: NodeRef -> GraphOp Bool
 isLambda expr = match expr $ \case
     Lam{}     -> return True
     Grouped g -> source g >>= isLambda
     _         -> return False
 
-isEnterable :: GraphOp m => NodeRef -> m Bool
+isEnterable :: NodeRef -> GraphOp Bool
 isEnterable expr = match expr $ \case
     Lam{}         -> return True
     ASGFunction{} -> return True
     Grouped g     -> source g >>= isEnterable
     _             -> return False
 
-isMatch :: GraphOp m => NodeRef -> m Bool
+isMatch :: NodeRef -> GraphOp Bool
 -- isMatch expr = isJust <$> narrowTerm @IR.Unify expr
 isMatch expr = match expr $ \case
     Unify{} -> return True
     _     -> return False
 
-isCons :: GraphOp m => NodeRef -> m Bool
+isCons :: NodeRef -> GraphOp Bool
 -- isCons expr = isJust <$> narrowTerm @IR.Cons expr
 isCons expr = match expr $ \case
     Cons{} -> return True
@@ -386,31 +386,31 @@ isVar expr = match expr $ \case
     Var{} -> return True
     _     -> return False
 
-isTuple :: GraphOp m => NodeRef -> m Bool
+isTuple :: NodeRef -> GraphOp Bool
 -- isTuple expr = isJust <$> narrowTerm @IR.Tuple expr
 isTuple expr = match expr $ \case
     Tuple{} -> return True
     _     -> return False
 
-isASGFunction :: GraphOp m => NodeRef -> m Bool
+isASGFunction :: NodeRef -> GraphOp Bool
 -- isASGFunction expr = isJust <$> narrowTerm @IR.Function expr
 isASGFunction expr = match expr $ \case
     ASGFunction{} -> return True
     _     -> return False
 
-isRecord :: GraphOp m => NodeRef -> m Bool
+isRecord :: NodeRef -> GraphOp Bool
 -- isRecord expr = isJust <$> narrowTerm @IR.Record expr
 isRecord expr = match expr $ \case
     ClsASG{} -> return True
     _     -> return False
 
-isAnonymous :: GraphOp m => NodeRef -> m Bool
+isAnonymous :: NodeRef -> GraphOp Bool
 isAnonymous expr = match expr $ \case
     Marked _ e -> isAnonymous =<< source e
     Unify _ _  -> return False
     _          -> return True
 
-dumpPatternVars :: GraphOp m => NodeRef -> m [NodeRef]
+dumpPatternVars :: NodeRef -> GraphOp [NodeRef]
 dumpPatternVars ref = match ref $ \case
     Var _     -> return [ref]
     Cons _ as -> fmap concat $ mapM (dumpPatternVars <=< source) =<< ptrListToList as
@@ -418,7 +418,7 @@ dumpPatternVars ref = match ref $ \case
     Tuple a   -> fmap concat $ mapM (dumpPatternVars <=< source) =<< ptrListToList a
     _         -> return []
 
-nodeIsPatternMatch :: GraphOp m => NodeId -> m Bool
+nodeIsPatternMatch :: NodeId -> GraphOp Bool
 nodeIsPatternMatch nid = (do
     root <- getASTPointer nid
     varIsPatternMatch root) `catches` [
@@ -426,22 +426,22 @@ nodeIsPatternMatch nid = (do
         , Handler (\(e :: NodeDoesNotExistException) -> return False)
         ]
 
-varIsPatternMatch :: GraphOp m => NodeRef -> m Bool
+varIsPatternMatch :: NodeRef -> GraphOp Bool
 varIsPatternMatch expr = do
     var <- getVarNode expr
     not <$> isVar var
 
-rhsIsLambda :: GraphOp m => NodeRef -> m Bool
+rhsIsLambda :: NodeRef -> GraphOp Bool
 rhsIsLambda ref = do
     rhs <- getTargetNode ref
     isLambda rhs
 
-canEnterNode :: GraphOp m => NodeRef -> m Bool
+canEnterNode :: NodeRef -> GraphOp Bool
 canEnterNode ref = do
     match' <- isMatch ref
     if match' then rhsIsLambda ref else return False
 
-classFunctions :: ClassOp m => NodeRef -> m [NodeRef]
+classFunctions :: NodeRef -> ClassOp [NodeRef]
 classFunctions unit = do
     klass' <- classFromUnit unit
     match klass' $ \case
@@ -452,11 +452,11 @@ classFunctions unit = do
                 ASGFunction{} -> return (Just f)
                 _             -> return Nothing)
 
-classFromUnit :: ClassOp m => NodeRef -> m NodeRef
+classFromUnit :: NodeRef -> ClassOp NodeRef
 classFromUnit unit = match unit $ \case
     Unit _ _ c -> source c
 
-getMetadataRef :: ClassOp m => NodeRef -> m (Maybe NodeRef)
+getMetadataRef :: NodeRef -> ClassOp (Maybe NodeRef)
 getMetadataRef unit = do
     klass' <- classFromUnit unit
     match klass' $ \case
@@ -468,7 +468,7 @@ getMetadataRef unit = do
                 _          -> return Nothing)
         _ -> return Nothing
 
-getFunByNodeId :: ClassOp m => NodeId -> m NodeRef
+getFunByNodeId :: NodeId -> ClassOp NodeRef
 getFunByNodeId nodeId = do
     cls  <- use Graph.clsClass
     funs <- classFunctions cls

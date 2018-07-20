@@ -15,11 +15,11 @@ import           Empire.Data.AST           (NodeRef, NotAppException (..))
 
 import qualified Luna.IR                   as IR
 
-removeSubtree :: forall m. GraphOp m => NodeRef -> m ()
-removeSubtree ref = deleteSubtree @m ref
+removeSubtree :: NodeRef -> GraphOp ()
+removeSubtree ref = deleteSubtree ref
 
 -- | Creates new App node with Blank inserted at specified position
-removeArg :: GraphOp m => NodeRef -> Int -> m NodeRef
+removeArg :: NodeRef -> Int -> GraphOp NodeRef
 removeArg expr i = do
     (fun, args) <- deconstructApp expr
     b <- generalize <$> IR.blank
@@ -27,13 +27,13 @@ removeArg expr i = do
     a <- apps fun args'
     removeTrailingBlanks a
 
-apps :: GraphOp m => Expr f -> [NodeRef] -> m NodeRef
+apps :: Expr f -> [NodeRef] -> GraphOp NodeRef
 apps fun exprs = coerce <$> foldM appAny (coerce fun) (coerce <$> exprs)
 
-appAny :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
+appAny :: NodeRef -> NodeRef -> GraphOp NodeRef
 appAny = fmap generalize .: IR.app
 
-removeTrailingBlanks :: GraphOp m => NodeRef -> m NodeRef
+removeTrailingBlanks :: NodeRef -> GraphOp NodeRef
 removeTrailingBlanks expr = match expr $ \case
     App a c -> do
         argBlank <- isBlank =<< source c

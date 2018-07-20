@@ -150,7 +150,7 @@ getAt (fromIntegral -> from) (fromIntegral -> to) = do
     code <- use Graph.code
     return $ Text.take (to - from) $ Text.drop from code
 
-getASTTargetBeginning :: GraphOp m => NodeId -> m Delta
+getASTTargetBeginning :: NodeId -> GraphOp Delta
 getASTTargetBeginning id = do
     ref      <- ASTRead.getASTRef id
     Just beg <- getOffsetRelativeToFile ref
@@ -164,12 +164,12 @@ getASTTargetBeginning id = do
                     return $ boff + roff + beg
                 _ -> return $ beg + boff
 
-isOperatorVar :: GraphOp m => NodeRef -> m Bool
+isOperatorVar :: NodeRef -> GraphOp Bool
 isOperatorVar expr = matchExpr expr $ \case
     Var n -> return $ isOperator n
     _        -> return False
 
-getOffsetRelativeToTarget :: GraphOp m => EdgeRef -> m Delta
+getOffsetRelativeToTarget :: EdgeRef -> GraphOp Delta
 getOffsetRelativeToTarget edge = do
     ref  <- target edge
     let fallback = do
@@ -195,19 +195,19 @@ getOffsetRelativeToTarget edge = do
         _ -> fallback
 
 
-getExprMap :: GraphOp m => m (Map.Map Graph.MarkerId NodeRef)
+getExprMap :: GraphOp (Map.Map Graph.MarkerId NodeRef)
 getExprMap = use Graph.codeMarkers
 
-setExprMap :: GraphOp m => Map.Map Graph.MarkerId NodeRef -> m ()
+setExprMap :: Map.Map Graph.MarkerId NodeRef -> GraphOp ()
 setExprMap exprMap = Graph.codeMarkers .= exprMap
 
-addExprMapping :: GraphOp m => Word64 -> NodeRef -> m ()
+addExprMapping :: Word64 -> NodeRef -> GraphOp ()
 addExprMapping index ref = do
     exprMap    <- getExprMap
     let newMap = exprMap & at index ?~ ref
     setExprMap newMap
 
-getNextExprMarker :: GraphOp m => m Word64
+getNextExprMarker :: GraphOp Word64
 getNextExprMarker = do
     globalExprMap <- use Graph.globalMarkers
     localExprMap  <- getExprMap
@@ -217,14 +217,14 @@ getNextExprMarker = do
     invalidateMarker newMarker
     return newMarker
 
-invalidateMarker :: (ASTOp g m, HasNodeCache g) => Word64 -> m ()
+invalidateMarker :: HasNodeCache g => Word64 -> ASTOp g ()
 invalidateMarker index = do
     oldId <- use $ Graph.nodeCache . NodeCache.nodeIdMap . at index
     Graph.nodeCache . NodeCache.nodeIdMap . at index .= Nothing
     Graph.nodeCache . NodeCache.nodeMetaMap . at index .= Nothing
     Graph.nodeCache . NodeCache.portMappingMap %= Map.filterWithKey (\(nid,_) _ -> Just nid /= oldId)
 
-addCodeMarker :: GraphOp m => Delta -> EdgeRef -> m NodeRef
+addCodeMarker :: Delta -> EdgeRef -> GraphOp NodeRef
 addCodeMarker beg edge = do
     ref    <- source edge
     index  <- getNextExprMarker
@@ -240,14 +240,14 @@ addCodeMarker beg edge = do
     gossipUsesChangedBy (fromIntegral $ Text.length $ makeMarker index) markedNode
     return markedNode
 
-getOffsetRelativeToFile :: GraphOp m => NodeRef -> m (Maybe Delta)
+getOffsetRelativeToFile :: NodeRef -> GraphOp (Maybe Delta)
 getOffsetRelativeToFile ref = do
     begs <- getAllBeginningsOf ref
     case begs of
         [s] -> return $ Just s
         _   -> return Nothing
 
-getAllBeginningsOf :: GraphOp m => NodeRef -> m [Delta]
+getAllBeginningsOf :: NodeRef -> GraphOp [Delta]
 getAllBeginningsOf ref = do
     succs <- fmap coerce <$> ociSetToList =<< getLayer @IR.Users ref
     uniSuccs <- mapM (\a -> target a >>= \b -> matchExpr b (return . show)) succs
@@ -267,23 +267,23 @@ getAllBeginningsOf ref = do
             begs <- getAllBeginningsOf =<< target s
             return $ (off <>) <$> begs
 
-getAnyBeginningOf :: GraphOp m => NodeRef -> m (Maybe Delta)
+getAnyBeginningOf :: NodeRef -> GraphOp (Maybe Delta)
 getAnyBeginningOf ref = listToMaybe <$> getAllBeginningsOf ref
 
-getCodeOf :: GraphOp m => NodeRef -> m Text
+getCodeOf :: NodeRef -> GraphOp Text
 getCodeOf ref = do
     Just beg <- getAnyBeginningOf ref
     len <- getLayer @SpanLength ref
     getAt beg (beg + len)
 
-getCodeWithIndentOf :: GraphOp m => NodeRef -> m Text
+getCodeWithIndentOf :: NodeRef -> GraphOp Text
 getCodeWithIndentOf ref = do
     Just beg <- getAnyBeginningOf ref
     len <- getLayer @SpanLength ref
     off <- getCurrentIndentationLength
     getAt (beg - off) (beg + len)
 
-replaceAllUses :: GraphOp m => NodeRef -> Text -> m ()
+replaceAllUses :: NodeRef -> Text -> GraphOp ()
 replaceAllUses ref new = do
     len         <- getLayer @SpanLength ref
     occurrences <- getAllBeginningsOf ref
@@ -291,7 +291,7 @@ replaceAllUses ref new = do
     for_ fromFileEnd $ \beg -> applyDiff beg (beg + len) new
     gossipLengthsChangedBy (fromIntegral (Text.length new) - len) ref
 
-computeLength :: GraphOp m => NodeRef -> m Delta
+computeLength :: NodeRef -> GraphOp Delta
 computeLength ref = do
     ins  <- inputs ref
     case ins of
@@ -301,18 +301,18 @@ computeLength ref = do
             lens <- mapM (getLayer @SpanLength <=< source) ins
             return $ mconcat offs <> mconcat lens
 
-functionBlockStart :: ClassOp m => NodeId -> m Delta
+functionBlockStart :: NodeId -> ClassOp Delta
 functionBlockStart funUUID = do
     ref  <- ASTRead.getFunByNodeId funUUID
     functionBlockStartRef ref
 
-functionBlockStartRef :: ClassOp m => NodeRef -> m Delta
+functionBlockStartRef :: NodeRef -> ClassOp Delta
 functionBlockStartRef ref = do
     LeftSpacedSpan (SpacedSpan off len) <- getOffset ref
     return $ off + len
 
 
-getOffset :: ClassOp m => NodeRef -> m (LeftSpacedSpan Delta)
+getOffset :: NodeRef -> ClassOp (LeftSpacedSpan Delta)
 getOffset ref = do
     succs    <- ociSetToList =<< getLayer @IR.Users ref
     leftSpan <- case succs of
@@ -327,14 +327,14 @@ getOffset ref = do
     LeftSpacedSpan (SpacedSpan off _) <- view CodeSpan.realSpan <$> getLayer @CodeSpan ref
     return $ leftSpan <> LeftSpacedSpan (SpacedSpan off 0)
 
-getCurrentBlockBeginning :: GraphOp m => m Delta
+getCurrentBlockBeginning :: GraphOp Delta
 getCurrentBlockBeginning = do
     tgt           <- ASTRead.getCurrentASTTarget
     Just defBegin <- getOffsetRelativeToFile tgt
     off           <- getFirstNonLambdaOffset tgt
     return $ defBegin <> off
 
-getFirstNonLambdaOffset :: GraphOp m => NodeRef -> m Delta
+getFirstNonLambdaOffset :: NodeRef -> GraphOp Delta
 getFirstNonLambdaOffset ref = matchExpr ref $ \case
     Lam i o -> do
         ioff  <- getLayer @SpanOffset i
@@ -345,7 +345,7 @@ getFirstNonLambdaOffset ref = matchExpr ref $ \case
     ASGFunction n as o -> getOffsetRelativeToTarget $ generalize o
     _ -> return 0
 
-getCurrentBlockEnd :: GraphOp m => m Delta
+getCurrentBlockEnd :: GraphOp Delta
 getCurrentBlockEnd = do
     body <- ASTRead.getCurrentBody
     len  <- getLayer @SpanLength body
@@ -355,43 +355,43 @@ getCurrentBlockEnd = do
 defaultIndentationLength :: Delta
 defaultIndentationLength = 4
 
-getCurrentIndentationLength :: GraphOp m => m Delta
+getCurrentIndentationLength :: GraphOp Delta
 getCurrentIndentationLength = do
       o <- getCurrentBlockBeginning
       c <- use Graph.code
       return $ fromIntegral $ Text.length $ removeMarkers $ Text.takeWhileEnd (/= '\n') $ Text.take (fromIntegral o) c
 
-propagateLengths :: GraphOp m => NodeRef -> m ()
+propagateLengths :: NodeRef -> GraphOp ()
 propagateLengths node = do
     LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) $ getLayer @CodeSpan node
     putLayer @SpanLength node len
     mapM_ propagateOffsets =<< inputs node
 
-propagateOffsets :: GraphOp m => EdgeRef -> m ()
+propagateOffsets :: EdgeRef -> GraphOp ()
 propagateOffsets edge = do
     LeftSpacedSpan (SpacedSpan off len) <- fmap (view CodeSpan.realSpan) . getLayer @CodeSpan =<< source edge
     putLayer @SpanOffset edge off
     propagateLengths =<< source edge
 
-gossipUsesChangedBy :: GraphOp m => Delta -> NodeRef -> m ()
+gossipUsesChangedBy :: Delta -> NodeRef -> GraphOp ()
 gossipUsesChangedBy delta ref = mapM_ (gossipLengthsChangedBy delta) =<< mapM target =<< ociSetToList =<< getLayer @IR.Users ref
 
-addToLength :: GraphOp m => NodeRef -> Delta -> m ()
+addToLength :: NodeRef -> Delta -> GraphOp ()
 addToLength ref delta = modifyLayer_ @SpanLength ref (+ delta)
 
-gossipLengthsChangedBy :: GraphOp m => Delta -> NodeRef -> m ()
+gossipLengthsChangedBy :: Delta -> NodeRef -> GraphOp ()
 gossipLengthsChangedBy delta ref = do
     addToLength ref delta
     succs     <- ociSetToList =<< getLayer @IR.Users ref
     succNodes <- mapM target succs
     mapM_ (gossipLengthsChangedBy delta) succNodes
 
-addToLengthCls :: ClassOp m => NodeRef -> Delta -> m ()
+addToLengthCls :: NodeRef -> Delta -> ClassOp ()
 addToLengthCls ref delta = do
     LeftSpacedSpan (SpacedSpan off len) <- view CodeSpan.realSpan <$> getLayer @CodeSpan ref
     putLayer @CodeSpan ref $ CodeSpan.mkRealSpan (LeftSpacedSpan (SpacedSpan off (len + delta)))
 
-gossipLengthsChangedByCls :: ClassOp m => Delta -> NodeRef -> m ()
+gossipLengthsChangedByCls :: Delta -> NodeRef -> ClassOp ()
 gossipLengthsChangedByCls delta ref = do
     addToLengthCls ref delta
     succs     <- ociSetToList =<< getLayer @IR.Users ref

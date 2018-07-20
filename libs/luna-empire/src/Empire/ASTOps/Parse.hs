@@ -172,7 +172,7 @@ instance Exception PortDefaultNotConstructibleException where
     fromException = astExceptionFromException
 
 infixr 0 `withLength`
-withLength :: GraphOp m => m NodeRef -> Int -> m NodeRef
+withLength :: GraphOp NodeRef -> Int -> GraphOp NodeRef
 withLength act len = do
     ref <- act
     putLayer @SpanLength ref (convert len)
@@ -180,7 +180,7 @@ withLength act len = do
 
 
 
-parsePortDefault :: GraphOp m => PortDefault -> m NodeRef
+parsePortDefault :: PortDefault -> GraphOp NodeRef
 parsePortDefault (Expression expr)          = do
     ref <- liftIO $ parseExpr (convert expr)
     Code.propagateLengths ref

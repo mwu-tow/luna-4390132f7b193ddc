@@ -33,18 +33,18 @@ import qualified LunaStudio.Data.Port            as Port
 
 import qualified Luna.IR as IR
 
-makeTopBreadcrumbHierarchy :: GraphOp m => NodeRef -> m ()
+makeTopBreadcrumbHierarchy :: NodeRef -> GraphOp ()
 makeTopBreadcrumbHierarchy ref = do
 
     item <- prepareFunctionChild ref ref
     breadcrumbHierarchy .= item
 
-getMarker :: ASTOp g m => NodeRef -> m Word64
+getMarker :: NodeRef -> ASTOp g Word64
 getMarker marker = do
     matchExpr marker $ \case
         Marker index -> return index
 
-childrenFromSeq :: GraphOp m => Delta -> EdgeRef -> m (Map NodeId BH.BChild)
+childrenFromSeq :: Delta -> EdgeRef -> GraphOp (Map NodeId BH.BChild)
 childrenFromSeq tgtBeg edge = do
     ref <- source edge
     off <- Code.getOffsetRelativeToTarget edge
@@ -73,12 +73,12 @@ childrenFromSeq tgtBeg edge = do
             Code.addCodeMarker beg edge
             childrenFromSeq tgtBeg edge
 
-isNone :: GraphOp m => NodeRef -> m Bool
+isNone :: NodeRef -> GraphOp Bool
 isNone = flip matchExpr $ \case
     Cons n _ -> return $ n == "None"
     _           -> return False
 
-lambdaChildren :: GraphOp m => Delta -> EdgeRef -> m (Map NodeId BH.BChild)
+lambdaChildren :: Delta -> EdgeRef -> GraphOp (Map NodeId BH.BChild)
 lambdaChildren tgtBeg edge = do
     ref <- source edge
     off <- Code.getOffsetRelativeToTarget edge
@@ -90,7 +90,7 @@ lambdaChildren tgtBeg edge = do
             isN    <- isNone ref
             if isJust marker || isN then return Map.empty else childrenFromSeq tgtBeg edge
 
-prepareChild :: GraphOp m => NodeRef -> NodeRef -> m BH.BChild
+prepareChild :: NodeRef -> NodeRef -> GraphOp BH.BChild
 prepareChild marked ref = go ref where
     go r = matchExpr r $ \case
         Lam {}         -> BH.LambdaChild <$> prepareLambdaChild   marked ref
@@ -98,12 +98,12 @@ prepareChild marked ref = go ref where
         Grouped g      -> go =<< source g
         _                 -> prepareExprChild marked ref
 
-prepareChildWhenLambda :: GraphOp m => NodeRef -> NodeRef -> m (Maybe BH.LamItem)
+prepareChildWhenLambda :: NodeRef -> NodeRef -> GraphOp (Maybe BH.LamItem)
 prepareChildWhenLambda marked ref = do
     isLambda <- ASTRead.isLambda ref
     if isLambda then Just <$> prepareLambdaChild marked ref else return Nothing
 
-prepareLambdaChild :: GraphOp m => NodeRef -> NodeRef -> m BH.LamItem
+prepareLambdaChild :: NodeRef -> NodeRef -> GraphOp BH.LamItem
 prepareLambdaChild marked ref = do
     portMapping <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
     Just lambdaBodyLink <- ASTRead.getFirstNonLambdaLink ref
@@ -114,7 +114,7 @@ prepareLambdaChild marked ref = do
     newBody             <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children
 
-prepareFunctionChild :: GraphOp m => NodeRef -> NodeRef -> m BH.LamItem
+prepareFunctionChild :: NodeRef -> NodeRef -> GraphOp BH.LamItem
 prepareFunctionChild marked ref = do
     portMapping      <- liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom
     (args, bodyLink) <- matchExpr ref $ \case
@@ -128,7 +128,7 @@ prepareFunctionChild marked ref = do
     newBody  <- ASTRead.getFirstNonLambdaRef ref
     return $ BH.LamItem portMapping marked children
 
-prepareExprChild :: GraphOp m => NodeRef -> NodeRef -> m BH.BChild
+prepareExprChild :: NodeRef -> NodeRef -> GraphOp BH.BChild
 prepareExprChild marked ref = do
     let bareItem = BH.ExprItem Map.empty marked
     args  <- ASTDeconstruct.extractAppArguments ref
@@ -138,7 +138,7 @@ prepareExprChild marked ref = do
           _       -> par
     return $ BH.ExprChild $ foldl addItem bareItem $ zip [0..] items
 
-restorePortMappings :: GraphOp m => Map (NodeId, Maybe Int) (NodeId, NodeId) -> m ()
+restorePortMappings :: Map (NodeId, Maybe Int) (NodeId, NodeId) -> GraphOp ()
 restorePortMappings previousPortMappings = do
     hierarchy <- use breadcrumbHierarchy
 

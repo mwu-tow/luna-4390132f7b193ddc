@@ -15,7 +15,7 @@ import qualified Data.Text                      as Text
 import qualified Data.Vector.Storable.Foreign   as Vector
 import           Empire.Prelude
 
-import           Empire.ASTOp                   (ASTOpReq, Printer, GraphOp, match)
+import           Empire.ASTOp                   (Printer, GraphOp, match)
 import qualified Empire.ASTOps.Read             as ASTRead
 import           Empire.Data.AST                (EdgeRef, NodeRef)
 import           Empire.Data.Graph              (CommandState, Graph)
@@ -39,7 +39,7 @@ import Data.Layout                  (block, indented, parensed, (<+>))
 import Data.Vector.Storable.Foreign (Vector)
 import Language.Symbol.Label        (Labeled (Labeled), label, labeled, unlabel)
 
-getTypeRep :: GraphOp m => NodeRef -> m TypeRep
+getTypeRep :: NodeRef -> GraphOp TypeRep
 getTypeRep tp = match tp $ \case
     -- Monadic s _   -> getTypeRep =<< source s
     Uni.ResolvedCons _ n _ args -> TCons (nameToString n) <$> (mapM (getTypeRep <=< source) =<< ptrListToList args)
@@ -53,16 +53,16 @@ getTypeRep tp = match tp $ \case
 instance (MonadIO m, Printer Graph m) => Prettyprint.Compactible Prettyprint.CompactStyle m where
     shouldBeCompact a = ASTRead.isGraphNode a
 
-printExpression :: GraphOp m => NodeRef -> m String
+printExpression :: NodeRef -> GraphOp String
 printExpression n = convert <$> Prettyprint.run @Prettyprint.CompactStyle def n
 
-printFullExpression :: GraphOp m => NodeRef -> m Text
+printFullExpression :: NodeRef -> GraphOp Text
 printFullExpression n = Prettyprint.run @Prettyprint.Simple def n
 
-printName :: GraphOp m => NodeRef -> m String
+printName :: NodeRef -> GraphOp String
 printName node = convert <$> Prettyprint.run @Prettyprint.Simple def node
 
-printNodeTarget :: GraphOp m => NodeRef -> m String
+printNodeTarget :: NodeRef -> GraphOp String
 printNodeTarget ref = match ref $ \case
     Unify _ r -> printExpression =<< source r
     _         -> printExpression ref
@@ -76,7 +76,7 @@ genOperatorName op = operatorNamesMap ^. at op . non "operator" where
                                     , ("#uminus#", "negation")
                                     ]
 
-genNodeBaseName :: GraphOp m => NodeRef -> m Text
+genNodeBaseName :: NodeRef -> GraphOp Text
 genNodeBaseName ref = match ref $ \case
     App f a           -> recurOn $ generalize f
     Grouped g         -> recurOn $ generalize g
@@ -92,6 +92,6 @@ genNodeBaseName ref = match ref $ \case
     Var n             -> return $ genOp n
     Acc t n           -> return $ genOp n
     _                 -> return $ "expr"
-    where recurOn :: GraphOp m => EdgeRef -> m Text
+    where recurOn :: EdgeRef -> GraphOp Text
           recurOn a = genNodeBaseName =<< source a
           genOp   n = if isOperator n  || n == "#uminus#" then genOperatorName n else nameToText n

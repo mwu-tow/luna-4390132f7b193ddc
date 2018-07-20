@@ -51,7 +51,7 @@ withBreadcrumb file breadcrumb actG actC = withLibrary file $ zoomBreadcrumb bre
 makeGraph :: NodeRef -> Maybe NodeId -> Command Library.Library (NodeId, Graph.Graph)
 makeGraph fun lastUUID = zoomCommand (Library.body) $ makeGraphCls fun lastUUID
 
-extractMarkers :: GraphOp m => NodeRef -> m [Word64]
+extractMarkers :: NodeRef -> GraphOp [Word64]
 extractMarkers root = do
     matchExpr root $ \case
         Marked m e -> do

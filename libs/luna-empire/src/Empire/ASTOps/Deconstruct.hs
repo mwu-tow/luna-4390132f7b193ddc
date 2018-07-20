@@ -12,7 +12,7 @@ import           Luna.Pass.Data.Layer.SpanOffset (SpanOffset)
 import qualified Luna.IR            as IR
 
 
-deconstructApp :: GraphOp m => NodeRef -> m (NodeRef, [NodeRef])
+deconstructApp :: NodeRef -> GraphOp (NodeRef, [NodeRef])
 deconstructApp app' = match app' $ \case
     Grouped g -> deconstructApp =<< source g
     App a _   -> do
@@ -21,13 +21,13 @@ deconstructApp app' = match app' $ \case
         return (target, unpackedArgs)
     _ -> throwM $ NotAppException app'
 
-extractFun :: GraphOp m => NodeRef -> m NodeRef
+extractFun :: NodeRef -> GraphOp NodeRef
 extractFun app = match app $ \case
     App a _   -> extractFun =<< source a
     Grouped g -> extractFun =<< source g
     _ -> return app
 
-extractSelf :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+extractSelf :: NodeRef -> GraphOp (Maybe NodeRef)
 extractSelf ref = match ref $ \case
     Acc s n   -> Just <$> source s
     Grouped g -> extractSelf =<< source g
@@ -35,7 +35,7 @@ extractSelf ref = match ref $ \case
 
 data ExtractFilter = FApp | FLam
 
-extractArguments :: GraphOp m => NodeRef -> m [NodeRef]
+extractArguments :: NodeRef -> GraphOp [NodeRef]
 extractArguments expr = match expr $ \case
     App{}       -> reverse <$> extractArguments' FApp expr
     Lam{}       -> extractArguments' FLam expr
@@ -43,25 +43,25 @@ extractArguments expr = match expr $ \case
     Grouped g   -> source g >>= extractArguments
     _           -> return []
 
-extractLamArguments :: GraphOp m => NodeRef -> m [NodeRef]
+extractLamArguments :: NodeRef -> GraphOp [NodeRef]
 extractLamArguments = extractArguments' FLam
 
-extractFunctionPorts :: GraphOp m => NodeRef -> m [NodeRef]
+extractFunctionPorts :: NodeRef -> GraphOp [NodeRef]
 extractFunctionPorts ref = matchExpr ref $ \case
     ASGFunction _ as _ -> mapM source =<< ptrListToList as
     Lam i o            -> (:) <$> source i <*> (extractFunctionPorts =<< source o)
     Grouped g          -> extractFunctionPorts =<< source g
     _                  -> return []
 
-extractAppArguments :: GraphOp m => NodeRef -> m [NodeRef]
+extractAppArguments :: NodeRef -> GraphOp [NodeRef]
 extractAppArguments = extractArguments' FApp
 
-extractAppPorts :: GraphOp m => NodeRef -> m [NodeRef]
+extractAppPorts :: NodeRef -> GraphOp [NodeRef]
 extractAppPorts expr = matchExpr expr $ \case
     Tuple elts -> mapM source =<< ptrListToList elts
     _          -> reverse <$> extractAppArguments expr
 
-extractArguments' :: GraphOp m => ExtractFilter -> NodeRef -> m [NodeRef]
+extractArguments' :: ExtractFilter -> NodeRef -> GraphOp [NodeRef]
 extractArguments' FApp expr = match expr $ \case
     App a b -> do
         nextApp <- source a
@@ -79,10 +79,10 @@ extractArguments' FLam expr = match expr $ \case
     Grouped g -> source g >>= extractArguments' FLam
     _       -> return []
 
-extractLamArgLinks :: GraphOp m => NodeRef -> m [(Delta, EdgeRef)]
+extractLamArgLinks :: NodeRef -> GraphOp [(Delta, EdgeRef)]
 extractLamArgLinks = extractLamArgLinks' 0
 
-extractLamArgLinks' :: GraphOp m => Delta -> NodeRef -> m [(Delta, EdgeRef)]
+extractLamArgLinks' :: Delta -> NodeRef -> GraphOp [(Delta, EdgeRef)]
 extractLamArgLinks' lamOff expr = match expr $ \case
     Lam b a -> do
         off     <- getLayer @SpanOffset a
@@ -93,10 +93,10 @@ extractLamArgLinks' lamOff expr = match expr $ \case
     Grouped g -> source g >>= extractLamArgLinks' lamOff
     _       -> return []
 
-dumpAccessors :: GraphOp m => NodeRef -> m (Maybe NodeRef, [String])
+dumpAccessors :: NodeRef -> GraphOp (Maybe NodeRef, [String])
 dumpAccessors = dumpAccessors' True
 
-dumpAccessors' :: GraphOp m => Bool -> NodeRef -> m (Maybe NodeRef, [String])
+dumpAccessors' :: Bool -> NodeRef -> GraphOp (Maybe NodeRef, [String])
 dumpAccessors' firstApp node = do
     match node $ \case
         Var n -> do

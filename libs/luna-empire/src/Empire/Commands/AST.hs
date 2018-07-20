@@ -21,20 +21,20 @@ import qualified Luna.IR as IR
 -- import qualified OCI.IR.Repr.Vis as Vis
 
 
-addNode :: GraphOp m => NodeId -> Maybe Text -> m Text -> NodeRef -> m (NodeRef, Maybe Text)
+addNode :: NodeId -> Maybe Text -> GraphOp Text -> NodeRef -> GraphOp (NodeRef, Maybe Text)
 addNode nid name genName node = do
     ASTBuilder.makeNodeRep nid name genName node
 
-readMeta :: ASTOp g m => NodeRef -> m (Maybe NodeMeta)
+readMeta :: NodeRef -> ASTOp g (Maybe NodeMeta)
 readMeta ref = traverse toNodeMeta =<< getLayer @Meta ref
 
-getNodeMeta :: GraphOp m => NodeId -> m (Maybe NodeMeta)
+getNodeMeta :: NodeId -> GraphOp (Maybe NodeMeta)
 getNodeMeta = ASTRead.getASTRef >=> readMeta
 
-writeMeta :: ASTOp g m => NodeRef -> NodeMeta -> m ()
+writeMeta :: NodeRef -> NodeMeta -> ASTOp g ()
 writeMeta ref newMeta = putLayer @Meta ref . Just =<< fromNodeMeta newMeta
 
-sortByPosition :: GraphOp m => [NodeId] -> m [NodeRef]
+sortByPosition :: [NodeId] -> GraphOp [NodeRef]
 sortByPosition nodeIds = do
     refs  <- mapM ASTRead.getASTPointer nodeIds
     metas <- mapM readMeta refs
@@ -42,15 +42,15 @@ sortByPosition nodeIds = do
         sorted       = sortBy (compare `on` snd) refsAndMetas
     pure $ map (^. _1) sorted
 
-makeSeq :: GraphOp m => [NodeRef] -> m (Maybe NodeRef)
+makeSeq :: [NodeRef] -> GraphOp (Maybe NodeRef)
 makeSeq []     = pure Nothing
 makeSeq [node] = pure $ Just node
 makeSeq (n:ns) = Just <$> foldM f n ns
     where
-        f :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
+        f :: NodeRef -> NodeRef -> GraphOp NodeRef
         f l r = generalize <$> IR.seq l r
 
-readSeq :: GraphOp m => NodeRef -> m [NodeRef]
+readSeq :: NodeRef -> GraphOp [NodeRef]
 readSeq node = match node $ \case
     Seq l r -> do
         previous  <- source l >>= readSeq
@@ -58,21 +58,21 @@ readSeq node = match node $ \case
         pure (previous <> [rightmost])
     _       -> pure [node]
 
-getSeqs' :: GraphOp m => NodeRef -> m [NodeRef]
+getSeqs' :: NodeRef -> GraphOp [NodeRef]
 getSeqs' node = match node $ \case
     Seq l r -> do
         previous <- source l >>= getSeqs'
         pure $ previous <> [node]
     _ -> pure []
 
-getSeqs :: GraphOp m => NodeRef -> m [NodeRef]
+getSeqs :: NodeRef -> GraphOp [NodeRef]
 getSeqs node = match node $ \case
     Seq l r -> do
         previous <- source l >>= getSeqs'
         pure $ previous <> [node]
     _ -> pure [node]
 
-previousNodeForSeq :: GraphOp m => NodeRef -> m (Maybe NodeRef)
+previousNodeForSeq :: NodeRef -> GraphOp (Maybe NodeRef)
 previousNodeForSeq node = match node $ \case
     Seq l r -> do
         previousNode <- source l
@@ -81,14 +81,14 @@ previousNodeForSeq node = match node $ \case
             _       -> pure $ Just previousNode
     _ -> pure Nothing
 
-getLambdaInputRef :: GraphOp m => NodeRef -> Int -> m NodeRef
+getLambdaInputRef :: NodeRef -> Int -> GraphOp NodeRef
 getLambdaInputRef node pos = do
     match node $ \case
         Grouped g      -> source g >>= flip getLambdaInputRef pos
         Lam _args _out -> (!! pos) <$> ASTDeconstruct.extractArguments node
         _              -> throwM $ NotLambdaException node
 
-isTrivialLambda :: GraphOp m => NodeRef -> m Bool
+isTrivialLambda :: NodeRef -> GraphOp Bool
 isTrivialLambda node = match node $ \case
     Grouped g -> source g >>= isTrivialLambda
     Lam{} -> do

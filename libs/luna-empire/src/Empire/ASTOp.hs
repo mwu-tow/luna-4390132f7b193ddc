@@ -5,7 +5,6 @@ module Empire.ASTOp (
     ASTOp
   , ClassOp
   , GraphOp
-  , ASTOpReq
   , EmpirePass
   , Printer
   , defaultClsGraph
@@ -63,39 +62,6 @@ import qualified OCI.Pass.Definition.Declaration as Pass
 import qualified OCI.Pass.Management.Scheduler as Scheduler
 
 
-
-type ASTOpReq a m = (MonadIO m,
-                     MonadState a m,
-                     MonadThrow m,
-                     Layer.Reader (Component Nodes) IR.Model m,
-                     Layer.Reader (Component Nodes) PortMarker m,
-                     Layer.Writer (Component Nodes) PortMarker m,
-                     Layer.Reader (Component Nodes) IR.Users m,
-                     Layer.Reader (Component Nodes) CodeSpan m,
-                     Layer.Writer (Component Nodes) CodeSpan m,
-                     Layer.Reader (Component Nodes) SpanLength m,
-                     Layer.Writer (Component Nodes) SpanLength m,
-                     Layer.Reader (Component Nodes) Meta m,
-                     Layer.Writer (Component Nodes) Meta m,
-                     Layer.Reader (Component Nodes) Type m,
-                     Layer.Reader (Component Edges) SpanOffset m,
-                     Layer.Writer (Component Edges) SpanOffset m,
-                     Layer.Reader IR.Link IR.Source m,
-                     Layer.Reader IR.Link IR.Target m,
-                     Layer.Writer Node IR.Type m,
-                     Layer.Writer Node IR.Users m,
-                     Layer.Writer Node IR.Model m,
-                     Layer.Writer Edge IR.Target m,
-                     Layer.Writer Edge IR.Source m,
-                     Destruct.DeleteSubtree m,
-                     Layered.Getter (ByteSize (Component Nodes)) m,
-                     Layered.Getter (ByteSize (Component Edges)) m,
-                     Layered.Getter (Layer.DynamicManager Edges) m,
-                     Layered.Getter (Layer.DynamicManager Nodes) m,
-                     Layered.Getter (MemPool (Component.Some Nodes)) m,
-                     Layered.Getter (MemPool (Component.Some Edges)) m,
-                     MonadCatch m)
-
 type Printer a m = (MonadIO m,
                      MonadState a m,
                      Layer.Reader (Component Nodes) IR.Model m,
@@ -120,9 +86,9 @@ type instance LunaGraph.Discover (StateT s m) = LunaGraph.Discover m
 type instance LunaGraph.Discover (Layered.StateT s m) = LunaGraph.Discover m
 
 
-type ASTOp a m = (ASTOpReq a m, HasCallStack)
-type GraphOp m = ASTOp Graph m
-type ClassOp m = ASTOp ClsGraph m
+type ASTOp g = StateT g (Pass.Pass TC.Stage EmpirePass)
+type GraphOp = ASTOp Graph
+type ClassOp = ASTOp ClsGraph
 
 data EmpirePass
 type instance Pass.Spec EmpirePass t = EmpirePassSpec t

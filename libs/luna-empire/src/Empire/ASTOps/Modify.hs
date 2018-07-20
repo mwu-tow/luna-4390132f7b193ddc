@@ -36,7 +36,7 @@ import qualified Data.List as L (take, head, drop, tail)
 
 
 
-addLambdaArg :: GraphOp m => Int -> NodeRef -> Maybe Text -> [String] -> m ()
+addLambdaArg :: Int -> NodeRef -> Maybe Text -> [String] -> GraphOp ()
 addLambdaArg position lambda name varNames = do
     argNames <- getArgNames lambda
     let forbidden = varNames <> argNames
@@ -79,7 +79,7 @@ allWords :: [String]
 allWords = drop 1 $ allWords' where
     allWords' = fmap reverse $ "" : (flip (:) <$> allWords' <*> ['a' .. 'z'])
 
-getArgNames :: GraphOp m => NodeRef -> m [String]
+getArgNames :: NodeRef -> GraphOp [String]
 getArgNames ref = match ref $ \case
     Grouped g   -> source g >>= getArgNames
     Lam a body -> do
@@ -90,7 +90,7 @@ getArgNames ref = match ref $ \case
         concat <$> mapM (ASTRead.getPatternNames <=< source) as
     _ -> return []
 
-replaceWithLam :: GraphOp m => Maybe EdgeRef -> String -> NodeRef -> m ()
+replaceWithLam :: Maybe EdgeRef -> String -> NodeRef -> GraphOp ()
 replaceWithLam parent name lam = do
     tmpBlank    <- IR.blank
     binder      <- IR.var $ stringToName name
@@ -125,7 +125,7 @@ replaceWithLam parent name lam = do
         _      -> lam
     return ()
 
-addLambdaArg' :: GraphOp m => Int -> String -> Maybe EdgeRef -> NodeRef -> m ()
+addLambdaArg' :: Int -> String -> Maybe EdgeRef -> NodeRef -> GraphOp ()
 addLambdaArg' 0   name parent lam = replaceWithLam parent name lam
 addLambdaArg' pos name parent lam = match lam $ \case
     Lam _ b -> addLambdaArg' (pos - 1) name (Just $ coerce b) =<< source b
@@ -138,13 +138,13 @@ instance Exception CannotRemovePortException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
-lamAny :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
+lamAny :: NodeRef -> NodeRef -> GraphOp NodeRef
 lamAny a b = fmap generalize $ IR.lam a b
 
-lams :: GraphOp m => [NodeRef] -> NodeRef -> m NodeRef
+lams :: [NodeRef] -> NodeRef -> GraphOp NodeRef
 lams args output = unsafeRelayout <$> foldM (flip lamAny) (unsafeRelayout output) (unsafeRelayout <$> reverse args)
 
-removeLambdaArg' :: GraphOp m => Int -> NodeRef -> Maybe EdgeRef -> m ()
+removeLambdaArg' :: Int -> NodeRef -> Maybe EdgeRef -> GraphOp ()
 removeLambdaArg' 0 ref Nothing = match ref $ \case
     Lam _ b -> do
         body <- source b
@@ -173,7 +173,7 @@ removeLambdaArg' port ref _ = match ref $ \case
         removeLambdaArg' (port - 1) body (Just $ coerce b)
     _ -> throwM CannotRemovePortException
 
-removeLambdaArg :: GraphOp m => Port.OutPortId -> NodeRef -> m ()
+removeLambdaArg :: Port.OutPortId -> NodeRef -> GraphOp ()
 removeLambdaArg [] _ = throwM $ CannotRemovePortException
 removeLambdaArg p@(Port.Projection port : []) lambda = match lambda $ \case
     Grouped g      -> source g >>= removeLambdaArg p
@@ -209,7 +209,7 @@ shiftPosition from to lst = uncurry (insertAt to) $ getAndRemove from lst where
     getAndRemove 0 (x : xs) = (x, xs)
     getAndRemove i (x : xs) = let (r, rs) = getAndRemove (i - 1) xs in (r, x : rs)
 
-swapLamVars :: GraphOp m => Delta -> (Delta, EdgeRef) -> (Delta, EdgeRef) -> m Int
+swapLamVars :: Delta -> (Delta, EdgeRef) -> (Delta, EdgeRef) -> GraphOp Int
 swapLamVars lamBeg one two = do
     one'      <- source $ snd one
     two'      <- source $ snd two
@@ -229,7 +229,7 @@ swapLamVars lamBeg one two = do
     let change = if fst one > fst two then fromIntegral oneLength - fromIntegral twoLength else fromIntegral twoLength - fromIntegral oneLength
     return change
 
-moveLambdaArg :: GraphOp m => Port.OutPortId -> Int -> NodeRef -> m ()
+moveLambdaArg :: Port.OutPortId -> Int -> NodeRef -> GraphOp ()
 moveLambdaArg [] _ _ = throwM $ CannotRemovePortException
 moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ \case
     Grouped g -> source g >>= moveLambdaArg p newPosition
@@ -271,7 +271,7 @@ moveLambdaArg p@(Port.Projection port : []) newPosition lambda = match lambda $ 
             Code.applyDiff (newOffset     - ownOff) (newOffset - ownOff) code
     _ -> throwM $ NotLambdaException lambda
 
-renameLambdaArg :: GraphOp m => Port.OutPortId -> String -> NodeRef -> m ()
+renameLambdaArg :: Port.OutPortId -> String -> NodeRef -> GraphOp ()
 renameLambdaArg [] _ _ = throwM CannotRemovePortException
 renameLambdaArg p@(Port.Projection port : []) newName lam = match lam $ \case
     Grouped g -> source g >>= renameLambdaArg p newName
@@ -288,7 +288,7 @@ renameLambdaArg p@(Port.Projection port : []) newName lam = match lam $ \case
             Code.replaceAllUses arg $ convert newName
     _ -> throwM $ NotLambdaException lam
 
-redirectLambdaOutput :: GraphOp m => NodeRef -> NodeRef -> m NodeRef
+redirectLambdaOutput :: NodeRef -> NodeRef -> GraphOp NodeRef
 redirectLambdaOutput lambda newOutputRef = do
     match lambda $ \case
         Grouped g   -> source g >>= flip redirectLambdaOutput newOutputRef >>= fmap generalize . IR.grouped
@@ -297,7 +297,7 @@ redirectLambdaOutput lambda newOutputRef = do
             lams args' newOutputRef
         _ -> throwM $ NotLambdaException lambda
 
-setLambdaOutputToBlank :: GraphOp m => NodeRef -> m NodeRef
+setLambdaOutputToBlank :: NodeRef -> GraphOp NodeRef
 setLambdaOutputToBlank lambda = do
     match lambda $ \case
         Grouped g   -> source g >>= setLambdaOutputToBlank >>= fmap generalize . IR.grouped
@@ -307,21 +307,21 @@ setLambdaOutputToBlank lambda = do
             lams args' blank
         _ -> throwM $ NotLambdaException lambda
 
-replaceTargetNode :: GraphOp m => NodeRef -> NodeRef -> m ()
+replaceTargetNode :: NodeRef -> NodeRef -> GraphOp ()
 replaceTargetNode matchNode newTarget = do
     match matchNode $ \case
         Unify _l r -> do
             replaceSource newTarget $ coerce r
         _ -> throwM $ NotUnifyException matchNode
 
-replaceVarNode :: GraphOp m => NodeRef -> NodeRef -> m ()
+replaceVarNode :: NodeRef -> NodeRef -> GraphOp ()
 replaceVarNode matchNode newVar = do
     match matchNode $ \case
         Unify l _r -> do
             replaceSource newVar $ coerce l
         _ -> throwM $ NotUnifyException matchNode
 
-rewireNode :: GraphOp m => NodeId -> NodeRef -> m ()
+rewireNode :: NodeId -> NodeRef -> GraphOp ()
 rewireNode nodeId newTarget = do
     ref <- ASTRead.getASTPointer nodeId
     match ref $ \case
@@ -333,21 +333,21 @@ rewireNode nodeId newTarget = do
             pointer <- ASTRead.getASTPointer nodeId
             P.replace newTarget pointer
 
-rewireNodeName :: GraphOp m => NodeId -> NodeRef -> m ()
+rewireNodeName :: NodeId -> NodeRef -> GraphOp ()
 rewireNodeName nodeId newVar = do
     matchNode <- ASTRead.getASTPointer nodeId
     oldVar    <- ASTRead.getASTVar  nodeId
     replaceVarNode matchNode newVar
     ASTRemove.removeSubtree oldVar
 
-rewireCurrentNode :: GraphOp m => NodeRef -> m ()
+rewireCurrentNode :: NodeRef -> GraphOp ()
 rewireCurrentNode newTarget = do
     matchNode <- ASTRead.getCurrentASTPointer
     oldTarget <- ASTRead.getCurrentASTTarget
     replaceTargetNode matchNode newTarget
     ASTRemove.removeSubtree oldTarget
 
-renameVar :: ASTOp a m => NodeRef -> String -> m ()
+renameVar :: NodeRef -> String -> ASTOp g ()
 renameVar vref name = do
     var <- narrowTerm @IR.Var vref
     case var of
@@ -359,17 +359,17 @@ renameVar vref name = do
     -- mapM_ (flip IR.modifyExprTerm $ IR.name .~ (stringToName name)) var
     -- return ()
 
-replaceWhenBHSelf :: GraphOp m => NodeRef -> NodeRef -> m ()
+replaceWhenBHSelf :: NodeRef -> NodeRef -> GraphOp ()
 replaceWhenBHSelf to from = do
     oldRef  <- use $ Graph.breadcrumbHierarchy . BH.self
     when (oldRef == from)  $ Graph.breadcrumbHierarchy . BH.self .= to
 
-replace :: GraphOp m => NodeRef -> NodeRef -> m ()
+replace :: NodeRef -> NodeRef -> GraphOp ()
 replace to from = do
     P.replace to from
     replaceWhenBHSelf to from
 
-substitute :: GraphOp m => NodeRef -> NodeRef -> m ()
+substitute :: NodeRef -> NodeRef -> GraphOp ()
 substitute to from = do
     P.substitute to from
     replaceWhenBHSelf to from
