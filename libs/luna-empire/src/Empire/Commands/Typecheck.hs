@@ -67,13 +67,15 @@ import qualified Data.Bimap as Bimap
 import qualified Luna.Pass.Flow.ProcessUnits       as ProcessUnits
 import qualified Data.Graph.Data.Layer.Layout      as Layout
 
-import qualified Luna.Pass.Scheduler                 as Scheduler
-import qualified Luna.Pass.Sourcing.UnitLoader as UnitLoader
+import qualified Luna.Pass.Data.Error              as Error
+import qualified Luna.Pass.Typing.Data.Target      as Target
+import qualified Luna.Pass.Scheduler               as Scheduler
+import qualified Luna.Pass.Sourcing.UnitLoader     as UnitLoader
 import qualified Luna.Pass.Sourcing.ImportsPlucker as ImportsPlucker
-import qualified Luna.Pass.Evaluation.Interpreter as Interpreter
-import qualified Luna.Std as Std
-import qualified Luna.Pass.Sourcing.Data.Unit  as Unit
-import qualified Luna.Runtime as Runtime
+import qualified Luna.Pass.Evaluation.Interpreter  as Interpreter
+import qualified Luna.Std                          as Std
+import qualified Luna.Pass.Sourcing.Data.Unit      as Unit
+import qualified Luna.Runtime                      as Runtime
 
 import qualified Data.Set as Set
 
@@ -144,25 +146,27 @@ updateNodes loc@(GraphLocation _ br) = case br of
     Breadcrumb (Definition uuid:rest) -> do
         zoomCommand clsGraph $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) $ do
             (inEdge, outEdge) <- use $ Graph.userState . Graph.breadcrumbHierarchy . BH.portMapping
-            (updates) <- runASTOp $ do
+            (updates, errors) <- runASTOp $ do
                 sidebarUpdates <- (\x y -> [x, y]) <$> GraphBuilder.buildInputSidebarTypecheckUpdate  inEdge
                                                    <*> GraphBuilder.buildOutputSidebarTypecheckUpdate outEdge
                 allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
                 nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
-                -- errors      <- forM allNodeIds $ \nid -> do
-                --     errs <- IR.getLayer @IR.Errors =<< ASTRead.getASTRef nid
-                --     case errs of
-                --         []     -> return Nothing
-                --         e : es -> do
-                --             let toSrcLoc (Errors.ModuleTagged mod (Errors.FromMethod klass method)) = APIError.SourceLocation (convert mod) (Just (convert klass)) (convert method)
-                --                 toSrcLoc (Errors.ModuleTagged mod (Errors.FromFunction function))   = APIError.SourceLocation (convert mod) Nothing (convert function)
-                --                 errorDetails = APIError.CompileErrorDetails (map toSrcLoc (e ^. Errors.arisingFrom)) (map toSrcLoc (e ^. Errors.requiredBy))
-                --             return $ Just $ (nid, NodeError $ APIError.Error (APIError.CompileError errorDetails) $ e ^. Errors.description)
-                return (sidebarUpdates <> nodeUpdates)
+                errors      <- forM allNodeIds $ \nid -> do
+                    err <- Error.getError =<< ASTRead.getASTRef nid
+                    print $ show nid <> " " <> show err
+                    liftIO $ IO.hFlush IO.stdout
+                    case err of
+                        Nothing -> return Nothing
+                        Just e  -> do
+                            let toSrcLoc (Target.Method   mod klass method) = APIError.SourceLocation (convertVia @String mod) (Just (convert klass)) (convert method)
+                                toSrcLoc (Target.Function mod function)     = APIError.SourceLocation (convertVia @String mod) Nothing (convert function)
+                                errorDetails = APIError.CompileErrorDetails (map toSrcLoc (e ^. Error.failedAt)) (map toSrcLoc (e ^. Error.arisingFrom))
+                            return $ Just $ (nid, NodeError $ APIError.Error (APIError.CompileError errorDetails) $ e ^. Error.contents)
+                return (sidebarUpdates <> nodeUpdates, errors)
             mask_ $ do
                 traverse_ (Publisher.notifyNodeTypecheck loc) updates
+                for_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
     Breadcrumb _ -> return ()
-        -- for_ (catMaybes errors) $ \(nid, e) -> Publisher.notifyResultUpdate loc nid e 0
 
 updateValues :: GraphLocation
              -> Interpreter.LocalScope
