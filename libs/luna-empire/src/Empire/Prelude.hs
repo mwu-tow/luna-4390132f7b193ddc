@@ -102,7 +102,7 @@ import qualified Data.Graph.Fold.SubComponents as Traversal
 import Luna.Syntax.Text.Parser.State.Marker (TermMap(..))
 import Luna.Pass (Pass)
 import qualified Luna.Pass.Attr as Attr
-import qualified Data.Vector.Storable.Foreign as Foreign
+import qualified Data.Mutable.Class as Foreign
 import           LunaStudio.Data.Port    (AnyPortId (..), InPortId, OutPortId, OutPortIndex(Projection))
 import Luna.Pass.Data.Layer.PortMarker (PortMarker, OutPortRefLike(..))
 import Luna.Pass.Data.Layer.NodeMeta (Meta, NodeMetaLike(..))

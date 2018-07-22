@@ -153,8 +153,6 @@ updateNodes loc@(GraphLocation _ br) = case br of
                 nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
                 errors      <- forM allNodeIds $ \nid -> do
                     err <- Error.getError =<< ASTRead.getASTRef nid
-                    print $ show nid <> " " <> show err
-                    liftIO $ IO.hFlush IO.stdout
                     case err of
                         Nothing -> return Nothing
                         Just e  -> do
@@ -244,7 +242,7 @@ makePrimStdIfMissing = do
     case existingStd of
         Just _ -> return ()
         Nothing -> do
-            (finalizer, typed, computed, ress) <- liftScheduler $ do
+            (mods, finalizer, typed, computed, ress) <- liftScheduler $ do
                 (fin, stdUnitRef) <- Std.stdlib @Stage
                 lunaroot <- liftIO $ canonicalizePath =<< getEnv Package.lunaRootEnv
                 stdPath <- Path.parseAbsDir $ lunaroot <> "/Std/"
@@ -263,7 +261,10 @@ makePrimStdIfMissing = do
                                                                                          . view Unit.imports <$> mods
                     unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
                 (typed, evald) <- ProcessUnits.processUnits def def unitsWithResolvers
-                return (fin, typed, evald, unitResolvers)
+                return (mods, fin, typed, evald, unitResolvers)
+            zoomCommand clsGraph $ runASTOp $ for mods $ \u -> case u ^. Unit.root of
+                Unit.Graph r -> IR.deleteSubtree r
+                _ -> return ()
             Graph.userState . cleanUp      .= finalizer
             Graph.userState . typedUnits   .= typed
             Graph.userState . runtimeUnits .= computed
@@ -283,7 +284,7 @@ compileCurrentScope path root = do
     ress    <- use $ Graph.userState . resolvers
     modName <- filePathToQualName path
 
-    (newTyped, newEvald, newResolvers) <- liftScheduler $ do
+    (mods, newTyped, newEvald, newResolvers) <- liftScheduler $ do
         imports <- ImportsPlucker.run root
         UnitLoader.init
         srcs <- fileImportPaths path
@@ -302,7 +303,10 @@ compileCurrentScope path root = do
                                                                                  . view Unit.imports <$> mods
             unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
         (newTyped, newEvald) <- ProcessUnits.processUnits typed evald unitsWithResolvers
-        return (newTyped, newEvald, unitResolvers)
+        return (mods, newTyped, newEvald, unitResolvers)
+    for mods $ \u -> zoomCommand clsGraph $ runASTOp $ case u ^. Unit.root of
+        Unit.Graph r -> when (Layout.relayout r /= root) $ IR.deleteSubtree r
+        _ -> return ()
 
     Graph.userState . typedUnits   .= newTyped
     Graph.userState . runtimeUnits .= newEvald
@@ -318,7 +322,7 @@ run loc@(GraphLocation file br) clsGraph' rooted' interpret recompute = do
     stop
 
     let Store.RootedWithRedirects rooted redMap = rooted'
-    (a, redirects) <- runASTOp $ Store.deserializeWithRedirects rooted
+    (root, redirects) <- runASTOp $ Store.deserializeWithRedirects rooted
     let originalCls = clsGraph' ^. Graph.clsClass
         deserializerOff = redirects Map.! someTypeRep @IR.Terms
         newCls = translate redMap deserializerOff originalCls
@@ -326,7 +330,7 @@ run loc@(GraphLocation file br) clsGraph' rooted' interpret recompute = do
     Graph.userState . clsGraph .= newClsGraph
 
     makePrimStdIfMissing
-    ensureCurrentScope recompute file a
+    ensureCurrentScope recompute file root
 
     runTC loc
     updateNodes loc
@@ -339,6 +343,7 @@ run loc@(GraphLocation file br) clsGraph' rooted' interpret recompute = do
                 traverse (updateValues loc) scope
             _ -> return Nothing
         Graph.userState . listeners .= fromMaybe [] asyncs
+    zoomCommand clsGraph $ runASTOp $ IR.deleteSubtree root
 
             -- void $ mask_ $ recomputeCurrentScope imports file
     --         let scopeGetter = if recompute

@@ -207,7 +207,7 @@ getASTPointer nodeId = do
     marked <- getASTRef nodeId
     match marked $ \case
         Marked _m expr -> source expr
-        _                 -> return marked
+        _              -> return marked
 
 getCurrentASTPointer :: GraphOp NodeRef
 getCurrentASTPointer = do
