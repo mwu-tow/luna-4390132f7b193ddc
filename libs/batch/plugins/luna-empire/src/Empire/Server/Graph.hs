@@ -46,7 +46,7 @@ import qualified Empire.Env                              as Env
 import           Empire.Server.Server                    (defInverse, errorMessage, modifyGraph, modifyGraphOk, prettyException, replyFail,
                                                           replyOk, replyResult, sendToBus', webGUIHack, withDefaultResult,
                                                           withDefaultResultTC)
-import           Luna.Package                            (findPackageFileForFile, getRelativePathForModule)
+import           Luna.Package                            (findPackageFileForFile, getRelativePathForModule, findPackageRootForFile)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Control.Interpreter      as Interpreter
@@ -247,6 +247,8 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                     (GraphLocation.GraphLocation filePath def)
             mayProjectPathAndRelModulePath <- liftIO
                 $ getProjectPathAndRelativeModulePath filePath
+            mayPackageRoot <- findPackageRootForFile
+                =<< Path.parseAbsFile filePath
             mayModuleSettings <- liftIO $ maybe
                 (pure def)
                 (uncurry Project.getModuleSettings)
@@ -263,8 +265,8 @@ handleGetProgram = modifyGraph defInverse action replyResult where
             crumb            <- Graph.decodeLocation location
             availableImports <- Graph.getAvailableImports location
             code             <- Code <$> Graph.getCode location
-            let mayVisPath    = ((</> "visualizers") . dropFileName . fst)
-                    <$> mayProjectPathAndRelModulePath
+            let mayVisPath    = ((</> "visualizers") . Path.toFilePath)
+                    <$> mayPackageRoot
                 defaultCamera = maybe
                     def
                     (`Camera.getCameraForRectangle` def)
