@@ -97,10 +97,14 @@ import qualified Luna.IR                          as IR
 -- import qualified Luna.IR.Layer.Errors             as Errors
 -- import           OCI.IR.Name.Qualified            (QualName)
 
-runTC :: GraphLocation -> Command InterpreterEnv ()
-runTC (GraphLocation file br) = do
+runTC :: IR.Qualified -> GraphLocation -> Command InterpreterEnv ()
+runTC modName (GraphLocation file br) = do
     typed <- use $ Graph.userState . typedUnits
-    resolver <- fmap (mconcat . Map.elems) $ use $ Graph.userState . resolvers
+    root  <- use $ Graph.userState . clsGraph . Graph.clsClass
+    imps  <- liftScheduler $ ImportsPlucker.run root
+    ress  <- use $ Graph.userState . resolvers
+    let relevantResolvers = Map.restrictKeys ress (Set.fromList $ essentialImports <> [modName] <> imps)
+        resolver = mconcat . Map.elems $ relevantResolvers
     zoomCommand clsGraph $ case br of
         Breadcrumb (Definition uuid:_) -> do
             cls <- use $ Graph.userState
@@ -202,6 +206,8 @@ updateValues loc@(GraphLocation path _) scope = do
                         Async.async (f (sendStreamRep nid))
     return $ catMaybes asyncs
 
+essentialImports :: [IR.Qualified]
+essentialImports = ["Std.Primitive", "Std.Base"]
 
 filePathToQualName :: MonadIO m => FilePath -> m IR.Qualified
 filePathToQualName path = liftIO $ do
@@ -256,9 +262,8 @@ makePrimStdIfMissing = do
                     Unit.Graph r -> UnitMapper.mapUnit n r
                     Unit.Precompiled u -> pure u
                 let unitResolvers   = Map.mapWithKey Resolution.resolverFromUnit units
-                    importResolvers = Map.mapWithKey (Resolution.resolverForUnit unitResolvers) $ over wrapped ("Std.Base" :)
-                                                                                         . over wrapped ("Std.Primitive" :)
-                                                                                         . view Unit.imports <$> mods
+                    importResolvers = Map.mapWithKey (Resolution.resolverForUnit unitResolvers) $ over wrapped (essentialImports <>)
+                                                                                                . view Unit.imports <$> mods
                     unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
                 (typed, evald) <- ProcessUnits.processUnits def def unitsWithResolvers
                 return (mods, fin, typed, evald, unitResolvers)
@@ -270,19 +275,18 @@ makePrimStdIfMissing = do
             Graph.userState . runtimeUnits .= computed
             Graph.userState . resolvers    .= ress
 
-ensureCurrentScope :: Bool -> FilePath -> NodeRef -> Command InterpreterEnv ()
-ensureCurrentScope recompute path root = do
+ensureCurrentScope :: Bool -> IR.Qualified -> FilePath -> NodeRef -> Command InterpreterEnv ()
+ensureCurrentScope recompute modName path root = do
     modName <- filePathToQualName path
     existing <- use $ Graph.userState . resolvers . at modName
     when (recompute || isNothing existing) $ do
-        compileCurrentScope path root
+        compileCurrentScope modName path root
 
-compileCurrentScope :: FilePath -> NodeRef -> Command InterpreterEnv ()
-compileCurrentScope path root = do
+compileCurrentScope :: IR.Qualified -> FilePath -> NodeRef -> Command InterpreterEnv ()
+compileCurrentScope modName path root = do
     typed   <- use $ Graph.userState . typedUnits
     evald   <- use $ Graph.userState . runtimeUnits
     ress    <- use $ Graph.userState . resolvers
-    modName <- filePathToQualName path
 
     (mods, newTyped, newEvald, newResolvers) <- liftScheduler $ do
         imports <- ImportsPlucker.run root
@@ -298,9 +302,8 @@ compileCurrentScope path root = do
             Unit.Precompiled u -> pure u
 
         let unitResolvers   = Map.union (Map.mapWithKey Resolution.resolverFromUnit units) ress
-            importResolvers = Map.mapWithKey (Resolution.resolverForUnit unitResolvers) $ over wrapped ("Std.Base" :)
-                                                                                 . over wrapped ("Std.Primitive" :)
-                                                                                 . view Unit.imports <$> mods
+            importResolvers = Map.mapWithKey (Resolution.resolverForUnit unitResolvers) $ over wrapped (essentialImports <>)
+                                                                                        . view Unit.imports <$> mods
             unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
         (newTyped, newEvald) <- ProcessUnits.processUnits typed evald unitsWithResolvers
         return (mods, newTyped, newEvald, unitResolvers)
@@ -329,10 +332,12 @@ run loc@(GraphLocation file br) clsGraph' rooted' interpret recompute = do
     let newClsGraph = clsGraph' & BH.refs %~ translate redMap deserializerOff
     Graph.userState . clsGraph .= newClsGraph
 
-    makePrimStdIfMissing
-    ensureCurrentScope recompute file root
+    modName <- filePathToQualName file
 
-    runTC loc
+    makePrimStdIfMissing
+    ensureCurrentScope recompute modName file root
+
+    runTC modName loc
     updateNodes loc
 
     when interpret $ do
