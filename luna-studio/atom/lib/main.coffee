@@ -29,6 +29,11 @@ analyticsConfigRequest =
 
 module.exports = LunaStudio =
     activate: (state) ->
+        delete process.env.LD_LIBRARY_PATH # AppImage sets that for us and on Linux it interferes
+                                           # with xdg-open, used to open a new browser when user
+                                           # clicks Forum/Chat/Documentation buttons
+                                           # Atom is already started so this change won't have an
+                                           # effect on it
         stats.initialize()
         atom.grammars.addGrammar(new LunaSemanticGrammar(atom.grammars, codeEditor.lex))
         atom.workspace.addOpener @lunaOpener
