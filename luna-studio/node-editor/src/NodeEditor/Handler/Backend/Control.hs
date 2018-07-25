@@ -18,9 +18,6 @@ handle (Batch (Batch.EmpireStarted _)) = Just $ do
     workspace <- getWorkspace
     withJust workspace $ \ws -> do
         let gl = ws ^. currentLocation
-        liftIO $ putStrLn "nodeeditor"
         Batch.openFile $ gl ^. GraphLocation.filePath
-        liftIO $ putStrLn "opened"
         Batch.getProgram Nothing True
-
 handle _ = Nothing
