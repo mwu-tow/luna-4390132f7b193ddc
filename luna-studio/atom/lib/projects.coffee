@@ -16,15 +16,7 @@ defaultProjectPath    = process.env.LUNA_PROJECTS
 temporaryPath         = process.env.LUNA_TMP
 tutorialsDownloadPath = process.env.LUNA_TUTORIALS
 
-temporaryProject = {
-    name: 'unsaved-luna-project'
-    path: path.join temporaryPath, 'unsaved-luna-project'
-    srcDir: 'src'
-    mainFile: 'Main.luna'
-    mainContent: 'def main:\n    hello = "Hello, World!"\n    None'
-    }
-
-temporaryMainFilePath = path.join temporaryProject.path, temporaryProject.srcDir, temporaryProject.mainFile
+temporaryProjectPath = path.join temporaryPath, 'UnsavedLunaProject'
 
 encoding = 'utf8'
 
@@ -157,28 +149,7 @@ loadRecentNoCheck = (callback) =>
 
 ## TEMPORARY PROJECT ##
 
-createTemporary = (callback) =>
-    fse.remove temporaryProject.path, (err) =>
-        fse.mkdirs temporaryProject.path, (err) =>
-            if err then throw err
-            srcPath = path.join temporaryProject.path, temporaryProject.srcDir
-            fs.mkdir srcPath, (err) =>
-                if err then throw err
-                mainPath = path.join srcPath, temporaryProject.mainFile
-                fs.writeFile mainPath, temporaryProject.mainContent, (err) =>
-                    if err then throw err
-                    projectPath = path.join temporaryProject.path, '.lunaproject'
-                    fs.writeFile projectPath, '', (err) =>
-                        if err then throw err
-                        callback()
-
 isTemporary = (projectPath) -> (projectPath.startsWith temporaryPath) or (projectPath.startsWith tutorialsDownloadPath)
-
-temporaryOpen = (callback) =>
-    if closeAllFiles()
-        createTemporary =>
-            atom.project.setPaths [temporaryProject.path]
-            callback?()
 
 ## PROJECTS ##
 
@@ -213,51 +184,58 @@ openLunaProject = (paths) ->
 ## EXPORTS ##
 
 module.exports =
-    closeAllFiles: closeAllFiles
-    openMainIfExists: openMainIfExists
-    selectLunaProject: selectLunaProject
-    openLunaProject: openLunaProject
+    class ProjectManager
+        constructor: (@codeEditor) ->
+        closeAllFiles: closeAllFiles
+        openMainIfExists: openMainIfExists
+        selectLunaProject: selectLunaProject
+        openLunaProject: openLunaProject
+        createProject: =>
+            if closeAllFiles()
+                fse.remove temporaryProjectPath, (err) =>
+                    @codeEditor.pushInternalEvent
+                        tag: "CreateProject"
+                        _path: temporaryProjectPath
 
-    temporaryProject:
-        path: temporaryProject.path
-        open: temporaryOpen
-        isOpen: =>
-            return isTemporary atom.project.getPaths()[0]
+        temporaryProject:
+            path: temporaryProjectPath
+            isOpen: =>
+                return isTemporary atom.project.getPaths()[0]
 
-        save: (callback) =>
-            if isTemporary atom.project.getPaths()[0]
-                inputView = new InputView()
-                suggestedProjectName = path.basename(atom.project.getPaths()[0])
-                inputView.attach "Save project as", defaultProjectPath, suggestedProjectName,
-                    (name) => !fs.existsSync(name),
-                    (name) => "Path already exists at '#{name}'",
-                    (name) => callback name
-    recent:
-        getItems: -> recentProjects
+            save: (callback) =>
+                if isTemporary atom.project.getPaths()[0]
+                    inputView = new InputView()
+                    suggestedProjectName = path.basename(atom.project.getPaths()[0])
+                    inputView.attach "Save project as", defaultProjectPath, suggestedProjectName,
+                        (name) => !fs.existsSync(name),
+                        (name) => "Path already exists at '#{name}'",
+                        (name) => callback name
+        recent:
+            getItems: -> recentProjects
 
-        refreshList: (callback) =>
-            recentProjects = []
-            loadRecentNoCheck (serializedProjectPaths) =>
-                serializedProjectPaths.forEach (serializedProjectPath) =>
-                    try
-                        fs.accessSync serializedProjectPath
-                        recentProjects.push mkRecentProject serializedProjectPath
-                    catch error
-                callback?()
+            refreshList: (callback) =>
+                recentProjects = []
+                loadRecentNoCheck (serializedProjectPaths) =>
+                    serializedProjectPaths.forEach (serializedProjectPath) =>
+                        try
+                            fs.accessSync serializedProjectPath
+                            recentProjects.push mkRecentProject serializedProjectPath
+                        catch error
+                    callback?()
 
-        add: (recentProjectPath) =>
-            if isTemporary recentProjectPath then return
-            recentProjects = recentProjects.filter (project) -> project.uri isnt recentProjectPath
-            recentProjects.unshift mkRecentProject recentProjectPath
-            data = yaml.safeDump recentProjectsPaths()
-            fs.writeFile recentProjectsPath, data, encoding, (err) =>
-                if err?
-                    console.log err
-    tutorial:
-        getItems: =>
-            tutorials = {}
-            for key in Object.keys tutorialItems
-                tutorials[key] = mkTutorial tutorialItems[key]
-            tutorials
-        refreshList: refreshTutorialList
-        open: tutorialOpen
+            add: (recentProjectPath) =>
+                if isTemporary recentProjectPath then return
+                recentProjects = recentProjects.filter (project) -> project.uri isnt recentProjectPath
+                recentProjects.unshift mkRecentProject recentProjectPath
+                data = yaml.safeDump recentProjectsPaths()
+                fs.writeFile recentProjectsPath, data, encoding, (err) =>
+                    if err?
+                        console.log err
+        tutorial:
+            getItems: =>
+                tutorials = {}
+                for key in Object.keys tutorialItems
+                    tutorials[key] = mkTutorial tutorialItems[key]
+                tutorials
+            refreshList: refreshTutorialList
+            open: tutorialOpen
