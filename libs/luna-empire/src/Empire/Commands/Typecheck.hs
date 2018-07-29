@@ -72,6 +72,7 @@ import qualified Luna.Pass.Typing.Data.Target      as Target
 import qualified Luna.Pass.Scheduler               as Scheduler
 import qualified Luna.Pass.Sourcing.UnitLoader     as UnitLoader
 import qualified Luna.Pass.Sourcing.ImportsPlucker as ImportsPlucker
+import qualified Luna.Pass.Evaluation.Data.Scope   as Scope
 import qualified Luna.Pass.Evaluation.Interpreter  as Interpreter
 import qualified Luna.Std                          as Std
 import qualified Luna.Pass.Sourcing.Data.Unit      as Unit
@@ -82,6 +83,7 @@ import qualified Data.Set as Set
 import Empire.Utils.ValueListener (ValueRep (..), SingleRep (..))
 import qualified Empire.Utils.ValueListener as Listener
 
+import Luna.Pass.Evaluation.Data.Scope (LocalScope)
 import Data.Map (Map)
 -- import           Luna.Builtin.Data.LunaEff        (runError, runIO)
 -- import           Luna.Builtin.Data.Module         (Imports (..), unionImports, unionsImports)
@@ -128,7 +130,7 @@ withPackageCurrentDirectory currentFile act = do
     let packageDirectory = maybe (takeDirectory currentFile) Path.toFilePath rootPath
     withCurrentDirectory packageDirectory act
 
-runInterpreter :: FilePath -> Runtime.Units -> Command Graph (Maybe Interpreter.LocalScope)
+runInterpreter :: FilePath -> Runtime.Units -> Command Graph (Maybe LocalScope)
 runInterpreter path imports = do
     rootPath   <- liftIO $ Package.findPackageRootForFile =<< Path.parseAbsFile path
     selfRef    <- use    $ Graph.userState . Graph.breadcrumbHierarchy . BH.self
@@ -137,13 +139,9 @@ runInterpreter path imports = do
             args <- ComponentVector.toList as
             if null args then Just <$> IR.source b else pure Nothing
         _ -> return Nothing
-    interpreted <- for bodyRefMay $ \bodyRef -> liftScheduler $ Interpreter.runInterpreter' bodyRef imports
-    for interpreted $ \res ->
-        mask_ $ liftIO $ do
-            ref <- IORef.newIORef def
-            withPackageCurrentDirectory path
-                $ Runtime.runIO $ Runtime.runError $ Interpreter.evalWithRef res ref
-            IORef.readIORef ref
+    interpreted <- for bodyRefMay $ \bodyRef -> liftScheduler $ Interpreter.execInterpreter bodyRef imports
+    liftIO $ for interpreted $ \res ->
+        mask_ $ withPackageCurrentDirectory path res
 
 updateNodes :: GraphLocation -> Command InterpreterEnv ()
 updateNodes loc@(GraphLocation _ br) = case br of
@@ -171,7 +169,7 @@ updateNodes loc@(GraphLocation _ br) = case br of
     Breadcrumb _ -> return ()
 
 updateValues :: GraphLocation
-             -> Interpreter.LocalScope
+             -> LocalScope
              -> Command Graph [Async ()]
 updateValues loc@(GraphLocation path _) scope = do
     childrenMap <- use $ Graph.userState . Graph.breadcrumbHierarchy . BH.children
@@ -196,7 +194,7 @@ updateValues loc@(GraphLocation path _) scope = do
                                            $ StreamDataPoint <$> l
     asyncs <- liftIO $ withPackageCurrentDirectory path $
         forM allVars $ \(nid, ref) -> do
-            let resVal = Interpreter.localLookup ref scope
+            let resVal = Scope.localLookup ref scope
             liftIO $ forM resVal $ \v -> do
                 value <- Listener.getReps v
                 case value of
