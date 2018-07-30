@@ -43,7 +43,7 @@
 
     window.addEventListener("message", function (evt) {
         var data = JSON.parse(evt.data.data);
-        if (evt.data.event == "data") {
+        if (evt.data.event == "data" || evt.data.event == "datapoint") {
             if (layer) layer.clearLayers();
             layer = L.geoJSON(data, {
                 style: function (f) { return f.properties.style; },
@@ -56,13 +56,13 @@
                 }
             })
             layer.addTo(map);
-        } else if (evt.data.event == "restart") {
-            initRealtime();
-        } else if (evt.data.event == "datapoint") {
-            var oldData = currentData;
-            currentData = data;
-            if (!layer) initRealtime();
-            if (!oldData) layer.start();
-        }
+        }// else if (evt.data.event == "restart") {
+            //initRealtime();
+        //} else if (evt.data.event == "datapoint") {
+            //var oldData = currentData;
+            //currentData = data;
+            //if (!layer) initRealtime();
+            //if (!oldData) layer.start();
+        //}
     });
 }());
