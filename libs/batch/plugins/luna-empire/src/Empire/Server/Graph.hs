@@ -592,9 +592,7 @@ handleSubstitute = modifyGraph defInverse action replyResult where
             $ Graph.substituteCodeFromPoints file diffs
         newImports  <- Graph.getAvailableImports location
         let impDiff = diff prevImports newImports
-        if mempty == impDiff
-            then Graph.typecheck location
-            else Graph.typecheckWithRecompute location
+        Graph.typecheckWithRecompute location
         pure $ impDiff <> graphDiff
 
 
