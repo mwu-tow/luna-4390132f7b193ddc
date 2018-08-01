@@ -19,6 +19,7 @@ dependencies:
     - filepath
     - groom
     - lens
+    - lifted-async
     - luna-core
     - luna-package
     - luna-empire

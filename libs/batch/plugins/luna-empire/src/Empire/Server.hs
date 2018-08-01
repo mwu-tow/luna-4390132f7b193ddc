@@ -11,6 +11,7 @@ import qualified Compress
 import           Control.Concurrent                   (forkIO, forkOn)
 import           Control.Concurrent.Async             (Async)
 import qualified Control.Concurrent.Async             as Async
+import qualified Control.Concurrent.Async.Lifted      as AsyncL
 import           Control.Concurrent.MVar
 import           Control.Concurrent.STM               (STM)
 import           Control.Concurrent.STM.TChan         (TChan, newTChan, readTChan, tryPeekTChan)
@@ -118,12 +119,6 @@ run endPoints topics formatted packageRoot = do
     compiledStdlib <- newEmptyMVar
     forkOn tcCapability $ void $ Bus.runBus endPoints $ startTCWorker commEnv
     sendStarted endPoints
-    -- forkOn tcCapability $ do
-    --     writeIORef minCapabilityNumber 1
-    --     updateCapabilities
-    --     (std, cleanup) <- prepareStdlib
-    --     pmState <- Graph.defaultPMState
-    --     putMVar compiledStdlib (std, cleanup, pmState)
     takeMVar waiting
 
 runBus :: Bool -> FilePath ->  StateT Env BusT ()
@@ -156,8 +151,16 @@ startTCWorker env = liftIO $ do
         Typecheck.makePrimStdIfMissing
         forever $ do
             Empire.TCRequest loc g rooted flush interpret recompute stop <- liftIO $ takeMVar reqs
-            when (not stop) $
-                Typecheck.run loc g rooted interpret recompute `Exception.onException` Typecheck.stop
+            if stop then do
+                Typecheck.stop
+            else do
+                as <- AsyncL.asyncOn tcCapability $ do
+                    Typecheck.run loc g rooted interpret recompute `Exception.onException`
+                        Typecheck.stop
+                res <- AsyncL.waitCatch as
+                case res of
+                    Left exc -> logger Logger.warning $ "TCWorker: TC failed with: " <> displayException exc
+                    Right _  -> return ()
 
 --     tcAsync <- newEmptyMVar
 --         modules = env ^. Empire.modules
