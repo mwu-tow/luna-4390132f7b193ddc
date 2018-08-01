@@ -72,7 +72,7 @@ latestVersion appName appPath targetVersionType = do
     Shelly.chdir appPath $ do
         tagsList <- Text.splitOn "\n" <$> Shelly.cmd "git" "tag" "-l"
 
-        let vList = catMaybes $ readMaybeVersion <$> tagsList
+        let vList = sort . catMaybes $ readMaybeVersion <$> tagsList
         return $ case filter filterFunc (reverse vList) of
                 (v:_) -> v
                 _     -> def :: Version
