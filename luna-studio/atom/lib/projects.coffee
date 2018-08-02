@@ -92,6 +92,23 @@ mkTutorial = (tutorial) ->
     new ProjectItem tutorial, tutorialClasses, (progress, finalize) =>
         tutorialOpen tutorial, progress, finalize
 
+retryEBUSY = (operation, callback) ->
+    retryCount = 0
+    maxRetries = 8
+    waitTimeMS = 100
+    retry = => operation (err) =>
+        if err? and (err.code == 'EBUSY')
+            if retryCount >= maxRetries
+                callback err
+            else
+                waitTimeMS *= 2
+                retryCount++
+                console.warn 'resource EBUSY, retry ', retryCount, 'wait', waitTimeMS, 'ms'
+                setTimeout retry, waitTimeMS
+        else
+            callback err
+    retry()
+
 tutorialOpen = (tutorial, progress, finalize) ->
     dstPath = path.join tutorialsDownloadPath, tutorial.name
     dstZipPath = dstPath + '.zip'
@@ -99,8 +116,8 @@ tutorialOpen = (tutorial, progress, finalize) ->
     cloneError = (err) =>
         report.displayError 'Error while cloning tutorial', err
         finalize()
-    if closeAllFiles()
-        fse.remove dstPath, (err) =>
+    tryCloseAllFiles =>
+        retryEBUSY ((callback) => fse.remove dstPath, callback), (err) =>
             if err?
                 cloneError err.toString()
             else
@@ -135,7 +152,7 @@ recentProjectsPaths = ->
 mkRecentProject = (projectPath) ->
     new ProjectItem {uri: projectPath}, recentClasses, (progress, finalize) =>
         progress 0.5
-        if closeAllFiles()
+        tryCloseAllFiles =>
             atom.project.setPaths [projectPath]
         finalize()
 
@@ -156,13 +173,22 @@ isTemporary = (projectPath) -> (projectPath.startsWith temporaryPath) or (projec
 
 ## PROJECTS ##
 
-closeAllFiles = ->
-    for pane in atom.workspace.getPanes()
-        for paneItem in pane.getItems()
-            if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaCodeEditorTab
-                unless pane.destroyItem paneItem
-                    return false
-    return true
+closingAll = false
+
+tryCloseAllFiles = (callback) ->
+    closingAll = true
+    x = atom.project.onDidChangePaths =>
+        for pane in atom.workspace.getPanes()
+            for paneItem in pane.getItems()
+                if atom.workspace.isTextEditor(paneItem) or paneItem.isLunaCodeEditorTab
+                    unless pane.destroyItem paneItem
+                        x.dispose()
+                        closingAll = false
+                        return
+        x.dispose()
+        callback()
+        closingAll = false
+    atom.project.setPaths []
 
 openMainIfExists = ->
     projectPath = atom.project.getPaths()[0]
@@ -180,7 +206,7 @@ selectLunaProject = (e) ->
 
 openLunaProject = (paths) ->
     if paths?
-        if closeAllFiles()
+        tryCloseAllFiles =>
             atom.project.setPaths [paths[0]]
             openMainIfExists
 
@@ -189,12 +215,12 @@ openLunaProject = (paths) ->
 module.exports =
     class ProjectManager
         constructor: (@codeEditor) ->
-        closeAllFiles: closeAllFiles
         openMainIfExists: openMainIfExists
         selectLunaProject: selectLunaProject
         openLunaProject: openLunaProject
+        isClosingAll: => closingAll
         createProject: =>
-            if closeAllFiles()
+            tryCloseAllFiles =>
                 fse.remove temporaryProjectPath, (err) =>
                     @codeEditor.pushInternalEvent
                         tag: "CreateProject"
