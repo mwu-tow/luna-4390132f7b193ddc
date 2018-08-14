@@ -1,7 +1,7 @@
-
 ---
 name: Epic
 about: Create a new epic for Luna Studio development.
+
 ---
 
 ### Summary
