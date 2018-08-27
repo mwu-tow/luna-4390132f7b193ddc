@@ -396,12 +396,44 @@ mergePortInfo []             (t : ts) = (t, NotConnected) : mergePortInfo [] ts
 mergePortInfo (Nothing : as) (t : ts) = (t, NotConnected) : mergePortInfo as ts
 mergePortInfo (Just a  : as) ts       = a : mergePortInfo as ts
 
+extractListPorts :: NodeRef -> GraphOp [(TypeRep, PortState)]
+extractListPorts n = match n $ \case
+    App f a -> do
+        rest <- extractListPorts =<< source f
+        let addPort edge = do
+                argTp <- source edge >>= getLayer @TypeLayer >>= source
+                t     <- Print.getTypeRep argTp
+                ps    <- getPortState =<< source edge
+                return $ (t,ps) : rest
+        source a >>= flip match (\case
+            Var _      -> addPort a
+            IRNumber{} -> addPort a
+            IRString{} -> addPort a
+            _ -> do
+                foo <- extractListPorts =<< source a
+                return $ foo <> rest)
+    Lam i o -> do
+        foo <- extractListPorts =<< source i
+        bar <- extractListPorts =<< source o
+        return $ foo <> bar
+    ResolvedCons "Std.Base" "List" "Prepend" args -> do
+        args' <- ptrListToList args
+        as <- mapM (source >=> extractListPorts) args'
+        return $ concat as
+    _ -> do
+        return []
+
 extractPortInfo :: NodeRef -> GraphOp [(TypeRep, PortState)]
 extractPortInfo n = do
-    applied  <- reverse <$> extractAppliedPorts False False [] n
     tp       <- getLayer @TypeLayer n >>= source
-    fromType <- extractArgTypes tp
-    pure $ mergePortInfo applied fromType
+    match tp $ \case
+        ResolvedCons "Std.Base" "List" "List" args -> do
+            a <- extractListPorts n
+            return a
+        _ -> do
+            applied  <- reverse <$> extractAppliedPorts False False [] n
+            fromType <- extractArgTypes tp
+            pure $ mergePortInfo applied fromType
 
 isNegativeLiteral :: NodeRef -> GraphOp Bool
 isNegativeLiteral ref = match ref $ \case
@@ -420,7 +452,10 @@ isNegativeLiteral ref = match ref $ \case
 buildArgPorts :: InPortId -> NodeRef -> GraphOp [InPort]
 buildArgPorts currentPort ref = do
     typed <- extractPortInfo ref
-    names <- getPortsNames ref
+    tp    <- getLayer @TypeLayer ref >>= source
+    names <- match tp $ \case
+        ResolvedCons "Std.Base" "List" "List" _ -> return []
+        _                                       -> getPortsNames ref
     let portsTypes = fmap fst typed
             <> List.replicate (length names - length typed) TStar
         psCons = zipWith3 Port
