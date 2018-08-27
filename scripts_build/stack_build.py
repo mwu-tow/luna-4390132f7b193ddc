@@ -37,6 +37,7 @@ def build_runner(runner_args):
 
 def build_backend(backend_args):
     with working_directory(backend_dir):
+        subprocess.check_output(['stack', 'build', 'luna-empire', '--test', '--no-run-tests'])
         subprocess.check_output(['stack', 'build'] + backend_args)
 
 def mv_runner(runner):
