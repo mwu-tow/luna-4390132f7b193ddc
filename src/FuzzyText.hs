@@ -11,14 +11,13 @@ module FuzzyText
     , Score
     , ClassName
     , ImportName
-    , Bonus
     , Query
     , name
     , doc
     , entry
     , exactMatch
     , score
-    , match
+    , charsMatch
     , weight
     , entryType
     , className
@@ -37,63 +36,78 @@ import           Control.Lens ((?~), Getter, to)
 
 
 
-type Score      = Bonus
+type Score      = Int
 type Range      = (Int, Int)
-type Bonus      = Int
 type ClassName  = Text
 type Query      = Text
 type ImportName = Text
 
-data EntryType = Function | Method ClassName | Constructor ClassName | Command deriving (Show, Eq)
+data EntryType 
+    = Function 
+    | Method ClassName 
+    | Constructor ClassName 
+    | Command deriving (Show, Eq)
 
 
-data ImportInfo = ImportInfo { _importName :: ImportName
-                             , _imported   :: Bool
-                             } deriving (Eq, Show)
+data ImportInfo = ImportInfo
+    { _importName :: ImportName
+    , _imported   :: Bool
+    } deriving (Eq, Show)
+
 makeLenses ''ImportInfo
 
-data RawEntry = RawEntry { _rName      :: Text
-                         , _rDoc       :: Text
-                         , _rEntryType :: EntryType
-                         , _rWeight    :: Double 
-                         , _rImport    :: Maybe ImportInfo
-                         } deriving (Show, Eq)
+data RawEntry = RawEntry
+    { _rName      :: Text
+    , _rDoc       :: Text
+    , _rEntryType :: EntryType
+    , _rWeight    :: Double 
+    , _rImport    :: Maybe ImportInfo
+    } deriving (Show, Eq)
+
 makeLenses ''RawEntry
 
-data Scoring = Scoring { _mismatchPenalty :: Bonus
-                       , _skipPenalty     :: Bonus
-                       , _prefixBonus     :: Bonus
-                       , _sequenceBonus   :: Bonus
-                       , _suffixBonus     :: Bonus
-                       , _wordPrefixBonus :: Bonus
-                       , _wordSuffixBonus :: Bonus
-                       } deriving (Show, Eq)
+data Scoring = Scoring
+    { _mismatchPenalty :: Score
+    , _skipPenalty     :: Score
+    , _prefixBonus     :: Score
+    , _sequenceBonus   :: Score
+    , _suffixBonus     :: Score
+    , _wordPrefixBonus :: Score
+    , _wordSuffixBonus :: Score
+    } deriving (Show, Eq)
+
 makeLenses ''Scoring
 
-data MatchState = MatchState { _query           :: Query
-                             , _msEntry         :: RawEntry                             
-                             , _scoring         :: Scoring
-                             , _positionInQuery :: Int
-                             , _positionInEntry :: Int
-                             , _charsScoring    :: IntMap Scoring
-                             , _matched         :: [Range]
-                             } deriving (Show, Eq)
+data MatchState = MatchState
+    { _query           :: Query
+    , _msEntry         :: RawEntry                             
+    , _scoring         :: Scoring
+    , _positionInQuery :: Int
+    , _positionInEntry :: Int
+    , _charsScoring    :: IntMap Scoring
+    , _matchedChars    :: [Range]
+    } deriving (Show, Eq)
+
 makeLenses ''MatchState
 
-data Match = Match { _entry      :: RawEntry
-                   , _exactMatch :: Bool
-                   , _score      :: Score
-                   , _match      :: [Range]
-                   } deriving (Show, Eq)
+data Match = Match
+    { _entry      :: RawEntry
+    , _exactMatch :: Bool
+    , _score      :: Score
+    , _charsMatch :: [Range]
+    } deriving (Show, Eq)
+
 makeLenses ''Match
 
-instance Default Scoring where def = Scoring (-4) -- mismatchPenalty
-                                             (-4) -- skipPenalty
-                                             12   -- prefixBonus
-                                             10   -- sequenceBonus
-                                             4    -- suffixBonus
-                                             6    -- wordPrefixBonus
-                                             3    -- wordSuffixBonus
+instance Default Scoring where 
+    def = Scoring
+        (-4) -- mismatchPenalty
+        (-4) -- skipPenalty
+        12   -- prefixBonus
+        10   -- sequenceBonus
+        4    -- suffixBonus
+        6    -- wordPrefixBonus
+        3    -- wordSuffixBonus
 
 matchState :: Query -> (Maybe Scoring) -> RawEntry -> MatchState
 matchState q mayS e = MatchState q e (fromJust def mayS) def def def def
@@ -143,13 +157,16 @@ instance Ord Match where
             else EQ            
         importOrd = case (,) <$> (m1 ^. importInfo) <*> (m2 ^. importInfo) of
             Nothing ->  EQ
-            Just (mi1, mi2) -> if mi1 ^. imported && not (mi2 ^. imported) then LT
+            Just (mi1, mi2) ->
+                if mi1 ^. imported && not (mi2 ^. imported) then LT
                 else if not (mi1 ^. imported) && mi2 ^. imported then GT
                 else EQ
 
         compareScore = 
-            if m1 ^. score == 0 && m2 ^. score == 0 then (m2 ^. weight) `compare` (m1 ^. weight)
-            else if m1 ^. score < 0 && m2 ^. score < 0 then (1/m2score) `compare` (1/m1score)
+            if m1 ^. score == 0 && m2 ^. score == 0
+                then (m2 ^. weight) `compare` (m1 ^. weight)
+            else if m1 ^. score < 0 && m2 ^. score < 0
+                then (1/m2score) `compare` (1/m1score)
             else m2score `compare` m1score
         in 
             if      exactMatchOrd /= EQ then exactMatchOrd
@@ -157,12 +174,149 @@ instance Ord Match where
             else if compareScore  /= EQ then compareScore
             else (m1 ^. name) `compare` (m2 ^. name)
 
+instance Convertible MatchState Match where
+    convert ms = do
+        let entry'      = ms ^. msEntry
+            matchedCharsLength = foldl
+                (\s (beg, end) -> s + end - beg) 
+                def 
+                (ms ^. matchedChars)
+            exactMatch' = Text.length (ms ^. query) == matchedCharsLength 
+            score'      = ms ^. currentScore 
+            charMatch'  = reverse $ ms ^. matchedChars
+        Match entry' exactMatch' score' charMatch'
+
+
+
+fuzzySearch :: Query -> [RawEntry] -> [Match]
+fuzzySearch q = List.sort . map (matchEntry q def)
+
+customSearch :: Query -> [RawEntry] -> Scoring -> [Match]
+customSearch q es s = List.sort $ map (matchEntry q (Just s)) es
+
+
+matchEntry :: Query -> Maybe Scoring -> RawEntry -> Match
+matchEntry = matchNext .:. matchState
+    
+matchNext :: MatchState -> Match
+matchNext ms = maybe (convert ms) (uncurry processChars) $ mayCurrentChars where
+    eci = ms ^. positionInEntry
+    qci = ms ^. positionInQuery
+    mayCurrentChars = (,) <$> lookupQueryChar qci ms <*> lookupEntryChar eci ms 
+    processChars qc ec = if charactersMatch qc ec
+        then min (matchNext $ updatedState qc ec) (skipChar ms)
+        else skipChar ms
+    updatedState qc ec = ms
+        & positionInEntry       %~ succ
+        & positionInQuery       %~ succ
+        & charsScoring . at eci ?~ charScore qc ec
+        & matchedChars          %~ updatedLettersMatch qc ec
+    updatedLettersMatch qc ec r = if charactersMatch qc ec 
+        then appendRange (toRange eci) r 
+        else r
+    charScore qc ec = Scoring
+        (calculateMismatchPenalty qc ec ms)
+        def
+        (calculatePrefixBonus qc ec eci ms)
+        (calculateSequenceBonus qc ec eci ms)
+        (calculateSuffixBonus qc ec qci eci ms)
+        (calculateWordPrefixBonus qc ec eci ms)
+        (calculateWordSuffixBonus qc ec eci ms)
+
+skipChar :: MatchState -> Match
+skipChar = matchNext . updatedState where
+    updatedState ms = ms 
+        & positionInEntry %~ succ
+        & charsScoring . at (ms ^. positionInEntry) ?~ 
+            Scoring def (ms ^. scoring . skipPenalty) def def def def def
+
+
+calculateMismatchPenalty :: Char -> Char -> MatchState -> Score
+calculateMismatchPenalty qc ec ms = if qc == ec 
+    then 0 
+    else ms ^. scoring . mismatchPenalty
+
+calculatePrefixBonus :: Char -> Char -> Int -> MatchState -> Score
+calculatePrefixBonus qc ec eci ms = if qc /= ec
+    then 0
+    else case ms ^. matchedChars of
+        []           -> if eci == 0 then ms ^. scoring . prefixBonus else 0
+        [(beg, end)] -> if beg == 0 && end == eci 
+            then (ms ^. scoring . prefixBonus) * (eci + 1) 
+            else 0
+        _            -> 0
+
+calculateSequenceBonus :: Char -> Char -> Int -> MatchState -> Score
+calculateSequenceBonus qc ec eci ms = if qc /= ec 
+    then 0 
+    else case ms ^. matchedChars of
+        []           -> 0
+        (beg, end):_ -> if end /= eci 
+            then 0 
+            else (eci - beg) * (ms ^. scoring . sequenceBonus)
+
+    
+calculateSuffixBonus :: Char -> Char -> Int -> Int -> MatchState -> Score
+calculateSuffixBonus qc ec qci eci ms 
+    = let isSuffix 
+            = isJust (lookupQueryChar (succ qci) ms)
+            || isJust (lookupEntryChar (succ eci) ms)
+    in if qc /= ec || isSuffix
+        then 0
+        else case ms ^. matchedChars of
+            []           -> ms ^. scoring . suffixBonus
+            (beg, end):_ -> if end == eci
+                then (end - beg + 1) * (ms ^. scoring . suffixBonus)
+                else ms ^. scoring . suffixBonus
+
+
+calculateWordPrefixBonus :: Char -> Char -> Int -> MatchState -> Score
+calculateWordPrefixBonus qc ec eci ms = if qc /= ec 
+    then 0 
+    else prefixLength * (ms ^. scoring . wordPrefixBonus) where
+        indexedMatch beg 
+            = drop beg . zip [0..] . take (succ eci) . convert $ ms ^. name
+        prefixLength = case ms ^. matchedChars of
+            []           -> if isWordHead eci ec ms then 1 else 0
+            (beg, end):_ -> if end /= eci && isWordHead eci ec ms then 1 
+                else if end /= eci then 0
+                else length . dropWhile (\(i, c) -> not $ isWordHead i c ms) 
+                    $ indexedMatch beg
+
+
+calculateWordSuffixBonus :: Char -> Char -> Int -> MatchState -> Score
+calculateWordSuffixBonus qc ec eci ms
+    = if qc /= ec || not (isWordLast eci ec ms)
+        then 0 
+        else case ms ^. matchedChars of
+            [] -> ms ^. scoring . wordSuffixBonus
+            (beg, end):_ -> if end == eci 
+                then (end - beg + 1) * (ms ^. scoring . wordSuffixBonus) 
+                else ms ^. scoring . wordSuffixBonus
+
+
+charactersMatch :: Char -> Char -> Bool
+charactersMatch c1 c2 = toLower c1 == toLower c2 
 
 lookupEntryChar :: Int -> MatchState -> Maybe Char
 lookupEntryChar i ms = ms ^. name ^? ix i
 
 lookupQueryChar :: Int -> MatchState -> Maybe Char
 lookupQueryChar i ms = ms ^. query ^? ix i
+
+
+startsNewWord :: Char -> Char -> Bool
+startsNewWord c prevC = let xor a b = (a && not b) || (not a && b)
+    in (isLetter prevC `xor` isLetter c) || (isLower prevC && isUpper c)
+
+isWordHead :: Int -> Char -> MatchState -> Bool
+isWordHead ind c ms 
+    = maybe True (startsNewWord c) $ lookupEntryChar (pred ind) ms
+
+isWordLast :: Int -> Char -> MatchState -> Bool
+isWordLast ind c ms 
+    = maybe True (flip startsNewWord c) $ lookupEntryChar (succ ind) ms
+
 
 currentScore :: Getter MatchState Int
 currentScore = to currentScore' where
@@ -175,81 +329,8 @@ appendRange i@(newBeg, newEnd) prev@((oldBeg, oldEnd):t) = if oldEnd == newBeg
     then (oldBeg, newEnd) : t
     else i : prev
 
-
-fuzzySearch :: Query -> [RawEntry] -> [Match]
-fuzzySearch q = List.sort . map (matchEntry q def)
-
-customSearch :: Query -> [RawEntry] -> Scoring -> [Match]
-customSearch q es s = List.sort $ map (matchEntry q (Just s))  es
-
-instance Convertible MatchState Match where
-    convert ms = do
-        let entry'      = ms ^. msEntry
-            exactMatch' = Text.length (ms ^. query) == foldl (\s (beg, end) -> s + end - beg) def (ms ^. matched)
-            score'      = ms ^. currentScore 
-            match'      = reverse $ ms ^. matched
-        Match entry' exactMatch' score' match'   
-
 toRange :: Int -> Range
 toRange i = (i, succ i)
 
-matchEntry :: Query -> Maybe Scoring -> RawEntry -> Match
-matchEntry = matchNext .:. matchState
-
-matches :: Char -> Char -> Bool
-matches c1 c2 = toLower c1 == toLower c2 
-
-matchNext :: MatchState -> Match
-matchNext ms = do
-    let eci = ms ^. positionInEntry
-        qci = ms ^. positionInQuery
-        mayChars = (,) <$> lookupEntryChar eci ms <*> lookupQueryChar qci ms
-        match' ec qc = if matches ec qc then min (matchChars ms) (skipChar ms) else skipChar ms
-    maybe (convert ms) (uncurry match') mayChars 
-
-matchChars :: MatchState -> Match
-matchChars ms = maybe (convert ms) (matchNext . uncurry updatedState) $ mayCurrentChars where
-    eci = ms ^. positionInEntry
-    qci = ms ^. positionInQuery
-    mayCurrentChars = (,) <$> lookupQueryChar qci ms <*> lookupEntryChar eci ms 
-    updatedState qc ec = ms & positionInEntry %~ succ
-                            & positionInQuery %~ succ
-                            & charsScoring . at eci ?~ score' qc ec
-                            & matched %~ match' qc ec
-    match' qc ec r = if qc `matches` ec then appendRange (toRange eci) r else r
-    score' qc ec = Scoring (mismatchPenalty' qc ec) skipPenalty' (prefixBonus' qc ec) (sequenceBonus' qc ec) (suffixBonus' qc ec) (wordPrefixBonus' qc ec) (wordSuffixBonus' qc ec)
-    mismatchPenalty' qc ec = if qc == ec then 0 else ms ^. scoring . mismatchPenalty
-    skipPenalty' = def
-    prefixBonus' qc ec = if qc /= ec then 0 else case ms ^. matched of
-        []           -> if eci == 0 then ms ^. scoring . prefixBonus else 0
-        [(beg, end)] -> if beg == 0 && end == eci then (ms ^. scoring . prefixBonus) * (eci + 1) else 0
-        _            -> 0
-    sequenceBonus' qc ec = if qc /= ec then 0 else case ms ^. matched of
-        []           -> 0
-        (beg, end):_ -> if end /= eci then 0 else (eci - beg) * (ms ^. scoring . sequenceBonus)
-    suffixBonus' qc ec = if qc /= ec || isJust (lookupQueryChar (succ qci) ms) || isJust (lookupEntryChar (succ eci) ms) then 0
-        else case ms ^. matched of
-            []           -> ms ^. scoring . suffixBonus
-            (beg, end):_ -> if end == eci then (end - beg + 1) * (ms ^. scoring . suffixBonus) else ms ^. scoring . suffixBonus
-    xor a b = (a && not b) || (not a && b)
-    isWordHead c prevC = (isLetter c `xor` isLetter prevC) || (isLower prevC && isUpper c)
-    startsNewWord i c = maybe True (isWordHead c) $ lookupEntryChar (pred i) ms
-    endsWord      i c = maybe True (flip isWordHead c) $ lookupEntryChar (succ i) ms
-    wordPrefixBonus' qc ec = if qc /= ec then 0 else do
-        let prefixLength = case ms ^. matched of
-                []           -> if startsNewWord eci ec then 1 else 0
-                (beg, end):_ -> let indexedMatch = drop beg . zip [0..] . take (succ eci) . convert $ ms ^. name in
-                    if end /= eci && startsNewWord eci ec then 1 
-                    else if end /= eci then 0
-                    else length $ dropWhile (not . uncurry startsNewWord) indexedMatch
-        prefixLength * (ms ^. scoring . wordPrefixBonus)
-    wordSuffixBonus' qc ec = if qc /= ec || not (endsWord eci ec) then 0 else case ms ^. matched of
-        [] -> ms ^. scoring . wordSuffixBonus
-        (beg, end):_ -> if end == eci then (end - beg + 1) * (ms ^. scoring . wordSuffixBonus) else ms ^. scoring . wordSuffixBonus
 
 
-
-skipChar :: MatchState -> Match
-skipChar ms = matchNext updatedState where
-    updatedState = ms & positionInEntry %~ succ
-                      & charsScoring . at (ms ^. positionInEntry) ?~ Scoring def (ms ^. scoring . skipPenalty) def def def def def

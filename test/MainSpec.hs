@@ -9,7 +9,7 @@ import           Test.Hspec
 
 makeEntries :: [Text] -> [RawEntry]
 makeEntries = map makeEntry where
-    makeEntry func = RawEntry func def Function 1
+    makeEntry func = RawEntry func def Function 1 Nothing
 
 topResultNameShouldBe :: [Match] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
@@ -70,19 +70,22 @@ spec = do
             let res = fuzzySearch "xxxxx" $ makeEntries ["xxaxxxa", "xxbbxxxb"]
             topResultShouldHaveBestScore res
         it "exact match is prefered" $ do
+            let res = fuzzySearch "stream" $ makeEntries ["streamFrom", "stream"]
+            res `topResultNameShouldBe` "stream"
+        it "exact match is prefered when case differs" $ do
             let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
             res `topResultNameShouldBe` "foobar"
         it "exact match has better score" $ do
             let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
             topResultShouldHaveBestScore res
         it "methods matching class are first for empty query" $ do
-            let bestEntry = RawEntry "%" def (Method "Int") 0.7
-                entries = [ RawEntry "+" def (Method "Int") 0.7
-                          , RawEntry "+" def (Method "Text") 0.5
-                          , RawEntry "%" def (Method "Text") 0.5
-                          , RawEntry "+" def Function 0.3
-                          , RawEntry "%" def Function 0.3
-                          , RawEntry "+" def Function 0.2
+            let bestEntry = RawEntry "%" def (Method "Int")  0.7 Nothing
+                entries = [ RawEntry "+" def (Method "Int")  0.7 Nothing
+                          , RawEntry "+" def (Method "Text") 0.5 Nothing
+                          , RawEntry "%" def (Method "Text") 0.5 Nothing
+                          , RawEntry "+" def Function        0.3 Nothing
+                          , RawEntry "%" def Function        0.3 Nothing
+                          , RawEntry "+" def Function        0.2 Nothing
                           , bestEntry
                           ]
                 res = fuzzySearch "" entries
@@ -91,8 +94,8 @@ spec = do
     describe "matched letters" $ do
         it "match should be eager" $ do
             let res = fuzzySearch "x" $ makeEntries ["xx"]
-            view match (List.head res) `shouldBe` [(0,1)]
+            view charsMatch (List.head res) `shouldBe` [(0,1)]
         it "match should be eager" $ do
             let res = fuzzySearch "xx" $ makeEntries ["xxx"]
-            view match (List.head res) `shouldBe` [(0,2)]
+            view charsMatch (List.head res) `shouldBe` [(0,2)]
             
