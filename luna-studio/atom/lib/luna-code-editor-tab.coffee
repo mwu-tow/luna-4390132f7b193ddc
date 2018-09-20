@@ -67,6 +67,7 @@ module.exports =
             @setModified false
             @setUri @uri
             @diffToOmit = new Set()
+            @afterCodeChanged = []
             @setPlaceholderText 'Please wait'
             @codeEditor.pushInternalEvent(tag: 'OpenFile', _path: @uri)
 
@@ -78,25 +79,7 @@ module.exports =
             @handleEvents()
 
             @subscribe = new SubAtom
-            @subscribe.add @getBuffer().onDidStopChanging (event) =>
-                diffs = []
-                for change in event.changes
-                    if @diffToOmit.has change.newText
-                        @diffToOmit.delete change.newText
-                    else
-                        @setModified(true)
-                        start = change.oldRange.start
-                        end   = change.oldRange.end
-                        cursor = @.getCursorBufferPosition()
-                        diff =
-                            _range:   [{_column: start.column, _row: start.row },
-                                       {_column: end.column  , _row: end.row}]
-                            _newText: change.newText
-                            _cursor:  {_column: cursor.column, _row: cursor.row}
-                          #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
-                        diffs.push diff
-                if diffs.length > 0
-                    @codeEditor.pushDiffs diffs
+            @subscribe.add @getBuffer().onDidStopChanging (e) => @handleDidStopChanging e
             spinner = new Spinner(progress = 0, overlap = true)
             @spinnerElement = @element.appendChild spinner.element
 
@@ -119,10 +102,10 @@ module.exports =
 
         handleEvents: =>
             atom.commands.add @element,
-                'core:copy':  (e) => @handleCopy(e)
-                'core:cut':   (e) => @handleCut(e)
-                'core:paste': (e) => @handlePaste(e)
-                'core:save':  (e) => @handleSave(e)
+                'core:copy':  (e) => @handleCopy  e
+                'core:cut':   (e) => @handleCut   e
+                'core:paste': (e) => @handlePaste e
+                'core:save':  (e) => @handleSave  e
 
         spans: (markWholeLines) =>
             buffer = @getBuffer()
@@ -136,34 +119,65 @@ module.exports =
                 [buffer.characterIndexForPosition(head),
                  buffer.characterIndexForPosition(tail)].sort((a,b) -> a - b)
 
+        handleDidStopChanging: (event) =>
+                diffs = []
+                for change in event.changes
+                    if @diffToOmit.has change.newText
+                        @diffToOmit.delete change.newText
+                    else
+                        @setModified(true)
+                        start = change.oldRange.start
+                        end   = change.oldRange.end
+                        cursor = @getCursorBufferPosition()
+                        diff =
+                            _range:   [{_column: start.column, _row: start.row },
+                                       {_column: end.column  , _row: end.row}]
+                            _newText: change.newText
+                            _cursor:  {_column: cursor.column, _row: cursor.row}
+                          #   cursor: (@getBuffer().characterIndexForPosition(x) for x in @.getCursorBufferPositions()) #for multiple cursors
+                        diffs.push diff
+                if diffs.length > 0
+                    @codeEditor.pushDiffs diffs
+                for action in @afterCodeChanged
+                    action()
+                @afterCodeChanged = []
+
+        forceStopChanging: (action) =>
+            @afterCodeChanged.push action
+            @getBuffer().scheduleDidStopChangingEvent()
+
         handleCopy: (e) =>
             e.preventDefault()
             e.stopImmediatePropagation()
-            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans(true))
+            @forceStopChanging =>
+                @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans(true))
 
         handleCut: (e) =>
-            @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans(true))
+            @forceStopChanging =>
+                @codeEditor.pushInternalEvent(tag: "Copy", _path: @uri, _selections: @spans(true))
 
         handlePaste: (e) =>
-            cbd = atom.clipboard.readWithMetadata()
-            cbdData = []
-            if cbd.metadata? && cbd.metadata.selections?
-                for x in cbd.metadata.selections
-                    cbdData.push(x.text)
-            else
-                cbdData[0] = cbd.text
             e.preventDefault()
             e.stopImmediatePropagation()
-            @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
+            @forceStopChanging =>
+                cbd = atom.clipboard.readWithMetadata()
+                cbdData = []
+                if cbd.metadata? && cbd.metadata.selections?
+                    for x in cbd.metadata.selections
+                        cbdData.push(x.text)
+                else
+                    cbdData[0] = cbd.text
+                @codeEditor.pushInternalEvent(tag: "Paste", _selections: @spans(), _content: cbdData)
 
         handleSave: (e) =>
-            @setModified(false)
             e.preventDefault()
             e.stopImmediatePropagation()
-            @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
-            oldPath = atom.project.getPaths()[0]
-            @projects.temporaryProjectSave (newPath) =>
-                @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newPath)
+            @forceStopChanging =>
+                @setModified(false)
+                @codeEditor.pushInternalEvent(tag: "SaveFile", _path: @uri)
+                oldPath = atom.project.getPaths()[0]
+                @projects.temporaryProjectSave (newPath) =>
+                    @codeEditor.pushInternalEvent(tag: 'MoveProject', _oldPath : oldPath, _newPath: newPath)
 
         insertCode: (uri, diffs) =>
             if @uri == uri
