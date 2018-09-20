@@ -14,7 +14,7 @@ module LunaStudio.Data.NodeSearcher
     , entryType
     , weight
     , score
-    , match
+    , charsMatch
     , exactMatch
     , className
     , importName
@@ -31,8 +31,8 @@ import           Data.Set         (Set)
 import qualified Data.Set         as Set
 import           Data.Text        (Text)
 import           FuzzyText        (ClassName, EntryType (..), ImportInfo (ImportInfo), ImportName, Match (..), Query, Range, RawEntry (..),
-                                   Score, className, doc, entryType, exactMatch, fuzzySearch, importInfo, importName, imported, match, name,
-                                   score, weight)
+                                   Score, charsMatch, className, doc, entryType, exactMatch, fuzzySearch, importInfo, importName, imported,
+                                   name, score, weight)
 import           Prologue         hiding (Item)
 
 type Name = Text

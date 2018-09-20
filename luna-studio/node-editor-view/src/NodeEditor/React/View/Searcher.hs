@@ -113,7 +113,7 @@ highlighted_ result = prefixElem >> highlighted_' 0 highlights where
     prefixElem = span_ [ "className" $= Style.prefix "searcher__pre"
                        , "key"       $= "searcherPre"]
                        $ elemString $ if prefix == "" then prefix else prefix <> " . "
-    highlights = result ^. NS.match
+    highlights = result ^. NS.charsMatch
     name'      = convert $ result ^. NS.name
     highlighted_' :: Int -> [Range] -> ReactElementM ViewEventHandler ()
     highlighted_' omit [] = span_ [ "key" $= "l" ] $ elemString $ snd $ splitAt omit name'
