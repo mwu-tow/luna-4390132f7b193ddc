@@ -89,7 +89,6 @@ import OCI.IR.Term.Class (Term, Terms)
 import Foreign.Info.ByteSize (ByteSize)
 import Foreign.Memory.Pool (MemPool)
 import qualified Luna.IR.Term.Core as Ast
-import qualified Data.Set.Mutable.Class     as MutableSet
 import qualified Luna.IR.Term.Literal as Ast
 import qualified Luna.IR.Term.Ast.Class as Ast
 import Data.Graph.Data.Component.Class (Component)

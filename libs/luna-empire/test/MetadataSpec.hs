@@ -17,6 +17,7 @@ import qualified Data.Map                         as Map
 import           Data.Reflection                  (Given (..), give)
 import qualified Data.Set                         as Set
 import qualified Data.Text                        as Text
+import qualified Data.Text.IO                     as Text
 import           Data.Text.Span                   (LeftSpacedSpan (..), SpacedSpan (..))
 import           Empire.ASTOp                     (runASTOp)
 import qualified Empire.ASTOps.Parse              as ASTParse
@@ -31,7 +32,7 @@ import           Empire.Data.AST                  (SomeASTException)
 import qualified Empire.Data.BreadcrumbHierarchy  as BH
 import qualified Empire.Data.Graph                as Graph (breadcrumbHierarchy, clsClass, clsFuns, code, codeMarkers, fileOffset)
 import           Empire.Empire                    (CommunicationEnv (..), Empire)
-import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
 -- import qualified Luna.Syntax.Text.Parser.Parser   as Parser (ReparsingChange (..), ReparsingStatus (..))
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem (Definition))
 import qualified LunaStudio.Data.Graph            as Graph
@@ -251,11 +252,9 @@ spec = around withChannels $ parallel $ do
                 [Just c, Just bar] <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
                     mapM Graph.getNodeIdForMarker [2,3]
                 Graph.prepareCopy (loc |>= main ^. Node.nodeId) [c, bar]
-            code `shouldStartWith` [r|«2»c = 4.0
+            code `shouldStartWith` [r|c = 4.0
 
-«3»bar = foo 8.0 c
-
-### META |]
+bar = foo 8.0 c|]
         it "copies lambda with metadata" $ \env -> do
             code <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -266,16 +265,14 @@ spec = around withChannels $ parallel $ do
                 Just foo <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
                     Graph.getNodeIdForMarker 1
                 Graph.prepareCopy (loc |>= main ^. Node.nodeId) [foo]
-            code `shouldStartWith` [r|«1»foo = a: b:
-    «4»lala = 17.0
-    «11»buzz = x: y:
-        «9»x * y
-    «5»pi = 3.14
-    «6»n = buzz a lala
-    «7»m = buzz b pi
-    «8»m + n
-
-### META|]
+            code `shouldStartWith` [r|foo = a: b:
+        lala = 17.0
+        buzz = x: y:
+            x * y
+        pi = 3.14
+        n = buzz a lala
+        m = buzz b pi
+        m + n|]
         it "copies top level node" $ \env -> do
             code <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -284,35 +281,35 @@ spec = around withChannels $ parallel $ do
                 nodes <- Graph.getNodes loc
                 let Just main = find (\n -> n ^. Node.name == Just "main") nodes
                 Graph.prepareCopy loc [main ^. Node.nodeId]
-            code `shouldStartWith` [r|«13»def main:
-    «0»pi = 3.14
-    «1»foo = a: b:
-        «4»lala = 17.0
-        «11»buzz = x: y:
-            «9»x * y
-        «5»pi = 3.14
-        «6»n = buzz a lala
-        «7»m = buzz b pi
-        «8»m + n
-    «2»c = 4.0
-    «3»bar = foo 8.0 c|]
+            code `shouldStartWith` [r|def main:
+    pi = 3.14
+    foo = a: b:
+        lala = 17.0
+        buzz = x: y:
+            x * y
+        pi = 3.14
+        n = buzz a lala
+        m = buzz b pi
+        m + n
+    c = 4.0
+    bar = foo 8.0 c|]
         it "pastes top level node" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc oneNode
                 Graph.paste loc (Position.fromTuple (-10,0)) [r|def bar:
-    «0»pi = 3.14
-    «1»foo = a: b:
-        «4»lala = 17.0
-        «11»buzz = x: y:
-            «9»x * y
-        «5»pi = 3.14
-        «6»n = buzz a lala
-        «7»m = buzz b pi
-        «8»m + n
-    «2»c = 4.0
-    «3»bar = foo 8.0 c|]
+    pi = 3.14
+    foo = a: b:
+        lala = 17.0
+        buzz = x: y:
+            x * y
+        pi = 3.14
+        n = buzz a lala
+        m = buzz b pi
+        m + n
+    c = 4.0
+    bar = foo 8.0 c|]
                 nodes <- Graph.getNodes loc
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
@@ -328,7 +325,6 @@ spec = around withChannels $ parallel $ do
         «11»m + n
     «12»c = 4.0
     «13»bar = foo 8.0 c
-
 «1»def main:
     «0»pi = 3.14
     None
@@ -342,11 +338,11 @@ spec = around withChannels $ parallel $ do
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc oneNode
                 Graph.paste loc (Position.fromTuple (-10,0)) [r|def bar:
-    «0»pi = 3.14
+    pi = 3.14
 
-    «2»c = 4.0
+    c = 4.0
 
-    «3»bar = foo 8.0 c|]
+    bar = foo 8.0 c|]
                 nodes <- Graph.getNodes loc
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
@@ -356,7 +352,6 @@ spec = around withChannels $ parallel $ do
     «4»c = 4.0
 
     «5»bar = foo 8.0 c
-
 «1»def main:
     «0»pi = 3.14
     None
@@ -384,7 +379,6 @@ def bar:
                 return (nodes, Text.unpack code)
             map (view Node.name) nodes `shouldMatchList` [Just "main"]
             code `shouldStartWith` [r|
-
 «1»def main:
     «0»pi = 3.14
     None
@@ -413,13 +407,11 @@ def bar:
                 return (nodes, Text.unpack code)
             map (view Node.name) nodes `shouldMatchList` [Just "foo", Just "bar", Just "main"]
             code `shouldStartWith` [r|
+«2»def foo:
+    «4»5
 
-«6»def foo:
-    «7»5
-
-«8»def bar:
-    «9»"bar"
-
+«3»def bar:
+    «5»"bar"
 «1»def main:
     «0»pi = 3.14
     None
@@ -431,9 +423,9 @@ def bar:
                 Graph.loadCode loc oneNode
                 nodes <- Graph.getNodes loc
                 let Just main = find (\n -> n ^. Node.name == Just "main") nodes
-                Graph.paste (loc |>= main ^. Node.nodeId) (Position.fromTuple (200,0)) [r|«2»c = 4.0
-
-«3»bar = foo 8.0 c|]
+                Graph.paste (loc |>= main ^. Node.nodeId) (Position.fromTuple (200,0)) [r|c = 4.0
+    bar = foo 8.0 c|]
+                Graph.substituteCode "TestPath" [(30, 30, "    ")]
                 nodes <- Graph.getNodes (loc |>= main ^. Node.nodeId)
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
@@ -457,7 +449,9 @@ def bar:
                 (Just c, Just bar) <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
                     (,) <$> Graph.getNodeIdForMarker 2 <*> Graph.getNodeIdForMarker 14
                 copy  <- Graph.prepareCopy (loc |>= main ^. Node.nodeId) [c, bar]
-                Graph.paste (loc |>= main ^. Node.nodeId) (Position.fromTuple (200,0)) copy
+                Graph.paste (loc |>= main ^. Node.nodeId) (Position.fromTuple (400,0)) copy
+                Graph.substituteCode "TestPath" [(225, 225, "    ")]
+                Graph.substituteCode "TestPath" [(242, 242, "    ")]
                 code  <- Graph.withUnit loc $ use Graph.code
                 (newC, newBar) <- Graph.withGraph (loc |>= main ^. Node.nodeId) $ runASTOp $ do
                     (Just c, Just bar) <- (,) <$> Graph.getNodeIdForMarker 19 <*> Graph.getNodeIdForMarker 20
@@ -477,8 +471,9 @@ def bar:
     «2»c = 4.0
     «19»c = 4.0
 
-    «14»bar = foo 8.0 c
     «20»bar = foo 8.0 c
+
+    «14»bar = foo 8.0 c
     «17»node1 = BogusConstructorForParser
     «16»node2 = primWaitForProcess node1
 |]
@@ -503,6 +498,15 @@ def bar:
     «7»m = buzz b pi
     «8»m + n
 |]
+                Graph.substituteCode "TestPath" [ (141, 141, "    ")
+                                                , (123, 123, "    ")
+                                                , (103, 103, "    ")
+                                                , (89, 89, "    ")
+                                                , (75, 75, "    ")
+                                                , (58, 58, "    ")
+                                                , (42, 42, "    ")
+                                                , (30, 30, "    ")
+                                                ]
                 nodes <- Graph.getNodes (loc |>= main ^. Node.nodeId)
                 code  <- Graph.withUnit loc $ use Graph.code
                 return (nodes, Text.unpack code)
@@ -518,6 +522,7 @@ def bar:
         «7»n = buzz a lala
         «8»m = buzz b pi
         «9»m + n
+
     None
 |]
         it "substitutes function body" $ \env -> do

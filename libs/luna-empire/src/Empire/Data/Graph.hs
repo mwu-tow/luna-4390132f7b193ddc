@@ -28,7 +28,7 @@ import qualified Luna.Pass                         as Pass
 import qualified Luna.Pass.Attr                    as Attr
 import           Luna.Pass.Data.Stage              (Stage)
 import           Luna.Syntax.Text.Parser.State.Marker (ID)
-import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
 
 import           LunaStudio.Data.Node              (NodeId)
 import           LunaStudio.Data.NodeCache

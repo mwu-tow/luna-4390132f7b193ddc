@@ -3,6 +3,7 @@ module Empire.ASTOps.Builder where
 import           Control.Monad                      (foldM, replicateM, zipWithM_)
 import           Data.Maybe                         (isNothing, listToMaybe)
 import qualified Data.Text                          as Text
+import qualified Data.Text.IO                       as Text
 import           Empire.Prelude
 import qualified Safe
 
@@ -26,6 +27,7 @@ import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import           Data.Text.Position      (Delta)
 
 import qualified Luna.IR as IR
+import qualified Luna.IR.Term.Ast.Invalid as IR
 
 
 apps :: Expr f -> [NodeRef] -> GraphOp NodeRef
@@ -72,12 +74,14 @@ countArguments expr = matchExpr expr $ \case
     LeftSection  f _ -> return 2
     RightSection f _ -> return 1
     Grouped      g   -> countArguments =<< source g
+    Acc          t n -> countArguments =<< source n
     _                -> return 0
 
 getArgumentOf :: NodeRef -> Delta -> GraphOp (EdgeRef, Delta)
 getArgumentOf fun beg = matchExpr fun $ \case
     App f a -> do
         off <- Code.getOffsetRelativeToTarget $ coerce a
+        -- print off
         return (coerce a, beg + off)
     LeftSection f a -> do
         off <- Code.getOffsetRelativeToTarget $ coerce a
@@ -109,6 +113,9 @@ getOrCreateArgument currentFun codeBegin currentArgument neededArgument
                 arg  <- return (Safe.atMay l neededArgument) <?!> TupleElementOutOfBoundsException fun neededArgument
                 foff <- Code.getOffsetRelativeToTarget $ coerce arg
                 return (coerce arg, codeBegin + foff)
+            Acc t n -> do
+                foff <- Code.getOffsetRelativeToTarget (coerce n)
+                getOrCreateArgument (coerce n) (codeBegin + foff) currentArgument neededArgument
             Grouped g -> do
                 foff <- Code.getOffsetRelativeToTarget (coerce g)
                 getOrCreateArgument (coerce g) (codeBegin + foff) currentArgument neededArgument
@@ -302,7 +309,11 @@ ensureHasSelf e beg = source e >>= flip matchExpr `id` \case
         let n = convertVia @String n'
         bl <- IR.blank
         putLayer @SpanLength bl 1
-        ac <- generalize <$> IR.acc bl n'
+        v <- IR.var n'
+        putLayer @SpanLength v $ fromIntegral $ Text.length n
+        ac <- generalize <$> IR.acc bl v
+        matchExpr ac $ \case
+            Acc _ nm -> putLayer @SpanOffset nm $ fromIntegral $ Text.length " . "
         putLayer @SpanLength ac (4 + fromIntegral (Text.length n))
         oldTgt <- source e
         replaceSource ac $ coerce e
@@ -313,19 +324,44 @@ ensureHasSelf e beg = source e >>= flip matchExpr `id` \case
     LeftSection f a -> do
         bl    <- IR.blank
         putLayer @SpanLength bl 1
-        name  <- ASTRead.getVarName =<< source f
-        ac    <- IR.acc bl (stringToName name)
-        putLayer @SpanLength ac (2 + fromIntegral (length name))
+        name  <- ASTRead.getVarName' =<< source f
+        v     <- IR.var name
+        ac    <- IR.acc bl v
+        putLayer @SpanLength ac (2 + fromIntegral (length $ nameToString name))
         a'    <- source a
         app   <- generalize <$> IR.app ac a'
         aSpan <- getLayer @SpanLength a'
-        putLayer @SpanLength app (2 + fromIntegral (length name) + aSpan)
+        putLayer @SpanLength app (2 + fromIntegral (length $ nameToString name) + aSpan)
         oldTarget <- source e
         replaceSource app $ coerce e
         deleteSubtree oldTarget
         Code.insertAt beg "_."
         Code.gossipLengthsChangedBy 2 =<< target e
     _ -> throwM . SelfPortNotExistantException =<< source e
+
+ensureFunctionIsValid :: GraphOp ()
+ensureFunctionIsValid = do
+    self <- ASTRead.cutThroughDocAndMarked =<< use (Graph.breadcrumbHierarchy . BH.self)
+    match self $ \case
+        ASGFunction n as b -> do
+            section' <- source b >>= \a -> matchExpr a $ \case
+                Invalid IR.MissingSection  -> return $ Just ":\n    None"
+                Invalid IR.EmptyExpression -> return $ Just "\n    None"
+                Invalid a                  -> error ("ensureFunctionIsValid: " 
+                                                    <> show a)
+                _                          -> return Nothing
+            forM_ section' $ \section -> do
+                ir <- IR.cons "None" []
+                putLayer @SpanLength ir $ fromIntegral $ length ("None" :: String)
+                Just foo <- Code.getOffsetRelativeToFile self
+                len <- getLayer @SpanLength self
+                Code.applyDiff (foo+len) (foo+len) section
+                IR.replace ir =<< source b
+                matchExpr self $ \case
+                    ASGFunction _ _ b -> putLayer @SpanOffset b $
+                        fromIntegral $ length (":\n    " :: String)
+        _ -> return ()
+
 
 makeAccessor :: NodeRef -> EdgeRef -> Delta -> GraphOp ()
 makeAccessor target naming exprBegin = do
@@ -450,13 +486,12 @@ removeAccessor ed beg = do
         Acc t n -> do
             off <- Code.getOffsetRelativeToTarget $ coerce t
             length <- getLayer @SpanLength expr
-            v      <- generalize <$> IR.var n
-            let n' = convertVia @String n
-            putLayer @SpanLength v $ fromIntegral $ Text.length n'
-            Code.applyDiff beg (beg + length) n'
-            replaceSource v $ coerce ed
+            acc <- source n
+            accCode <- Code.getCodeOf =<< source n
+            Code.applyDiff beg (beg + length) accCode
+            replaceSource acc $ coerce ed
             deleteSubtree expr
-            Code.gossipLengthsChangedBy (fromIntegral (Text.length n') - length) =<< target ed
+            Code.gossipLengthsChangedBy (fromIntegral (Text.length accCode) - length) =<< target ed
         Grouped g -> do
             off <- Code.getOffsetRelativeToTarget (coerce g)
             removeAccessor (coerce g) (beg + off)

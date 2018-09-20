@@ -23,12 +23,13 @@ import           EmpireUtils
 spec :: Spec
 spec = around withChannels $ parallel $ do
     describe "parser" $ do
-        it "shows error on parse error" $ \env -> do
+        it "parses garbage" $ \env -> do
             u1 <- mkUUID
-            let res = evalEmp env $ Graph.addNode top u1 ")()#%&&@^#&$....1foo0x3r2" def
+            let garbage = ")()%&&@^&$....1foo0x3r2"
+            res <- evalEmp env $ Graph.addNode top u1 garbage def
             let parserException :: Selector SomeParserException
                 parserException = const True
-            res `shouldThrow` parserException
+            withResult res $ \s -> s ^. Node.code `shouldBe` garbage
         it "parses 123" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ Graph.addNode top u1 "123" def

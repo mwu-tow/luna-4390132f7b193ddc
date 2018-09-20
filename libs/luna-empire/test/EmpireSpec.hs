@@ -3,10 +3,15 @@
 
 module EmpireSpec (spec) where
 
+import           Control.Exception.Safe          (finally)
 import           Control.Lens                    ((^..))
+import           Data.Char                       (isSpace)
 import           Data.Foldable                   (toList)
+import qualified Data.Graph.Store                as Store
 import           Data.List                       (find, stripPrefix)
+import           Data.List                       (dropWhileEnd, find, minimum, maximum)
 import qualified Data.Map                        as Map
+import qualified Data.Text                       as Text
 import           Empire.ASTOp                    (runASTOp)
 import qualified Empire.ASTOps.Builder           as ASTBuilder
 import qualified Empire.ASTOps.Deconstruct       as ASTDeconstruct
@@ -18,7 +23,7 @@ import qualified Empire.Commands.AST             as AST (isTrivialLambda)
 import qualified Empire.Commands.Graph           as Graph (addNode, addPort, connect, disconnect, getConnections, getGraph,
                                                            getNodeIdForMarker, getNodes, loadCode, movePort, removeNodes, removePort,
                                                            renameNode, renamePort, setNodeExpression, setNodeMeta, withGraph,
-                                                           addPortWithConnections)
+                                                           addPortWithConnections, withUnit)
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import           Empire.Commands.Library         (createLibrary, withLibrary)
 import qualified Empire.Commands.Typecheck       as Typecheck (run)
@@ -26,12 +31,14 @@ import qualified Empire.Data.AST                 as AST
 import           Empire.Data.BreadcrumbHierarchy (BreadcrumbDoesNotExistException)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Data.Graph               (breadcrumbHierarchy, userState)
-import qualified Empire.Data.Graph               as Graph (code)
-import qualified Empire.Data.Library             as Library (body)
+import qualified Empire.Data.Graph               as Graph hiding (Graph)
 import qualified Empire.Data.Library             as Library (body)
 -- import qualified Luna.Builtin.Data.Class         as Class
 -- import qualified Luna.Builtin.Data.Function      as Function
 import           Empire.Empire                   (InterpreterEnv (..))
+import qualified Language.Haskell.TH             as TH
+import qualified Luna.Package.Structure.Generate as Package
+import qualified Luna.Package.Structure.Name     as Project
 import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
 import           LunaStudio.Data.Connection      (Connection (Connection))
 import qualified LunaStudio.Data.Graph           as Graph
@@ -51,12 +58,22 @@ import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar, TVar))
 -- import           OCI.IR.Class                    (exprs, links)
 import           Empire.Prelude                  hiding (mapping, toList, (|>))
+import           Text.RawString.QQ                     (r)
+import           System.Directory                (canonicalizePath, getCurrentDirectory)
+import           System.Environment              (lookupEnv, setEnv)
+import           System.FilePath                 ((</>), takeDirectory)
+import qualified System.IO.Temp                  as Temp
 
 import           Test.Hspec                      (Selector, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
                                                   shouldContain, shouldMatchList, shouldNotBe, shouldSatisfy, shouldStartWith, shouldThrow,
                                                   xdescribe, xit)
 
 import           EmpireUtils
+
+normalizeQQ :: String -> String
+normalizeQQ str = dropWhileEnd isSpace $ intercalate "\n" $ fmap (drop minWs) allLines where
+    allLines = dropWhile null $ dropWhileEnd isSpace <$> lines str
+    minWs    = minimum $ length . takeWhile isSpace <$> (filter (not.null) allLines)
 
 spec :: Spec
 spec = around withChannels $ parallel $ do
@@ -339,27 +356,56 @@ spec = around withChannels $ parallel $ do
                         {-outputType = map (view Port.valueType) outPorts'-}
                     {-inputType  `shouldBe` [TCons "Int" []]-}
                     {-outputType `shouldBe` [TCons "Int" []]-}
-        {-xit "properly typechecks second id in `mock id -> mock id`" $ \env -> do-}
-            {-u1 <- mkUUID-}
-            {-u2 <- mkUUID-}
-            {-(res, st) <- runEmp env $ do-}
-                {-Graph.addNode top u1 "id" def-}
-                {-Graph.addNode top u2 "id" def-}
-                {-connectToInput top (outPortRef u1 Port.All) (inPortRef u2 (Port.Arg 0))-}
-                {-let GraphLocation file _ = top-}
-                {-withLibrary file (use Library.body)-}
-            {-withResult res $ \g -> do-}
-                {-(_, (extractGraph -> g')) <- runEmpire env (InterpreterEnv def def def g def) $-}
-                    {-Typecheck.run emptyGraphLocation-}
-                {-(res'',_) <- runEmp' env st g' $ do-}
-                    {-Graph.withGraph top $ runASTOp $ (,) <$> GraphBuilder.buildNode u1 <*> GraphBuilder.buildNode u2-}
-                {-withResult res'' $ \(n1, n2) -> do-}
-                    {-inputPorts n2 `shouldMatchList` [-}
-                          {-Port.Port (Port.InPortId (Port.Arg 0)) "in" (TLam (TVar "a") (TVar "a")) Port.Connected-}
-                        {-]-}
-                    {-outputPorts n1 `shouldMatchList` [-}
-                          {-Port.Port (Port.OutPortId Port.All) "Output" (TLam (TVar "a") (TVar "a")) (Port.WithDefault (Expression "in: in"))-}
-                        {-]-}
+        xit "properly typechecks second id in `mock id -> mock id`" $ \env -> do
+            Temp.withSystemTempDirectory "luna-empirespec" $ \path -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                (res, st) <- runEmp env $ do
+                    Right pkgPath <- Package.genPackageStructure (path </> "MockId") Nothing def
+                    let mainLuna = pkgPath </> "src" </> "Main.luna"
+                    createLibrary Nothing mainLuna
+                    let loc = GraphLocation mainLuna $ Breadcrumb []
+                    let initialCode = [r|
+                            import Std.Base
+
+                            def main:
+                                None
+                            |]
+                    let normalize = Text.pack . normalizeQQ . Text.unpack
+                    Graph.loadCode loc $ normalize initialCode
+                    [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
+                    let loc' = GraphLocation mainLuna $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                    Graph.addNode loc' u1 "id" def
+                    Graph.addNode loc' u2 "id" def
+                    connectToInput loc' (outPortRef u1 []) (inPortRef u2 [Port.Arg 0])
+                    Graph.withUnit (GraphLocation mainLuna def) $ do
+                        g <- use userState
+                        let root = g ^. Graph.clsClass
+                        rooted <- runASTOp $ Store.serializeWithRedirectMap root
+                        return (loc', g, rooted)
+                withResult res $ \(top, g, rooted) -> liftIO $ do
+                    let thisFilePath = $(do
+                            dir <- TH.runIO getCurrentDirectory
+                            filename <- TH.loc_filename <$> TH.location
+                            TH.litE $ TH.stringL $ dir </> filename)
+                    lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
+                    oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
+                    flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
+                        setEnv Project.lunaRootEnv lunaroot
+                        pmState <- Graph.defaultPMState
+                        let interpreterEnv = InterpreterEnv (return ()) g [] def def def
+                        (_, (extractGraph -> g')) <- runEmpire env (Graph.CommandState pmState interpreterEnv) $
+                            Typecheck.run top g rooted False False
+                        (res'',_) <- runEmp' env st g' $ do
+                            Graph.withGraph top $ runASTOp $ (,) <$> GraphBuilder.buildNode u1 <*> GraphBuilder.buildNode u2
+                    -- withResult res'' $ \(n1, n2) -> do
+                    --     view Node.inPorts n2 `shouldMatchList` [
+                    --           Port.Port [Port.Arg 0] "in" (TLam (TVar "a") (TVar "a")) Port.Connected
+                    --         ]
+                    --     view Node.outPorts n1 `shouldMatchList` [
+                    --           Port.Port [] "Output" (TLam (TVar "a") (TVar "a")) (Port.WithDefault (Expression "in: in"))
+                    --         ]
+                        return ()
         it "puts + inside plus lambda" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -681,11 +727,12 @@ spec = around withChannels $ parallel $ do
                 node ^. Node.nodeId     `shouldBe` u1
                 node ^. Node.canEnter   `shouldBe` True
                 nodes `shouldSatisfy` ((== 1) . length)
-        it "does not allow to change expression to assignment" $ \env -> do
+        xit "does not allow to change expression to assignment" $ \env -> do
             u1 <- mkUUID
             let res = evalEmp env $ do
                     Graph.addNode top u1 "1" def
                     Graph.setNodeExpression top u1 "foo = a: a"
+                    Graph.withGraph top $ runASTOp $ GraphBuilder.buildNode u1
             let parserException :: Selector Parser.SomeParserException
                 parserException = const True
             res `shouldThrow` parserException

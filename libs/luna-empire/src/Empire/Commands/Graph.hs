@@ -28,7 +28,6 @@ import           Data.Maybe                       (fromMaybe, maybeToList)
 import qualified Data.Mutable.Class               as Mutable
 import           Data.Set                         (Set)
 import qualified Data.Set                         as Set
-import qualified Data.Set.Mutable.Class           as MutableSet
 import           Data.Text                        (Text)
 import           Data.Text.Strict.Lens            (packed)
 import qualified Data.Text                        as Text
@@ -37,6 +36,7 @@ import qualified Data.Text.Lazy                   as TL
 import qualified Data.Text.IO                     as Text
 import           Data.Text.Position               (Delta)
 import           Data.Text.Span                   (SpacedSpan (..), leftSpacedSpan)
+import qualified Data.Text.Span                   as Span
 import qualified Data.UUID.V4                     as UUID (nextRandom)
 import qualified Data.Vector.Storable.Foreign     as Foreign
 import           Debug
@@ -82,8 +82,8 @@ import qualified Luna.Std                         as Std
 import           Luna.Syntax.Text.Analysis.SpanTree (Spanned(..))
 import qualified Luna.Syntax.Text.Analysis.SpanTree as SpanTree
 import qualified Luna.Syntax.Text.Lexer           as Lexer
-import           Luna.Syntax.Text.Parser.Data.CodeSpan (CodeSpan)
-import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
 import           Luna.Syntax.Text.Parser.State.Marker (TermMap(..))
 import qualified LunaStudio.API.Control.Interpreter as Interpreter
 import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem, Named)
@@ -218,8 +218,11 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
     (name, markedFunction, markedCode) <- runASTOp $ do
         name <- ASTRead.cutThroughDocAndMarked parse >>= \x -> matchExpr x $ \case
             ASGFunction n _ _ -> do
-                name <- ASTRead.getVarName' =<< source n
+                name <- handle
+                    (\(_e::ASTRead.InvalidNameException) -> return "") $
+                        ASTRead.getVarName' =<< source n
                 return $ nameToString name
+            a -> error (show a <> " " <> convert expr)
         index  <- getNextTopLevelMarker
         marker <- IR.marker index
         let markerText = Code.makeMarker index
@@ -258,8 +261,9 @@ addFunNode loc parsing uuid expr meta = withUnit loc $ do
 addNodeNoTC :: GraphLocation -> NodeId -> Text -> Maybe Text -> NodeMeta -> Command Graph ExpressionNode
 addNodeNoTC loc uuid input name meta = do
     let propInput = Text.strip input
-    parse <- ASTParse.parseInlineExpr propInput
+    parse <- ASTParse.parseExpr propInput
     expr <- runASTOp $ do
+        ASTBuilder.ensureFunctionIsValid
         Code.propagateLengths parse
         (parsedNode, newName) <- AST.addNode uuid name (generateNodeName parse) parse
         index        <- getNextExprMarker
@@ -848,7 +852,7 @@ getPortDefault loc (InPortRef (NodeLoc _ nodeId) [])          = withGraph loc $ 
 setPortDefault :: GraphLocation -> InPortRef -> Maybe PortDefault -> Empire ()
 setPortDefault loc (InPortRef (NodeLoc _ nodeId) port) (Just val) = do
     withTC loc False $ do
-        parsed <- runASTOp $ ASTParse.parsePortDefault val
+        parsed <- ASTParse.parsePortDefault val
         runAliasAnalysis
         runASTOp $ case port of
             [] -> makeWhole parsed nodeId
@@ -925,14 +929,13 @@ renameNode loc nid name
         withGraph (GraphLocation f (Breadcrumb [Breadcrumb.Definition nid])) $ runASTOp $ do
             self <- use $ Graph.breadcrumbHierarchy . BH.self
             v    <- ASTRead.getVarNode self
-            ASTModify.renameVar v $ convert stripped
             Code.replaceAllUses v stripped
         resendCode loc
     | otherwise = do
         withTC loc False $ do
+            _        <- ASTParse.runProperPatternParser name
+            pat      <- ASTParse.parsePattern name
             runASTOp $ do
-                _        <- liftIO $ ASTParse.runProperPatternParser name
-                pat      <- liftIO $ ASTParse.parsePattern name
                 Code.propagateLengths pat
                 ASTBuilder.ensureNodeHasName generateNodeName nid
                 ref      <- ASTRead.getASTPointer nid
@@ -1015,7 +1018,7 @@ substituteCodeFromPoints path (breakDiffs -> diffs) = do
                 _                 -> (0, fromIntegral (Text.length noMarkers), code))
                         diffs
             viewToReal c = case Text.uncons c of
-                Nothing        -> Code.viewDeltasToReal
+                Nothing        -> Code.viewDeltasToRealBeforeMarker
                 Just (char, _) -> if isSpace char then Code.viewDeltasToRealBeforeMarker else Code.viewDeltasToReal
             realDeltas   = map (\(a,b,c) -> let (a', b') = (viewToReal c) oldCode (a,b) in (a', b', c)) deltas
         return realDeltas
@@ -1552,23 +1555,17 @@ prepareCopy loc@(GraphLocation _ (Breadcrumb [])) nodeIds = withUnit loc $ do
             forM refs $ \ref -> do
                 LeftSpacedSpan (SpacedSpan _off len) <- view CodeSpan.realSpan <$> getLayer @CodeSpan ref
                 return $ fromIntegral len
-        codes <- mapM (\(start, len) -> Code.getAt start (start + len)) $ zip starts lengths
+        codes <- mapM
+            (\(start, len) -> Code.removeMarkers <$> Code.getAt start (start + len)) $
+            zip starts lengths
         return $ Text.intercalate "\n\n" codes
     return $ Text.unpack clipboard
 prepareCopy loc nodeIds = withGraph loc $ do
-    codesWithMeta <- runASTOp $ forM nodeIds $ \nid -> do
-        ref     <- ASTRead.getASTRef nid
-        code    <- Code.getCodeWithIndentOf ref
-        indent' <- Code.getCurrentIndentationLength
-        let unindentedCode = unindent (fromIntegral indent') code
-        metasWithMarkers   <- extractMarkedMetasAndIds ref
-        return (unindentedCode, metasWithMarkers)
-    let code   = Text.unlines $ map fst codesWithMeta
-        metas' = [ MarkerNodeMeta marker' meta' | (marker', (Just meta', _)) <- concat (map snd codesWithMeta) ]
-        meta'  = FileMetadata metas'
-        metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) meta'
-        metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
-    return $ Text.unpack $ Text.concat [code, metadataJSONWithHeader]
+    codes <- runASTOp $ forM nodeIds $ \nid -> do
+        ref     <- ASTRead.getASTPointer nid
+        code    <- Code.removeMarkers <$> Code.getCodeOf ref
+        return code
+    return $ Text.unpack $ Text.intercalate "\n\n" codes
 
 moveToOrigin :: [MarkerNodeMeta] -> [MarkerNodeMeta]
 moveToOrigin metas' = map (\(MarkerNodeMeta m me) -> MarkerNodeMeta m (me & NodeMeta.position %~ Position.move (coerce (Position.rescale leftTopCorner (-1))))) metas'
@@ -1596,44 +1593,45 @@ exprBreaker (l:ls) bs = go [l] ls bs
 
 paste :: GraphLocation -> Position -> String -> Empire ()
 paste loc@(GraphLocation file (Breadcrumb [])) position (Text.pack -> code) = do
-    let funs = map (Text.stripEnd . Text.unlines)
-             $ Split.split (Split.dropInitBlank $ Split.keepDelimsL $ Split.whenElt (\a -> maybe False (not . isSeparator . fst) $ Text.uncons a))
-             $ Text.lines
-             $ Code.removeMarkers code
-        gaps = [0, gapBetweenNodes..]
-    uuids <- forM (zip funs gaps) $ \(fun, gap) -> do
-        uuid <- liftIO UUID.nextRandom
-        let meta' = set NodeMeta.position (Position.move (coerce $ Position.fromTuple (gap, 0)) position) def
-        addFunNode loc ParseAsIs uuid fun meta'
-        return uuid
-    forM_ uuids $ \uuid -> autolayout (GraphLocation file (Breadcrumb [Breadcrumb.Definition uuid]))
+    newCode <- withUnit loc $ runASTOp $ do
+        unit  <- use Graph.clsClass
+        funs  <- ASTRead.classFunctions unit
+        funStarts <- forM funs $ \fun -> do
+            xFun <- view (NodeMeta.position . Position.x) <$> (fromMaybe def <$> AST.readMeta fun)
+            if xFun < position ^. Position.x then return Nothing else do
+                funStart <- Code.functionBlockStartRef fun
+                return $ Just funStart
+        let cleanCode = Code.removeMarkers code
+        let spacedCode = cleanCode <> "\n"
+        case Safe.headMay (catMaybes funStarts) of
+            Just codePosition -> Code.applyDiff codePosition codePosition spacedCode
+            _                 -> do
+                unitSpan <- getLayer @CodeSpan unit
+                let endOfFile = view (CodeSpan.realSpan . Span.length) unitSpan
+                Code.applyDiff endOfFile endOfFile $ Text.cons '\n' cleanCode
+    reloadCode loc newCode
     resendCode loc
 paste loc position (Text.pack -> text) = do
-    let lexerStream  = Lexer.evalDefLexer (convert text)
-        (_, code)    = partition (\(Lexer.Token _ _ s) -> isJust $ Lexer.matchMetadata s) lexerStream
-        textTree     = SpanTree.buildSpanTree (convert text) code
-        withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
-        metaLine     = Text.drop (Text.length $ convert withoutMeta) text
-    withTC loc False $ do
-        fm          <- forM (Safe.headMay [metaLine]) parseMetadata
-        let metas   =  maybe [] (\(FileMetadata fm') -> moveToOrigin fm') fm
-        indentation <- fromIntegral <$> runASTOp Code.getCurrentIndentationLength
-        let exprs' = Text.lines $ convert withoutMeta
-            cut    = snd $ foldl' (\(initialIndent, acc) e -> let indent' = Text.length (Text.takeWhile isSeparator e) in (initialIndent, if indent' <= initialIndent then Break:acc else NoBreak:acc)) (Text.length (Text.takeWhile isSeparator (head exprs')), []) exprs'
-        forM (exprBreaker exprs' cut) $ \(Text.strip -> expr) -> do
-            let (marker, rest) = Text.breakOn "»" expr & both %~ Text.drop 1
-                mark           = Safe.readMay (Text.unpack marker) :: Maybe Word64
-                newMeta        = case mark of
-                    Just marker -> fromMaybe def $ fmap meta $ find (\(MarkerNodeMeta m _) -> m == marker) metas
-                    _           -> def
-                movedMeta      = newMeta & NodeMeta.position %~ Position.move (coerce position)
-                code'          = if Text.null rest then expr else rest
-                indented       = indent indentation code'
-                nodeCode       = Code.removeMarkers indented
-            when (not $ Text.null expr) $ do
-                uuid <- liftIO UUID.nextRandom
-                void $ addNodeNoTC loc uuid nodeCode Nothing movedMeta
-    autolayout loc
+    newCode <- withGraph loc $ runASTOp $ do
+        indentation <- fromIntegral <$> Code.getCurrentIndentationLength
+        oldSeq             <- ASTRead.getCurrentBody
+        nodes              <- AST.readSeq oldSeq
+        nodesAndMetas      <- mapM (\n -> (n,) <$> AST.readMeta n) nodes
+        let nodesWithMetas =  mapMaybe (\(n,m) -> (n,) <$> m) nodesAndMetas
+        nearestNode        <- findPreviousNodeInSequence oldSeq
+            (def & NodeMeta.position .~ position) nodesWithMetas
+        let text' = Code.removeMarkers text
+            code  = "\n" <> text'
+        case nearestNode of
+            Just ref -> do
+                Just beg <- Code.getAnyBeginningOf ref
+                len <- getLayer @SpanLength ref
+                Code.applyDiff (beg+len) (beg+len) code
+            _        -> do
+                beg <- Code.getCurrentBlockBeginning
+                Code.applyDiff beg beg $ text' <> "\n" <> Text.replicate indentation " "
+    reloadCode loc newCode
+    typecheck loc
     resendCode loc
 
 includeWhitespace :: Text -> (Delta, Delta) -> (Delta, Delta)
@@ -1645,29 +1643,15 @@ includeWhitespace c (s, e) = (newStart, e)
 
 copyText :: GraphLocation -> [Range] -> Empire Text
 copyText (GraphLocation file _) ranges = do
-    allMetadata <- dumpMetadata file
     withUnit (GraphLocation file (Breadcrumb [])) $ do
         oldCode <- use $ Graph.userState . Graph.code
-        let markedRanges = map (includeWhitespace oldCode . rangeToMarked oldCode) ranges
-        codes <- forM markedRanges $ uncurry Code.getAt
+        let markedRanges = map rangeToSpan ranges
+        let codeWithoutMarkers = Code.removeMarkers oldCode
+        let getAt (fromIntegral -> from) (fromIntegral -> to) = do
+                return $ Text.take (to - from) $ Text.drop from codeWithoutMarkers
+        codes <- forM markedRanges $ \(s, e) -> getAt s e
         let code                   = Text.concat codes
-            markers                = Code.extractMarkers code
-            relevantMetadata       = filter (\(MarkerNodeMeta marker _) -> marker `Set.member` markers) allMetadata
-            metadata               = FileMetadata relevantMetadata
-            metadataJSON           = (TL.toStrict . Aeson.encodeToLazyText . Aeson.toJSON) metadata
-            metadataJSONWithHeader = Lexer.mkMetadata (Text.cons ' ' metadataJSON)
-            clipboard              = Text.concat [code, metadataJSONWithHeader]
-        return clipboard
-
-remarkerSnippet :: [MarkerNodeMeta] -> Text -> ClassOp (Text, [MarkerNodeMeta])
-remarkerSnippet pastedMeta code = do
-    oldCode <- use Graph.code
-    let reservedMarkers             = Code.extractMarkers oldCode
-        (pastedCode, substitutions) = Code.remarkerCode code reservedMarkers
-        updatedMeta = mapMaybe (\(MarkerNodeMeta marker meta') -> case Map.lookup marker substitutions of
-            Just new -> Just (MarkerNodeMeta new meta')
-            Nothing -> Nothing) pastedMeta
-    return (pastedCode, updatedMeta)
+        return code
 
 rangeToSpan :: Range -> (Delta, Delta)
 rangeToSpan (Range s e) = (fromIntegral s, fromIntegral e)
@@ -1679,37 +1663,24 @@ rangeToMarked code range' = (start, end)
         (start, end) = Code.viewDeltasToRealBeforeMarker code span
 
 pasteText :: GraphLocation -> [Range] -> [Text] -> Empire Text
-pasteText (GraphLocation file _) ranges (Text.concat -> text) = do
-    let lexerStream  = Lexer.evalDefLexer (convert text)
-        (meta, code) = partition (\(Lexer.Token _ _ s) -> isJust $ Lexer.matchMetadata s) lexerStream
-        textTree     = SpanTree.buildSpanTree (convert text) code
-        withoutMeta  = SpanTree.foldlSpans (\t (Spanned _ t1) -> t <> t1) "" textTree
-        metaLine     = Text.drop (Text.length $ convert withoutMeta) text
-    (code, updatedMeta, cursors) <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-        code <- use Graph.code
-        let markedRanges   = map ({-includeWhitespace code .-} rangeToMarked code) ranges
-            rangesReversed = reverse $ sortOn (view _1) markedRanges
-        FileMetadata m <- parseMetadata metaLine
-        (updatedMetas, cursors) <- unzip <$> (runASTOp $ forM rangesReversed $ \(start, end) -> do
-            (snippet, metas) <- remarkerSnippet m $ convert withoutMeta
-            Code.applyDiff start end snippet
-            code' <- use Graph.code
-            let endPosition = start + fromIntegral (Text.length snippet)
+pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
+    res <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+        runASTOp $ forM (Safe.headMay ranges) $ \range -> do
+            code <- use Graph.code
+            let (start, end)   = rangeToMarked code range
+            let cleanText = Code.removeMarkers text
+            code' <- Code.applyDiff start end cleanText
+            let endPosition = start + fromIntegral (Text.length cleanText)
                 cursorPos   = Code.deltaToPoint endPosition code'
-            return (metas, cursorPos))
-        code           <- use Graph.code
-        return (code, concat updatedMetas, cursors)
-    reloadCode (GraphLocation file (Breadcrumb [])) code `catch` \(e::ASTParse.SomeParserException) ->
-        withUnit (GraphLocation file (Breadcrumb [])) (Graph.userState . Graph.code .= code >> Graph.userState . Graph.clsParseError ?= toException e)
-    funs <- withUnit (GraphLocation file (Breadcrumb [])) $ do
-        funs <- use $ Graph.userState . Graph.clsFuns
-        return $ Map.keys funs
-    forM funs $ \fun -> withGraph (GraphLocation file (Breadcrumb [Breadcrumb.Definition fun])) $ runASTOp $ do
-        forM updatedMeta $ \(MarkerNodeMeta marker meta) -> do
-            nodeid <- getNodeIdForMarker $ fromIntegral marker
-            forM nodeid $ \nid -> setNodeMetaGraph nid meta
-    resendCodeWithCursor (GraphLocation file (Breadcrumb [])) (Safe.lastMay cursors)
-    return code
+            return (code', cursorPos)
+    case res of
+        Just (newCode, cursorPos) -> do
+            reloadCode (GraphLocation file (Breadcrumb [])) newCode `catch` \(e::ASTParse.SomeParserException) ->
+                withUnit (GraphLocation file (Breadcrumb [])) (Graph.userState . Graph.code .= newCode >> Graph.userState . Graph.clsParseError ?= toException e)
+            typecheck loc
+            resendCodeWithCursor (GraphLocation file (Breadcrumb [])) (Just cursorPos)
+            return newCode
+        _ -> return ""
 
 nativeModuleName :: Text
 nativeModuleName = "Native"

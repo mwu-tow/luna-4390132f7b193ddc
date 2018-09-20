@@ -29,7 +29,9 @@ import           Empire.Data.AST                    (EdgeRef, NodeRef, NotLambda
 import           Empire.Data.Layers                 (SpanLength, SpanOffset)
 import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import qualified Empire.Data.Graph                  as Graph
-
+import           Data.Text.Span          (SpacedSpan(..), leftSpacedSpan)
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan, realSpan)
 import qualified Luna.IR                            as IR
 
 import qualified Data.List as L (take, head, drop, tail)
@@ -352,9 +354,23 @@ renameVar vref name = do
     var <- narrowTerm @IR.Var vref
     case var of
         Just var' -> do
-            IR.UniTermVar a <- getLayer @IR.Model var'
-            let a' = a & IR.name_Var .~ stringToName name
-            putLayer @IR.Model var' $ IR.UniTermVar a'
+            matchExpr var' $ \case
+                IR.UniTermVar a -> do
+                    let a' = a & IR.name_Var .~ stringToName name
+                    putLayer @IR.Model var' $ IR.UniTermVar a'
+                    LeftSpacedSpan (SpacedSpan off len) <-
+                        view CodeSpan.realSpan <$> getLayer @CodeSpan vref
+                    putLayer @CodeSpan vref $ CodeSpan.mkRealSpan
+                        (LeftSpacedSpan (SpacedSpan off (fromIntegral $ length name)))
+                IR.UniTermInvalid{} -> do
+                    v <- IR.var $ convert name
+                    putLayer @SpanLength v $ fromIntegral $ length name
+                    LeftSpacedSpan (SpacedSpan off len) <-
+                        view CodeSpan.realSpan <$> getLayer @CodeSpan vref
+                    putLayer @CodeSpan v $ CodeSpan.mkRealSpan
+                        (LeftSpacedSpan (SpacedSpan off (fromIntegral $ length name)))
+                    IR.replace v vref
+                    return ()
         _ -> return ()
     -- mapM_ (flip IR.modifyExprTerm $ IR.name .~ (stringToName name)) var
     -- return ()

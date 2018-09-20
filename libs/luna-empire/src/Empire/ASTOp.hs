@@ -55,8 +55,8 @@ import qualified Luna.Pass.Data.Stage        as TC
 import           Luna.Pass.Data.Root         (Root(..))
 import qualified Luna.Pass.Resolve.AliasAnalysis as AliasAnalysis
 import           Luna.Pass.Resolve.Data.UnresolvedVariables (UnresolvedVariables(..))
-import           Luna.Syntax.Text.Parser.Data.Invalid (Invalids)
-import           Luna.Syntax.Text.Parser.Data.CodeSpan (CodeSpan)
+import           Luna.Syntax.Text.Parser.State.Invalid (Invalids)
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
 import           OCI.Pass.Definition.Class   (Pass(..))
 import qualified OCI.Pass.Definition.Declaration as Pass
 import qualified OCI.Pass.Management.Scheduler as Scheduler

@@ -12,13 +12,14 @@ import           Control.Concurrent.MVar
 import           Control.Concurrent.STM          (atomically)
 import           Control.Concurrent.STM.TChan    (tryReadTChan)
 import           Control.Exception.Safe          (finally)
-import           Control.Lens                    (uses)
+import           Control.Lens                    ((^..), uses, prism)
 import           Control.Monad                   (forM)
 import           Control.Monad.Loops             (unfoldM)
 import           Control.Monad.Reader            (ask)
 import           Data.Coerce
 import           Data.Char                       (isSpace)
 import qualified Data.Graph.Data.Component.Set   as MutableSet
+import qualified Data.Graph.Store                as Store
 import           Data.List                       (dropWhileEnd, find, minimum, maximum)
 import qualified Data.Map                        as Map
 import           Data.Maybe                      (fromJust)
@@ -38,14 +39,20 @@ import qualified Empire.Commands.Code            as Code
 import qualified Empire.Commands.Graph           as Graph
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import qualified Empire.Commands.Library         as Library
--- import qualified Empire.Commands.Typecheck       as Typecheck (Scope(..), createStdlib, run)
+import qualified Empire.Commands.Typecheck       as Typecheck
 import           Empire.Data.AST                 (SomeASTException)
 import qualified Empire.Data.BreadcrumbHierarchy as BH
-import qualified Empire.Data.Graph               as Graph (breadcrumbHierarchy, code, codeMarkers, nodeCache, userState)
+import qualified Empire.Data.Graph               as Graph (CommandState(..),
+                                                           breadcrumbHierarchy,
+                                                           clsClass,
+                                                           code, codeMarkers,
+                                                           defaultPMState,
+                                                           nodeCache, userState)
 import qualified Empire.Data.Library             as Library (body)
 import           Empire.Empire                   (CommunicationEnv (..), InterpreterEnv(..), Empire) -- , modules)
 import qualified Language.Haskell.TH             as TH
--- import qualified Luna.Project                    as Project
+import qualified Luna.Package.Structure.Generate as Package
+import qualified Luna.Package.Structure.Name     as Project
 -- import qualified Luna.Syntax.Text.Parser.Parser  as Parser (ReparsingChange (..), ReparsingStatus (..))
 import           LunaStudio.API.AsyncUpdate      (AsyncUpdate(ResultUpdate))
 import qualified LunaStudio.API.Graph.NodeResultUpdate as NodeResult
@@ -75,6 +82,7 @@ import qualified LunaStudio.Data.LabeledTree           as LabeledTree
 import           System.Directory                      (canonicalizePath, getCurrentDirectory)
 import           System.Environment                    (lookupEnv, setEnv)
 import           System.FilePath                       ((</>), takeDirectory)
+import qualified System.IO.Temp                        as Temp
 
 import           Empire.Prelude                        hiding (fromJust, minimum, maximum)
 
@@ -242,6 +250,26 @@ spec = around withChannels $ parallel $ do
                       Connection (outPortRef (pi ^. Node.nodeId)  []) (inPortRef (anon ^. Node.nodeId) [Port.Arg 0])
                     , Connection (outPortRef (foo ^. Node.nodeId) []) (inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
+        it "parses unit with empty line before imports" $ \env -> do
+            let code = Text.pack $ [r|
+
+import Std.Base
+
+def main:
+    «0»pi = 3.14
+                |]
+            res <- evalEmp env $ do
+                Library.createLibrary Nothing "TestPath"
+                let loc = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode loc code
+                [main] <- Graph.getNodes loc
+                let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                graph <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildGraph
+                return graph
+            withResult res $ \(Graph.Graph nodes connections i _ _) -> do
+                let Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
+                pi ^. Node.code `shouldBe` "3.14"
+                pi ^. Node.canEnter `shouldBe` False
         it "does not duplicate nodes on edit" $ \env -> do
             res <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -329,6 +357,47 @@ spec = around withChannels $ parallel $ do
                       Connection (outPortRef (c   ^. Node.nodeId) []) (inPortRef (bar ^. Node.nodeId) [Port.Arg 1])
                     , Connection (outPortRef (foo ^. Node.nodeId) []) (inPortRef (bar ^. Node.nodeId) [Port.Head])
                     ]
+        it "adding None at the end works" $ let
+            initialCode = [r|
+                import Std.Base
+
+                def main:
+                    «0»hello = "Hello"
+                |]
+            expectedCode = [r|
+                import Std.Base
+
+                def main:
+                    hello = "Hello"
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 19 3), (Point 19 3))) "\n    " (Just (Point 4 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 4 4), (Point 4 4))) "No" (Just (Point 6 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 6 4), (Point 6 4))) "ne" (Just (Point 8 4))]
+        it "removing None at the end works" $ let
+            initialCode = [r|
+                import Std.Base
+
+                def main:
+                    «0»hello = "Hello"
+                |]
+            expectedCode = [r|
+                import Std.Base
+
+                def main:
+                    hello = "Hello"
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 21 3), (Point 21 3))) "\n    " (Just (Point 4 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 4 4), (Point 4 4))) "No" (Just (Point 6 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 6 4), (Point 6 4))) "ne" (Just (Point 8 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 7 4), (Point 8 4))) "" (Just (Point 7 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 6 4), (Point 7 4))) "" (Just (Point 6 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 5 4), (Point 6 4))) "" (Just (Point 5 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 4 4), (Point 5 4))) "" (Just (Point 4 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 0 4), (Point 4 4))) "" (Just (Point 0 4))]
+                Graph.substituteCodeFromPoints file [TextDiff (Just ((Point 21 3), (Point 0 4))) "" (Just (Point 21 3))]
         it "unparseable expression does not sabotage whole file" $ \env -> do
             res <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -1497,6 +1566,50 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 [Just uri, Just withCrypto, Just fullUri, Just response, Just result] <- Graph.withGraph loc $ runASTOp $ mapM Graph.getNodeIdForMarker [3, 6, 8, 4, 9]
                 Graph.collapseToFunction loc [uri, withCrypto, fullUri, response, result]
+        it "shows proper names of functions in crypto" $ let
+            initialCode = [r|
+                import Std.HTTP
+                import Std.Time
+
+                «51»def getCurrencyPrice crypto fiat:
+                    «40»uri = "https://min-api.cryptocompare.com/data/price"
+                    «41»request = Http.get uri
+                    «42»withFsym = request . setParam "fsym" (Just crypto)
+                    «43»withTsyms = withFsym . setParam "tsyms" (Just fiat)
+                    «44»response = withTsyms . perform . json
+                    «46»price = response . getReal fiat
+                    price
+
+                «52»def main:
+                    «47»fiat = "USD"
+                    «48»crypto = "BTC"
+                    «50»prices = every 1.seconds (getCurrencyPrice crypto fiat)
+                    None
+
+                ### META {"metas":[{"marker":47,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":3872}}}},{"marker":48,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":208,"_vector2_x":3872}}}},{"marker":50,"meta":{"_displayResult":true,"_selectedVisualizer":["echarts: plot","echarts/plot.html"],"_position":{"fromPosition":{"_vector2_y":128,"_vector2_x":4208}}}},{"marker":40,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":0}}}},{"marker":41,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":176}}}},{"marker":42,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":352}}}},{"marker":43,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":528}}}},{"marker":44,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":672}}}},{"marker":46,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":0,"_vector2_x":1056}}}}]}
+                |]
+            expectedCode = [r|
+                import Std.HTTP
+                import Std.Time
+
+                def getCurrencyPrice crypto fiat:
+                    uri = "https://min-api.cryptocompare.com/data/price"
+                    request = Http.get uri
+                    withFsym = request . setParam "fsym" (Just crypto)
+                    withTsyms = withFsym . setParam "tsyms" (Just fiat)
+                    response = withTsyms . perform . json
+                    price = response . getReal fiat
+                    price
+
+                def main:
+                    fiat = "USD"
+                    crypto = "BTC"
+                    prices = every 1.seconds (getCurrencyPrice crypto fiat)
+                    None
+                |]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                funs <- Graph.getNodes (GraphLocation file def)
+                liftIO $ map (view Node.name) funs `shouldMatchList` [Just "getCurrencyPrice", Just "main"]
         it "sorts arguments by position when collapsing to function" $ let
             initialCode = [r|
                 def main:
@@ -2182,7 +2295,6 @@ spec = around withChannels $ parallel $ do
                 |]
             in specifyCodeChange initialCode expectedCode $ \(GraphLocation file _) -> do
                 Graph.paste (GraphLocation file def) (Position.fromTuple (-300, 0)) "def foo:\n    url = \"http://example.com\"\n    request = Http.get url\n    response = request . perform\n    None"
-                Graph.substituteCode file [(121, 122, "")] -- removing superfluous newline that normalizeQQ removes anyway
         it "pastes a function to functionlevel" $ let
             initialCode = [r|
                 def main:
@@ -2197,8 +2309,12 @@ spec = around withChannels $ parallel $ do
                         None
                     None
                 |]
-            in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Graph.paste loc (Position.fromTuple (300, 0)) "def foo:\n    url = \"http://example.com\"\n    request = Http.get url\n    response = request . perform\n    None\n"
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                Graph.paste loc (Position.fromTuple (300, 0)) "def foo:\n    url = \"http://example.com\"\n    request = Http.get url\n    response = request . perform\n    None"
+                Graph.substituteCode file [(30, 30, "    ")]
+                Graph.substituteCode file [(67, 67, "    ")]
+                Graph.substituteCode file [(101, 101, "    ")]
+                Graph.substituteCode file [(141, 141, "    ")]
         it "copy pastes" $ let
             initialCode = [r|
                 def main:
@@ -2217,7 +2333,6 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 code <- Graph.copyText loc [Range 50 60]
                 Graph.pasteText loc [Range 50 60] [code]
-                Graph.substituteCode "/TestPath" [(58, 62, "")]
         it "copy pastes a function" $ let
             initialCode = [r|
                 def main:
@@ -2297,11 +2412,12 @@ spec = around withChannels $ parallel $ do
                     c = 1
                     t = 2
                 |]
-            in specifyCodeChange initialCode expectedCode $ \loc -> do
-                let paste = [r|    «2»c = 4.0
-    «3»bar = foo 8.0 c
-### META {"metas":[{"marker":2,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-128,"_vector2_x":0}}}},{"marker":3,"meta":{"_displayResult":false,"_selectedVisualizer":["base: json","/home/mmikolajczyk/git/verynew/luna-studio/atom/lib/visualizers/base/json/json.html"],"_position":{"fromPosition":{"_vector2_y":-96,"_vector2_x":176}}}}]}|]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                let paste = [r|c = 4.0
+    bar = foo 8.0 c
+|]
                 Graph.pasteText loc [Range 56 56] [paste]
+                Graph.substituteCode file [(71, 71, "    ")]
         it "handles unary minus" $ let
             initialCode = [r|
                 def main:
@@ -2522,47 +2638,53 @@ spec = around withChannels $ parallel $ do
             in specifyCodeChange initialCode expectedCode $ \loc -> do
                 u1 <- mkUUID
                 Graph.addNode loc u1 "first" (atXPos 300)
-        -- xit "interprets Fibonacci program" $ \env -> do
-        --     (res, st) <- runEmp env $ do
-        --         let initialCode = [r|
-        --                 import Std.Base
-        --                 def fib n:
-        --                     if n < 2 then 1 else fib (n-1) + fib (n-2)
+        it "interprets Fibonacci program" $ \env -> do
+            let thisFilePath = $(do
+                    dir <- TH.runIO getCurrentDirectory
+                    filename <- TH.loc_filename <$> TH.location
+                    TH.litE $ TH.stringL $ dir </> filename)
+            Temp.withSystemTempDirectory "luna-fileloadspec" $ \path -> do
+                (res, st) <- runEmp env $ do
+                    let initialCode = [r|
+                            import Std.Base
+                            def fib n:
+                                if n < 2 then 1 else fib (n-1) + fib (n-2)
 
-        --                 def main:
-        --                     a = fib 10
-        --                     a
-        --                 |]
-        --         Library.createLibrary Nothing "/TestPath"
-        --         let loc = GraphLocation "/TestPath" $ Breadcrumb []
-        --         let normalize = Text.pack . normalizeQQ . Text.unpack
-        --         Graph.loadCode loc $ normalize initialCode
-        --         [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
-        --         let loc' = GraphLocation "/TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-        --         [fib] <- filter (\n -> n ^. Node.name == Just "fib") <$> Graph.getNodes loc
-        --         let loc'' = GraphLocation "/TestPath" $ Breadcrumb [Definition (fib ^. Node.nodeId)]
-        --         (loc',) <$> Library.withLibrary "/TestPath" (use Library.body)
-        --     withResult res $ \(loc, g) -> do
-        --         let imports = env ^. modules
-        --         let thisFilePath = $(do
-        --                 dir <- TH.runIO getCurrentDirectory
-        --                 filename <- TH.loc_filename <$> TH.location
-        --                 TH.litE $ TH.stringL $ dir </> filename)
-        --         liftIO $ do
-        --             lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
-        --             oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
-        --             flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
-        --                 setEnv Project.lunaRootEnv lunaroot
-        --                 (cleanup, std) <- Typecheck.createStdlib $ lunaroot <> "/Std/"
-        --                 putMVar imports $ unwrap std
-        --                 runEmpire env (InterpreterEnv def def def g def def) $ Typecheck.run imports loc True False
-        --     let updates = env ^. to _updatesChan
-        --     ups <- atomically $ unfoldM (tryReadTChan updates)
-        --     let _ResultUpdate = prism ResultUpdate $ \n -> case n of
-        --             ResultUpdate a -> Right a
-        --             _              -> Left n
-        --     let [fibUpdate] = ups ^.. traverse . _ResultUpdate . NodeResult.value
-        --     fibUpdate `shouldBe` NodeValue "89" (Just (Value "89.0"))
+                            def main:
+                                a = fib 10
+                                a
+                            |]
+                    Right pkgPath <- Package.genPackageStructure (path </> "Fibonacci") Nothing def
+                    let mainLuna = pkgPath </> "src" </> "Main.luna"
+                    Library.createLibrary Nothing mainLuna
+                    let loc = GraphLocation mainLuna $ Breadcrumb []
+                    let normalize = Text.pack . normalizeQQ . Text.unpack
+                    Graph.loadCode loc $ normalize initialCode
+                    [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
+                    let loc' = GraphLocation mainLuna $ Breadcrumb [Definition (main ^. Node.nodeId)]
+                    [fib] <- filter (\n -> n ^. Node.name == Just "fib") <$> Graph.getNodes loc
+                    let loc'' = GraphLocation mainLuna $ Breadcrumb [Definition (fib ^. Node.nodeId)]
+                    Graph.withUnit loc $ do
+                        g <- use Graph.userState
+                        let root = g ^. Graph.clsClass
+                        rooted <- runASTOp $ Store.serializeWithRedirectMap root
+                        return (loc', g, rooted)
+                withResult res $ \(loc, g, rooted) -> do
+                    liftIO $ do
+                        lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
+                        oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
+                        flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
+                            setEnv Project.lunaRootEnv lunaroot
+                            pmState <- Graph.defaultPMState
+                            let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def
+                            runEmpire env cs $ Typecheck.run loc g rooted True False
+                let updates = env ^. to _updatesChan
+                ups <- atomically $ unfoldM (tryReadTChan updates)
+                let _ResultUpdate = prism ResultUpdate $ \n -> case n of
+                        ResultUpdate a -> Right a
+                        _              -> Left n
+                let [fibUpdate] = ups ^.. traverse . _ResultUpdate . NodeResult.value
+                fibUpdate `shouldBe` NodeValue "89" (Just (Value "89"))
         it "does not display connection to itself on anonymous nodes" $ let
             initialCode = [r|
                 def main:

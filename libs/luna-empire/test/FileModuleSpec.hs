@@ -216,6 +216,18 @@ spec = around withChannels $ parallel $ do
                 u2 <- mkUUID
                 Graph.addNode loc u1 "def main" def
                 Graph.addNode (loc |>= u1) u2 "4" def
+        it "adds a function to empty file 2" $
+            let initialCode = ""
+                expectedCode = [r|
+                    def main:
+                        number1 = 4
+                        None
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode loc u1 "def main:" def
+                Graph.addNode (loc |>= u1) u2 "4" def
         it "shows functions at file top-level" $ \env -> do
             nodes <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -238,8 +250,7 @@ spec = around withChannels $ parallel $ do
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
-                def quux a b c:
-                    None
+                def quux a b c
 
                 # Docs
                 def foo:
@@ -259,7 +270,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (200,0)) def
+                Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (400,0)) def
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
@@ -272,8 +283,7 @@ spec = around withChannels $ parallel $ do
                 def bar:
                     "bar"
 
-                def quux:
-                    None
+                def quux
 
                 # Docs
                 def main:
@@ -285,7 +295,7 @@ spec = around withChannels $ parallel $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (500,0)) def
+                Graph.addNode loc u1 "def quux" $ set NodeMeta.position (Position.fromTuple (800,0)) def
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
@@ -302,8 +312,7 @@ spec = around withChannels $ parallel $ do
                 def main:
                     print bar
 
-                def quux:
-                    None
+                def quux
                 |]
         it "adds function at top-level as def" $ \env -> do
             u1 <- mkUUID
@@ -316,8 +325,7 @@ spec = around withChannels $ parallel $ do
             length nodes `shouldBe` 4
             find (\n -> n ^. Node.name == Just "quux") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
-                def quux:
-                    None
+                def quux
 
                 # Docs
                 def foo:
@@ -341,7 +349,7 @@ spec = around withChannels $ parallel $ do
                 Graph.getGraph (GraphLocation "TestPath" (Breadcrumb [Definition (n ^. Node.nodeId)]))
             length (graph ^. APIGraph.nodes) `shouldBe` 0
             let Just (Node.OutputSidebar _ ports) = graph ^. APIGraph.outputSidebar
-            toListOf traverse ports `shouldBe` [Port [] "output" TStar (WithDefault (Expression "None"))]
+            toListOf traverse ports `shouldBe` [Port [] "output" TStar (WithDefault (Expression "(MissingSection)"))]
         it "removes function at top-level" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -821,7 +829,7 @@ spec = around withChannels $ parallel $ do
                     funs <- use $ Graph.userState . Graph.clsFuns
                     return $ map (\fun -> (fun ^. Graph.funName, fun ^. Graph.funGraph . Graph.fileOffset)) $ Map.elems funs
                 return offsets
-            offsets `shouldMatchList` [("foo",10), ("bar",39), ("aaa",65), ("main",94)]
+            offsets `shouldMatchList` [("foo",10), ("bar",39), ("aaa",65), ("main",84)]
         it "maintains proper function file offsets after removing a function" $ \env -> do
             offsets <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
@@ -862,8 +870,7 @@ spec = around withChannels $ parallel $ do
             length nodes `shouldBe` 1
             find (\n -> n ^. Node.name == Just "main") nodes `shouldSatisfy` isJust
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
-                def main:
-                    None
+                def main
                 |]
         it "adds the first function in a file with imports" $ \env -> do
             u1 <- mkUUID
@@ -879,15 +886,15 @@ spec = around withChannels $ parallel $ do
                 import Std
                 import Foo
 
-                def main:
-                    None
+                def main
                 |]
-        it "pastes top level function with marker" $ \env -> do
+        it "pastes top level function" $ \env -> do
             (nodes, code) <- evalEmp env $ do
                 Library.createLibrary Nothing "TestPath"
                 let loc = GraphLocation "TestPath" $ Breadcrumb []
                 Graph.loadCode loc multiFunCode
-                Graph.pasteText loc [Range 23 23] ["«3»def quux: None\n### META {\"metas\":[{\"marker\":3,\"meta\":{\"_displayResult\":false,\"_selectedVisualizer\":null,\"_position\":{\"fromPosition\":{\"_vector2_y\":0,\"_vector2_x\":0}}}}]}"]
+                Graph.pasteText loc [Range 23 23] ["def quux: None"]
+                Graph.substituteCode "TestPath" [(46,46,"\n")]
                 (,) <$> Graph.getNodes loc <*> Graph.getCode loc
             normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
                 # Docs
@@ -982,10 +989,10 @@ spec = around withChannels $ parallel $ do
                         number1 = 3
                         number1
                     |]
-            in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
                 clipboard <- Graph.copyText loc [Range 14 25]
                 Graph.paste loc (Position.fromTuple (300, 0)) $ Text.unpack clipboard
+                Graph.substituteCode file [(32, 32, "    ")]
         it "pastes multiline code from text editor to node editor" $
             let initialCode = [r|
                     def main:
@@ -1001,10 +1008,28 @@ spec = around withChannels $ parallel $ do
                         node=1
                         number1
                     |]
-            in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Just foo <- Graph.withGraph loc $ runASTOp $ Graph.getNodeIdForMarker 1
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
                 clipboard <- Graph.copyText loc [Range 14 36]
                 Graph.paste loc (Position.fromTuple (1000, 0)) $ Text.unpack clipboard
+                Graph.substituteCode file [(46, 46, "    ")]
+        it "pastes multiline code from text editor to node editor at the beginning" $
+            let initialCode = [r|
+                    def main:
+                        «1»number1 = 3
+                        «2»node=1
+                        number1
+                    |]
+                expectedCode = [r|
+                    def main:
+                        number1 = 3
+                        node=1
+                        number1 = 3
+                        node=1
+                        number1
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                clipboard <- Graph.copyText loc [Range 14 36]
+                Graph.paste loc (Position.fromTuple (-1000, 0)) $ Text.unpack clipboard
         it "moves ports on top-level def" $
             let initialCode = [r|
                     def main:
@@ -1022,3 +1047,120 @@ spec = around withChannels $ parallel $ do
                 Graph.movePort loc (outPortRef input [Port.Projection 0]) 1
                 Graph.movePort loc (outPortRef input [Port.Projection 1]) 0
                 Graph.movePort loc (outPortRef input [Port.Projection 1]) 0
+        it "adds def" $
+            let initialCode = ""
+                expectedCode = [r|
+                    def
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                node <- Graph.addNode loc u1 "def" def
+                liftIO $ node ^. Node.name `shouldBe` Just ""
+        it "adds def name" $
+            let initialCode = ""
+                expectedCode = [r|
+                    def foo
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                node <- Graph.addNode loc u1 "def foo" def
+                liftIO $ node ^. Node.name `shouldBe` Just "foo"
+        it "adds def with invalid name" $
+            let initialCode = ""
+                expectedCode = [r|
+                    def 4
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                node <- Graph.addNode loc u1 "def 4" def
+                liftIO $ node ^. Node.name `shouldBe` Just "4"
+        it "adds def with invalid name and renames it from graph" $
+            let initialCode = ""
+                expectedCode = [r|
+                    def foo
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc -> do
+                u1 <- mkUUID
+                Graph.addNode loc u1 "def 4" def
+                Graph.renameNode loc u1 "foo"
+                node <- Graph.withUnit loc $ runASTOp $ GraphBuilder.buildClassNode u1 ""
+                liftIO $ node ^. Node.name `shouldBe` Just "foo"
+                return ()
+        it "adds invalid def, another node inside and connects to output" $ \env -> do
+            evalEmp env $ do
+                let initialCode = normalizeQQ [r|
+                        def main:
+                            None
+                        |]
+                Library.createLibrary Nothing "TestPath"
+                let top = GraphLocation "TestPath" $ Breadcrumb []
+                Graph.loadCode top $ convert initialCode
+                u1 <- mkUUID
+                u2 <- mkUUID
+                Graph.addNode top u1 "def foo" def
+                Graph.addNode (top |>= u1) u2 "4" def
+                (_, output) <- Graph.withGraph (top |>= u1) $ runASTOp GraphBuilder.getEdgePortMapping
+                Graph.connect (top |>= u1) (outPortRef u2 [])
+                    (InPortRef' $ inPortRef output [])
+                code <- convert <$> Graph.getCode top
+                liftIO $ normalizeQQ code `shouldBe` normalizeQQ [r|
+                    def foo:
+                        number1 = 4
+                        number1
+
+                    def main:
+                        None
+                    |]
+        it "uses defined class in main" $
+            let initialCode = [r|
+                    class Foo:
+                        a :: Int
+                        b :: Real
+
+                        def baz a : "Hello" + a
+
+                    def main:
+                        test = "Hello"
+                        None
+                    |]
+                expectedCode = [r|
+                    class Foo:
+                        a :: Int
+                        b :: Real
+
+                        def baz a : "Hello" + a
+
+                    def main:
+                        test = "Hello"
+                        Foo.baz
+                        None
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                Graph.substituteCode file [(100, 100, "\n    Foo.baz")]
+        it "uses defined class with list of fields in main" $
+            let initialCode = [r|
+                    class Foo:
+                        a, c, d, e :: Int
+                        b :: Real
+
+                        def baz a : "Hello" + a
+
+                    def main:
+                        test = "Hello"
+                        None
+                    |]
+                expectedCode = [r|
+                    class Foo:
+                        a, c, d, e :: Int
+                        b :: Real
+
+                        def baz a : "Hello" + a
+
+                    def main:
+                        test = "Hello"
+                        Foo.baz
+                        None
+                    |]
+            in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
+                Graph.substituteCode file [(109, 109, "\n    Foo.baz")]
+

@@ -84,8 +84,8 @@ graphIDs loc = do
     let ids = fmap (^. nodeId) nodes
     return ids
 
-extractGraph :: InterpreterEnv -> ClsGraph
-extractGraph (InterpreterEnv g _ _ _ _ _) = error "extractGraph"
+extractGraph :: CommandState InterpreterEnv -> ClsGraph
+extractGraph = _clsGraph . view userState
 
 withResult :: a -> (a -> IO b) -> IO b
 withResult res act = act res

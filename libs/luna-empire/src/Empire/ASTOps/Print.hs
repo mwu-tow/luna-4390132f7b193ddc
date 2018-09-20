@@ -15,7 +15,7 @@ import qualified Data.Text                      as Text
 import qualified Data.Vector.Storable.Foreign   as Vector
 import           Empire.Prelude
 
-import           Empire.ASTOp                   (Printer, GraphOp, match)
+import           Empire.ASTOp                   (ASTOp, Printer, GraphOp, match)
 import qualified Empire.ASTOps.Read             as ASTRead
 import           Empire.Data.AST                (EdgeRef, NodeRef)
 import           Empire.Data.Graph              (CommandState, Graph)
@@ -45,7 +45,7 @@ getTypeRep tp = match tp $ \case
     Uni.ResolvedCons _ n _ args -> TCons (nameToString n) <$> (mapM (getTypeRep <=< source) =<< ptrListToList args)
     Cons   n args -> TCons (nameToString n) <$> (mapM (getTypeRep <=< source) =<< ptrListToList args)
     Lam    a out  -> TLam <$> (getTypeRep =<< source a) <*> (getTypeRep =<< source out)
-    Acc    t n    -> TAcc (nameToString n) <$> (getTypeRep =<< source t)
+    Acc    t n    -> TAcc <$> (ASTRead.getVarName =<< source n) <*> (getTypeRep =<< source t)
     Var    n      -> return $ TVar $ delete '#' $ nameToString n
     IRNumber{}    -> return $ TCons "Number" []
     _             -> return TStar
@@ -56,7 +56,7 @@ instance (MonadIO m, Printer Graph m) => Prettyprint.Compactible Prettyprint.Com
 printExpression :: NodeRef -> GraphOp String
 printExpression n = convert <$> Prettyprint.run @Prettyprint.CompactStyle def n
 
-printFullExpression :: NodeRef -> GraphOp Text
+printFullExpression :: NodeRef -> ASTOp g Text
 printFullExpression n = Prettyprint.run @Prettyprint.Simple def n
 
 printName :: NodeRef -> GraphOp String
@@ -90,7 +90,7 @@ genNodeBaseName ref = match ref $ \case
     List{}            -> return "list"
     Cons n _          -> return $ Text.toLower $ nameToText n
     Var n             -> return $ genOp n
-    Acc t n           -> return $ genOp n
+    Acc t n           -> recurOn $ generalize n
     _                 -> return $ "expr"
     where recurOn :: EdgeRef -> GraphOp Text
           recurOn a = genNodeBaseName =<< source a

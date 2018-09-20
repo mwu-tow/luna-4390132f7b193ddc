@@ -8,6 +8,7 @@ module Empire.Commands.Breadcrumb where
 
 import           Empire.Prelude
 
+import           Control.Exception.Safe          (handle)
 import           Control.Monad                   (forM)
 import           Control.Monad.Except            (throwError)
 import           Control.Monad.Reader            (ask)
@@ -37,7 +38,7 @@ import           LunaStudio.Data.NodeId          (NodeId)
 import           LunaStudio.Data.NodeCache       (portMappingMap)
 import           LunaStudio.Data.PortRef         (OutPortRef(..))
 import           LunaStudio.Data.Project         (ProjectId)
-import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
 import           Data.Text.Span                  (SpacedSpan(..))
 
 import           Empire.Commands.Library         (withLibrary)
@@ -72,7 +73,8 @@ makeGraphCls fun lastUUID = do
         matchExpr asgFun $ \case
             ASGFunction n _ _ -> do
                 offset <- functionBlockStartRef asgFun
-                name   <- ASTRead.getVarName' =<< source n
+                name   <- handle (\(_e::ASTRead.InvalidNameException) -> return "")
+                    $ ASTRead.getVarName' =<< source n
                 return (nameToString name, asgFun, offset)
     let oldPortMapping = nodeCache ^. portMappingMap . at (uuid, Nothing)
     portMapping <- fromJustM (liftIO $ (,) <$> UUID.nextRandom <*> UUID.nextRandom) oldPortMapping

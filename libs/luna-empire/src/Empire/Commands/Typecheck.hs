@@ -175,11 +175,11 @@ updateValues loc@(GraphLocation path _) scope = do
     childrenMap <- use $ Graph.userState . Graph.breadcrumbHierarchy . BH.children
     let allNodes = Map.assocs $ view BH.self <$> childrenMap
     env     <- ask
-    allVars <- runASTOp $ fmap catMaybes $ forM allNodes $ \(nid, tgt) -> do
+    nodes <- runASTOp $ fmap catMaybes $ forM allNodes $ \(nid, tgt) -> do
         pointer <- ASTRead.getASTPointer nid
         matchExpr pointer $ \case
             Uni.Unify{} -> Just . (nid,) <$> ASTRead.getVarNode pointer
-            _          -> return Nothing
+            _           -> return $ Just (nid, pointer)
     let send nid m = flip runReaderT env $
             Publisher.notifyResultUpdate loc nid m 0
         sendRep nid (ErrorRep e)     = send nid
@@ -193,7 +193,7 @@ updateValues loc@(GraphLocation path _) scope = do
                                            $ NodeValue s
                                            $ StreamDataPoint <$> l
     asyncs <- liftIO $ withPackageCurrentDirectory path $
-        forM allVars $ \(nid, ref) -> do
+        forM nodes $ \(nid, ref) -> do
             let resVal = Scope.localLookup ref scope
             liftIO $ forM resVal $ \v -> do
                 value <- Listener.getReps v

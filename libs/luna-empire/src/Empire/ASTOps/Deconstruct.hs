@@ -70,6 +70,7 @@ extractArguments' FApp expr = match expr $ \case
         arg'    <- source b
         return $ arg' : args
     Grouped g -> source g >>= extractArguments' FApp
+    Acc t n -> source n >>= extractArguments' FApp
     _       -> return []
 extractArguments' FLam expr = match expr $ \case
     Lam b a -> do
@@ -111,7 +112,7 @@ dumpAccessors' firstApp node = do
             dumpAccessors' False target
         Acc t n -> do
             target <- source t
-            let name = nameToString n
+            name <- Read.getVarName =<< source n
             (tgt, names) <- dumpAccessors' False target
             return (tgt, names <> [name])
         _ -> return (Just node, [])

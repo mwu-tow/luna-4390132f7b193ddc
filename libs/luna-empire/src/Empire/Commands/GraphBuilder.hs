@@ -10,6 +10,7 @@ import           Data.Maybe                      (catMaybes, maybeToList)
 import qualified Data.Mutable.Class              as Mutable
 import           Data.Text                       (Text)
 import qualified Data.Text                       as Text
+import qualified Data.Text.IO                    as Text
 import           Data.Text.Span                  (SpacedSpan (..), leftSpacedSpan)
 import qualified Data.Vector.Storable.Foreign    as Vector
 import           Empire.ASTOp                    (ClassOp, GraphOp, match, runASTOp)
@@ -46,9 +47,9 @@ import qualified LunaStudio.Data.PortRef         as PortRef
 import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId, srcNodeLoc)
 import           LunaStudio.Data.Position        (Position)
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TStar))
-import           Luna.Syntax.Text.Parser.Data.CodeSpan (CodeSpan)
-import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
-import qualified Luna.Syntax.Text.Parser.Data.Name.Special as Parser (uminus)
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
+import qualified Luna.Syntax.Text.Parser.Lexer.Names   as Parser (uminus)
 -- import qualified OCI.IR.Combinators              as IR
 import           Prelude (read)
 
@@ -99,18 +100,26 @@ buildClassGraph = do
 buildClassNode :: NodeId -> String -> ClassOp API.ExpressionNode
 buildClassNode uuid name = do
     f    <- ASTRead.getFunByNodeId uuid
-    meta <- fromMaybe def <$> AST.readMeta f
     codeStart <- Code.functionBlockStartRef f
+    (nameOff, nameLen) <- ASTRead.cutThroughDocAndMarked f >>= \a -> matchExpr a $ \case
+        ASGFunction n _ _ -> do
+            LeftSpacedSpan (SpacedSpan off nlen) <- Code.getOffset =<< source n
+            LeftSpacedSpan (SpacedSpan _ len)
+                <- view CodeSpan.realSpan <$> (getLayer @CodeSpan =<< source n)
+            return (off + nlen, off + fromIntegral len)
+        a -> error (show a <> name)
+    meta <- fromMaybe def <$> AST.readMeta f
     LeftSpacedSpan (SpacedSpan _ len)
         <- view CodeSpan.realSpan <$> getLayer @CodeSpan f
     fileCode <- use Graph.code
+    let name = Text.take (fromIntegral nameLen) $ Text.drop (fromIntegral nameOff) fileCode
     let code = Code.removeMarkers $ Text.take (fromIntegral len)
             $ Text.drop (fromIntegral codeStart) fileCode
     pure $ API.ExpressionNode
             uuid
             ""
             True
-            (Just $ convert name)
+            (Just name)
             code
             (LabeledTree def (Port [] "base" TStar NotConnected))
             (LabeledTree (OutPorts []) (Port [] "base" TStar NotConnected))

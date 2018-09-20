@@ -33,6 +33,7 @@ import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import           Empire.Data.Layers                 (Marker)
 
 import qualified Luna.IR as IR
+import qualified Luna.IR.Term.Ast.Invalid as IR
 
 import qualified System.IO as IO
 
@@ -51,7 +52,7 @@ cutThroughDoc r = match r $ \case
     Documented _d expr -> cutThroughDoc =<< source expr
     _                  -> return r
 
-cutThroughDocAndMarked :: NodeRef -> ClassOp NodeRef
+cutThroughDocAndMarked :: NodeRef -> ASTOp g NodeRef
 cutThroughDocAndMarked r = match r $ \case
     Marked _m expr  -> cutThroughDocAndMarked =<< source expr
     Documented _d a -> cutThroughDocAndMarked =<< source a
@@ -143,11 +144,20 @@ instance Exception NoNameException where
     toException = astExceptionToException
     fromException = astExceptionFromException
 
+data InvalidNameException = InvalidNameException NodeRef
+    deriving Show
+
+instance Exception InvalidNameException where
+    toException = astExceptionToException
+    fromException = astExceptionFromException
+
 getVarName' :: NodeRef -> ASTOp g IR.Name
 getVarName' node = match node $ \case
     Var n    -> return n
     Cons n _ -> return n
     Blank{}  -> return "_"
+    Invalid IR.InvalidFunctionName -> throwM $ InvalidNameException node
+    Invalid IR.MissingFunctionName -> throwM $ InvalidNameException node
     _        -> throwM $ NoNameException node
 
 getVarName :: NodeRef -> ASTOp g String
@@ -392,7 +402,7 @@ isTuple expr = match expr $ \case
     Tuple{} -> return True
     _     -> return False
 
-isASGFunction :: NodeRef -> GraphOp Bool
+isASGFunction :: NodeRef -> ASTOp g Bool
 -- isASGFunction expr = isJust <$> narrowTerm @IR.Function expr
 isASGFunction expr = match expr $ \case
     ASGFunction{} -> return True

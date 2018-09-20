@@ -16,8 +16,8 @@ import qualified OCI.Pass.Definition.Declaration as Pass
 import           Empire.Data.Layers      (TypeLayer)
 import           Data.Text.Position      (Delta)
 import           Data.Text.Span          (SpacedSpan(..), leftSpacedSpan)
-import qualified Luna.Syntax.Text.Parser.Data.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.Data.CodeSpan (CodeSpan, realSpan)
+import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan, realSpan)
 import Luna.Pass.Data.Layer.NodeMeta   (Meta)
 import Luna.Pass.Data.Layer.PortMarker (PortMarker)
 import Luna.Pass.Data.Layer.SpanLength (SpanLength)
@@ -40,7 +40,7 @@ type family PatternTransformationSpec t where
     PatternTransformationSpec (Pass.In  Pass.Attrs)  = '[ExprRoots]
     PatternTransformationSpec (Pass.Out Pass.Attrs)  = '[]
     PatternTransformationSpec (Pass.In  AnyExpr)     = '[Model, Type, Users, SpanLength, Meta, PortMarker, CodeSpan]
-    PatternTransformationSpec (Pass.Out AnyExpr)     = '[Model, Type, Users, SpanLength, Meta, PortMarker]
+    PatternTransformationSpec (Pass.Out AnyExpr)     = '[Model, Type, Users, SpanLength, Meta, PortMarker, CodeSpan]
     PatternTransformationSpec (Pass.In  AnyExprLink) = '[SpanOffset, Source, Target]
     PatternTransformationSpec (Pass.Out AnyExprLink) = '[SpanOffset, Source, Target]
     PatternTransformationSpec t                      = Pass.BasicPassSpec t
@@ -58,13 +58,14 @@ instance Exception ParseError where
 
 dumpConsApplication :: Expr Draft -> SubPass Stage PatternTransformation (Name, [Expr Draft], [Link (Expr Draft) (Expr Draft)])
 dumpConsApplication expr = matchExpr expr $ \case
-    Grouped g -> dumpConsApplication . coerce =<< source g
+    Grouped g -> do
+        dumpConsApplication . coerce =<< source g
     Cons n _  -> return (n, [], [])
     App f a   -> do
         (n, args, links) <- dumpConsApplication . coerce =<< source f
         arg <- source a
         return (n, coerce arg : args, (coerce a):links)
-    _         -> throwM $ ParseError "Invalid pattern match in code"
+    a         -> throwM $ ParseError $ "Invalid pattern match in code: " <> show a
 
 flattenPattern :: Expr Draft -> SubPass Stage PatternTransformation (Expr Draft)
 flattenPattern expr = matchExpr expr $ \case
