@@ -15,7 +15,8 @@ module FuzzyText
     , name
     , doc
     , entry
-    , exactMatch
+    , MatchType (..)
+    , matchType
     , score
     , charsMatch
     , weight
@@ -26,13 +27,13 @@ module FuzzyText
     , imported
     ) where
 
+import           Control.Lens                 ((?~), Getter, to)
 import           Data.Char
 import qualified Data.List                    as List
 import           Data.IntMap                  (IntMap)
 import qualified Data.IntMap                  as IntMap
 import qualified Data.Text                    as Text
 import           Prologue
-import           Control.Lens ((?~), Getter, to)
 
 
 
@@ -90,9 +91,16 @@ data MatchState = MatchState
 
 makeLenses ''MatchState
 
+data MatchType
+    = CaseSensitiveEquality
+    | CaseInsensitiveEquality
+    | AllCharsMatched
+    | NotFullyMatched
+    deriving (Eq, Ord, Show)
+
 data Match = Match
     { _entry      :: RawEntry
-    , _exactMatch :: Bool
+    , _matchType  :: MatchType
     , _score      :: Score
     , _charsMatch :: [Range]
     } deriving (Show, Eq)
@@ -151,17 +159,17 @@ instance Ord Match where
     m1 `compare` m2 = let 
         m1score = fromIntegral (m1 ^. score) * (m1 ^. weight)
         m2score = fromIntegral (m2 ^. score) * (m2 ^. weight)
-        exactMatchOrd =
-            if      m1 ^. exactMatch && not (m2 ^. exactMatch) then LT
-            else if not (m1 ^. exactMatch) && m2 ^. exactMatch then GT
-            else EQ            
         importOrd = case (,) <$> (m1 ^. importInfo) <*> (m2 ^. importInfo) of
-            Nothing ->  EQ
+            Nothing -> EQ
             Just (mi1, mi2) ->
                 if mi1 ^. imported && not (mi2 ^. imported) then LT
                 else if not (mi1 ^. imported) && mi2 ^. imported then GT
                 else EQ
-
+        notFullyMatchedOrd = if m1 ^. matchType == m2 ^. matchType then EQ
+                else if m1 ^. matchType == NotFullyMatched then GT
+                else if m2 ^. matchType == NotFullyMatched then LT
+                else EQ
+        matchTypeOrd = (m1 ^. matchType) `compare` (m2 ^. matchType)
         compareScore = 
             if m1 ^. score == 0 && m2 ^. score == 0
                 then (m2 ^. weight) `compare` (m1 ^. weight)
@@ -169,22 +177,34 @@ instance Ord Match where
                 then (1/m2score) `compare` (1/m1score)
             else m2score `compare` m1score
         in 
-            if      exactMatchOrd /= EQ then exactMatchOrd
-            else if importOrd     /= EQ then importOrd
-            else if compareScore  /= EQ then compareScore
+            if      notFullyMatchedOrd /= EQ then notFullyMatchedOrd
+            else if importOrd          /= EQ then importOrd
+            else if matchTypeOrd       /= EQ then matchTypeOrd
+            else if compareScore       /= EQ then compareScore
             else (m1 ^. name) `compare` (m2 ^. name)
 
 instance Convertible MatchState Match where
-    convert ms = do
-        let entry'      = ms ^. msEntry
+    convert ms = let
+            entry'      = ms ^. msEntry
             matchedCharsLength = foldl
                 (\s (beg, end) -> s + end - beg) 
                 def 
                 (ms ^. matchedChars)
-            exactMatch' = Text.length (ms ^. query) == matchedCharsLength 
-            score'      = ms ^. currentScore 
-            charMatch'  = reverse $ ms ^. matchedChars
-        Match entry' exactMatch' score' charMatch'
+            matchType'
+                = if ms ^. query == ms ^. name 
+                    then CaseSensitiveEquality
+                else if Text.toLower (ms ^. query) == Text.toLower (ms ^. name) 
+                    then CaseInsensitiveEquality
+                else if Text.length (ms ^. query) == matchedCharsLength
+                    then AllCharsMatched
+                    else NotFullyMatched
+            score'     = ms ^. currentScore 
+            charMatch' = reverse $ ms ^. matchedChars
+        in Match 
+            entry'
+            matchType'
+            score' 
+            charMatch'
 
 
 
