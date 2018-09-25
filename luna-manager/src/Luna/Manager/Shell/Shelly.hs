@@ -46,7 +46,7 @@ mv src dst = case currentHost of
         Sh.mv src dst
 
 runCommand :: (MonadIO m) => String -> FilePath -> m ()
-runCommand cmd path = liftIO $ Process.runProcess_ $ Process.shell $ cmd <> quoted_path
+runCommand cmd path = liftIO $ Process.runProcess_ $ Process.shell $ cmd <> quotedPath
     where quotedPath = "\"" <> encodeString path <> "\""
 
 rm_rf :: (Logger.LoggerMonad m, MonadIO m, MonadSh m, MonadCatch m) => FilePath -> m ()
