@@ -721,7 +721,7 @@ spec = around withChannels $ parallel $ do
                 let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
                 u1 <- mkUUID
                 Graph.addNode (loc |>= bar) u1 "5" (atXPos 10)
-                APIGraph.Graph _ _ _ (Just output) _ <- Graph.getGraph (loc |>= bar)
+                APIGraph.Graph _ _ _ (Just output) _ _ <- Graph.getGraph (loc |>= bar)
                 Graph.connect (loc |>= bar) (outPortRef u1 []) (InPortRef' $ inPortRef (output ^. Node.nodeId) [])
                 u2 <- mkUUID
                 Graph.addNode (loc |>= bar) u2 "1" (atXPos (-20))
@@ -751,7 +751,7 @@ spec = around withChannels $ parallel $ do
                 let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
                 u1 <- mkUUID
                 Graph.addNode (loc |>= bar) u1 "5" (atXPos 10)
-                APIGraph.Graph _ _ _ (Just output) _ <- Graph.getGraph (loc |>= bar)
+                APIGraph.Graph _ _ _ (Just output) _ _ <- Graph.getGraph (loc |>= bar)
                 Graph.connect (loc |>= bar) (outPortRef u1 []) (InPortRef' $ inPortRef (output ^. Node.nodeId) [])
                 blockEnd <- Graph.withGraph (loc |>= bar) $ runASTOp $ Code.getCurrentBlockEnd
                 code <- Graph.withUnit loc $ use Graph.code
