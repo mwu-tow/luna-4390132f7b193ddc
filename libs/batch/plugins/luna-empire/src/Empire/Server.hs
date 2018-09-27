@@ -145,7 +145,14 @@ startTCWorker :: Empire.CommunicationEnv -> Bus ()
 startTCWorker env = liftIO $ do
     let reqs = env ^. Empire.typecheckChan
     pmState <- Graph.defaultPMState
-    let interpreterEnv = Empire.InterpreterEnv (return ()) (error "startTCWorker: clsGraph") [] def def def
+    let interpreterEnv = Empire.InterpreterEnv
+                            (pure ())
+                            (error "startTCWorker: clsGraph")
+                            mempty
+                            def
+                            def
+                            def
+                            def
         commandState   = Graph.CommandState pmState interpreterEnv
     void $ Empire.evalEmpire env commandState $ do
         Typecheck.makePrimStdIfMissing

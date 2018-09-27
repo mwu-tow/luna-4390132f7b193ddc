@@ -393,7 +393,7 @@ spec = around withChannels $ parallel $ do
                     flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
                         setEnv Project.lunaRootEnv lunaroot
                         pmState <- Graph.defaultPMState
-                        let interpreterEnv = InterpreterEnv (return ()) g [] def def def
+                        let interpreterEnv = InterpreterEnv (return ()) g [] def def def def
                         (_, (extractGraph -> g')) <- runEmpire env (Graph.CommandState pmState interpreterEnv) $
                             Typecheck.run top g rooted False False
                         (res'',_) <- runEmp' env st g' $ do

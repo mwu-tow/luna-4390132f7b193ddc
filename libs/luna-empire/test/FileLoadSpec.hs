@@ -2677,7 +2677,7 @@ def main:
                         flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
                             setEnv Project.lunaRootEnv lunaroot
                             pmState <- Graph.defaultPMState
-                            let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def
+                            let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def def
                             runEmpire env cs $ Typecheck.run loc g rooted True False
                 let updates = env ^. to _updatesChan
                 ups <- atomically $ unfoldM (tryReadTChan updates)

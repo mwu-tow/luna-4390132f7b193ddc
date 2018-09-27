@@ -75,6 +75,7 @@ import qualified Luna.Pass.Sourcing.ImportsPlucker as ImportsPlucker
 import qualified Luna.Pass.Evaluation.Data.Scope   as Scope
 import qualified Luna.Pass.Evaluation.Interpreter  as Interpreter
 import qualified Luna.Std                          as Std
+import qualified Luna.Pass.Sourcing.Data.Def       as Def
 import qualified Luna.Pass.Sourcing.Data.Unit      as Unit
 import qualified Luna.Runtime                      as Runtime
 
@@ -146,13 +147,20 @@ runInterpreter path imports = do
 updateNodes :: GraphLocation -> Command InterpreterEnv ()
 updateNodes loc@(GraphLocation _ br) = case br of
     Breadcrumb (Definition uuid:rest) -> do
+        units <- use $ Graph.userState . mappedUnits
+        let resolveFun mod n =
+                let moduleDefs = units ^? ix mod . to Unit._definitions
+                    defRef     = moduleDefs >>= \a -> a ^? wrapped . ix n
+                    docTerm    = view Def.documented <$> defRef
+                    defBody    = docTerm >>= \a -> a ^? Def._Body
+                in defBody
         zoomCommand clsGraph $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) $ do
             (inEdge, outEdge) <- use $ Graph.userState . Graph.breadcrumbHierarchy . BH.portMapping
             (updates, errors) <- runASTOp $ do
                 sidebarUpdates <- (\x y -> [x, y]) <$> GraphBuilder.buildInputSidebarTypecheckUpdate  inEdge
                                                    <*> GraphBuilder.buildOutputSidebarTypecheckUpdate outEdge
                 allNodeIds  <- uses Graph.breadcrumbHierarchy topLevelIDs
-                nodeUpdates <- mapM GraphBuilder.buildNodeTypecheckUpdate allNodeIds
+                nodeUpdates <- forM allNodeIds $ GraphBuilder.buildNodeTypecheckUpdate resolveFun
                 errors      <- forM allNodeIds $ \nid -> do
                     err <- Error.getError =<< ASTRead.getASTRef nid
                     case err of
@@ -246,7 +254,7 @@ makePrimStdIfMissing = do
     case existingStd of
         Just _ -> return ()
         Nothing -> do
-            (mods, finalizer, typed, computed, ress) <- liftScheduler $ do
+            (mods, finalizer, typed, computed, ress, units) <- liftScheduler $ do
                 (fin, stdUnitRef) <- Std.stdlib @Stage
                 lunaroot <- liftIO $ canonicalizePath =<< getEnv Package.lunaRootEnv
                 stdPath <- Path.parseAbsDir $ lunaroot <> "/Std/"
@@ -264,12 +272,13 @@ makePrimStdIfMissing = do
                                                                                                 . view Unit.imports <$> mods
                     unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
                 (typed, evald) <- ProcessUnits.processUnits def def unitsWithResolvers
-                return (mods, fin, typed, evald, unitResolvers)
+                return (mods, fin, typed, evald, unitResolvers, units)
             zoomCommand clsGraph $ runASTOp $ for mods $ \u -> case u ^. Unit.root of
                 Unit.Graph r -> IR.deleteSubtree r
                 _ -> return ()
             Graph.userState . cleanUp      .= finalizer
             Graph.userState . typedUnits   .= typed
+            Graph.userState . mappedUnits  .= units
             Graph.userState . runtimeUnits .= computed
             Graph.userState . resolvers    .= ress
 
@@ -286,7 +295,7 @@ compileCurrentScope modName path root = do
     evald   <- use $ Graph.userState . runtimeUnits
     ress    <- use $ Graph.userState . resolvers
 
-    (mods, newTyped, newEvald, newResolvers) <- liftScheduler $ do
+    (mods, newTyped, newEvald, newResolvers, units) <- liftScheduler $ do
         imports <- ImportsPlucker.run root
         UnitLoader.init
         srcs <- fileImportPaths path
@@ -304,11 +313,12 @@ compileCurrentScope modName path root = do
                                                                                         . view Unit.imports <$> mods
             unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
         (newTyped, newEvald) <- ProcessUnits.processUnits typed evald unitsWithResolvers
-        return (mods, newTyped, newEvald, unitResolvers)
+        return (mods, newTyped, newEvald, unitResolvers, units)
     for mods $ \u -> zoomCommand clsGraph $ runASTOp $ case u ^. Unit.root of
         Unit.Graph r -> when (Layout.relayout r /= root) $ IR.deleteSubtree r
         _ -> return ()
 
+    Graph.userState . mappedUnits  .= units
     Graph.userState . typedUnits   .= newTyped
     Graph.userState . runtimeUnits .= newEvald
     Graph.userState . resolvers    .= newResolvers

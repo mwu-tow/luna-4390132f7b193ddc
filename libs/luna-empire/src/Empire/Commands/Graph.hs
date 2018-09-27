@@ -677,7 +677,7 @@ getPortName loc portRef = do
             arg    = getPortNumber portId
         ref        <- ASTRead.getCurrentASTTarget
         (input, _) <- GraphBuilder.getEdgePortMapping
-        portsNames <- GraphBuilder.getPortsNames ref
+        portsNames <- GraphBuilder.getPortsNames ref Nothing
         if nodeId == input
             then maybe (throwM $ PortDoesNotExistException portId) (return . convert) $ Safe.atMay portsNames arg
             else throwM NotInputEdgeException

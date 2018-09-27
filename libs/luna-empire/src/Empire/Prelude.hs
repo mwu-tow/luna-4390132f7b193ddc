@@ -47,6 +47,7 @@ module Empire.Prelude (
   pattern Metadata,
   pattern Missing,
   pattern ResolvedCons,
+  pattern ResolvedDef,
   pattern RightSection,
   pattern Seq,
   pattern Tuple,
@@ -194,6 +195,7 @@ pattern Documented doc e <- IR.UniTermDocumented (Ast.Documented doc e)
 pattern IRString s <- IR.UniTermRawString (Ast.RawString s)
 pattern IRNumber a b c <- IR.UniTermNumber (Ast.Number a b c)
 pattern ResolvedCons a b c d <- IR.UniTermResolvedCons (Ast.ResolvedCons a b c d)
+pattern ResolvedDef a b <- IR.UniTermResolvedDef (Ast.ResolvedDef a b)
 pattern ClsASG a b c d e <- IR.UniTermRecord (Ast.Record a b c d e)
 pattern Metadata a <- IR.UniTermMetadata (Ast.Metadata a)
 pattern ImportHub a <- IR.UniTermImportHub (Ast.ImportHub a)

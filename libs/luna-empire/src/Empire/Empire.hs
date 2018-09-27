@@ -83,6 +83,7 @@ data InterpreterEnv = InterpreterEnv
     { _cleanUp      :: IO ()
     , _clsGraph     :: ClsGraph
     , _listeners    :: [Async ()]
+    , _mappedUnits  :: Map IR.Qualified Unit.Unit
     , _typedUnits   :: Typed.Units
     , _runtimeUnits :: Runtime.Units
     , _resolvers    :: Map IR.Qualified Res.UnitResolver
