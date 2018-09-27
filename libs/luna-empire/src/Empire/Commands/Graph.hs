@@ -1687,15 +1687,20 @@ nativeModuleName :: Text
 nativeModuleName = "Native"
 
 getImportsInFile :: ClassOp [Text]
-getImportsInFile = matchUnit =<< use Graph.clsClass where
-    matchUnit unit = matchExpr unit $ \(Unit imps _ _) -> 
-        matchImports =<< source imps
-    matchImports imps = matchExpr imps $ \(ImportHub imps') -> 
-        mapM matchImport =<< mapM source =<< ptrListToList imps'
-    matchImport imp = matchExpr imp $ \(Import absolute _) -> 
-        matchAbsolute =<< source absolute
-    matchAbsolute a = matchExpr a $ \(ImportSrc (Term.Absolute n)) -> 
-        pure . nameToText $ convert n
+getImportsInFile = do
+    let matchUnit unit = matchExpr unit $ \(Unit imps _ _) -> 
+            matchImports =<< source imps
+        matchImports imps = matchExpr imps $ \(ImportHub imps') -> 
+            mapM matchImport =<< mapM source =<< ptrListToList imps'
+        matchImport imp = matchExpr imp $ \case
+            Import absolute _ -> matchAbsolute =<< source absolute
+            _                 -> pure Nothing
+        matchAbsolute a = matchExpr a $ \case
+            ImportSrc (Term.Absolute n) -> pure . Just . nameToText $ convert n
+            _                           -> pure Nothing
+    unit    <- use Graph.clsClass
+    imports <- matchUnit unit
+    return $ catMaybes imports
 
 getAvailableImports :: GraphLocation -> Empire (Set ImportName)
 getAvailableImports gl = withUnit pureGl mkImports where

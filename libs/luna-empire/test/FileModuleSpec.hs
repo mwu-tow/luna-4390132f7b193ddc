@@ -1163,6 +1163,18 @@ spec = around withChannels $ parallel $ do
                     |]
             in specifyCodeChange initialCode expectedCode $ \loc@(GraphLocation file _) -> do
                 Graph.substituteCode file [(109, 109, "\n    Foo.baz")]
+        it "does not error on incomplete import" $
+            let initialCode = [r|
+                    import Std.Base
+                    import Foo.
+
+                    def main:
+                        test = "Hello"
+                        None
+                    |]
+            in specifyCodeChange initialCode initialCode $ \loc@(GraphLocation file _) -> do
+                imports <- Graph.getAvailableImports (GraphLocation file def)
+                liftIO $ toList imports `shouldMatchList` ["Native", "Std.Base"]
         it "creates and uses invalid top-level function" $
             let initialCode = [r|
                     def main:
@@ -1184,5 +1196,4 @@ spec = around withChannels $ parallel $ do
                     u2 <- mkUUID
                     Graph.addNode (top |>= u1) u2 "15" def
                     Graph.removeNodes top [main ^. Breadcrumb.nodeId]
-
 
