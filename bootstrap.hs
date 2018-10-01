@@ -71,26 +71,30 @@ installPython :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installPython = do
     Shelly.echo "installing python locally"
     current <- currentPath
-    let pythonFolder   = current </> tools </> "python"
+    let pythonFolder = current </> tools </> "python"
     Shelly.chdir_p pythonFolder $ do
         pyenvPresent <- Shelly.test_d "pyenv"
         unless pyenvPresent $ Shelly.cmd "git" "clone" "https://github.com/pyenv/pyenv.git"
 
-        Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pythonFolder </> "pyenv"
-        Shelly.prependToPath $ pythonFolder </> "pyenv" </> "bin"
-        Shelly.prependToPath $ pythonFolder </> "pyenv" </> "shims"
-        Shelly.cmd "pyenv" "init" "-"
+    Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pythonFolder </> "pyenv"
+    Shelly.prependToPath $ pythonFolder </> "pyenv" </> "bin"
+    Shelly.prependToPath $ pythonFolder </> "pyenv" </> "shims"
+    Shelly.cmd "pyenv" "init" "-"
 
-        pythonSuppertedVersionPresent <- Shelly.test_d $ "pyenv/versions" </> supportedPythonVersion
-        unless pythonSuppertedVersionPresent $ do
-            -- we need this because of https://github.com/pyenv/pyenv/issues/950
-            when (currentHost == Darwin) $ do
-                opensslPath <- T.stripEnd <$> Shelly.cmd "brew" "--prefix" "openssl"
-                Shelly.setenv "CFLAGS"  $ "-I" <> opensslPath <> "/include"
-                Shelly.setenv "LDFLAGS" $ "-L" <> opensslPath <> "/lib"
-            Shelly.cmd "pyenv" "install" supportedPythonVersion
+    let versionPath = pythonFolder </>"pyenv/versions" </> supportedPythonVersion
+    pythonSupportedVersionPresent <- Shelly.test_d versionPath
+
+    unless pythonSupportedVersionPresent $ do
+        -- we need this because of https://github.com/pyenv/pyenv/issues/950
+        when (currentHost == Darwin) $ do
+            opensslPath <- T.stripEnd <$> Shelly.cmd "brew" "--prefix" "openssl"
+            Shelly.setenv "CFLAGS"  $ "-I" <> opensslPath <> "/include"
+            Shelly.setenv "LDFLAGS" $ "-L" <> opensslPath <> "/lib"
+        Shelly.cmd "pyenv" "install" supportedPythonVersion
+
+    Shelly.chdir (fromText current) $ do
         Shelly.cmd "pyenv" "local" supportedPythonVersion
-        Shelly.chdir (fromText current) $ Shelly.cmd "pip" "install" "--user" "-r" "requirements.txt"
+        Shelly.cmd "pip" "install" "--user" "-r" "requirements.txt"
 
 installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
 installNode = do
