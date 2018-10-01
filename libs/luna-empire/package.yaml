@@ -13,15 +13,16 @@ tests:
         source-dirs: test
         ghc-options: -Wno-unused-do-bind -threaded -with-rtsopts=-N4
         dependencies:
-            - luna-empire
             - hspec
+            - hspec-expectations-lifted
+            - luna-empire
             - monad-loops
             - QuickCheck
-            - reflection
             - raw-strings-qq
+            - reflection
+            - safe-exceptions
             - template-haskell
             - temporary
-            - safe-exceptions
 
 benchmarks:
     bench:
@@ -38,17 +39,17 @@ dependencies:
     - aeson
     - aeson-pretty
     - async
-    - bimap
     - base
+    - bimap
     - bytestring
     - container
     - containers
     - convert
     - data-default
-    - layered-state
     - directory
     - exceptions
     - filepath
+    - layered-state
     - layouting
     - lens
     - lens-utils
@@ -62,19 +63,20 @@ dependencies:
     - luna-exception
     - luna-foreign-utils
     - luna-generic-traversable
-    - luna-nested-containers
     - luna-memory-pool
-    - luna-passes
+    - luna-nested-containers
     - luna-package
+    - luna-passes
     - luna-runtime
     - luna-stdlib
+    - luna-studio-common
     - luna-syntax-definition
-    - luna-syntax-text-parser2
-    - luna-syntax-text-parser3
     - luna-syntax-text-lexer
     - luna-syntax-text-model
+    - luna-syntax-text-parser2
+    - luna-syntax-text-parser3
     - luna-syntax-text-prettyprint
-    - luna-studio-common
+    - luna-text-processing
     - m-logger
     - matrix
     - mtl
@@ -87,7 +89,6 @@ dependencies:
     - split
     - stm
     - text
-    - luna-text-processing
     - transformers
     - typelevel
     - unordered-containers
