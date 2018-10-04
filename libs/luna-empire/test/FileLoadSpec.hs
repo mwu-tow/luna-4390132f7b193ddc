@@ -81,7 +81,6 @@ import           LunaStudio.Data.Vector2               (Vector2 (..))
 import           LunaStudio.Data.Visualization         (VisualizationValue (Value))
 import qualified LunaStudio.Data.LabeledTree           as LabeledTree
 import           System.Directory                      (canonicalizePath, getCurrentDirectory)
-import           System.Environment                    (lookupEnv, setEnv)
 import           System.FilePath                       ((</>), takeDirectory)
 import qualified System.IO.Temp                        as Temp
 
@@ -2613,10 +2612,6 @@ def main:
                 u1 <- mkUUID
                 Graph.addNode loc u1 "first" (atXPos 300)
         it "interprets Fibonacci program" $ \env -> do
-            let thisFilePath = $(do
-                    dir <- TH.runIO getCurrentDirectory
-                    filename <- TH.loc_filename <$> TH.location
-                    TH.litE $ TH.stringL $ dir </> filename)
             Temp.withSystemTempDirectory "luna-fileloadspec" $ \path -> do
                 (res, st) <- runEmp env $ do
                     let initialCode = [r|
@@ -2643,14 +2638,9 @@ def main:
                         rooted <- runASTOp $ Store.serializeWithRedirectMap root
                         return (loc', g, rooted)
                 withResult res $ \(loc, g, rooted) -> do
-                    liftIO $ do
-                        lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
-                        oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
-                        flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
-                            setEnv Project.lunaRootEnv lunaroot
-                            pmState <- Graph.defaultPMState
-                            let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def def
-                            runEmpire env cs $ Typecheck.run loc g rooted True False
+                    pmState <- Graph.defaultPMState
+                    let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def def
+                    runEmpire env cs $ Typecheck.run loc g rooted True False
                 let updates = env ^. to _updatesChan
                 ups <- atomically $ unfoldM (tryReadTChan updates)
                 let _ResultUpdate = prism ResultUpdate $ \n -> case n of
@@ -2683,9 +2673,9 @@ def main:
     bar = foo 8 c
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Graph.substituteCodeFromPoints "/TestPath" [ TextDiff (Just (Point 0 2, Point 0 3)) "" Nothing
-                                                           , TextDiff (Just (Point 0 4, Point 0 4)) "    foo = a: b: a + b\n" Nothing
-                                                           ]
+                Graph.substituteCodeFromPoints "/TestProject" [ TextDiff (Just (Point 0 2, Point 0 3)) "" Nothing
+                                                              , TextDiff (Just (Point 0 4, Point 0 4)) "    foo = a: b: a + b\n" Nothing
+                                                              ]
         it "rename from tuple to var" $ let
             initialCode = [r|
                 def main:

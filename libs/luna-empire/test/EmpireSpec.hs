@@ -60,7 +60,6 @@ import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar, T
 import           Empire.Prelude                  hiding (mapping, toList, (|>))
 import           Text.RawString.QQ                     (r)
 import           System.Directory                (canonicalizePath, getCurrentDirectory)
-import           System.Environment              (lookupEnv, setEnv)
 import           System.FilePath                 ((</>), takeDirectory)
 import qualified System.IO.Temp                  as Temp
 
@@ -378,21 +377,13 @@ spec = around withChannels $ parallel $ do
                         let root = g ^. Graph.clsClass
                         rooted <- runASTOp $ Store.serializeWithRedirectMap root
                         return (loc', g, rooted)
-                withResult res $ \(top, g, rooted) -> liftIO $ do
-                    let thisFilePath = $(do
-                            dir <- TH.runIO getCurrentDirectory
-                            filename <- TH.loc_filename <$> TH.location
-                            TH.litE $ TH.stringL $ dir </> filename)
-                    lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
-                    oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
-                    flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
-                        setEnv Project.lunaRootEnv lunaroot
-                        pmState <- Graph.defaultPMState
-                        let interpreterEnv = InterpreterEnv (return ()) g [] def def def def
-                        (_, (extractGraph -> g')) <- runEmpire env (Graph.CommandState pmState interpreterEnv) $
-                            Typecheck.run top g rooted False False
-                        (res'',_) <- runEmp' env st g' $ do
-                            Graph.withGraph top $ runASTOp $ (,) <$> GraphBuilder.buildNode u1 <*> GraphBuilder.buildNode u2
+                withResult res $ \(top, g, rooted) -> do
+                    pmState <- Graph.defaultPMState
+                    let interpreterEnv = InterpreterEnv (return ()) g [] def def def def
+                    (_, (extractGraph -> g')) <- runEmpire env (Graph.CommandState pmState interpreterEnv) $
+                        Typecheck.run top g rooted False False
+                    (res'',_) <- runEmp' env st g' $ do
+                        Graph.withGraph top $ runASTOp $ (,) <$> GraphBuilder.buildNode u1 <*> GraphBuilder.buildNode u2
                     -- withResult res'' $ \(n1, n2) -> do
                     --     view Node.inPorts n2 `shouldMatchList` [
                     --           Port.Port [Port.Arg 0] "in" (TLam (TVar "a") (TVar "a")) Port.Connected
@@ -400,7 +391,7 @@ spec = around withChannels $ parallel $ do
                     --     view Node.outPorts n1 `shouldMatchList` [
                     --           Port.Port [] "Output" (TLam (TVar "a") (TVar "a")) (Port.WithDefault (Expression "in: in"))
                     --         ]
-                        return ()
+                    return ()
         it "puts + inside plus lambda" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do

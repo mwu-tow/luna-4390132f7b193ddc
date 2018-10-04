@@ -927,7 +927,7 @@ spec = around withChannels $ parallel $ do
                         4
                     |]
             in specifyCodeChange initialCode expectedCode $ \_ -> do
-                let loc = GraphLocation "/TestPath" $ Breadcrumb []
+                let loc = GraphLocation "/TestProject" $ Breadcrumb []
                 nodes <- Graph.getNodes loc
                 let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
                     loc' = loc |>= foo
@@ -950,7 +950,7 @@ spec = around withChannels $ parallel $ do
                         4
                     |]
             in specifyCodeChange initialCode expectedCode $ \_ -> do
-                let loc = GraphLocation "/TestPath" $ Breadcrumb []
+                let loc = GraphLocation "/TestProject" $ Breadcrumb []
                 nodes <- Graph.getNodes loc
                 let Just foo = (view Node.nodeId) <$> find (\n -> n ^. Node.name == Just "foo") nodes
                     loc' = loc |>= foo
