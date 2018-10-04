@@ -1,57 +1,65 @@
 module Empire.Commands.GraphBuilder where
 
-import           Control.Lens                    (uses)
-import           Control.Monad.State             hiding (when)
-import           Data.Foldable                   (toList)
-import           Data.Char                       (intToDigit)
-import qualified Data.List                       as List
-import qualified Data.Map                        as Map
-import           Data.Maybe                      (catMaybes, maybeToList)
-import qualified Data.Mutable.Class              as Mutable
-import           Data.Text                       (Text)
-import qualified Data.Text                       as Text
-import qualified Data.Text.IO                    as Text
-import           Data.Text.Span                  (SpacedSpan (..), leftSpacedSpan)
-import qualified Data.Vector.Storable.Foreign    as Vector
-import           Empire.ASTOp                    (ClassOp, GraphOp, match, runASTOp)
-import qualified Empire.ASTOps.Deconstruct       as ASTDeconstruct
-import qualified Empire.ASTOps.Print             as Print
-import qualified Empire.ASTOps.Read              as ASTRead
-import qualified Empire.Commands.AST             as AST
-import qualified Empire.Commands.Code            as Code
-import qualified Empire.Commands.GraphUtils      as GraphUtils
-import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
-import qualified Empire.Data.BreadcrumbHierarchy as BH
-import           Empire.Data.Graph               (Graph)
-import qualified Empire.Data.Graph               as Graph
-import           Empire.Data.Layers              (Marker, SpanLength, TypeLayer)
-import           Empire.Empire
-import           Empire.Prelude                  hiding (read, toList)
-import qualified Luna.IR                         as IR
-import qualified Luna.IR.Term.Literal            as Lit
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem, Named (..))
-import qualified LunaStudio.Data.Breadcrumb      as Breadcrumb
-import qualified LunaStudio.Data.Connection      as API
-import qualified LunaStudio.Data.Graph           as API
-import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
-import           LunaStudio.Data.MonadPath       (MonadPath (MonadPath))
-import           LunaStudio.Data.NodeId          (NodeId)
-import qualified LunaStudio.Data.Node            as API
-import qualified LunaStudio.Data.NodeMeta        as NodeMeta
-import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
-import           LunaStudio.Data.Port            (InPort, InPortId, InPortIndex (..), InPortTree, InPorts (..), OutPort, OutPortId,
-                                                  OutPortIndex (..), OutPortTree, OutPorts (..), Port (..), PortState (..))
-import qualified LunaStudio.Data.Port            as Port
-import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..), _Constant)
-import qualified LunaStudio.Data.PortRef         as PortRef
-import           LunaStudio.Data.PortRef         (InPortRef (..), OutPortRef (..), srcNodeId, srcNodeLoc)
-import           LunaStudio.Data.Position        (Position)
-import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TStar))
-import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
+import Empire.Prelude hiding (read, toList)
+import Prelude        (read)
+
+import qualified Data.List                            as List
+import qualified Data.Map                             as Map
+import qualified Data.Mutable.Class                   as Mutable
+import qualified Data.Text                            as Text
+import qualified Empire.ASTOps.Deconstruct            as ASTDeconstruct
+import qualified Empire.ASTOps.Print                  as Print
+import qualified Empire.ASTOps.Read                   as ASTRead
+import qualified Empire.Commands.AST                  as AST
+import qualified Empire.Commands.Code                 as Code
+import qualified Empire.Commands.GraphUtils           as GraphUtils
+import qualified Empire.Data.BreadcrumbHierarchy      as BH
+import qualified Empire.Data.Graph                    as Graph
+import qualified Luna.IR                              as IR
 import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
-import qualified Luna.Syntax.Text.Parser.Lexer.Names   as Parser (uminus)
--- import qualified OCI.IR.Combinators              as IR
-import           Prelude (read)
+import qualified Luna.Syntax.Text.Parser.Lexer.Names  as Parser (uminus)
+import qualified LunaStudio.Data.Breadcrumb           as Breadcrumb
+import qualified LunaStudio.Data.Connection           as API
+import qualified LunaStudio.Data.Graph                as API
+import qualified LunaStudio.Data.Node                 as API
+import qualified LunaStudio.Data.NodeMeta             as NodeMeta
+import qualified LunaStudio.Data.Port                 as Port
+
+import Control.Lens                         (uses)
+import Control.Monad.State                  hiding (when)
+import Data.Char                            (intToDigit)
+import Data.Foldable                        (toList)
+import Data.Maybe                           (catMaybes, maybeToList)
+import Data.Text                            (Text)
+import Data.Text.Span                       (SpacedSpan (SpacedSpan))
+import Empire.ASTOp                         (ClassOp, GraphOp, match, runASTOp)
+import Empire.Data.AST                      (NodeRef, astExceptionFromException,
+                                             astExceptionToException)
+import Empire.Data.Graph                    (Graph)
+import Empire.Data.Layers                   (Marker, TypeLayer)
+import Empire.Empire                        (Command)
+import Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
+import LunaStudio.Data.Breadcrumb           (Breadcrumb (Breadcrumb),
+                                             BreadcrumbItem, Named (Named))
+import LunaStudio.Data.LabeledTree          (LabeledTree (LabeledTree))
+import LunaStudio.Data.MonadPath            (MonadPath (MonadPath))
+import LunaStudio.Data.NodeId               (NodeId)
+import LunaStudio.Data.NodeLoc              (NodeLoc (NodeLoc))
+import LunaStudio.Data.Port                 (InPort, InPortId,
+                                             InPortIndex (Arg, Head, Self),
+                                             InPortTree, InPorts (InPorts),
+                                             OutPort, OutPortId,
+                                             OutPortIndex (Projection),
+                                             OutPortTree, OutPorts (OutPorts),
+                                             Port (Port),
+                                             PortState (Connected, NotConnected, WithDefault))
+import LunaStudio.Data.PortDefault          (PortDefault (Constant, Expression), PortValue (BoolValue, IntValue, RealValue, TextValue),
+                                             _Constant)
+import LunaStudio.Data.PortRef              (InPortRef (InPortRef), OutPortRef,
+                                             srcNodeId)
+import LunaStudio.Data.Position             (Position)
+import LunaStudio.Data.TypeRep              (TypeRep (TCons, TStar))
+
 
 isDefinition :: BreadcrumbItem -> Bool
 isDefinition def | Breadcrumb.Definition{} <- def = True
@@ -301,11 +309,11 @@ getPortState node = do
             negLit <- isNegativeLiteral node
             if negLit then do
                 posLit <- getPortState =<< source a
-                let negate' (IntValue i) = IntValue (negate i)
+                let negate' (IntValue i)  = IntValue (negate i)
                     negate' (RealValue v) = RealValue (negate v)
                 let negated = posLit & Port._WithDefault . _Constant %~ negate'
                 return negated
-            else WithDefault . Expression . Text.unpack 
+            else WithDefault . Expression . Text.unpack
                 <$> Print.printFullExpression node
         _ -> WithDefault . Expression . Text.unpack
             <$> Print.printFullExpression node
@@ -547,15 +555,17 @@ buildOutPortTree portId ref' = do
     name  <- Print.printName ref
     tp    <- followTypeRep ref
     let wholePort = Port portId (Text.pack name) tp NotConnected
-    let buildSubtrees as = zipWithM
+        buildSubtrees as = zipWithM
             buildOutPortTree
             ((portId <>) . pure . Port.Projection <$> [0 ..])
             =<< mapM source as
+        toSubtrees args = buildSubtrees . coerce =<< ptrListToList args
     children <- match ref $ \case
-        Cons _ as -> buildSubtrees . coerce =<< ptrListToList as
-        Tuple as  -> buildSubtrees . coerce =<< ptrListToList as
-        List  as  -> buildSubtrees . coerce =<< ptrListToList as
-        _         -> pure []
+        Cons             _ args -> toSubtrees args
+        Tuple              args -> toSubtrees args
+        List               args -> toSubtrees args
+        ResolvedCons _ _ _ args -> toSubtrees args
+        _                       -> pure mempty
     pure $ LabeledTree (OutPorts children) wholePort
 
 buildOutPorts :: NodeRef -> GraphOp (OutPortTree OutPort)

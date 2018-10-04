@@ -1,114 +1,87 @@
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ViewPatterns        #-}
-
 module Empire.Commands.Typecheck where
 
-import Control.Lens (uses, element)
-import           Control.Arrow                    ((***), (&&&))
-import           Control.Concurrent.Async         (Async)
-import qualified Control.Concurrent.Async         as Async
-import           Control.Concurrent               (MVar, readMVar)
-import qualified Control.Concurrent.MVar.Lifted   as Lifted
-import           Control.Exception.Safe           (mask_)
-import           Control.Monad                    (void)
-import           Control.Monad.Except             hiding (when)
-import           Control.Monad.Reader             (ask, runReaderT)
-import           Control.Monad.State              (execStateT)
-import           Data.Graph.Data.Component.Class  (Component(..))
-import qualified Data.Graph.Store                 as Store
-import qualified Data.Graph.Store.Buffer          as Buffer
-import qualified Data.IORef                       as IORef
-import qualified Data.Map                         as Map
-import           Data.Maybe                       (catMaybes, maybeToList)
-import           Empire.Prelude                   hiding (mapping, toList)
-import           Foreign.Ptr                      (plusPtr)
-import           System.Directory                 (canonicalizePath, withCurrentDirectory)
-import           System.Environment               (getEnv)
-import           System.FilePath                  (takeDirectory)
+import Empire.Prelude
+
+import qualified Control.Concurrent.Async           as Async
+import qualified Data.Bimap                         as Bimap
+import qualified Data.Graph.Data.Component.Vector   as ComponentVector
+import qualified Data.Graph.Data.Layer.Layout       as Layout
+import qualified Data.Graph.Store                   as Store
+import qualified Data.Graph.Store.Buffer            as Buffer
+import qualified Data.Map                           as Map
+import qualified Data.Set                           as Set
+import qualified Empire.ASTOps.Read                 as ASTRead
+import qualified Empire.Commands.GraphBuilder       as GraphBuilder
+import qualified Empire.Commands.Publisher          as Publisher
+import qualified Empire.Data.BreadcrumbHierarchy    as BH
+import qualified Empire.Data.Graph                  as Graph
+import qualified Empire.Empire                      as Empire
+import qualified Empire.Utils.ValueListener         as Listener
+import qualified Luna.IR                            as IR
+import qualified Luna.IR.Aliases                    as Uni
+import qualified Luna.Package                       as Package
+import qualified Luna.Package.Structure.Name        as Package
+import qualified Luna.Pass.Data.Error               as Error
+import qualified Luna.Pass.Evaluation.Data.Scope    as Scope
+import qualified Luna.Pass.Evaluation.Interpreter   as Interpreter
+import qualified Luna.Pass.Flow.ProcessUnits        as ProcessUnits
+import qualified Luna.Pass.Preprocess.PreprocessDef as Prep
+import qualified Luna.Pass.Resolve.Data.Resolution  as Resolution
+import qualified Luna.Pass.Scheduler                as Scheduler
+import qualified Luna.Pass.Sourcing.Data.Def        as Def
+import qualified Luna.Pass.Sourcing.Data.Unit       as Unit
+import qualified Luna.Pass.Sourcing.ImportsPlucker  as ImportsPlucker
+import qualified Luna.Pass.Sourcing.UnitLoader      as UnitLoader
+import qualified Luna.Pass.Sourcing.UnitMapper      as UnitMapper
+import qualified Luna.Pass.Typing.Data.Target       as Target
+import qualified Luna.Pass.Typing.Typechecker       as TC
+import qualified Luna.Runtime                       as Runtime
+import qualified Luna.Std                           as Std
+import qualified LunaStudio.Data.Error              as APIError
+import qualified LunaStudio.Data.GraphLocation      as GraphLocation
+import qualified Memory                             as Memory
 import qualified Path
 
-import qualified Luna.IR.Aliases                  as Uni
-import qualified Luna.IR                          as IR
-import qualified Luna.Pass.Typing.Typechecker     as TC
-import qualified Luna.Pass.Preprocess.PreprocessDef as Prep
-import qualified Memory                           as Memory
-import           LunaStudio.Data.Breadcrumb       (Breadcrumb (..), BreadcrumbItem(Definition))
-import           LunaStudio.Data.GraphLocation    (GraphLocation (..))
-import qualified LunaStudio.Data.Error            as APIError
-import           LunaStudio.Data.NodeValue        (NodeValue (..))
-import           LunaStudio.Data.Visualization    (VisualizationValue (..))
-
-import           Empire.ASTOp                     (liftScheduler, runASTOp)
--- import           Empire.ASTOp                     (getImportedModules, runASTOp, runTypecheck, runModuleTypecheck)
-import qualified Empire.ASTOps.Read               as ASTRead
-import           Empire.Commands.Breadcrumb       (runInternalBreadcrumb, withRootedFunction)
-import qualified Empire.Commands.GraphBuilder     as GraphBuilder
-import qualified Empire.Commands.Publisher        as Publisher
-import           Empire.Data.BreadcrumbHierarchy  (topLevelIDs)
-import qualified Empire.Data.BreadcrumbHierarchy  as BH
-import           Empire.Data.AST                  (NodeRef)
-import           Empire.Data.Graph                (Graph)
-import qualified Empire.Data.Graph                as Graph
-import           Empire.Empire
-
-import qualified System.IO as IO
-import qualified Luna.Debug.IR.Visualizer as Vis
-
-import qualified Data.Graph.Data.Component.Vector  as ComponentVector
-import qualified Luna.Pass.Resolve.Data.Resolution as Resolution
-import qualified Luna.Pass.Sourcing.UnitMapper     as UnitMapper
-import           Luna.Pass.Data.Stage (Stage)
-import qualified Data.Bimap as Bimap
-import qualified Luna.Pass.Flow.ProcessUnits       as ProcessUnits
-import qualified Data.Graph.Data.Layer.Layout      as Layout
-
-import qualified Luna.Pass.Data.Error              as Error
-import qualified Luna.Pass.Typing.Data.Target      as Target
-import qualified Luna.Pass.Scheduler               as Scheduler
-import qualified Luna.Pass.Sourcing.UnitLoader     as UnitLoader
-import qualified Luna.Pass.Sourcing.ImportsPlucker as ImportsPlucker
-import qualified Luna.Pass.Evaluation.Data.Scope   as Scope
-import qualified Luna.Pass.Evaluation.Interpreter  as Interpreter
-import qualified Luna.Std                          as Std
-import qualified Luna.Pass.Sourcing.Data.Def       as Def
-import qualified Luna.Pass.Sourcing.Data.Unit      as Unit
-import qualified Luna.Runtime                      as Runtime
-
-import qualified Data.Set as Set
-
-import Empire.Utils.ValueListener (ValueRep (..), SingleRep (..))
-import qualified Empire.Utils.ValueListener as Listener
-
+import Control.Concurrent.Async        (Async)
+import Control.Exception.Safe          (mask_)
+import Control.Lens                    (uses)
+import Control.Monad.Reader            (ask, runReaderT)
+import Data.Graph.Component.Node.Class (Nodes)
+import Data.Graph.Data.Component.Class (Component (Component))
+import Data.Map                        (Map)
+import Data.Maybe                      (catMaybes)
+import Empire.ASTOp                    (liftScheduler, runASTOp)
+import Empire.Commands.Breadcrumb      (runInternalBreadcrumb,
+                                        withRootedFunction)
+import Empire.Data.AST                 (NodeRef)
+import Empire.Data.BreadcrumbHierarchy (topLevelIDs)
+import Empire.Data.Graph               (Graph)
+import Empire.Empire                   (Command, InterpreterEnv, zoomCommand)
+import Empire.Utils.ValueListener      (SingleRep (ErrorRep, SuccessRep),
+                                        ValueRep (OneTime, Streaming))
+import Foreign.Ptr                     (plusPtr)
+import Luna.Pass.Data.Stage            (Stage)
 import Luna.Pass.Evaluation.Data.Scope (LocalScope)
-import Data.Map (Map)
--- import           Luna.Builtin.Data.LunaEff        (runError, runIO)
--- import           Luna.Builtin.Data.Module         (Imports (..), unionImports, unionsImports)
--- import           Luna.Builtin.Prim                (SingleRep (..), ValueRep (..), getReps)
--- import qualified Luna.Compilation                 as Compilation
-import qualified Luna.Package                     as Package
-import qualified Luna.Package.Structure.Name      as Package
--- import           Luna.Compilation                 (CompiledModules (..))
-import qualified Luna.IR                          as IR
--- import           Luna.Pass.Data.ExprMapping
--- import qualified Luna.Pass.Evaluation.Interpreter as Interpreter
--- import           Luna.Pass.Resolution.Data.CurrentTarget (CurrentTarget(TgtDef))
--- import qualified Luna.IR.Layer.Errors             as Errors
--- import           OCI.IR.Name.Qualified            (QualName)
+import LunaStudio.Data.Breadcrumb      (Breadcrumb (Breadcrumb),
+                                        BreadcrumbItem (Definition))
+import LunaStudio.Data.GraphLocation   (GraphLocation (GraphLocation))
+import LunaStudio.Data.NodeValue       (NodeValue (NodeError, NodeValue))
+import LunaStudio.Data.Visualization   (VisualizationValue (StreamDataPoint, StreamStart, Value))
+import System.Directory                (canonicalizePath, withCurrentDirectory)
+import System.Environment              (getEnv)
+import System.FilePath                 (takeDirectory)
+
+
 
 runTC :: IR.Qualified -> GraphLocation -> Command InterpreterEnv ()
 runTC modName (GraphLocation file br) = do
-    typed <- use $ Graph.userState . typedUnits
-    root  <- use $ Graph.userState . clsGraph . Graph.clsClass
+    typed <- use $ Graph.userState . Empire.typedUnits
+    root  <- use $ Graph.userState . Empire.clsGraph . Graph.clsClass
     imps  <- liftScheduler $ ImportsPlucker.run root
-    ress  <- use $ Graph.userState . resolvers
+    ress  <- use $ Graph.userState . Empire.resolvers
     let relevantResolvers = Map.restrictKeys ress (Set.fromList $ essentialImports <> [modName] <> imps)
         resolver = mconcat . Map.elems $ relevantResolvers
-    zoomCommand clsGraph $ case br of
+    zoomCommand Empire.clsGraph $ case br of
         Breadcrumb (Definition uuid:_) -> do
             cls <- use $ Graph.userState
             let Just root = cls ^? Graph.clsFuns . ix uuid . Graph.funGraph . Graph.breadcrumbHierarchy . BH.self
@@ -147,14 +120,14 @@ runInterpreter path imports = do
 updateNodes :: GraphLocation -> Command InterpreterEnv ()
 updateNodes loc@(GraphLocation _ br) = case br of
     Breadcrumb (Definition uuid:rest) -> do
-        units <- use $ Graph.userState . mappedUnits
+        units <- use $ Graph.userState . Empire.mappedUnits
         let resolveFun mod n =
                 let moduleDefs = units ^? ix mod . to Unit._definitions
                     defRef     = moduleDefs >>= \a -> a ^? wrapped . ix n
                     docTerm    = view Def.documented <$> defRef
                     defBody    = docTerm >>= \a -> a ^? Def._Body
                 in defBody
-        zoomCommand clsGraph $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) $ do
+        zoomCommand Empire.clsGraph $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb rest) $ do
             (inEdge, outEdge) <- use $ Graph.userState . Graph.breadcrumbHierarchy . BH.portMapping
             (updates, errors) <- runASTOp $ do
                 sidebarUpdates <- (\x y -> [x, y]) <$> GraphBuilder.buildInputSidebarTypecheckUpdate  inEdge
@@ -235,13 +208,13 @@ fileImportPaths file = liftIO $ do
 
 stop :: Command InterpreterEnv ()
 stop = do
-    cln     <- use $ Graph.userState . cleanUp
-    threads <- use $ Graph.userState . listeners
-    Graph.userState . listeners .= []
+    cln     <- use $ Graph.userState . Empire.cleanUp
+    threads <- use $ Graph.userState . Empire.listeners
+    Graph.userState . Empire.listeners .= []
     liftIO $ mapM_ Async.uninterruptibleCancel threads
     liftIO cln
 
-translate :: Buffer.RedirectMap -> Int -> NodeRef -> NodeRef 
+translate :: Buffer.RedirectMap -> Int -> NodeRef -> NodeRef
 translate redMap off node = wrap $ (unwrap (redMap Map.! (Memory.Ptr $ convert node)))
     `plusPtr` off
 
@@ -250,7 +223,7 @@ primStdModuleName = "Std.Primitive"
 
 makePrimStdIfMissing :: Command InterpreterEnv ()
 makePrimStdIfMissing = do
-    existingStd <- use $ Graph.userState . resolvers . at primStdModuleName
+    existingStd <- use $ Graph.userState . Empire.resolvers . at primStdModuleName
     case existingStd of
         Just _ -> return ()
         Nothing -> do
@@ -265,7 +238,7 @@ makePrimStdIfMissing = do
                 for Std.stdlibImports $ UnitLoader.loadUnit def srcs []
                 Unit.UnitRefsMap mods <- Scheduler.getAttr
                 units <- flip Map.traverseWithKey mods $ \n u -> case u ^. Unit.root of
-                    Unit.Graph r -> UnitMapper.mapUnit n r
+                    Unit.Graph r       -> UnitMapper.mapUnit n r
                     Unit.Precompiled u -> pure u
                 let unitResolvers   = Map.mapWithKey Resolution.resolverFromUnit units
                     importResolvers = Map.mapWithKey (Resolution.resolverForUnit unitResolvers) $ over wrapped (essentialImports <>)
@@ -273,27 +246,27 @@ makePrimStdIfMissing = do
                     unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
                 (typed, evald) <- ProcessUnits.processUnits def def unitsWithResolvers
                 return (mods, fin, typed, evald, unitResolvers, units)
-            zoomCommand clsGraph $ runASTOp $ for mods $ \u -> case u ^. Unit.root of
+            zoomCommand Empire.clsGraph $ runASTOp $ for mods $ \u -> case u ^. Unit.root of
                 Unit.Graph r -> IR.deleteSubtree r
-                _ -> return ()
-            Graph.userState . cleanUp      .= finalizer
-            Graph.userState . typedUnits   .= typed
-            Graph.userState . mappedUnits  .= units
-            Graph.userState . runtimeUnits .= computed
-            Graph.userState . resolvers    .= ress
+                _            -> return ()
+            Graph.userState . Empire.cleanUp      .= finalizer
+            Graph.userState . Empire.typedUnits   .= typed
+            Graph.userState . Empire.mappedUnits  .= units
+            Graph.userState . Empire.runtimeUnits .= computed
+            Graph.userState . Empire.resolvers    .= ress
 
 ensureCurrentScope :: Bool -> IR.Qualified -> FilePath -> NodeRef -> Command InterpreterEnv ()
 ensureCurrentScope recompute modName path root = do
     modName <- filePathToQualName path
-    existing <- use $ Graph.userState . resolvers . at modName
+    existing <- use $ Graph.userState . Empire.resolvers . at modName
     when (recompute || isNothing existing) $ do
         compileCurrentScope modName path root
 
 compileCurrentScope :: IR.Qualified -> FilePath -> NodeRef -> Command InterpreterEnv ()
 compileCurrentScope modName path root = do
-    typed   <- use $ Graph.userState . typedUnits
-    evald   <- use $ Graph.userState . runtimeUnits
-    ress    <- use $ Graph.userState . resolvers
+    typed   <- use $ Graph.userState . Empire.typedUnits
+    evald   <- use $ Graph.userState . Empire.runtimeUnits
+    ress    <- use $ Graph.userState . Empire.resolvers
 
     (mods, newTyped, newEvald, newResolvers, units) <- liftScheduler $ do
         imports <- ImportsPlucker.run root
@@ -305,7 +278,7 @@ compileCurrentScope modName path root = do
 
         Unit.UnitRefsMap mods <- Scheduler.getAttr
         units <- flip Map.traverseWithKey mods $ \n u -> case u ^. Unit.root of
-            Unit.Graph r -> UnitMapper.mapUnit n r
+            Unit.Graph r       -> UnitMapper.mapUnit n r
             Unit.Precompiled u -> pure u
 
         let unitResolvers   = Map.union (Map.mapWithKey Resolution.resolverFromUnit units) ress
@@ -314,14 +287,14 @@ compileCurrentScope modName path root = do
             unitsWithResolvers = Map.mapWithKey (\n u -> (importResolvers Map.! n, u)) units
         (newTyped, newEvald) <- ProcessUnits.processUnits typed evald unitsWithResolvers
         return (mods, newTyped, newEvald, unitResolvers, units)
-    for mods $ \u -> zoomCommand clsGraph $ runASTOp $ case u ^. Unit.root of
+    for mods $ \u -> zoomCommand Empire.clsGraph $ runASTOp $ case u ^. Unit.root of
         Unit.Graph r -> when (Layout.relayout r /= root) $ IR.deleteSubtree r
-        _ -> return ()
+        _            -> return ()
 
-    Graph.userState . mappedUnits  %= Map.union units
-    Graph.userState . typedUnits   .= newTyped
-    Graph.userState . runtimeUnits .= newEvald
-    Graph.userState . resolvers    .= newResolvers
+    Graph.userState . Empire.mappedUnits  %= Map.union units
+    Graph.userState . Empire.typedUnits   .= newTyped
+    Graph.userState . Empire.runtimeUnits .= newEvald
+    Graph.userState . Empire.resolvers    .= newResolvers
 
 run :: GraphLocation
     -> Graph.ClsGraph
@@ -329,56 +302,41 @@ run :: GraphLocation
     -> Bool
     -> Bool
     -> Command InterpreterEnv ()
-run loc@(GraphLocation file br) clsGraph' rooted' interpret recompute = do
+run gl clsGraph rooted interpret recompute = do
+    root <- runNoCleanUp gl clsGraph rooted interpret recompute
+    zoomCommand Empire.clsGraph . runASTOp $ IR.deleteSubtree root
+
+runNoCleanUp
+    :: GraphLocation
+    -> Graph.ClsGraph
+    -> Store.RootedWithRedirects NodeRef
+    -> Bool
+    -> Bool
+    -> Command InterpreterEnv (Component Nodes ())
+runNoCleanUp gl clsGraph rooted interpret recompute = do
     stop
-
-    let Store.RootedWithRedirects rooted redMap = rooted'
-    (root, redirects) <- runASTOp $ Store.deserializeWithRedirects rooted
-    let originalCls = clsGraph' ^. Graph.clsClass
+    (root, redirects)
+        <- runASTOp . Store.deserializeWithRedirects $ rooted ^. Store.rooted
+    let filePath        = gl ^. GraphLocation.filePath
         deserializerOff = redirects Map.! someTypeRep @IR.Terms
-        newCls = translate redMap deserializerOff originalCls
-    let newClsGraph = clsGraph' & BH.refs %~ translate redMap deserializerOff
-    Graph.userState . clsGraph .= newClsGraph
-
-    modName <- filePathToQualName file
-
+        newClsGraph     = clsGraph & BH.refs %~ translate
+            (rooted ^. Store.redirections)
+            deserializerOff
+    Graph.userState . Empire.clsGraph .= newClsGraph
+    modName <- filePathToQualName filePath
     makePrimStdIfMissing
-    ensureCurrentScope recompute modName file root
-
-    runTC modName loc
-    updateNodes loc
-
+    ensureCurrentScope recompute modName filePath root
+    runTC modName gl
+    updateNodes gl
+    let processBC evald (Breadcrumb (Definition uuid:r))
+            = zoomCommand Empire.clsGraph
+            . withRootedFunction uuid
+            . runInternalBreadcrumb (Breadcrumb r) $ do
+                scope <- runInterpreter filePath evald
+                traverse (updateValues gl) scope
+        processBC _ _ = pure Nothing
     when interpret $ do
-        evald <- use $ Graph.userState . runtimeUnits
-        asyncs <- case br of
-            Breadcrumb (Definition uuid:r) -> zoomCommand clsGraph $ withRootedFunction uuid $ runInternalBreadcrumb (Breadcrumb r) $ do
-                scope <- runInterpreter file evald
-                traverse (updateValues loc) scope
-            _ -> return Nothing
-        Graph.userState . listeners .= fromMaybe [] asyncs
-    zoomCommand clsGraph $ runASTOp $ IR.deleteSubtree root
-
-            -- void $ mask_ $ recomputeCurrentScope imports file
-    --         let scopeGetter = if recompute
-    --                           then recomputeCurrentScope
-    --                           else getCurrentScope
-    --         scope  <- mask_ $ scopeGetter imports file
-    --         asyncs <- zoom graph $ do
-    --             importedModules <- getImportedModules
-    --             std             <- liftIO $ readMVar imports
-    --             let CompiledModules cmpMods cmpPrims = std
-    --                 cmpImportedMods = Map.restrictKeys cmpMods importedModules
-    --                 visibleModules = CompiledModules cmpImportedMods cmpPrims
-    --                 flatVisibleScope = flattenScope $ Scope visibleModules
-    --                 moduleEnv      = unionImports flatVisibleScope scope
-    --             modName <- filePathToQualName file
-    --             funName <- preuse $
-    --                 Graph.clsFuns . at uuid . _Just . Graph.funName
-    --                     let functionName = fromMaybe "unknown function" funName
-    --                     runTC modName functionName moduleEnv
-    --                     {-updateMonads loc-}
-    --                     if interpret then do
-    --                         scope  <- runInterpreter file moduleEnv
-    --                         traverse (updateValues loc) scope
-    --                     else return Nothing
-    --         listeners .= fromMaybe [] asyncs
+        evald  <- use $ Graph.userState . Empire.runtimeUnits
+        asyncs <- processBC evald $ gl ^. GraphLocation.breadcrumb
+        Graph.userState . Empire.listeners .= fromMaybe mempty asyncs
+    pure root

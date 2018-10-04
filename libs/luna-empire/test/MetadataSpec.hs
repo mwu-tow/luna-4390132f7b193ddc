@@ -50,7 +50,6 @@ import           LunaStudio.Data.TypeRep          (TypeRep (TStar))
 import           LunaStudio.Data.Vector2          (Vector2 (..))
 
 import           Empire.Prelude
--- import           Luna.Prelude                     (normalizeQQ)
 
 import           Test.Hspec                       (Expectation, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
                                                    shouldMatchList, shouldNotBe, shouldSatisfy, shouldStartWith, xit)

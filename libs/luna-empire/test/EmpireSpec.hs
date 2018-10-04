@@ -60,7 +60,6 @@ import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar, T
 import           Empire.Prelude                  hiding (mapping, toList, (|>))
 import           Text.RawString.QQ                     (r)
 import           System.Directory                (canonicalizePath, getCurrentDirectory)
-import           System.Environment              (lookupEnv, setEnv)
 import           System.FilePath                 ((</>), takeDirectory)
 import qualified System.IO.Temp                  as Temp
 
@@ -70,10 +69,6 @@ import           Test.Hspec                      (Selector, Spec, around, descri
 
 import           EmpireUtils
 
-normalizeQQ :: String -> String
-normalizeQQ str = dropWhileEnd isSpace $ intercalate "\n" $ fmap (drop minWs) allLines where
-    allLines = dropWhile null $ dropWhileEnd isSpace <$> lines str
-    minWs    = minimum $ length . takeWhile isSpace <$> (filter (not.null) allLines)
 
 spec :: Spec
 spec = around withChannels $ parallel $ do
@@ -371,8 +366,7 @@ spec = around withChannels $ parallel $ do
                             def main:
                                 None
                             |]
-                    let normalize = Text.pack . normalizeQQ . Text.unpack
-                    Graph.loadCode loc $ normalize initialCode
+                    Graph.loadCode loc $ normalizeLunaCode initialCode
                     [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
                     let loc' = GraphLocation mainLuna $ Breadcrumb [Definition (main ^. Node.nodeId)]
                     Graph.addNode loc' u1 "id" def
@@ -383,21 +377,13 @@ spec = around withChannels $ parallel $ do
                         let root = g ^. Graph.clsClass
                         rooted <- runASTOp $ Store.serializeWithRedirectMap root
                         return (loc', g, rooted)
-                withResult res $ \(top, g, rooted) -> liftIO $ do
-                    let thisFilePath = $(do
-                            dir <- TH.runIO getCurrentDirectory
-                            filename <- TH.loc_filename <$> TH.location
-                            TH.litE $ TH.stringL $ dir </> filename)
-                    lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
-                    oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
-                    flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
-                        setEnv Project.lunaRootEnv lunaroot
-                        pmState <- Graph.defaultPMState
-                        let interpreterEnv = InterpreterEnv (return ()) g [] def def def def
-                        (_, (extractGraph -> g')) <- runEmpire env (Graph.CommandState pmState interpreterEnv) $
-                            Typecheck.run top g rooted False False
-                        (res'',_) <- runEmp' env st g' $ do
-                            Graph.withGraph top $ runASTOp $ (,) <$> GraphBuilder.buildNode u1 <*> GraphBuilder.buildNode u2
+                withResult res $ \(top, g, rooted) -> do
+                    pmState <- Graph.defaultPMState
+                    let interpreterEnv = InterpreterEnv (return ()) g [] def def def def
+                    (_, (extractGraph -> g')) <- runEmpire env (Graph.CommandState pmState interpreterEnv) $
+                        Typecheck.run top g rooted False False
+                    (res'',_) <- runEmp' env st g' $ do
+                        Graph.withGraph top $ runASTOp $ (,) <$> GraphBuilder.buildNode u1 <*> GraphBuilder.buildNode u2
                     -- withResult res'' $ \(n1, n2) -> do
                     --     view Node.inPorts n2 `shouldMatchList` [
                     --           Port.Port [Port.Arg 0] "in" (TLam (TVar "a") (TVar "a")) Port.Connected
@@ -405,7 +391,7 @@ spec = around withChannels $ parallel $ do
                     --     view Node.outPorts n1 `shouldMatchList` [
                     --           Port.Port [] "Output" (TLam (TVar "a") (TVar "a")) (Port.WithDefault (Expression "in: in"))
                     --         ]
-                        return ()
+                    return ()
         it "puts + inside plus lambda" $ \env -> do
             u1 <- mkUUID
             res <- evalEmp env $ do
@@ -1323,304 +1309,3 @@ spec = around withChannels $ parallel $ do
                 Graph.withGraph loc $ runASTOp $ GraphBuilder.getNodeIdSequence
             withResult res $ \idSeq -> do
                 idSeq    `shouldBe` []
-    describe "pattern match" $ do
-        it "adds a node pattern-matching on a value" $ \env -> do
-            u1 <- mkUUID
-            res <- evalEmp env $ Graph.addNode top u1 "Just a = Just 1" def
-            res ^. Node.code `shouldBe` "Just 1"
-            res ^. Node.name `shouldBe` Just "Just a"
-        it "adds a node pattern-matching on a value 2" $ \env -> do
-            u1 <- mkUUID
-            res <- evalEmp env $ Graph.addNode top u1 "(Just (Just (Foo a b c)), Nothing, (Bar x y)) = foo" def
-            res ^. Node.code `shouldBe` "foo"
-            res ^. Node.name `shouldBe` Just "(Just (Just (Foo a b c)), Nothing, Bar x y)"
-        it "renames a node to pattern-matching on a value" $ \env -> do
-            u1 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "a = Just 1" def
-                Graph.renameNode top u1 "Just a"
-                [n] <- Graph.getNodes top
-                return n
-            res ^. Node.code `shouldBe` "Just 1"
-            res ^. Node.name `shouldBe` Just "Just a"
-        it "adds a marker in a proper place in lambda pattern-matching on an argument" $ \env -> do
-            u1 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "foo = (Just x): y: z: x + y" def
-                Graph.withGraph top $ use Graph.code
-            res `shouldBe` "«0»def main:\n    «1»foo = (Just x): y: z: «2»x + y\n    None"
-        it "adds a marker in a proper place in lambda pattern-matching on an argument 2" $ \env -> do
-            u1 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "foo = (Just (Just (Foo x b c))): y: z: x + y" def
-                Graph.withGraph top $ use Graph.code
-            res `shouldBe` "«0»def main:\n    «1»foo = (Just (Just (Foo x b c))): y: z: «2»x + y\n    None"
-        it "connects two outputs when one of them is pattern match" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "myVec" def
-                Graph.addNode top u2 "Vector x y z" def
-                Graph.connect top (outPortRef u1 []) (OutPortRef' (outPortRef u2 []))
-                Graph.withGraph top $ runASTOp $
-                    (,,,) <$> GraphBuilder.buildNode u1
-                          <*> GraphBuilder.buildNode u2
-                          <*> GraphBuilder.buildConnections
-                          <*> (ASTRead.getASTPointer u2 >>= ASTRead.varIsPatternMatch)
-            withResult res $ \(myVec, pattern, connections, isPatternMatch) -> do
-                myVec ^. Node.name `shouldBe` Just "myVec1"
-                pattern ^. Node.name `shouldBe` Just "Vector x y z"
-                pattern ^. Node.outPorts `shouldBe` flip LabeledTree (Port.Port [] "Vector x y z" TStar Port.NotConnected) (OutPorts [
-                      LabeledTree def (Port.Port [Port.Projection 0] "x" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 1] "y" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 2] "z" TStar Port.NotConnected)
-                    ])
-                (pattern ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []          "alias" TStar Port.Connected
-                    , Port.Port [Port.Self] "self" TStar Port.NotConnected
-                    ]
-                isPatternMatch `shouldBe`        True
-                connections    `shouldMatchList` [(outPortRef u1 [], inPortRef u2 [])]
-        it "disconnects pattern match" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "myVec" def
-                Graph.addNode top u2 "Vector x y z" def
-                Graph.connect top (outPortRef u1 []) (OutPortRef' (outPortRef u2 []))
-                Graph.disconnect top (inPortRef u2 [])
-
-                Graph.withGraph top $ runASTOp $
-                    (,,,) <$> GraphBuilder.buildNode u1
-                          <*> GraphBuilder.buildNode u2
-                          <*> GraphBuilder.buildConnections
-                          <*> (ASTRead.getASTPointer u2 >>= ASTRead.varIsPatternMatch)
-            withResult res $ \(myVec, pattern, connections, isPatternMatch) -> do
-                myVec   ^.  Node.name       `shouldBe` Just "myVec1"
-                pattern ^.  Node.name       `shouldBe` Just "Vector x y z"
-                pattern ^.  Node.expression `shouldBe` "None"
-                pattern ^.. Node.outPorts . traverse  `shouldMatchList` [
-                      Port.Port [] "Vector x y z" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0] "x" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 1] "y" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 2] "z" TStar Port.NotConnected
-                    ]
-                (pattern ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port [] "alias" TStar (Port.WithDefault $ Expression "None")
-                    ]
-                isPatternMatch `shouldBe` True
-                connections `shouldMatchList` []
-        it "connects to pattern match, disconnects and connects again" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "myVec" def
-                Graph.addNode top u2 "Vector x y z" def
-                Graph.connect top (outPortRef u1 []) (OutPortRef' (outPortRef u2 []))
-                Graph.disconnect top (inPortRef u2 [])
-                Graph.connect top (outPortRef u1 []) (InPortRef' (inPortRef u2 []))
-
-                Graph.withGraph top $ runASTOp $
-                    (,,,) <$> GraphBuilder.buildNode u1
-                          <*> GraphBuilder.buildNode u2
-                          <*> GraphBuilder.buildConnections
-                          <*> (ASTRead.getASTPointer u2 >>= ASTRead.varIsPatternMatch)
-            withResult res $ \(myVec, pattern, connections, isPatternMatch) -> do
-                myVec   ^. Node.name `shouldBe` Just "myVec1"
-                pattern ^. Node.name `shouldBe` Just "Vector x y z"
-                pattern ^. Node.outPorts `shouldBe` flip LabeledTree (Port.Port [] "Vector x y z" TStar Port.NotConnected) (OutPorts [
-                      LabeledTree def (Port.Port [Port.Projection 0] "x" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 1] "y" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 2] "z" TStar Port.NotConnected)
-                    ])
-                (pattern ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port [Port.Self] "self" TStar Port.NotConnected
-                    , Port.Port []          "alias" TStar Port.Connected
-                    ]
-                isPatternMatch `shouldBe` True
-                connections `shouldMatchList` [(outPortRef u1 [], inPortRef u2 [])]
-        it "connects deconstructed value to other nodes" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            u3 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "myVec" def
-                Graph.addNode top u2 "Vector x y z" def
-                Graph.addNode top u3 "a: b: a + b" def
-
-                Graph.connect top (outPortRef u1 []) (OutPortRef' (outPortRef u2 []))
-                connectToInput top (outPortRef u2 [Port.Projection 0]) (inPortRef u3 [Port.Arg 0])
-                connectToInput top (outPortRef u2 [Port.Projection 1]) (inPortRef u3 [Port.Arg 1])
-
-                Graph.withGraph top $ runASTOp $
-                    (,,) <$> GraphBuilder.buildNode u2
-                         <*> GraphBuilder.buildNode u3
-                         <*> GraphBuilder.buildConnections
-            withResult res $ \(pattern, plus, connections) -> do
-                pattern ^. Node.outPorts `shouldBe` flip LabeledTree (Port.Port [] "Vector x y z" TStar Port.NotConnected) (OutPorts [
-                      LabeledTree def (Port.Port [Port.Projection 0] "x" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 1] "y" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 2] "z" TStar Port.NotConnected)
-                    ])
-                (pattern ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port [Port.Self] "self" TStar Port.NotConnected
-                    , Port.Port []          "alias" TStar Port.Connected
-                    ]
-                (plus ^.. Node.inPorts . traverse) `shouldMatchList` [
-                        Port.Port []           "alias" TStar (Port.WithDefault $ Expression "a: b: «4»a + b x y")
-                      , Port.Port [Port.Arg 0] "a"    TStar Port.Connected
-                      , Port.Port [Port.Arg 1] "b"    TStar Port.Connected
-                    ]
-                connections `shouldMatchList` [
-                      (outPortRef u1 [], inPortRef u2 [])
-                    , (outPortRef u2 [Port.Projection 0], inPortRef u3 [Port.Arg 0])
-                    , (outPortRef u2 [Port.Projection 1], inPortRef u3 [Port.Arg 1])
-                    ]
-        it "displays proper connections and ports on a pattern matching node" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            u3 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "foo = Tuple2 1 2" def
-                Graph.addNode top u2 "Tuple2 x y = foo" def
-                Graph.addNode top u3 "bar = x + 1" def
-                Graph.withGraph top $ runASTOp $
-                    (,) <$> GraphBuilder.buildNode u2
-                        <*> GraphBuilder.buildConnections
-            withResult res $ \(pattern, connections) -> do
-                pattern ^.. Node.outPorts . traverse `shouldMatchList` [
-                      Port.Port [] "Tuple2 x y" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0] "x" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 1] "y" TStar Port.NotConnected
-                    ]
-                connections `shouldMatchList` [
-                      (outPortRef u1 [], inPortRef u2 [])
-                    , (outPortRef u2 [Port.Projection 0], inPortRef u3 [Port.Arg 0])
-                    ]
-        it "displays proper connections and ports on a pattern matching node with tuple pattern" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            u3 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "foo = (1, 2)" def
-                Graph.addNode top u2 "(x, y) = foo" def
-                Graph.addNode top u3 "bar = x + 1" def
-                Graph.withGraph top $ runASTOp $
-                    (,) <$> GraphBuilder.buildNode u2
-                        <*> GraphBuilder.buildConnections
-            withResult res $ \(pattern, connections) -> do
-                pattern ^.. Node.outPorts . traverse `shouldMatchList` [
-                      Port.Port [] "(x, y)" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0] "x" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 1] "y" TStar Port.NotConnected
-                    ]
-                connections `shouldMatchList` [
-                      (outPortRef u1 [], inPortRef u2 [])
-                    , (outPortRef u2 [Port.Projection 0], inPortRef u3 [Port.Arg 0])
-                    ]
-        it "returns correct connections for nested pattern use" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "(a, b, (c, d)) = (1, 2, (3, 4))" def
-                Graph.addNode top u2 "c" def
-                Graph.withGraph top $ runASTOp GraphBuilder.buildConnections
-            withResult res $ \connections -> do
-                connections `shouldMatchList` [(outPortRef u1 [Port.Projection 2, Port.Projection 0], inPortRef u2 [])]
-        it "connects two outputs when one of them is nested pattern match with literals" $ \env -> do
-            u1 <- mkUUID
-            u2 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "myVec" def
-                Graph.addNode top u2 "SomeCons (Just a) 0 \"foo\" x" def
-                Graph.connect top (outPortRef u1 []) (OutPortRef' (outPortRef u2 []))
-
-                Graph.withGraph top $ runASTOp $
-                    (,,,) <$> GraphBuilder.buildNode u1
-                          <*> GraphBuilder.buildNode u2
-                          <*> GraphBuilder.buildConnections
-                          <*> (ASTRead.getASTPointer u2 >>= ASTRead.varIsPatternMatch)
-            withResult res $ \(myVec, pattern, connections, isPatternMatch) -> do
-                myVec   ^. Node.name `shouldBe` Just "myVec1"
-                pattern ^. Node.name `shouldBe` Just "SomeCons (Just a) 0 \"foo\" x"
-                pattern ^. Node.outPorts `shouldBe` flip LabeledTree (Port.Port [] "SomeCons (Just a) 0 \"foo\" x" TStar Port.NotConnected) (OutPorts [
-                      flip LabeledTree (Port.Port [Port.Projection 0] "Just a"  TStar Port.NotConnected) $ OutPorts [
-                          LabeledTree def (Port.Port [Port.Projection 0, Port.Projection 0] "a" TStar Port.NotConnected)
-                      ]
-                    , LabeledTree def (Port.Port [Port.Projection 1] "0"       TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 2] "\"foo\"" TStar Port.NotConnected)
-                    , LabeledTree def (Port.Port [Port.Projection 3] "x"       TStar Port.NotConnected)
-                    ])
-                (pattern ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []          "alias" TStar Port.Connected
-                    , Port.Port [Port.Self] "self" TStar Port.NotConnected
-                    ]
-                isPatternMatch `shouldBe` True
-                connections `shouldMatchList` [(outPortRef u1 [], inPortRef u2 [])]
-        xit "supports lambdas pattern matching on their argument" $ \env -> do -- FIXME[MK, MM]: Waiting for new printer
-            u1 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "(Foobar a b c): b" def
-                node <- Graph.withGraph top $ runASTOp $ GraphBuilder.buildNode u1
-                let loc' = top |> u1
-                graph <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildGraph
-                (input, output) <- Graph.withGraph loc' $ runASTOp GraphBuilder.buildEdgeNodes
-                return (node, graph, input, output)
-            withResult res $ \(node, graph, input, output) -> do
-                (node ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "alias" TStar (Port.WithDefault $ Expression "(Foobar a b c): b")
-                    , Port.Port [Port.Arg 0] "arg0" TStar Port.NotConnected
-                    ]
-                let Graph.Graph nodes connections _ _ _ _ = graph
-                nodes `shouldBe` mempty
-                input ^.. Node.inputEdgePorts . traverse . traverse `shouldMatchList` [
-                      Port.Port [Port.Projection 0]                    "Foobar a b c" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 0] "a"            TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 1] "b"            TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 2] "c"            TStar Port.NotConnected
-                    ]
-
-                output ^.. Node.outputEdgePorts . traverse `shouldMatchList` [
-                      Port.Port [] "output" TStar Port.Connected
-                    ]
-
-                connections `shouldMatchList` [
-                      Connection (outPortRef (input ^. Node.nodeId) [Port.Projection 0, Port.Projection 1]) (inPortRef (output ^. Node.nodeId) [])
-                    ]
-        xit "supports multi-parameter lambdas pattern matching on their arguments" $ \env -> do -- FIXME[MK, MM]: Waiting for new printer
-            u1 <- mkUUID
-            res <- evalEmp env $ do
-                Graph.addNode top u1 "(Foobar a b (Just c)): x: (Quux y z): c" def
-                node <- Graph.withGraph top $ runASTOp $ GraphBuilder.buildNode u1
-                let loc' = top |> u1
-                graph <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildGraph
-                (input, output) <- Graph.withGraph loc' $ runASTOp GraphBuilder.buildEdgeNodes
-                return (node, graph, input, output)
-            withResult res $ \(node, graph, input, output) -> do
-                (node ^.. Node.inPorts . traverse) `shouldMatchList` [
-                      Port.Port []           "alias" TStar (Port.WithDefault $ Expression "(Foobar a b (Just c)): x: (Quux y z): c")
-                    , Port.Port [Port.Arg 0] "arg0" TStar Port.NotConnected
-                    , Port.Port [Port.Arg 1] "x"    TStar Port.NotConnected
-                    , Port.Port [Port.Arg 2] "arg2" TStar Port.NotConnected
-                    ]
-                let Graph.Graph nodes connections _ _ _ _ = graph
-                nodes `shouldBe` mempty
-                input ^.. Node.inputEdgePorts . traverse . traverse `shouldMatchList` [
-                      Port.Port [Port.Projection 0]                                       "Foobar a b (Just c)" TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 0]                    "a"                   TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 1]                    "b"                   TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 2]                    "Just c"              TStar Port.NotConnected
-                    , Port.Port [Port.Projection 0, Port.Projection 2, Port.Projection 0] "c"                   TStar Port.NotConnected
-                    , Port.Port [Port.Projection 1]                                       "x"                   TStar Port.NotConnected
-                    , Port.Port [Port.Projection 2]                                       "Quux y z"            TStar Port.NotConnected
-                    , Port.Port [Port.Projection 2, Port.Projection 0]                    "y"                   TStar Port.NotConnected
-                    , Port.Port [Port.Projection 2, Port.Projection 1]                    "z"                   TStar Port.NotConnected
-                    ]
-
-                (output ^.. Node.outputEdgePorts . traverse) `shouldMatchList` [
-                      Port.Port [] "output" TStar Port.Connected
-                    ]
-
-                connections `shouldMatchList` [
-                      Connection (outPortRef (input ^. Node.nodeId) [Port.Projection 0, Port.Projection 2, Port.Projection 0]) (inPortRef (output ^. Node.nodeId) [])
-                    ]

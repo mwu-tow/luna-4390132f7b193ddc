@@ -562,16 +562,41 @@ appify ref = match ref $ \case
     Grouped g -> appify =<< source g
     _         -> throwM CannotFlipNodeException
 
+flipNodeCode :: NodeId -> GraphOp ()
+flipNodeCode nid = do
+    lhs          <- ASTRead.getASTVar    nid
+    rhs          <- ASTRead.getASTTarget nid
+    lhsCode      <- Code.getCodeOf lhs
+    rhsCode      <- Code.getCodeOf rhs
+    targetOffset <- getLayer @SpanOffset =<< ASTRead.getTargetEdge nid
+    Just lhsBeg  <- Code.getAnyBeginningOf lhs
+    Just rhsBeg  <- Code.getAnyBeginningOf rhs
+    lhsLen       <- getLayer @SpanLength lhs
+    rhsLen       <- getLayer @SpanLength rhs
+    Code.removeAt rhsBeg (rhsBeg + rhsLen)
+    Code.removeAt lhsBeg (lhsBeg + lhsLen)
+    Code.insertAt (lhsBeg + targetOffset) lhsCode
+    void $ Code.insertAt lhsBeg rhsCode
+
 flipNode :: NodeId -> GraphOp ()
 flipNode nid = do
+    ref    <- ASTRead.getASTPointer nid
     lhs    <- ASTRead.getASTVar    nid
     rhs    <- ASTRead.getASTTarget nid
+    targetOffset <- getLayer @SpanOffset =<< ASTRead.getTargetEdge nid
+    flipNodeCode nid
+    let copySpanLength recipient donor =
+            putLayer @SpanLength recipient =<< getLayer @SpanLength donor
     newlhs <- patternify rhs
     newrhs <- appify     lhs
     uni    <- IR.unify newlhs newrhs
+    copySpanLength newlhs rhs
+    copySpanLength newrhs lhs
+    copySpanLength uni ref
     attachNodeMarkers nid [] newlhs
-    pointer <- ASTRead.getASTPointer nid
-    replace uni pointer
+    replace uni ref
+    newEdge <- ASTRead.getTargetEdge nid
+    putLayer @SpanOffset newEdge targetOffset
 
 attachName :: NodeRef -> Text -> GraphOp (NodeRef, NodeRef)
 attachName node n = do

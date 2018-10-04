@@ -81,7 +81,6 @@ import           LunaStudio.Data.Vector2               (Vector2 (..))
 import           LunaStudio.Data.Visualization         (VisualizationValue (Value))
 import qualified LunaStudio.Data.LabeledTree           as LabeledTree
 import           System.Directory                      (canonicalizePath, getCurrentDirectory)
-import           System.Environment                    (lookupEnv, setEnv)
 import           System.FilePath                       ((</>), takeDirectory)
 import qualified System.IO.Temp                        as Temp
 
@@ -135,33 +134,6 @@ testLuna' = [r|def main:
 
 atXPos = ($ def) . (NodeMeta.position . Position.x .~)
 
-normalizeQQ :: String -> String
-normalizeQQ str = dropWhileEnd isSpace $ intercalate "\n" $ fmap (drop minWs) allLines where
-    allLines = dropWhile null $ dropWhileEnd isSpace <$> lines str
-    minWs    = minimum $ length . takeWhile isSpace <$> (filter (not.null) allLines)
-
-specifyCodeChange :: Text -> Text -> (GraphLocation -> Empire a) -> CommunicationEnv -> Expectation
-specifyCodeChange initialCode expectedCode act env = do
-    let normalize = Text.pack . normalizeQQ . Text.unpack
-    actualCode <- evalEmp env $ do
-        Library.createLibrary Nothing "/TestPath"
-        let loc = GraphLocation "/TestPath" $ Breadcrumb []
-        Graph.loadCode loc $ normalize initialCode
-        [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
-        let loc' = GraphLocation "/TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
-        (nodeIds, toplevel) <- Graph.withGraph loc' $ do
-            markers  <- fmap fromIntegral . Map.keys <$> use (Graph.userState . Graph.codeMarkers)
-            ids      <- runASTOp $ forM markers $ \i -> (i,) <$> Graph.getNodeIdForMarker i
-            toplevel <- uses (Graph.userState . Graph.breadcrumbHierarchy) BH.topLevelIDs
-            return (ids, toplevel)
-        forM nodeIds $ \(i, nodeIdMay) ->
-            forM nodeIdMay $ \nodeId -> do
-                when (elem nodeId toplevel) $
-                    Graph.setNodeMeta loc' nodeId $ NodeMeta (Position.fromTuple (0, fromIntegral i*10)) False def
-        act loc'
-        Graph.getCode loc'
-    Text.strip actualCode `shouldBe` normalize expectedCode
-
 
 spec :: Spec
 spec = around withChannels $ parallel $ do
@@ -214,7 +186,7 @@ spec = around withChannels $ parallel $ do
             Code.removeMarkers code `shouldBe` expectedCode
     describe "file loading" $ do
         it "parses unit" $ \env -> do
-            let code = Text.pack $ normalizeQQ $ [r|
+            let code = normalizeLunaCode $ [r|
                 def main:
                     «0»pi = 3.14
                     «1»foo = a: b: a + b
@@ -423,7 +395,7 @@ def main:
                     , Connection (outPortRef (foo ^. Node.nodeId) []) (inPortRef (bar  ^. Node.nodeId) [Port.Head])
                     ]
         it "enters lambda written in file" $ \env -> do
-            let code = Text.pack $ normalizeQQ $ [r|
+            let code = normalizeLunaCode $ [r|
                     def main:
                         «0»foo = a: b: a + b
                     |]
@@ -441,7 +413,7 @@ def main:
                 nodes `shouldSatisfy` ((== 1) . length)
                 connections `shouldSatisfy` ((== 3) . length)
         it "lambda in code can be entered" $ \env -> do
-            let code = Text.pack $ normalizeQQ $ [r|
+            let code = normalizeLunaCode $ [r|
                     def main:
                         «0»foo = a: a
                     |]
@@ -527,7 +499,7 @@ def main:
                 Graph.movePort (loc' |> foo) (outPortRef (input ^. Node.nodeId) [Port.Projection 0]) 1
                 code <- Graph.withUnit loc $ use Graph.code
                 return code
-            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+            normalizeLunaCode code `shouldBe` normalizeLunaCode [r|
             «13»def main:
                 «0»pi = 3.14
                 «1»foo = b: a:
@@ -543,7 +515,7 @@ def main:
             |]
     describe "code spans" $ do
         it "simple example" $ \env -> do
-            let code = Text.pack $ normalizeQQ $ [r|
+            let code = normalizeLunaCode $ [r|
                     def main:
                         «0»pi = 5
                     |]
@@ -559,7 +531,7 @@ def main:
                       (17, 26)
                     ]
         it "not so simple example" $ \env -> do
-            let code = Text.pack $ normalizeQQ $ [r|
+            let code = normalizeLunaCode $ [r|
                     def main:
                         «0»pi = 5
                         «1»a = 60
@@ -621,7 +593,7 @@ def main:
             withResult res $ \ids -> do
                 ids `shouldSatisfy` (all isJust)
         it "autolayouts nested nodes on file load" $ \env -> do
-            let code = Text.pack $ normalizeQQ $ [r|
+            let code = normalizeLunaCode $ [r|
                     def main:
                         «0»pi = 3.14
                         «1»foo = a: b:
@@ -1849,7 +1821,7 @@ def main:
                 (input, _) <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.getEdgePortMapping
                 Graph.movePort loc' (outPortRef input [Port.Projection 0]) 1
         it "removes last port in top-level def" $ \env -> do
-            let initialCode = Text.pack $ normalizeQQ [r|
+            let initialCode = normalizeLunaCode [r|
                     def foo aaaa:
                         «0»c = aaaa + 2
                         c
@@ -1864,13 +1836,13 @@ def main:
                 Graph.removePort loc' (outPortRef input [Port.Projection 0])
                 code <- Graph.withUnit loc $ use Graph.code
                 return code
-            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+            normalizeLunaCode code `shouldBe` normalizeLunaCode [r|
                 «1»def foo:
                     «0»c = aaaa + 2
                     c
                 |]
         it "removes last port in nested def" $ \env -> do
-            let initialCode = Text.pack $ normalizeQQ [r|
+            let initialCode = normalizeLunaCode [r|
                     def main:
                         «2»def foo aaaa:
                             «0»c = aaaa + 2
@@ -1893,7 +1865,7 @@ def main:
                 inputSidebar <- Graph.withGraph loc'' $ runASTOp $ GraphBuilder.buildInputSidebar input
                 return (inputSidebar, code)
             inputSidebar ^. Node.isDef `shouldBe` True
-            normalizeQQ (Text.unpack code) `shouldBe` normalizeQQ [r|
+            normalizeLunaCode code `shouldBe` normalizeLunaCode [r|
                 «3»def main:
                     «2»def foo:
                         «0»c = aaaa + 2
@@ -2640,10 +2612,6 @@ def main:
                 u1 <- mkUUID
                 Graph.addNode loc u1 "first" (atXPos 300)
         it "interprets Fibonacci program" $ \env -> do
-            let thisFilePath = $(do
-                    dir <- TH.runIO getCurrentDirectory
-                    filename <- TH.loc_filename <$> TH.location
-                    TH.litE $ TH.stringL $ dir </> filename)
             Temp.withSystemTempDirectory "luna-fileloadspec" $ \path -> do
                 (res, st) <- runEmp env $ do
                     let initialCode = [r|
@@ -2659,8 +2627,7 @@ def main:
                     let mainLuna = pkgPath </> "src" </> "Main.luna"
                     Library.createLibrary Nothing mainLuna
                     let loc = GraphLocation mainLuna $ Breadcrumb []
-                    let normalize = Text.pack . normalizeQQ . Text.unpack
-                    Graph.loadCode loc $ normalize initialCode
+                    Graph.loadCode loc $ normalizeLunaCode initialCode
                     [main] <- filter (\n -> n ^. Node.name == Just "main") <$> Graph.getNodes loc
                     let loc' = GraphLocation mainLuna $ Breadcrumb [Definition (main ^. Node.nodeId)]
                     [fib] <- filter (\n -> n ^. Node.name == Just "fib") <$> Graph.getNodes loc
@@ -2671,14 +2638,9 @@ def main:
                         rooted <- runASTOp $ Store.serializeWithRedirectMap root
                         return (loc', g, rooted)
                 withResult res $ \(loc, g, rooted) -> do
-                    liftIO $ do
-                        lunaroot <- canonicalizePath $ takeDirectory thisFilePath </> "../../../env"
-                        oldLunaRoot <- fromMaybe "" <$> lookupEnv Project.lunaRootEnv
-                        flip finally (setEnv Project.lunaRootEnv oldLunaRoot) $ do
-                            setEnv Project.lunaRootEnv lunaroot
-                            pmState <- Graph.defaultPMState
-                            let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def def
-                            runEmpire env cs $ Typecheck.run loc g rooted True False
+                    pmState <- Graph.defaultPMState
+                    let cs = Graph.CommandState pmState $ InterpreterEnv (return ()) g [] def def def def
+                    runEmpire env cs $ Typecheck.run loc g rooted True False
                 let updates = env ^. to _updatesChan
                 ups <- atomically $ unfoldM (tryReadTChan updates)
                 let _ResultUpdate = prism ResultUpdate $ \n -> case n of
@@ -2711,9 +2673,9 @@ def main:
     bar = foo 8 c
                 |]
             in specifyCodeChange initialCode expectedCode $ \loc -> do
-                Graph.substituteCodeFromPoints "/TestPath" [ TextDiff (Just (Point 0 2, Point 0 3)) "" Nothing
-                                                           , TextDiff (Just (Point 0 4, Point 0 4)) "    foo = a: b: a + b\n" Nothing
-                                                           ]
+                Graph.substituteCodeFromPoints "/TestProject" [ TextDiff (Just (Point 0 2, Point 0 3)) "" Nothing
+                                                              , TextDiff (Just (Point 0 4, Point 0 4)) "    foo = a: b: a + b\n" Nothing
+                                                              ]
         it "rename from tuple to var" $ let
             initialCode = [r|
                 def main:
@@ -3037,12 +2999,11 @@ def main:
                 (undoCode, undoCache) <- (,) <$> Graph.withUnit top (use Graph.code) <*> Graph.prepareNodeCache top
                 Graph.collapseToFunction bar' $ map fromJust ids
                 code <- Graph.getCode top
-                let normalize = Text.pack . normalizeQQ . Text.unpack
-                liftIO $ code `shouldBe` normalize expectedCode
+                liftIO $ code `shouldBe` normalizeLunaCode expectedCode
                 Graph.withUnit top $ Graph.nodeCache .= undoCache
                 Graph.loadCode loc undoCode
                 code' <- Graph.withUnit top $ use Graph.code
-                liftIO $ code' `shouldBe` normalize initialCode
+                liftIO $ code' `shouldBe` normalizeLunaCode initialCode
                 nodes' <- Graph.getNodes bar'
                 liftIO $ nodes `shouldBe` nodes'
                 Graph.collapseToFunction bar' $ map fromJust ids
