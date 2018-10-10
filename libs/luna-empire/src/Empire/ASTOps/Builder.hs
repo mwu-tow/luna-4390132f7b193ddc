@@ -1,20 +1,17 @@
 module Empire.ASTOps.Builder where
 
 import           Control.Monad                      (foldM, replicateM, zipWithM_)
-import           Data.Maybe                         (isNothing, listToMaybe)
+import           Data.Maybe                         (listToMaybe)
 import qualified Data.Text                          as Text
-import qualified Data.Text.IO                       as Text
 import           Empire.Prelude
 import qualified Safe
 
 import           LunaStudio.Data.Node               (NodeId)
-import qualified LunaStudio.Data.PortRef            as PortRef
 import           LunaStudio.Data.PortRef            (OutPortRef (..))
 import           LunaStudio.Data.NodeLoc            (NodeLoc (..))
 import qualified LunaStudio.Data.Port               as Port
 import           Empire.ASTOp                       (GraphOp, match)
-import           Empire.ASTOps.Deconstruct          (extractAppPorts, deconstructApp, extractFunctionPorts, dumpAccessors)
-import           Empire.ASTOps.Remove               (removeSubtree)
+import           Empire.ASTOps.Deconstruct          (extractAppPorts, deconstructApp, extractFunctionPorts)
 import qualified Empire.ASTOps.Read                 as ASTRead
 import qualified Empire.ASTOps.Print                as ASTPrint
 import qualified Empire.Commands.Code               as Code

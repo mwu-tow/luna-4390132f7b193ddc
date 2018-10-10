@@ -6,10 +6,7 @@
 module Empire.ASTOps.Modify where
 
 import           Control.Monad (forM)
-import           Control.Lens  (folded, ifiltered)
 import           Data.List     (find)
-import qualified Data.Text.IO  as Text
-import qualified Safe
 
 import           Empire.Prelude hiding (substitute)
 import qualified Empire.Prelude as P
@@ -29,9 +26,9 @@ import           Empire.Data.AST                    (EdgeRef, NodeRef, NotLambda
 import           Empire.Data.Layers                 (SpanLength, SpanOffset)
 import qualified Empire.Data.BreadcrumbHierarchy    as BH
 import qualified Empire.Data.Graph                  as Graph
-import           Data.Text.Span          (SpacedSpan(..), leftSpacedSpan)
+import           Data.Text.Span                     (SpacedSpan(..))
 import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan, realSpan)
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
 import qualified Luna.IR                            as IR
 
 import qualified Data.List as L (take, head, drop, tail)

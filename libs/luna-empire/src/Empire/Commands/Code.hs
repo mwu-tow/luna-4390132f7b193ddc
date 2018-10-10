@@ -13,16 +13,14 @@ import qualified Data.Set                as Set
 import qualified Data.Map                as Map
 import           Data.Text               (Text)
 import qualified Data.Text               as Text
-import qualified Data.Text.IO            as Text
 import qualified Data.Text.Read          as Text
 import           Data.List               (sort, sortOn)
 import           Data.Maybe              (listToMaybe)
 import           Empire.Data.Graph       as Graph
-import           Empire.Empire           (Command, Empire)
 import qualified Safe
 
 import           Empire.Data.AST         (NodeRef, EdgeRef)
-import           Empire.ASTOp            (ASTOp, ClassOp, GraphOp, runASTOp)
+import           Empire.ASTOp            (ASTOp, ClassOp, GraphOp)
 import           Empire.ASTOps.Print     as ASTPrint
 import           Empire.ASTOps.Read      as ASTRead
 
@@ -30,21 +28,19 @@ import qualified Luna.IR                 as IR
 import           Data.Text.Position      (Delta)
 import           Luna.Pass.Data.Layer.SpanLength (SpanLength)
 import           Luna.Pass.Data.Layer.SpanOffset (SpanOffset)
-import           Data.Text.Span          (SpacedSpan(..), leftSpacedSpan)
+import           Data.Text.Span          (SpacedSpan(..))
 import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan, realSpan)
-import qualified Luna.Syntax.Text.Parser.State.Marker   as Luna
+import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
 
 import           Luna.Syntax.Text.Lexer.Grammar     (isOperator)
 import qualified Luna.Syntax.Text.Lexer             as Lexer
 import           Luna.Syntax.Text.Analysis.SpanTree as SpanTree
 
-import           LunaStudio.Data.Breadcrumb         (Breadcrumb(..), BreadcrumbItem(..))
 import           LunaStudio.Data.NodeId             (NodeId)
 import qualified LunaStudio.Data.NodeCache          as NodeCache
-import qualified Empire.Data.BreadcrumbHierarchy as BH
 
 import           LunaStudio.Data.Point (Point(Point))
+
 
 pointToDelta :: Point -> Text -> Delta
 pointToDelta (Point col row) code = fromIntegral $ col + row + sumOfRowsBefore where
