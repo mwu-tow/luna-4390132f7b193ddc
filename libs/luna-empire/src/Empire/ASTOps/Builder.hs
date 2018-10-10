@@ -339,28 +339,51 @@ ensureHasSelf e beg = source e >>= flip matchExpr `id` \case
         Code.gossipLengthsChangedBy 2 =<< target e
     _ -> throwM . SelfPortNotExistantException =<< source e
 
-ensureFunctionIsValid :: GraphOp ()
-ensureFunctionIsValid = do
-    self <- ASTRead.cutThroughDocAndMarked =<< use (Graph.breadcrumbHierarchy . BH.self)
+ensureFunctionIsValid :: Delta -> GraphOp ()
+ensureFunctionIsValid outerIndentation = do
+    let indentation = fromIntegral $
+            outerIndentation + Code.defaultIndentationLength
+    self        <- ASTRead.cutThroughDocAndMarked
+        =<< use (Graph.breadcrumbHierarchy . BH.self)
+    let whitespace = Text.replicate indentation " "
     match self $ \case
         ASGFunction n as b -> do
+            name' <- source n >>= \a -> matchExpr a $ \case
+                Invalid IR.MissingFunctionName -> pure $ Just " func"
+                Invalid IR.InvalidFunctionName -> pure Nothing
+                Invalid a                      ->
+                    error ("ensureFunctionIsValid: " <> show a)
+                _                              -> pure Nothing
+            forM_ name' $ \(name :: String) -> do
+                var <- IR.var $ convert name
+                let nameLength = fromIntegral $ length name
+                putLayer @SpanLength var nameLength
+                Just namePos <- Code.getOffsetRelativeToFile =<< source n
+                Code.insertAt namePos $ convert name
+                IR.replace var =<< source n
+                Code.gossipLengthsChangedBy nameLength =<< target n
+            let none :: IsString a => a
+                none     = "None"
+                noneLine = whitespace <> none
             section' <- source b >>= \a -> matchExpr a $ \case
-                Invalid IR.MissingSection  -> return $ Just ":\n    None"
-                Invalid IR.EmptyExpression -> return $ Just "\n    None"
+                Invalid IR.MissingSection  -> pure $ Just $ ":\n" <> noneLine
+                Invalid IR.EmptyExpression -> pure $ Just $ "\n"  <> noneLine
                 Invalid a                  -> error ("ensureFunctionIsValid: " 
                                                     <> show a)
-                _                          -> return Nothing
+                _                          -> pure Nothing
             forM_ section' $ \section -> do
-                ir <- IR.cons "None" []
-                putLayer @SpanLength ir $ fromIntegral $ length ("None" :: String)
-                Just foo <- Code.getOffsetRelativeToFile self
-                len <- getLayer @SpanLength self
-                Code.applyDiff (foo+len) (foo+len) section
+                ir <- IR.cons (stringToName none) []
+                putLayer @SpanLength ir $
+                    fromIntegral $ length none
+                Just funBeg <- Code.getOffsetRelativeToFile self
+                len         <- getLayer @SpanLength self
+                Code.applyDiff (funBeg+len) (funBeg+len) section
                 IR.replace ir =<< source b
                 matchExpr self $ \case
                     ASGFunction _ _ b -> putLayer @SpanOffset b $
-                        fromIntegral $ length (":\n    " :: String)
-                Code.gossipLengthsChangedBy (fromIntegral $ Text.length section) =<< target b
+                        fromIntegral $ length (":\n" :: String) + indentation
+                Code.gossipLengthsChangedBy (fromIntegral $ Text.length section)
+                    =<< target b
         _ -> return ()
 
 
