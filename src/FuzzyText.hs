@@ -1,31 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module FuzzyText
-    ( fuzzySearch
-    , customSearch
-    , RawEntry (..)
-    , EntryType (..)
-    , Match (..)
-    , Scoring (..)
-    , ImportInfo(..)
-    , Range
-    , Score
-    , ClassName
-    , ImportName
-    , Query
-    , name
-    , doc
-    , entry
-    , MatchType (..)
-    , matchType
-    , score
-    , charsMatch
-    , weight
-    , entryType
-    , className
-    , importInfo
-    , importName
-    , imported
-    ) where
+module FuzzyText where
 
 import           Control.Lens                 ((?~), Getter, to)
 import           Data.Char
@@ -157,14 +131,15 @@ instance Entry MatchState where
 
 instance Ord Match where
     m1 `compare` m2 = let 
-        m1score = fromIntegral (m1 ^. score) * (m1 ^. weight)
-        m2score = fromIntegral (m2 ^. score) * (m2 ^. weight)
-        importOrd = case (,) <$> (m1 ^. importInfo) <*> (m2 ^. importInfo) of
-            Nothing -> EQ
-            Just (mi1, mi2) ->
-                if mi1 ^. imported && not (mi2 ^. imported) then LT
-                else if not (mi1 ^. imported) && mi2 ^. imported then GT
-                else EQ
+        importedBonus      = 100
+        notImportedPenalty = 0
+        getImportedBonus m = if isJust $ m ^. importInfo
+            then importedBonus
+            else notImportedPenalty
+        m1importedBonus = getImportedBonus m1
+        m2importedBonus = getImportedBonus m2
+        m1score = m1importedBonus + (fromIntegral (m1 ^. score) * (m1 ^. weight))
+        m2score = m2importedBonus + (fromIntegral (m2 ^. score) * (m2 ^. weight))
         notFullyMatchedOrd = if m1 ^. matchType == m2 ^. matchType then EQ
                 else if m1 ^. matchType == NotFullyMatched then GT
                 else if m2 ^. matchType == NotFullyMatched then LT
@@ -178,7 +153,6 @@ instance Ord Match where
             else m2score `compare` m1score
         in 
             if      notFullyMatchedOrd /= EQ then notFullyMatchedOrd
-            else if importOrd          /= EQ then importOrd
             else if matchTypeOrd       /= EQ then matchTypeOrd
             else if compareScore       /= EQ then compareScore
             else (m1 ^. name) `compare` (m2 ^. name)
