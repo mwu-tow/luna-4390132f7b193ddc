@@ -5,34 +5,51 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 import qualified Shelly.Lifted as Shelly
-import Shelly.Lifted (MonadSh, (</>), shelly, liftIO)
+import Shelly.Lifted (MonadSh, MonadShControl, (</>), shelly, liftIO)
 import qualified System.Directory as System
 import Control.Monad.Catch (throwM, MonadThrow)
-import Control.Monad (when, unless)
+import Control.Monad (when, unless, void)
 import Control.Monad.IO.Class ( MonadIO)
 import Control.Exception (Exception)
 import Data.Maybe (fromMaybe)
 import Data.Text as T
 import Data.Text.IO (writeFile)
 import Data.Monoid ((<>))
-import Filesystem.Path.CurrentOS (parent, encodeString, fromText)
+import Filesystem.Path.CurrentOS (parent, encodeString)
 import System.IO (BufferMode(LineBuffering), hSetBuffering, stdout)
 import qualified System.Directory as System
 default (T.Text)
 
-stack = "../../tools/stack/stack"
 
-tools = "../../tools"
-libs = "../../libs"
+-- === Paths === --
+
+stack = "tools/stack/stack"
+tools = "tools"
+libs = "libs"
 supportedNodeVersion = "6.11.3"
 supportedPythonVersion = "3.6.2"
 lunaShell = "./luna-shell.sh"
 
-currentPath :: (MonadSh m, MonadIO m) => m Text
+pyenvRepoUrl :: Text
+pyenvRepoUrl = "https://github.com/pyenv/pyenv.git"
+
+currentPath :: (MonadSh m, MonadIO m) => m Shelly.FilePath
 currentPath = do
     path <- Shelly.get_env "APP_PATH"
-    currentDirectory <- liftIO $ System.getCurrentDirectory
-    return $ fromMaybe (T.pack currentDirectory) path
+    currentDirectory <- Shelly.pwd
+    return $ fromMaybe currentDirectory (Shelly.fromText <$> path)
+
+toolsPath, pythonPath, pyenvPath, appsPath, studioPath :: (MonadSh m, MonadIO m) => m Shelly.FilePath
+toolsPath  = (</> "tools")       <$> currentPath
+pythonPath = (</> "python")      <$> toolsPath
+pyenvPath  = (</> "pyenv")       <$> pythonPath
+appsPath   = (</> "apps")        <$> currentPath
+studioPath = (</> "luna-studio") <$> appsPath
+
+chdir_pM, chdirM :: MonadShControl m => m Shelly.FilePath -> m a -> m ()
+chdir_pM pM act = pM >>= \p -> void $ Shelly.chdir_p p act
+chdirM   pM act = pM >>= \p -> void $ Shelly.chdir   p act
+
 
 -------------------
 -- === Hosts === --
@@ -50,7 +67,6 @@ data System = Linux
 
 currentHost :: System
 
-
 #ifdef linux_HOST_OS
 currentHost      =  Linux
 #elif darwin_HOST_OS
@@ -61,42 +77,59 @@ currentHost      =  Windows
 Running on unsupported system.
 #endif
 
-sanityCheck :: (MonadSh m, Shelly.MonadShControl m) => Shelly.FilePath -> [T.Text] -> m ()
+sanityCheck :: (MonadSh m, MonadShControl m) => Shelly.FilePath -> [T.Text] -> m ()
 sanityCheck command params = Shelly.silently $ do
     Shelly.errExit False $ bashLogin command params
     exit <- Shelly.lastExitCode
     when (exit /= 0) $ Shelly.errorExit (Shelly.toTextIgnore command)
 
-installPython :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+
+-- === Installing Python === --
+
+installPython :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
 installPython = do
-    Shelly.echo "installing python locally"
-    current <- currentPath
-    let pythonFolder = current </> tools </> "python"
-    Shelly.chdir_p pythonFolder $ do
+    Shelly.echo "Installing python locally..."
+    _setupPyenv
+    _ensurePythonVersionInstalled
+    _installPythonDeps
+
+_setupPyenv :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
+_setupPyenv = chdir_pM pythonPath $ do
         pyenvPresent <- Shelly.test_d "pyenv"
-        unless pyenvPresent $ Shelly.cmd "git" "clone" "https://github.com/pyenv/pyenv.git"
+        unless pyenvPresent $ Shelly.cmd "git" "clone" pyenvRepoUrl
 
-    Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pythonFolder </> "pyenv"
-    Shelly.prependToPath $ pythonFolder </> "pyenv" </> "bin"
-    Shelly.prependToPath $ pythonFolder </> "pyenv" </> "shims"
-    Shelly.cmd "pyenv" "init" "-"
+        pyenvPath' <- pyenvPath
+        Shelly.setenv "PYENV_ROOT" $ Shelly.toTextIgnore $ pyenvPath'
+        Shelly.prependToPath $ pyenvPath' </> "bin"
+        Shelly.prependToPath $ pyenvPath' </> "shims"
+        Shelly.cmd "pyenv" "init" "-"
 
-    let versionPath = pythonFolder </>"pyenv/versions" </> supportedPythonVersion
+_ensurePythonVersionInstalled :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
+_ensurePythonVersionInstalled = do
+    pyenvPath' <- pyenvPath
+    let versionPath = pyenvPath' </> "versions" </> supportedPythonVersion
     pythonSupportedVersionPresent <- Shelly.test_d versionPath
 
-    unless pythonSupportedVersionPresent $ do
-        -- we need this because of https://github.com/pyenv/pyenv/issues/950
-        when (currentHost == Darwin) $ do
-            opensslPath <- T.stripEnd <$> Shelly.cmd "brew" "--prefix" "openssl"
-            Shelly.setenv "CFLAGS"  $ "-I" <> opensslPath <> "/include"
-            Shelly.setenv "LDFLAGS" $ "-L" <> opensslPath <> "/lib"
-        Shelly.cmd "pyenv" "install" supportedPythonVersion
-
-    Shelly.chdir (fromText current) $ do
+    chdirM currentPath $ do
+        unless pythonSupportedVersionPresent $ do
+            -- we need this because of https://github.com/pyenv/pyenv/issues/950
+            when (currentHost == Darwin) $ do
+                opensslPath <- T.stripEnd <$> Shelly.cmd "brew" "--prefix" "openssl"
+                Shelly.setenv "CFLAGS"  $ "-I" <> opensslPath <> "/include"
+                Shelly.setenv "LDFLAGS" $ "-L" <> opensslPath <> "/lib"
+            Shelly.cmd "pyenv" "install" supportedPythonVersion
+    
+    chdirM studioPath $
         Shelly.cmd "pyenv" "local" supportedPythonVersion
-        Shelly.cmd "pip" "install" "--user" "-r" "requirements.txt"
 
-installNode :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+_installPythonDeps :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
+_installPythonDeps = chdirM studioPath $
+    Shelly.cmd "pip" "install" "--user" "-r" "requirements.txt"
+
+
+-- === Installing Node === --
+
+installNode :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
 installNode = do
     Shelly.echo "installing node locally"
     current <- currentPath
@@ -116,7 +149,7 @@ installNode = do
 nodeModules :: [T.Text]
 nodeModules = ["less"]
 
-installNodeModules :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+installNodeModules :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
 installNodeModules = do
     Shelly.echo "installing node modules"
     current <- currentPath
@@ -125,26 +158,37 @@ installNodeModules = do
     Shelly.cmd (nodeBinPath </> "npm") $ "install" : nodeModules
 
 
+-- === Installing Haskell === --
+
 haskellBins :: [T.Text]
 haskellBins = ["happy", "hsc2hs"]
 
-installHaskellBins :: (MonadSh m, Shelly.MonadShControl m, MonadIO m) => m ()
+installHaskellBins :: (MonadSh m, MonadShControl m, MonadIO m) => m ()
 installHaskellBins = do
     current <- currentPath
-    home <- liftIO $ System.getHomeDirectory
+    home    <- liftIO $ System.getHomeDirectory
     Shelly.appendToPath $ home </> ".local/bin"
     mapM (Shelly.cmd (current </> stack) "--resolver" "lts-8.2" "install" "--install-ghc") haskellBins
     sanityCheck "happy" ["--version"]
     sanityCheck "hsc2hs" ["--version"]
 
-downloadLibs :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+stackSetupForLunaStudio :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
+stackSetupForLunaStudio = do
+    current <- currentPath
+    Shelly.chdir (current </>"luna-studio") $ do
+        Shelly.echo "install GHCJS"
+        Shelly.cmd (current </>stack) "setup"
+
+
+-- === Other utils === --
+
+downloadLibs :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
 downloadLibs = do
     Shelly.echo "downloading libraries"
     current <- currentPath
-    let libsFolder    = current </> libs
-        arch          = if currentHost == Darwin then "darwin" else "linux"
+    let arch          = if currentHost == Darwin then "darwin" else "linux"
         lunaStudioUrl = "http://packages.luna-lang.org/" <> arch <> "/libs/luna-studio-libs.tar.gz"
-    Shelly.chdir_p (parent libsFolder) $ do
+    Shelly.chdir_p current $ do
         Shelly.cmd "wget" lunaStudioUrl
         Shelly.cmd  "tar" "-xpzf" "./luna-studio-libs.tar.gz" "--strip=1"
         Shelly.rm "./luna-studio-libs.tar.gz"
@@ -159,13 +203,13 @@ checkShell = fromMaybe "bash" <$> Shelly.get_env "SHELL"
 preparePaths :: [Shelly.FilePath] -> Text
 preparePaths filepaths = intercalate ":" $ Shelly.toTextIgnore <$> filepaths
 
-getStackPaths :: (MonadSh m, MonadIO m, Shelly.MonadShControl m) => m Text
+getStackPaths :: (MonadSh m, MonadIO m, MonadShControl m) => m Text
 getStackPaths = do
     current <- currentPath
     let absStackPath = current </> stack
     Shelly.silently $ Shelly.run absStackPath ["path", "--bin-path"]
 
-generateLunaShellScript :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
+generateLunaShellScript :: (MonadIO m, MonadSh m, MonadShControl m) => m ()
 generateLunaShellScript = do
     Shelly.echo "generate luna shell"
     current <- currentPath
@@ -185,12 +229,6 @@ generateLunaShellScript = do
         fullCode           = T.unlines [addLdLibraryPath, addPath, pyenvEnviromentVar, initPyenv, loadPython]
     liftIO $ Data.Text.IO.writeFile (encodeString lunaShellPath) fullCode
 
-stackSetupForLunaStudio :: (MonadIO m, MonadSh m, Shelly.MonadShControl m) => m ()
-stackSetupForLunaStudio = do
-    current <- currentPath
-    Shelly.chdir (current </>"luna-studio") $ do
-        Shelly.echo "install GHCJS"
-        Shelly.cmd (current </>stack) "setup"
 
 
 main :: IO ()
