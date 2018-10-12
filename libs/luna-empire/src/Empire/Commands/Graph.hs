@@ -1332,24 +1332,30 @@ rangeToMarked code range' = (start, end)
         (start, end) = Code.viewDeltasToRealBeforeMarker code span
 
 pasteText :: GraphLocation -> [Range] -> [Text] -> Empire Text
-pasteText loc@(GraphLocation file _) ranges (Text.concat -> text) = do
-    res <- withUnit (GraphLocation file (Breadcrumb [])) $ do
+pasteText loc ranges (Text.concat -> text) = do
+    let topLoc = GraphLocation.top loc
+    res <- withUnit topLoc $ do
         runASTOp $ forM (Safe.headMay ranges) $ \range -> do
             code <- use Graph.code
-            let (start, end)   = rangeToMarked code range
-            let cleanText = Code.removeMarkers text
+            let (start, end) = rangeToMarked code range
+                cleanText    = Code.removeMarkers text
             code' <- Code.applyDiff start end cleanText
             let endPosition = start + fromIntegral (Text.length cleanText)
                 cursorPos   = Code.deltaToPoint endPosition code'
-            return (code', cursorPos)
+            pure (code', cursorPos)
     case res of
         Just (newCode, cursorPos) -> do
-            reloadCode (GraphLocation file (Breadcrumb [])) newCode `catch` \(e::ASTParse.SomeParserException) ->
-                withUnit (GraphLocation file (Breadcrumb [])) (Graph.userState . Graph.code .= newCode >> Graph.userState . Graph.clsParseError ?= toException e)
-            typecheck loc
-            resendCodeWithCursor (GraphLocation file (Breadcrumb [])) (Just cursorPos)
-            return newCode
-        _ -> return ""
+            reloadCode topLoc newCode `catch`
+                \(e::ASTParse.SomeParserException) -> do
+                    withUnit topLoc $ do
+                        Graph.userState . Graph.code .= newCode
+                        Graph.userState . Graph.clsParseError ?= toException e
+            typecheck loc `catch` \(e::BH.BreadcrumbDoesNotExistException) ->
+                -- if after reloading, our loc no longer exists, ignore error
+                pure ()
+            resendCodeWithCursor topLoc (Just cursorPos)
+            pure newCode
+        _ -> pure mempty
 
 nativeModuleName :: Text
 nativeModuleName = "Native"
