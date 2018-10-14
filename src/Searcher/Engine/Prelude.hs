@@ -6,7 +6,8 @@ module Searcher.Engine.Prelude
 import Data.List as X (sort)
 import Prologue  as X hiding (Symbol)
 
-import Data.Text (Text)
+import Control.Lens (makePrisms)
+import Data.Text    (Text)
 
 
 type Name          = Text
