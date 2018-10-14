@@ -3,11 +3,11 @@ module Searcher.Engine.Prelude
     , module X
     ) where
 
-import Data.List as X (sort)
-import Prologue  as X hiding (Symbol)
+import Control.Lens as X (Getter, makePrisms, to, (?~))
+import Data.List    as X (sort)
+import Prologue     as X hiding (Symbol)
 
-import Control.Lens (makePrisms)
-import Data.Text    (Text)
+import Data.Text (Text)
 
 
 type Name          = Text
