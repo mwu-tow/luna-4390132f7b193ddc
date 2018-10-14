@@ -1,37 +1,35 @@
-name:       fuzzy-text
-version:    "0.1"
-author:     Luna Team <contact@luna-lang.org>
-maintainer: Luna Team <contact@luna-lang.org>
+steps:
+  - simple_align:
+      cases              : true
+      top_level_patterns : true
+      records            : true
 
-tests:
-  spec:
-    main: Spec.hs
-    source-dirs: test
-    ghc-options: -Wall -O2 -threaded
-    dependencies:
-      - base
-      - containers
-      - fuzzy-text
-      - hspec
-      - prologue
-      - lens
-      - text
+  - imports:
+      align            : group
+      list_align       : after_alias
+      pad_module_names : true
+      long_list_align  : inline
+      empty_list_align : inherit
+      list_padding     : 4
+      separate_lists   : true
+      space_surround   : false
 
+  - language_pragmas:
+      style            : vertical
+      align            : true
+      remove_redundant : false
 
-library:
-  source-dirs: src
-  ghc-options: -Wall -O2 -threaded
-  dependencies:
-    - base
-    - containers
-    - prologue
-    - lens
-    - text
+  - tabs:
+      spaces: 4
 
-default-extensions:
+  - trailing_whitespace: {}
+
+columns: 80
+newline: native
+
+language_extensions:
     - AllowAmbiguousTypes
     - ApplicativeDo
-    - Arrows
     - BangPatterns
     - BinaryLiterals
     - ConstraintKinds
@@ -45,27 +43,27 @@ default-extensions:
     - DoAndIfThenElse
     - DuplicateRecordFields
     - EmptyDataDecls
+    - ExplicitNamespaces
     - FlexibleContexts
     - FlexibleInstances
     - FunctionalDependencies
     - GeneralizedNewtypeDeriving
     - InstanceSigs
     - LambdaCase
-    - LiberalTypeSynonyms
     - MonadComprehensions
-    - MultiWayIf
     - MultiParamTypeClasses
+    - MultiWayIf
     - NamedWildCards
     - NegativeLiterals
     - NoImplicitPrelude
     - NumDecimals
     - OverloadedLabels
-    - OverloadedStrings
     - PackageImports
     - QuasiQuotes
+    - PatternSynonyms
+    - PolyKinds
     - RankNTypes
     - RecursiveDo
-    - RelaxedPolyRec
     - ScopedTypeVariables
     - StandaloneDeriving
     - TemplateHaskell
@@ -73,6 +71,8 @@ default-extensions:
     - TypeApplications
     - TypeFamilies
     - TypeFamilyDependencies
-    - TypeSynonymInstances
     - TypeOperators
+    - UnicodeSyntax
     - ViewPatterns
+    - LiberalTypeSynonyms
+    - RelaxedPolyRec

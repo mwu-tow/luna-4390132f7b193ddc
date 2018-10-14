@@ -1,101 +1,110 @@
 {-# LANGUAGE OverloadedStrings #-}
 module MainSpec (spec) where
 
-import qualified Data.List                    as List
-import           FuzzyText
-import           Prologue
-import           Test.Hspec
+import Searcher.Engine.Prelude
+
+import qualified Data.List                   as List
+import qualified Searcher.Engine.Data        as Data
+import qualified Searcher.Engine.Data.Match  as Match
+import qualified Searcher.Engine.Data.Score  as Score
+
+import Searcher.Engine
+import Searcher.Engine.Data.Match  (Match)
+import Searcher.Engine.Data.Symbol (Kind (Function, Method), Library (Library),
+                                    Symbol (Symbol))
+import Test.Hspec
 
 
-makeEntries :: [Text] -> [RawEntry]
-makeEntries = map makeEntry where
-    makeEntry func = RawEntry func def Function 1 Nothing
+makeSymbols :: [Text] -> [Symbol]
+makeSymbols = map makeSymbol where
+    makeSymbol func = Symbol func (Library def True) Function def 1
 
-topResultNameShouldBe :: [Match] -> Text -> Expectation
+topResultNameShouldBe :: [Match Symbol] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
-topResultNameShouldBe (h:_) r = h ^. name `shouldBe` r
+topResultNameShouldBe (h:_) r = (h ^. Data.name) `shouldBe` r
 
-topResultEntryShouldBe :: [Match] -> RawEntry -> Expectation
-topResultEntryShouldBe [] _ = expectationFailure "Result is empty"
-topResultEntryShouldBe (h:_) e = h ^. entry `shouldBe` e
+topResultEntryShouldBe :: [Match Symbol] -> Symbol -> Expectation
+topResultEntryShouldBe [] _    = expectationFailure "Result is empty"
+topResultEntryShouldBe (h:_) e = h ^. Match.hint `shouldBe` e
 
-topResultShouldHaveBestScore :: [Match] -> Expectation
+topResultShouldHaveBestScore :: [Match Symbol] -> Expectation
 topResultShouldHaveBestScore []      = expectationFailure "Result is empty"
 topResultShouldHaveBestScore [_]     = def
-topResultShouldHaveBestScore (h:s:_) = h ^. score `shouldSatisfy` (> s ^. score)
+topResultShouldHaveBestScore (h:s:_) = h ^. Data.score . Score.total 
+    `shouldSatisfy` (> s ^. Data.score . Score.total)
 
 spec :: Spec
 spec = do
     describe "scoring function" $ do
         it "match starting with capital is prefered over others" $ do
-            let res = fuzzySearch "bar" $ makeEntries ["fooBar", "optbaru"]
+            let res = search "bar" $ makeSymbols ["fooBar", "optbaru"]
             res `topResultNameShouldBe` "fooBar"
         it "match starting with capital have better score" $ do
-            let res = fuzzySearch "bar" $ makeEntries ["fooBar", "optbaru"]
+            let res = search "bar" $ makeSymbols ["fooBar", "optbaru"]
             topResultShouldHaveBestScore res
         it "subsequence should be prefered over substring" $ do
-            let res = fuzzySearch "abc" $ makeEntries ["abcdef", "aebdcf"]
+            let res = search "abc" $ makeSymbols ["abcdef", "aebdcf"]
             res `topResultNameShouldBe` "abcdef"
         it "subsequence should have better score than substring" $ do
-            let res = fuzzySearch "abc" $ makeEntries ["abcdef", "aebdcf"]
+            let res = search "abc" $ makeSymbols ["abcdef", "aebdcf"]
             topResultShouldHaveBestScore res
         it "subsequence at beggining of the word is prefered over other subsequences" $ do
-            let res = fuzzySearch "ele" $ makeEntries ["getElement", "delement"]
+            let res = search "ele" $ makeSymbols ["getElement", "delement"]
             res `topResultNameShouldBe` "getElement"
         it "subsequence at beggining of the word should be scored better than other subsequences" $ do
-            let res = fuzzySearch "ele" $ makeEntries ["getElement", "delement"]
+            let res = search "ele" $ makeSymbols ["getElement", "delement"]
             topResultShouldHaveBestScore res
         it "subsequence at beggining of the word is prefered over other subsequences" $ do
-            let res = fuzzySearch "abcf" $ makeEntries ["abxcdefx", "aebdcfx"]
+            let res = search "abcf" $ makeSymbols ["abxcdefx", "aebdcfx"]
             res `topResultNameShouldBe` "abxcdefx"
         it "subsequence at beggining of the word should be scored better than other subsequences" $ do
-            let res = fuzzySearch "abcf" $ makeEntries ["abxcdefx", "aebdcfx"]
+            let res = search "abcf" $ makeSymbols ["abxcdefx", "aebdcfx"]
             topResultShouldHaveBestScore res
         it "last letter match should be prefered when results are similar" $ do
-            let res = fuzzySearch "xxxx" $ makeEntries ["xxaaxx", "xxbbxxb"]
+            let res = search "xxxx" $ makeSymbols ["xxaaxx", "xxbbxxb"]
             res `topResultNameShouldBe` "xxaaxx"
         it "last letter match should have better score when results are similar" $ do
-            let res = fuzzySearch "xxxx" $ makeEntries ["xxaaxx", "xxbbxxb"]
+            let res = search "xxxx" $ makeSymbols ["xxaaxx", "xxbbxxb"]
             topResultShouldHaveBestScore res
         it "longer subsequence is favored" $ do
-            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaaxxax", "xbbxxxxb"]
+            let res = search "xxxxx" $ makeSymbols ["xxaaxxax", "xbbxxxxb"]
             res `topResultNameShouldBe` "xbbxxxxb"
         it "longer subsequence have better score" $ do
-            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaaxxax", "xbbxxxxb"]
+            let res = search "xxxxx" $ makeSymbols ["xxaaxxax", "xbbxxxxb"]
             topResultShouldHaveBestScore res
         it "result with less omitted letters is prefered" $ do
-            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaxxxa", "xxbbxxxb"]
+            let res = search "xxxxx" $ makeSymbols ["xxaxxxa", "xxbbxxxb"]
             res `topResultNameShouldBe` "xxaxxxa"
         it "omitting letters results with worse score" $ do
-            let res = fuzzySearch "xxxxx" $ makeEntries ["xxaxxxa", "xxbbxxxb"]
+            let res = search "xxxxx" $ makeSymbols ["xxaxxxa", "xxbbxxxb"]
             topResultShouldHaveBestScore res
         it "exact match is prefered" $ do
-            let res = fuzzySearch "stream" $ makeEntries ["streamFrom", "stream"]
+            let res = search "stream" $ makeSymbols ["streamFrom", "stream"]
             res `topResultNameShouldBe` "stream"
         it "exact match is prefered when case differs" $ do
-            let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
+            let res = search "foobar" $ makeSymbols ["fooBar", "foobar"]
             res `topResultNameShouldBe` "foobar"
         it "exact match has better score" $ do
-            let res = fuzzySearch "foobar" $ makeEntries ["fooBar", "foobar"]
+            let res = search "foobar" $ makeSymbols ["fooBar", "foobar"]
             topResultShouldHaveBestScore res
         it "methods matching class are first for empty query" $ do
-            let bestEntry = RawEntry "%" def (Method "Int")  0.7 Nothing
-                entries = [ RawEntry "+" def (Method "Int")  0.7 Nothing
-                          , RawEntry "+" def (Method "Text") 0.5 Nothing
-                          , RawEntry "%" def (Method "Text") 0.5 Nothing
-                          , RawEntry "+" def Function        0.3 Nothing
-                          , RawEntry "%" def Function        0.3 Nothing
-                          , RawEntry "+" def Function        0.2 Nothing
+            let bestEntry = Symbol "%" (Library def True) (Method "Int")  def 0.7
+                entries = [ Symbol "+" (Library def True) (Method "Int")  def 0.7
+                          , Symbol "+" (Library def True) (Method "Text") def 0.5
+                          , Symbol "%" (Library def True) (Method "Text") def 0.5
+                          , Symbol "+" (Library def True) Function        def 0.3
+                          , Symbol "%" (Library def True) Function        def 0.3
+                          , Symbol "+" (Library def True) Function        def 0.2
                           , bestEntry
                           ]
-                res = fuzzySearch "" entries
+                res = search "" entries
             res `topResultEntryShouldBe` bestEntry
-          
+
     describe "matched letters" $ do
         it "match should be eager" $ do
-            let res = fuzzySearch "x" $ makeEntries ["xx"]
-            view charsMatch (List.head res) `shouldBe` [(0,1)]
+            let res = search "x" $ makeSymbols ["xx"]
+            view Match.matchedCharacters (List.head res) `shouldBe` [(0,1)]
         it "match should be eager" $ do
-            let res = fuzzySearch "xx" $ makeEntries ["xxx"]
-            view charsMatch (List.head res) `shouldBe` [(0,2)]
-            
+            let res = search "xx" $ makeSymbols ["xxx"]
+            view Match.matchedCharacters (List.head res) `shouldBe` [(0,2)]
+
