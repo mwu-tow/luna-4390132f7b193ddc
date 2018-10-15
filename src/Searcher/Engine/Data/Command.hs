@@ -18,7 +18,8 @@ makeLenses ''Command
 
 
 instance SearcherData Command where
-    name          = commandName
-    documentation = commandDocumentation
-    prefix        = to $ const mempty
-    score         = to $ const def
+    name              = commandName
+    rawDocumentation  = commandDocumentation
+    prefix            = to $ const mempty
+    score             = to $ const def
+    hintTextSeparator = to $ const mempty

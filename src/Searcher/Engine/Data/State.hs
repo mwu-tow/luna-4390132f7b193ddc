@@ -34,10 +34,11 @@ data State a = State
 makeLenses ''State
 
 instance SearcherData a => SearcherData (State a) where
-    name          = hint . Data.name
-    documentation = hint . Data.documentation
-    prefix        = hint . Data.prefix
-    score         =
+    name              = hint . Data.name
+    rawDocumentation  = hint . Data.rawDocumentation
+    prefix            = hint . Data.prefix
+    hintTextSeparator = hint . Data.hintTextSeparator
+    score =
         let points = sum . map toPoints . IntMap.elems . view charactersScoring
             toPoints (Scoring b1 b2 b3 b4 b5 b6 b7)
                 = b1 + b2 + b3 + b4 + b5 + b6 + b7

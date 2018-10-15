@@ -29,10 +29,11 @@ makeLenses ''Match
 
 
 instance SearcherData a => SearcherData (Match a) where
-    name          = hint . Data.name
-    documentation = hint . Data.documentation
-    prefix        = hint . Data.prefix
-    score         =
+    name              = hint . Data.name
+    rawDocumentation  = hint . Data.rawDocumentation
+    prefix            = hint . Data.prefix
+    hintTextSeparator = hint . Data.hintTextSeparator
+    score =
         let hintScore m = m ^. hint . Data.score
             score'    m = hintScore m & Score.points %~ (+ m ^. points)
         in to score'

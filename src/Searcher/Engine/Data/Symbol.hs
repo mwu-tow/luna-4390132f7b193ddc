@@ -37,9 +37,10 @@ data Symbol = Symbol
 makeLenses ''Symbol
 
 instance SearcherData Symbol where
-    name          = symbolName
-    documentation = symbolDocumentation
-    prefix        = library . Library.name
+    name              = symbolName
+    rawDocumentation  = symbolDocumentation
+    prefix            = library . Library.name
+    hintTextSeparator = to $ const " . "
     score =
         let importScore s = if s ^. library . Library.imported
                 then Library.importedBonus

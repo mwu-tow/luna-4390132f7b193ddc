@@ -2,6 +2,7 @@ module Searcher.Engine.Data where
 
 import Searcher.Engine.Prelude
 
+import qualified Data.Text                  as Text
 import qualified Searcher.Engine.Data.Score as Score
 
 import Searcher.Engine.Data.Range (Range)
@@ -12,9 +13,17 @@ import Searcher.Engine.Data.Score (Score)
 
 class Eq a => SearcherData a where
     name              :: Getter a Name
-    documentation     :: Getter a Documentation
+    rawDocumentation  :: Getter a Documentation
+    documentation     :: Getter a (Maybe Documentation)
+    documentation = to $ \sd -> if Text.null $ sd ^. rawDocumentation
+        then Nothing
+        else Just $ sd ^. rawDocumentation
     prefix            :: Getter a Prefix
     score             :: Getter a Score
+    hintTextSeparator :: Getter a Text
+    prefixedName :: Getter a Name
+    prefixedName = to $ \sd ->
+        sd ^. prefix <> sd ^. hintTextSeparator <> sd ^. name
 
 class IsMatch a where
     matchKind         :: Getter a MatchKind
