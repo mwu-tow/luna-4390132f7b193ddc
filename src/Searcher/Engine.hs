@@ -9,7 +9,7 @@ import Searcher.Engine.Data.Match   as X (Match (Match))
 import Searcher.Engine.Data.Range   as X (Range)
 import Searcher.Engine.Data.Score   as X (Fixed, Score (Score),
                                           Scoring (Scoring), Weight)
-import Searcher.Engine.Data.Symbol  as X (Library (Library), Symbol (Symbol))
+import Searcher.Engine.Data.Symbol  as X (ClassName, Library (Library), Symbol (Symbol))
 import Searcher.Engine.Prelude      as X (Documentation, MatchKind (AllCharsMatched, CaseInsensitiveEquality, CaseSensitiveEquality, NotFullyMatched),
                                           Name, Prefix, Query)
 
