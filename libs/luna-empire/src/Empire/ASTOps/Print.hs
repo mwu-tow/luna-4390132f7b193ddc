@@ -19,18 +19,13 @@ import           Empire.Data.AST                (EdgeRef, NodeRef)
 import           Empire.Data.Graph              (Graph)
 import qualified Luna.IR                        as IR
 import qualified Luna.IR.Aliases                as Uni
-import qualified Luna.IR.Layer                  as Layer
-import qualified Luna.IR.Link                   as Link
 -- import           Luna.IR.Term.Uni
 import           LunaStudio.Data.TypeRep
 
 import qualified Luna.Syntax.Prettyprint        as Prettyprint
 import           Luna.Syntax.Text.Lexer.Grammar (isOperator)
 -- import           Luna.Syntax.Text.Pretty.Pretty as CodeGen
-import Data.Layout                  (backticked, quoted, singleQuoted, space,
-                                     (</>))
-import Data.Layout                  (block, indented, parensed, (<+>))
-import Language.Symbol.Label        (Labeled (Labeled), label, labeled, unlabel)
+
 
 getTypeRep :: NodeRef -> GraphOp TypeRep
 getTypeRep tp = match tp $ \case

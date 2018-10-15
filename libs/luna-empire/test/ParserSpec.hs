@@ -14,8 +14,7 @@ import           LunaStudio.Data.TypeRep     (TypeRep (TStar))
 
 import           Prologue                    hiding ((|>))
 
-import           Test.Hspec                  (Selector, Spec, around, describe, expectationFailure, it, parallel, shouldBe, shouldMatchList,
-                                              shouldStartWith, shouldThrow, xit)
+import           Test.Hspec                  (Selector, Spec, around, describe, it, parallel, shouldBe, shouldMatchList)
 
 import           EmpireUtils
 

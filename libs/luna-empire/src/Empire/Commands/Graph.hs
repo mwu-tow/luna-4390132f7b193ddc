@@ -472,7 +472,7 @@ updateGraphSeqWithWhilelist whitelist newOut = do
 updateGraphSeq :: Maybe NodeRef -> GraphOp ()
 updateGraphSeq newOut = updateGraphSeqWithWhilelist [] newOut
 
-updateCodeSpan' :: NodeRef -> GraphOp _
+updateCodeSpan' :: NodeRef -> GraphOp (LeftSpacedSpan Delta)
 updateCodeSpan' ref = matchExpr ref $ \case
     Seq l r -> do
         l' <- updateCodeSpan' =<< source l

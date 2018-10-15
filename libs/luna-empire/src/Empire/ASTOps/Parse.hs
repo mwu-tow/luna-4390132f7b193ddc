@@ -18,9 +18,8 @@ import           Data.Convert
 import           Data.IORef
 import           Empire.Empire
 import           Empire.Prelude hiding (mempty)
-import           Prologue (convert, convertVia, mempty, wrap)
+import           Prologue (convert, convertVia)
 
-import           Control.Exception.Safe       (catchAny, throwString)
 import           Data.Char                    (digitToInt)
 import qualified Data.List.Split              as Split
 import qualified Data.Text                    as Text
@@ -28,31 +27,21 @@ import qualified Data.Scientific              as Scientific
 
 import           Empire.ASTOp                    (EmpirePass, GraphOp, liftScheduler, runASTOp)
 import           Empire.Data.AST                 (NodeRef, astExceptionFromException, astExceptionToException)
-import           Empire.Data.Graph               (ClsGraph, Graph)
-import qualified Empire.Data.Graph               as Graph (codeMarkers)
+import           Empire.Data.Graph               (Graph)
 import           Empire.Data.Layers              (SpanLength)
 import qualified Empire.Commands.Code            as Code
 import qualified Control.Monad.State.Layered as State
 
 import           LunaStudio.Data.PortDefault     (PortDefault (..), PortValue (..))
 
-import qualified Data.Text.Position              as Pos
 import qualified Data.Mutable.Class              as Mutable
-import qualified Data.Vector.Storable.Foreign    as Vector
-import qualified Luna.IR.Layer as Layer
 import qualified Luna.IR                         as IR
-import qualified OCI.Pass.Definition.Declaration      as Pass
 import qualified Luna.Pass                         as Pass
 import qualified Luna.Pass.Scheduler as Scheduler
-import           Luna.Syntax.Text.Parser.Ast.CodeSpan (CodeSpan)
-import qualified Luna.Syntax.Text.Parser.Ast.CodeSpan as CodeSpan
-import           Luna.Syntax.Text.Parser.State.Invalid  (Invalids)
 import qualified Luna.Syntax.Text.Parser.Lexer.Names   as Parser (uminus)
 import qualified Data.Graph.Data.Graph.Class as LunaGraph
 import           Luna.Pass.Data.Stage (Stage)
 
-import qualified Empire.Pass.PatternTransformation            as PT
-import qualified Luna.Pass.Attr as Attr
 import qualified Luna.Syntax.Text.Parser.Ast           as Parsing
 import qualified Luna.Syntax.Text.Source         as Source
 import qualified Luna.Syntax.Text.Parser.State.Marker      as Marker
@@ -98,7 +87,7 @@ parse3 parser input = do
         return foo
     return (ir, m)
 
-runWith :: Macro.Parser (Parsing.Spanned Parsing.Ast) -> _ -> (Parsing.Spanned Parsing.Ast)
+runWith :: Macro.Parser (Parsing.Spanned Parsing.Ast) -> Lexer.Source -> (Parsing.Spanned Parsing.Ast)
 runWith = \p src -> let
     toks = Lexer.eval Syntax.Version1 src
     foo = Macro.evalStack toks $ do
@@ -111,7 +100,7 @@ runWith = \p src -> let
 {-# NOINLINE runWith #-}
 
 run :: Parser3.ParserPass (Pass.Pass stage Parser3.Parser)
-    => Macro.Parser (Parsing.Spanned Parsing.Ast) -> _ -> Pass.Pass stage Parser3.Parser (IR.SomeTerm, Marker.TermMap)
+    => Macro.Parser (Parsing.Spanned Parsing.Ast) -> Lexer.Source -> Pass.Pass stage Parser3.Parser (IR.SomeTerm, Marker.TermMap)
 run parser src = do
     ((ref, unmarked), gidMap) <- State.runDefT @Marker.TermMap
                                $ State.runDefT @Marker.TermOrphanList

@@ -8,7 +8,6 @@ AST, without modifying it. They can still throw exceptions though.
 
 module Empire.ASTOps.Read where
 
-import           Control.Monad                      ((>=>), (<=<), forM)
 import           Control.Monad.Catch                (Handler(..), catches)
 import           Data.Maybe                         (isJust)
 import           Empire.Prelude
@@ -16,14 +15,12 @@ import           Control.Lens                       (preview)
 import qualified Safe
 
 import           LunaStudio.Data.NodeId             (NodeId)
-import qualified LunaStudio.Data.PortRef            as PortRef
-import           Data.Graph.Component.Node.Class    (Node, Nodes)
+import           Data.Graph.Component.Node.Class    (Nodes)
 import qualified Luna.Pass.Data.Layer.PortMarker    as PortMarker
 import           Data.Graph.Data.Component.Class    (Component)
 import qualified Data.Graph.Data.Layer.Class        as Layer
 
-import           LunaStudio.Data.Port               (OutPortId(..), OutPortIndex(..))
-import qualified LunaStudio.Data.NodeLoc            as NodeLoc
+import           LunaStudio.Data.Port               (OutPortId, OutPortIndex(..))
 import           Empire.ASTOp                       (ClassOp, GraphOp, ASTOp, match)
 import           Empire.Data.AST                    (NodeRef, EdgeRef, NotUnifyException(..),
                                                      NotLambdaException(..), PortDoesNotExistException (..),
@@ -35,7 +32,6 @@ import           Empire.Data.Layers                 (Marker)
 import qualified Luna.IR as IR
 import qualified Luna.IR.Term.Ast.Invalid as IR
 
-import qualified System.IO as IO
 
 cutThroughGroups :: NodeRef -> GraphOp NodeRef
 cutThroughGroups r = match r $ \case

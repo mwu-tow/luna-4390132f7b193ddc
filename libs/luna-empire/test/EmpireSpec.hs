@@ -63,8 +63,8 @@ import           System.Directory                (canonicalizePath, getCurrentDi
 import           System.FilePath                 ((</>), takeDirectory)
 import qualified System.IO.Temp                  as Temp
 
-import           Test.Hspec                      (Selector, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
-                                                  shouldContain, shouldMatchList, shouldNotBe, shouldSatisfy, shouldStartWith, shouldThrow,
+import           Test.Hspec                      (Selector, Spec, around, describe, it, parallel, shouldBe,
+                                                  shouldContain, shouldMatchList, shouldSatisfy, shouldStartWith, shouldThrow,
                                                   xdescribe, xit)
 
 import           EmpireUtils
