@@ -118,9 +118,7 @@ getFullVersionsList repo appName = do
 getVersionsList :: (Logger.LoggerMonad m, MonadIO m, MonadException SomeException m, Logger.LoggerMonad m) => Repo -> Text -> m [Version]
 getVersionsList repo appName = do
     vmap <- versionsMap repo appName
-    Logger.logObject "[getVersionsList] vmap" vmap
     let filteredVmap = Map.filter (Map.member currentSysDesc) vmap
-    Logger.logObject "[getVersionsList] filteredVmap" filteredVmap
     return $ reverse . sort . Map.keys $ filteredVmap
 
 -- Gets versions grouped by type (dev, nightly, release)
