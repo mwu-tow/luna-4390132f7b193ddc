@@ -64,12 +64,14 @@ removeMarker :: Text -> Int -> Text
 removeMarker code markerPos =
     let (before, after) = Text.splitAt markerPos code
         dropMarker t =
-            let Just (markerStart, rest) = Text.uncons t
-            in if markerStart == '«'
+            let (markerStart, rest) =
+                    fromMaybe (Lexer.markerBegin, after) $ Text.uncons t
+            in if markerStart == Lexer.markerBegin
                 then
-                    let numberDropped = Text.dropWhile isDigit rest
-                        Just (markerEnd, rest') = Text.uncons numberDropped
-                    in if markerEnd == '»'
+                    let numberDropped      = Text.dropWhile isDigit rest
+                        (markerEnd, rest') = fromMaybe (Lexer.markerEnd, after)
+                            $ Text.uncons numberDropped
+                    in if markerEnd == Lexer.markerEnd
                         then rest'
                         else after
                 else error $ "marker start is wrong: " <> [markerStart]
@@ -114,7 +116,7 @@ sanitizeMarkers text = let
         = foldl' removeMarker code (reverse $ sort markers)
     lexerStream      = Lexer.evalDefLexer (convert text)
     cumulativeStream = cumulativeOffsetStream lexerStream
-    markersIndices   = findIndices (== '«') $ toList text
+    markersIndices   = findIndices (== Lexer.markerBegin) $ toList text
     tokensForMarkers = fmap (\a -> (a, findToken cumulativeStream a))
         $ coerce markersIndices
     findToken stream index = find (\t -> t ^. Lexer.offset == index) stream
