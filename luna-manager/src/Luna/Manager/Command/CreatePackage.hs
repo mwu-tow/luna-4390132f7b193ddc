@@ -3,6 +3,7 @@
 module Luna.Manager.Command.CreatePackage where
 
 import           Control.Lens.Aeson
+import           Control.Monad (forM)
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
 import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, decodeString, parent, splitDirectories, null, filename, dirname, splitDirectories)
@@ -276,6 +277,28 @@ isNewestVersion appVersion appName = do
         Logger.log $ if newest then "> Yes" else "> No"
         return newest
 
+
+getRepoPath :: FilePath -> Repository.ResolvedApplication -> FilePath
+getRepoPath cfgFolderPath resolvedApp = if desc ^. Repository.path == "./"
+        then cfgFolderPath
+        else convert (desc ^. Repository.path)
+    where desc = resolvedApp ^. Repository.resolvedApp . Repository.desc
+
+downloadExternalPkgs :: MonadCreatePackage m
+                     => FilePath -> Repository.ResolvedApplication
+                     -> MakePackageOpts -> m [FilePath]
+downloadExternalPkgs cfgFolderPath resolvedApp opts = do
+    let repoPath = getRepoPath cfgFolderPath resolvedApp
+        tgtPath  = repoPath </> "env"
+        pkgUrls = opts ^. Opts.extPkgUrls
+
+    forM pkgUrls $ \pu -> do
+        archive <- downloadFromURL pu "External package: "
+        folder  <- Archive.unpack 1.0 "unpacking_progress" archive
+        Shelly.cp_r folder tgtPath
+        return $ tgtPath </> filename folder
+
+
 ------------------------------
 -- === linkingLibsMacOS === --
 ------------------------------
@@ -349,8 +372,7 @@ createPkg :: MonadCreatePackage m => FilePath -> Maybe Text -> Repository.Resolv
 createPkg cfgFolderPath s3GuiURL resolvedApplication = do
     pkgConfig <- get @PackageConfig
     let app        = resolvedApplication ^. Repository.resolvedApp
-        appDesc    = app ^. Repository.desc
-        appPath    = if (appDesc ^. Repository.path) == "./" then cfgFolderPath else convert (appDesc ^. Repository.path)
+        appPath    = getRepoPath cfgFolderPath resolvedApplication
         appHeader  = app ^. Repository.header
         appName    = appHeader ^. Repository.name
         appType    = app ^. Repository.resolvedAppType
@@ -412,8 +434,11 @@ run opts = do
         Just a -> do
             resolved <- Repository.resolvePackageApp config a
             let resolvedWithVersion = resolved & Repository.resolvedApp . Repository.header . Repository.version .~ version
+            pkgs <- downloadExternalPkgs cfgFolderPath resolved opts
             createPkg cfgFolderPath s3GuiUrl resolvedWithVersion
 
             repo <- Repository.getRepo
             let updateConfig = Repository.updateConfig config resolvedWithVersion
             Repository.generateConfigYamlWithNewPackage repo updateConfig $ cfgFolderPath </> "config.yaml"
+
+            forM_ pkgs Shelly.rm_rf
