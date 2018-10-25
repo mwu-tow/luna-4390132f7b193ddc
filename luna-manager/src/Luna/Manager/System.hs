@@ -14,14 +14,14 @@ import           Data.ByteString.Lazy.Char8   (filter, unpack)
 import qualified Crypto.Hash                  as Crypto
 import qualified Crypto.Hash.Conduit          as Crypto
 import qualified Data.ByteString              as ByteString
-import           Data.Maybe                   (listToMaybe)
+import           Data.Maybe                   (listToMaybe, catMaybes)
 import           Data.List                    (isInfixOf)
 import           Data.List.Split              (splitOn)
 import           Data.Text.IO                 (appendFile, readFile)
 import qualified Data.Text                    as Text
 import qualified Data.Text.Encoding           as Text
 import qualified Data.Text.IO                 as Text
-import           Filesystem.Path.CurrentOS    (FilePath, (</>), (<.>), encodeString, toText, parent, directory, dropExtension)
+import           Filesystem.Path.CurrentOS    (FilePath, (</>), (<.>), encodeString, toText, parent, directory, dropExtension, dropExtensions)
 import           System.Directory             (executable, setPermissions, getPermissions, doesDirectoryExist, doesPathExist, getHomeDirectory)
 import qualified System.Environment           as Environment
 import           System.Exit
@@ -197,13 +197,18 @@ instance Exception SHAChecksumDoesNotMatchError where
 
 -- === Utils === --
 
+stripArchiveExtension :: Text -> Text
+stripArchiveExtension path = fromMaybe path stripped
+    where
+        suffixes = [".7z", ".zip", ".tar.gz", ".tar.xz", ".tar.bz", ".AppImage"] :: [Text]
+        tryStrip = flip Text.stripSuffix path
+        stripped = listToMaybe . catMaybes . map tryStrip $ suffixes
+
 generateChecksum :: forall hash m . (Crypto.HashAlgorithm hash, MonadIO m, MonadException SomeException m) => FilePath -> m ()
 generateChecksum file = do
     sha <- Crypto.hashFile @m @hash $ encodeString file
-    shaFileNoExtension <- tryJust (shaUriError $ Shelly.toTextIgnore file) $ case currentHost of
-            Linux -> Text.stripSuffix "AppImage" $ Shelly.toTextIgnore file
-            _     -> Text.stripSuffix "tar.gz" $ Shelly.toTextIgnore file
-    let shaFilePath = shaFileNoExtension <> "sha256"
+    let fileTextPath = Shelly.toTextIgnore file
+    let shaFilePath  = stripArchiveExtension fileTextPath <> ".sha256"
     liftIO $ writeFile (convert shaFilePath) (show sha)
 
 -- checking just strings because converting to ByteString will prevent user to check it without manager and

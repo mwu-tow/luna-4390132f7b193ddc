@@ -2,7 +2,10 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Luna.Manager.Archive where
 
-import           Luna.Manager.Shell.Shelly (MonadSh)
+import           Prologue hiding (FilePath, (<.>))
+
+import           Luna.Manager.Shell.Shelly (MonadSh, runProcess)
+import           Control.Concurrent        (threadDelay)
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
 import qualified Control.Exception.Safe as Exception
@@ -10,7 +13,7 @@ import           Control.Error.Util (hush)
 import           Data.Aeson (encode)
 import           Data.Either (either)
 import           Data.IORef
-import           Filesystem.Path.CurrentOS (FilePath, (</>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
+import           Filesystem.Path.CurrentOS (FilePath, (</>), (<.>), encodeString, toText, fromText, filename, directory, extension, basename, parent, dirname)
 import qualified Filesystem.Path.CurrentOS as FP
 import           Luna.Manager.Gui.InstallationProgress
 import qualified Luna.Manager.Logger as Logger
@@ -20,7 +23,6 @@ import           Luna.Manager.Shell.ProgressBar
 import           Luna.Manager.System.Host
 import           Luna.Manager.Command.Options (Options)
 import qualified Luna.Manager.Command.Options as Opts
-import           Prologue hiding (FilePath)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLChar
 import qualified Data.Text          as Text
@@ -62,7 +64,8 @@ unpack totalProgress progressFieldName file = do
     case currentHost of
         Windows -> case ext of
             "zip" -> unzipFileWindows file
-            "gz"  -> untarWin totalProgress progressFieldName file
+            "gz"  -> untarWin  totalProgress progressFieldName file
+            "7z"  -> unSevenZzipWin totalProgress progressFieldName file
         Darwin  -> case ext of
             "gz"  -> unpackTarGzUnix totalProgress progressFieldName file
             "zip" -> unzipUnix file
@@ -174,9 +177,34 @@ untarWin totalProgress progressFieldName zipFile = do
         listed <- Shelly.ls $ dir </> name
         return $ if length listed == 1 then head listed else dir </> name
 
+download7Zip :: UnpackContext m => m FilePath
+download7Zip = do
+    let scriptPath = "http://packages.luna-lang.org/windows/7z/7za.exe"
+        dll1Path   = "http://packages.luna-lang.org/windows/7z/7za.dll"
+        dll2Path   = "http://packages.luna-lang.org/windows/7z/7zxa.dll"
+    
+    guiInstaller <- Opts.guiInstallerOpt
+    script       <- downloadFromURL scriptPath "Downloading archiving tool"
+    _            <- downloadFromURL dll1Path   "Downloading the DLL-s (1)"
+    _            <- downloadFromURL dll2Path   "Downloading the DLL-s (2)"
+
+    return script
+
+unSevenZzipWin :: UnpackContext m => Double -> Text.Text -> FilePath -> m FilePath
+unSevenZzipWin totalProgress progressFieldName zipFile = do
+    guiInstaller <- Opts.guiInstallerOpt
+    script       <- download7Zip
+    let dir      =  directory zipFile
+        name     =  dir </> basename zipFile
+
+    runProcess script [ "x", "-o" <> Shelly.toTextIgnore name
+                      , "-y", Shelly.toTextIgnore zipFile
+                      ]
+    return name
+
 pack :: UnpackContext m => FilePath -> Text -> m FilePath
 pack = case currentHost of
-    Windows -> gzipWindows
+    Windows -> sevenZipWindows
     _       -> gzipUnix
 
 gzipWindows :: UnpackContext m => FilePath -> Text -> m FilePath
@@ -188,6 +216,17 @@ gzipWindows folder appName = do
         Shelly.cp script $ parent folder
         Shelly.switchVerbosity $ Shelly.cmd (parent folder </> filename script) "tar" name folder
         return name
+
+sevenZipWindows :: UnpackContext m => FilePath -> Text -> m FilePath
+sevenZipWindows folder appName = do
+    let dir = parent folder
+    Shelly.chdir dir $ do
+        script <- download7Zip
+        let zipFileName = Shelly.fromText appName <.> "7z"
+            filePattern = folder </> "*"
+        Shelly.switchVerbosity $
+            Shelly.cmd script "a" "-t7z" zipFileName filePattern
+        return $ dir </> zipFileName
 
 unpackRPM :: UnpackContext m => FilePath -> FilePath -> m ()
 unpackRPM file filepath = liftIO $ do
