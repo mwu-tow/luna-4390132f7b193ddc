@@ -111,6 +111,6 @@ spec = runTests "connections tests" $ do
         prepare gl = do
             Just node <- findNodeByName gl nodeName
             pure $ node ^. Node.inPorts
-        in testCaseWithTC code code noAction $ \gl -> do
+        in testCaseWithTC code code noAction $ \gl _ -> do
             inPorts <- prepare gl
             inPorts `shouldBe` expectedOutPorts
