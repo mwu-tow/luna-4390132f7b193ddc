@@ -36,7 +36,6 @@ import LunaStudio.Data.NodeCache            (nodeIdMap, nodeMetaMap)
 import LunaStudio.Data.Point                (Point)
 import LunaStudio.Data.TextDiff             (TextDiff (TextDiff))
 
-
 substituteCodeFromPoints :: FilePath -> [TextDiff] -> Empire ()
 substituteCodeFromPoints path (breakDiffs -> diffs) = do
     let gl = GraphLocation.top path
@@ -85,11 +84,6 @@ cumulativeOffsetStream tokens = scanl1 f tokens where
     f (Lexer.Token prevSpan accOffset _) (Lexer.Token span offset lexeme)
         = Lexer.Token (span+offset) (accOffset + prevSpan) lexeme
 
-indentFromOffsets :: Delta -> Delta -> Delta
-indentFromOffsets prevOffset nextOffset =
-    let eolSpan = length "\n"
-    in nextOffset - prevOffset - eolSpan
-
 -- | Takes a pair of consecutive tokens and determines if a marker
 --   is placed in a proper position. If the second token is not a marker
 --   or if it seems to be correctly placed, `Nothing` is returned.
@@ -101,47 +95,20 @@ indentFromOffsets prevOffset nextOffset =
 --   Marker is thought to be wrongly placed if it's directly preceded
 --   by anything else than:
 --       - beginning of code
---       - end of line (if token offset is greater than block)
+--       - end of line
 --       - block start (:)
 isWrongMarker
-    :: (Delta, (Lexer.Token Lexer.Symbol, Lexer.Token Lexer.Symbol))
+    :: (Lexer.Token Lexer.Symbol, Lexer.Token Lexer.Symbol)
     -> Maybe Delta
 isWrongMarker tokens
-    | (blockIndent, (Lexer.Token _ precOffset preceding,
-       Lexer.Token _ currOffset (Lexer.Marker _))) <- tokens =
+    | (Lexer.Token _ _ preceding,
+       Lexer.Token _ offset (Lexer.Marker _)) <- tokens =
         case preceding of
-            Lexer.EOL        ->
-                let indent  = indentFromOffsets precOffset currOffset
-                in  if indent > blockIndent
-                    then Just currOffset
-                    else Nothing
             Lexer.STX        -> Nothing
+            Lexer.EOL        -> Nothing
             Lexer.BlockStart -> Nothing
-            _                -> Just currOffset
+            _                -> Just offset
     | otherwise = Nothing
-
-determineIndentation
-    :: (Delta, (Lexer.Token Lexer.Symbol, Lexer.Token Lexer.Symbol))
-    -> (Lexer.Token Lexer.Symbol, Lexer.Token Lexer.Symbol)
-    -> (Delta, (Lexer.Token Lexer.Symbol, Lexer.Token Lexer.Symbol))
-determineIndentation (blockIndent, _) tokens
-    | (Lexer.Token precSpan _ Lexer.BlockStart,
-       Lexer.Token precSpanAndOffset _ Lexer.EOL) <- tokens =
-        let indent = precSpanAndOffset - precSpan
-        in  if indent > blockIndent
-            then (indent, tokens)
-            else (blockIndent, tokens)
-    | (Lexer.Token _ precOffset Lexer.EOL,
-       Lexer.Token _ nextOffset next) <- tokens =
-        case next of
-            Lexer.EOL -> (blockIndent, tokens)
-            _         ->
-                let indent = indentFromOffsets precOffset nextOffset
-                in  if indent == 0 || indent > blockIndent
-                    then (blockIndent, tokens)
-                    else (indent, tokens)
-    | otherwise = (blockIndent, tokens)
-
 
 sanitizeMarkers :: Text -> Text
 sanitizeMarkers text = let
@@ -156,13 +123,7 @@ sanitizeMarkers text = let
     erroneousMarkers =
         [ a | (a, Nothing) <- tokensForMarkers] <> wrongMarkers
     precedingTokens  = zip cumulativeStream $ tail cumulativeStream
-    tokensWithIndent =
-        case precedingTokens of
-            []     -> []
-            (x:xs) ->
-                let noIndent = 0
-                in scanl determineIndentation (noIndent, x) xs
-    wrongMarkers     = catMaybes $ fmap isWrongMarker tokensWithIndent
+    wrongMarkers     = catMaybes $ fmap isWrongMarker precedingTokens
     in if null erroneousMarkers
         then text
         else removeErroneousMarkers (coerce erroneousMarkers) text
