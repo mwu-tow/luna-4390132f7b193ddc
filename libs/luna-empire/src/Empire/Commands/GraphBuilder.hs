@@ -270,7 +270,10 @@ getNodeName nid = ASTRead.getASTPointer nid >>= getUniName
 
 getNodeCode :: NodeId -> GraphOp Text
 getNodeCode nid = do
-    ref <- ASTRead.getASTTarget nid
+    (_, output) <- getEdgePortMapping
+    ref <- if nid == output
+        then ASTRead.getCurrentASTRef
+        else ASTRead.getASTTarget nid
     Code.getCodeOf ref
 
 getDefault :: NodeRef -> GraphOp (Maybe PortDefault)
