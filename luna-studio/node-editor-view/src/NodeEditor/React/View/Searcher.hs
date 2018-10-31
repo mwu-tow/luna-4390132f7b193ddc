@@ -61,7 +61,8 @@ searcher =  React.defineView name $ \(ref, s) -> do
         case s ^. Searcher.mode of
             Searcher.Command    results -> do results_ ref selected results
             Searcher.Node _ nmi results -> do results_ ref selected results
-                                              withJust (s ^. Searcher.docVis) $ docVisualization_ ref docPresent (s ^. Searcher.visLibPath)
+                                              withJust (s ^. Searcher.docVis) $
+                                                    docVisualization_ ref docPresent (s ^. Searcher.visLibPath)
             Searcher.NodeName _ results -> do results_ ref selected results
             Searcher.PortName _ results -> do results_ ref selected results
 

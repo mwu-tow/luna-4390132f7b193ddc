@@ -74,7 +74,7 @@ nodeVisualization = React.defineView objNameVis $ \(ref, visLibPaths, visProp, i
         div_
             [ "className" $= Style.prefix "node-translate"
             ] $ do
-            visualization_   ref visLibPath (Node nl) vis True
+            visualization_   ref visLibPath (Node nl) vis True False
             visualizersMenu_ ref (Node nl) vis visualizers' menuVisible
 
 docVisualization_ :: IsRef r => r -> Bool -> FilePath -> RunningVisualization -> ReactElementM ViewEventHandler ()
@@ -90,7 +90,7 @@ docVisualization = React.defineView docViewName $ \(ref, docPresent, visLibPath,
     div_
         [ "key"       $= "doc"
         , "className" $= ("native-key-bindings " <> Style.prefixFromList classes)
-        ] $ visualization_ ref visLibPath Searcher vis docPresent
+        ] $ visualization_ ref visLibPath Searcher (vis & visualizationMode .~ Preview) docPresent True
 
 
 visualizersMenu_ :: IsRef r => r -> VisualizationParent -> RunningVisualization -> Map VisualizerId VisualizerPath -> Bool -> ReactElementM ViewEventHandler ()
@@ -113,11 +113,11 @@ visualizersMenu = React.defineView visMenuName $ \(ref, visParent, vis, visualiz
                 span_ $ elemString $ "▾"--convert actVisName
                 ul_ [ "className" $= Style.prefix "dropdown__menu" ] $ mapM_ menuEntry $ Map.keys visualizersMap
 
-visualization_ :: IsRef r => r -> FilePath -> VisualizationParent -> RunningVisualization -> Bool -> ReactElementM ViewEventHandler ()
-visualization_ ref visLibPath visParent vis isVisible = React.view visualization (ref, visLibPath, visParent, vis, isVisible) mempty
+visualization_ :: IsRef r => r -> FilePath -> VisualizationParent -> RunningVisualization -> Bool -> Bool -> ReactElementM ViewEventHandler ()
+visualization_ ref visLibPath visParent vis isVisible noCover = React.view visualization (ref, visLibPath, visParent, vis, isVisible, noCover) mempty
 
-visualization :: IsRef r => ReactView (r, FilePath, VisualizationParent, RunningVisualization, Bool)
-visualization = React.defineView viewName $ \(ref, visLibPath, visParent, vis, isVisible) -> do
+visualization :: IsRef r => ReactView (r, FilePath, VisualizationParent, RunningVisualization, Bool, Bool)
+visualization = React.defineView viewName $ \(ref, visLibPath, visParent, vis, isVisible, noCover) -> do
     let visId         = vis ^. visualizationId
         vmode         = vis ^. visualizationMode
         visualizer    = vis ^. visualizerProperties . runningVisualizer
@@ -127,7 +127,8 @@ visualization = React.defineView viewName $ \(ref, visLibPath, visParent, vis, i
     div_
         [ "className" $= Style.prefixFromList [ "noselect", "visualization-container" ]
         ] $ do
-        div_ ([ "className" $= Style.prefix "visualization-cover" ] <> coverHandler) mempty
+        unless noCover $
+            div_ ([ "className" $= Style.prefix "visualization-cover" ] <> coverHandler) mempty
         visualizationIframe_ visLibPath visId visualizer isVisible
 
 visualizationIframe_ :: FilePath -> VisualizationId -> Visualizer -> Bool -> ReactElementM ViewEventHandler ()
