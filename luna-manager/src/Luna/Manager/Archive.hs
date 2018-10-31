@@ -4,7 +4,7 @@ module Luna.Manager.Archive where
 
 import           Prologue hiding (FilePath, (<.>))
 
-import           Luna.Manager.Shell.Shelly (MonadSh, runProcess)
+import           Luna.Manager.Shell.Shelly (MonadSh, runProcess, pathToStr)
 import           Control.Concurrent        (threadDelay)
 import           Control.Monad.Raise
 import           Control.Monad.State.Layered
