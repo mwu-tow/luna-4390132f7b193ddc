@@ -1,31 +1,37 @@
 module LunaStudio.Data.Diff where
 
-import           Control.Lens                         (makePrisms, _Right)
-import           Data.Aeson.Types                     (ToJSON)
-import           Data.Binary                          (Binary)
-import           Data.HashMap.Strict                  (HashMap)
-import           Data.Map                             (Map)
-import qualified Data.Map                             as Map
-import           Data.Set                             (Set)
-import           LunaStudio.Data.Breadcrumb           (Breadcrumb, BreadcrumbItem, Named)
-import           LunaStudio.Data.CameraTransformation (CameraTransformation)
-import           LunaStudio.Data.Code                 (Code)
-import           LunaStudio.Data.Connection           (Connection, ConnectionId, connectionId, toConnectionsMap)
-import           LunaStudio.Data.Error                (Error, GraphError)
-import           LunaStudio.Data.Graph                (Graph)
-import qualified LunaStudio.Data.Graph                as Graph
-import           LunaStudio.Data.GUIState             (GUIState)
-import qualified LunaStudio.Data.GUIState             as GUIState
-import           LunaStudio.Data.MonadPath            (MonadPath)
-import           LunaStudio.Data.Node                 (ExpressionNode, InputSidebar, OutputSidebar, toExpressionNodesMap)
-import qualified LunaStudio.Data.Node                 as Node
-import           LunaStudio.Data.NodeLoc              (HasNodeLoc (nodeLoc), NodeLoc)
-import           LunaStudio.Data.NodeMeta             (NodeMeta)
-import           LunaStudio.Data.NodeSearcher         (ImportName)
-import           LunaStudio.Data.Port                 (InPort, InPortTree, OutPort, OutPortTree)
-import           LunaStudio.Data.TypeRep              (TypeRep)
-import           LunaStudio.Data.Visualizer           (Visualizer)
-import           Prologue                             hiding (TypeRep, mod)
+import Prologue hiding (TypeRep, mod)
+
+import qualified Data.Map                 as Map
+import qualified LunaStudio.Data.Graph    as Graph
+import qualified LunaStudio.Data.GUIState as GUIState
+import qualified LunaStudio.Data.Node     as Node
+
+import Control.Lens                         (makePrisms, _Right)
+import Data.Aeson.Types                     (ToJSON)
+import Data.Binary                          (Binary)
+import Data.HashMap.Strict                  (HashMap)
+import Data.Map                             (Map)
+import Data.Set                             (Set)
+import LunaStudio.Data.Breadcrumb           (Breadcrumb, BreadcrumbItem, Named)
+import LunaStudio.Data.CameraTransformation (CameraTransformation)
+import LunaStudio.Data.Code                 (Code)
+import LunaStudio.Data.Connection           (Connection, ConnectionId,
+                                             connectionId, toConnectionsMap)
+import LunaStudio.Data.Error                (Error, GraphError)
+import LunaStudio.Data.Graph                (Graph)
+import LunaStudio.Data.GUIState             (GUIState)
+import LunaStudio.Data.MonadPath            (MonadPath)
+import LunaStudio.Data.Node                 (ExpressionNode, InputSidebar,
+                                             OutputSidebar,
+                                             toExpressionNodesMap)
+import LunaStudio.Data.NodeLoc              (HasNodeLoc (nodeLoc), NodeLoc)
+import LunaStudio.Data.NodeMeta             (NodeMeta)
+import LunaStudio.Data.NodeSearcher         (ImportName)
+import LunaStudio.Data.Port                 (InPort, InPortTree, OutPort,
+                                             OutPortTree)
+import LunaStudio.Data.TypeRep              (TypeRep)
+import LunaStudio.Data.Visualizer           (ExternalVisualizers, Visualizer)
 
 
 --TODO: Bump containers to >= 0.5.9 and use merge from Data.Map.Merge.Lazy
@@ -72,7 +78,7 @@ data ModificationRemoveNode = ModificationRemoveNode
 
 data ModificationRenameNode = ModificationRenameNode
     { _renameNodeLoc :: NodeLoc
-    , _newName         :: Maybe Text
+    , _newName       :: Maybe Text
     } deriving (Eq, Generic, Show)
 
 data ModificationSetBreadcrumb = ModificationSetBreadcrumb
@@ -85,7 +91,7 @@ data ModificationSetCamera = ModificationSetCamera
 
 data ModificationSetCanEnterNode = ModificationSetCanEnterNode
     { _setCanEnterNodeLoc :: NodeLoc
-    , _newCanEnter     :: Bool
+    , _newCanEnter        :: Bool
     } deriving (Eq, Generic, Show)
 
 data ModificationSetCode = ModificationSetCode
@@ -98,7 +104,7 @@ data ModificationSetDefaultVisualizers = ModificationSetDefaultVisualizers
 
 data ModificationSetExpression = ModificationSetExpression
     { _setExpressionNodeLoc :: NodeLoc
-    , _newExpression   :: Text
+    , _newExpression        :: Text
     } deriving (Eq, Generic, Show)
 
 data ModificationSetGraph = ModificationSetGraph
@@ -115,7 +121,7 @@ data ModificationSetImports = ModificationSetImports
 
 data ModificationSetInPorts = ModificationSetInPorts
     { _setInPortsNodeLoc :: NodeLoc
-    , _newInPortTree   :: InPortTree InPort
+    , _newInPortTree     :: InPortTree InPort
     } deriving (Eq, Generic, Show)
 
 data ModificationSetInputSidebar = ModificationSetInputSidebar
@@ -124,7 +130,7 @@ data ModificationSetInputSidebar = ModificationSetInputSidebar
 
 data ModificationSetIsDefinition = ModificationSetIsDefinition
     { _setIsDefinitionNodeLoc :: NodeLoc
-    , _newIsDefinition :: Bool
+    , _newIsDefinition        :: Bool
     } deriving (Eq, Generic, Show)
 
 data ModificationSetMonadPath = ModificationSetMonadPath
@@ -133,25 +139,25 @@ data ModificationSetMonadPath = ModificationSetMonadPath
 
 data ModificationSetNodeCode = ModificationSetNodeCode
     { _setNodeCodeNodeLoc :: NodeLoc
-    , _newNodeCode     :: Text
+    , _newNodeCode        :: Text
     } deriving (Eq, Generic, Show)
 
 data ModificationSetNodeMeta = ModificationSetNodeMeta
     { _setNodeMetaNodeLoc :: NodeLoc
-    , _newNodeMeta     :: NodeMeta
+    , _newNodeMeta        :: NodeMeta
     } deriving (Eq, Generic, Show)
 
 data ModificationSetOutPorts = ModificationSetOutPorts
     { _setOutPortsNodeLoc :: NodeLoc
-    , _newOutPortTree  :: OutPortTree OutPort
+    , _newOutPortTree     :: OutPortTree OutPort
     } deriving (Eq, Generic, Show)
 
 data ModificationSetOutputSidebar = ModificationSetOutputSidebar
     { _newOutputSidebar :: Maybe OutputSidebar
     } deriving (Eq, Generic, Show)
 
-data ModificationSetProjectVisPath = ModificationSetProjectVisPath
-    { _newProjectVisPath :: Maybe FilePath
+data ModificationSetExternalVisPath = ModificationSetExternalVisPath
+    { _newExternalVisPath :: ExternalVisualizers FilePath
     } deriving (Eq, Generic, Show)
 
 makeLenses ''ModificationAddConnection
@@ -176,7 +182,7 @@ makeLenses ''ModificationSetNodeCode
 makeLenses ''ModificationSetNodeMeta
 makeLenses ''ModificationSetOutPorts
 makeLenses ''ModificationSetOutputSidebar
-makeLenses ''ModificationSetProjectVisPath
+makeLenses ''ModificationSetExternalVisPath
 
 instance Binary ModificationAddConnection
 instance NFData ModificationAddConnection
@@ -244,9 +250,9 @@ instance ToJSON ModificationSetOutPorts
 instance Binary ModificationSetOutputSidebar
 instance NFData ModificationSetOutputSidebar
 instance ToJSON ModificationSetOutputSidebar
-instance Binary ModificationSetProjectVisPath
-instance NFData ModificationSetProjectVisPath
-instance ToJSON ModificationSetProjectVisPath
+instance Binary ModificationSetExternalVisPath
+instance NFData ModificationSetExternalVisPath
+instance ToJSON ModificationSetExternalVisPath
 
 
 data Modification
@@ -272,7 +278,7 @@ data Modification
     | SetNodeMeta           ModificationSetNodeMeta
     | SetOutPorts           ModificationSetOutPorts
     | SetOutputSidebar      ModificationSetOutputSidebar
-    | SetProjectVisPath     ModificationSetProjectVisPath
+    | SetExternalVisPath    ModificationSetExternalVisPath
     deriving (Eq, Generic, Show)
 
 makePrisms ''Modification
@@ -338,8 +344,8 @@ instance IsModification ModificationSetOutPorts           where
     toModification = SetOutPorts
 instance IsModification ModificationSetOutputSidebar      where
     toModification = SetOutputSidebar
-instance IsModification ModificationSetProjectVisPath     where
-    toModification = SetProjectVisPath
+instance IsModification ModificationSetExternalVisPath    where
+    toModification = SetExternalVisPath
 
 
 instance HasNodeLoc ModificationRemoveNode      where
@@ -526,12 +532,12 @@ instance Diffable CameraTransformation where
         else Diff . pure . toModification $ ModificationSetCamera cam2
 
 
-instance Diffable (Maybe FilePath) where
-    patch (SetProjectVisPath m) = const $ m ^. newProjectVisPath
-    patch _                     = id
+instance Diffable (ExternalVisualizers FilePath) where
+    patch (SetExternalVisPath m) = const $ m ^. newExternalVisPath
+    patch _                      = id
     diff p1 p2 = if p1 == p2
         then mempty
-        else Diff . pure . toModification $ ModificationSetProjectVisPath p2
+        else Diff . pure . toModification $ ModificationSetExternalVisPath p2
 
 instance Diffable Code where
     patch (SetCode m) = const $ m ^. newCode
@@ -541,29 +547,29 @@ instance Diffable Code where
         else Diff . pure . toModification $ ModificationSetCode c2
 
 instance Diffable GUIState where
-    patch mod@(AddConnection         _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(AddNode               _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(RemoveConnection      _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(RemoveNode            _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(RenameNode            _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch     (SetBreadcrumb         m) s = s & GUIState.breadcrumb             .~ m ^. newBreadcrumb
-    patch     (SetCamera             m) s = s & GUIState.camera                 .~ m ^. newCameraTransformation
-    patch mod@(SetCanEnterNode       _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch     (SetCode               m) s = s & GUIState.code                   .~ m ^. newCode
-    patch     (SetDefaultVisualizers m) s = s & GUIState.defaultVisualizers     .~ m ^. newDefaultVisualizers
-    patch mod@(SetExpression         _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch     (SetGraph              m) s = s & GUIState.graph                  .~ Right (m ^. newGraph)
-    patch     (SetGraphError         m) s = s & GUIState.graph                  .~ Left  (m ^. graphError)
-    patch mod@(SetImports            _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetInPorts            _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetInputSidebar       _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetIsDefinition       _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetMonadPath          _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetNodeCode           _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetNodeMeta           _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetOutPorts           _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch mod@(SetOutputSidebar      _) s = s & GUIState.graph . _Right         %~ patch mod
-    patch     (SetProjectVisPath     m) s = s & GUIState.projectVisualizersPath .~ m ^. newProjectVisPath
+    patch mod@(AddConnection         _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(AddNode               _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(RemoveConnection      _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(RemoveNode            _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(RenameNode            _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch     (SetBreadcrumb         m) s = s & GUIState.breadcrumb               .~ m ^. newBreadcrumb
+    patch     (SetCamera             m) s = s & GUIState.camera                   .~ m ^. newCameraTransformation
+    patch mod@(SetCanEnterNode       _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch     (SetCode               m) s = s & GUIState.code                     .~ m ^. newCode
+    patch     (SetDefaultVisualizers m) s = s & GUIState.defaultVisualizers       .~ m ^. newDefaultVisualizers
+    patch mod@(SetExpression         _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch     (SetGraph              m) s = s & GUIState.graph                    .~ Right (m ^. newGraph)
+    patch     (SetGraphError         m) s = s & GUIState.graph                    .~ Left  (m ^. graphError)
+    patch mod@(SetImports            _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetInPorts            _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetInputSidebar       _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetIsDefinition       _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetMonadPath          _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetNodeCode           _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetNodeMeta           _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetOutPorts           _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch mod@(SetOutputSidebar      _) s = s & GUIState.graph . _Right           %~ patch mod
+    patch     (SetExternalVisPath    m) s = s & GUIState.externalVisualizersPaths .~ m ^. newExternalVisPath
     diff s1 s2 = result where
         graphDiff = if s1 ^. GUIState.graph == s2 ^. GUIState.graph
             then mempty
@@ -571,11 +577,11 @@ instance Diffable GUIState where
                 (_       , Left  e ) -> Diff . pure . toModification $ ModificationSetGraphError e
                 (Left  _ , Right g ) -> Diff . pure . toModification $ ModificationSetGraph      g
                 (Right g1, Right g2) -> diff g1 g2
-        result = diff (s1 ^. GUIState.breadcrumb)             (s2 ^. GUIState.breadcrumb)
-              <> diff (s1 ^. GUIState.defaultVisualizers)     (s2 ^. GUIState.defaultVisualizers)
-              <> diff (s1 ^. GUIState.camera)                 (s2 ^. GUIState.camera)
-              <> diff (s1 ^. GUIState.projectVisualizersPath) (s2 ^. GUIState.projectVisualizersPath)
-              <> diff (s1 ^. GUIState.code)                   (s2 ^. GUIState.code)
+        result = diff (s1 ^. GUIState.breadcrumb)               (s2 ^. GUIState.breadcrumb)
+              <> diff (s1 ^. GUIState.defaultVisualizers)       (s2 ^. GUIState.defaultVisualizers)
+              <> diff (s1 ^. GUIState.camera)                   (s2 ^. GUIState.camera)
+              <> diff (s1 ^. GUIState.externalVisualizersPaths) (s2 ^. GUIState.externalVisualizersPaths)
+              <> diff (s1 ^. GUIState.code)                     (s2 ^. GUIState.code)
               <> graphDiff
 
 -- TH ^^^
@@ -591,8 +597,8 @@ guiStateDiff s = mconcat [bcDiff, defVisDiff, camDiff, visPathDiff, codeDiff,
                     $ s ^. GUIState.defaultVisualizers
         camDiff     = toDiff . ModificationSetCamera
                     $ s ^. GUIState.camera
-        visPathDiff = toDiff . ModificationSetProjectVisPath
-                    $ s ^. GUIState.projectVisualizersPath
+        visPathDiff = toDiff . ModificationSetExternalVisPath
+                    $ s ^. GUIState.externalVisualizersPaths
         codeDiff    = toDiff . ModificationSetCode
                     $ s ^. GUIState.code
         graphDiff   = case s ^. GUIState.graph of

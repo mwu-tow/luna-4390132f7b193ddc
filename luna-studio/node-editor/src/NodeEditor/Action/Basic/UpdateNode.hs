@@ -1,28 +1,37 @@
-{-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.Action.Basic.UpdateNode where
 
-import           Common.Action.Command                       (Command)
-import           Common.Prelude
-import qualified Data.Map                                    as Map
-import           Data.Set                                    (Set)
-import qualified Data.Set                                    as Set
-import           LunaStudio.Data.Node                        (NodeTypecheckerUpdate, tcNodeId)
-import qualified LunaStudio.Data.Node                        as API
-import           LunaStudio.Data.NodeLoc                     (NodeLoc)
-import           NodeEditor.Action.Basic.AddNode             (localAddExpressionNode, localAddInputNode, localAddOutputNode)
-import           NodeEditor.Action.Basic.Scene               (updateScene)
-import           NodeEditor.Action.Basic.UpdateSearcherHints (localUpdateSearcherHintsPreservingSelection)
-import           NodeEditor.Action.State.Model               (calculatePortSelfMode)
-import qualified NodeEditor.Action.State.NodeEditor          as NodeEditor
-import           NodeEditor.React.Model.Node                 (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
-import           NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected)
-import qualified NodeEditor.React.Model.Node.ExpressionNode  as ExpressionNode
-import qualified NodeEditor.React.Model.Node.SidebarNode     as SidebarNode
-import           NodeEditor.React.Model.NodeEditor           (VisualizationBackup (MessageBackup))
-import           NodeEditor.React.Model.Port                 (InPort, InPortTree, OutPort, OutPortTree, isSelf, mode, portId)
-import qualified NodeEditor.React.Model.Searcher             as Searcher
-import           NodeEditor.React.Model.Visualization        (awaitingDataMsg, noVisMsg, visualizers)
-import           NodeEditor.State.Global                     (State)
+import Common.Prelude
+
+import qualified Data.Map                                   as Map
+import qualified Data.Set                                   as Set
+import qualified LunaStudio.Data.Node                       as API
+import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
+import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
+import qualified NodeEditor.React.Model.Node.SidebarNode    as SidebarNode
+import qualified NodeEditor.React.Model.Searcher            as Searcher
+
+import Common.Action.Command                       (Command)
+import Data.Set                                    (Set)
+import LunaStudio.Data.Node                        (NodeTypecheckerUpdate,
+                                                    tcNodeId)
+import LunaStudio.Data.NodeLoc                     (NodeLoc)
+import NodeEditor.Action.Basic.AddNode             (localAddExpressionNode,
+                                                    localAddInputNode,
+                                                    localAddOutputNode)
+import NodeEditor.Action.Basic.Scene               (updateScene)
+import NodeEditor.Action.Basic.UpdateSearcherHints (localUpdateSearcherHintsPreservingSelection)
+import NodeEditor.Action.State.Model               (calculatePortSelfMode)
+import NodeEditor.React.Model.Node                 (ExpressionNode, InputNode,
+                                                    NodePath, OutputNode,
+                                                    inPortAt, nodeLoc)
+import NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected)
+import NodeEditor.React.Model.Port                 (InPort, InPortTree, OutPort,
+                                                    OutPortTree, isSelf, mode,
+                                                    portId)
+import NodeEditor.React.Model.Visualization        (VisualizationBackup (MessageBackup),
+                                                    awaitingDataMsg, noVisMsg,
+                                                    visualizers)
+import NodeEditor.State.Global                     (State)
 
 
 data NodeUpdateModification = KeepPorts

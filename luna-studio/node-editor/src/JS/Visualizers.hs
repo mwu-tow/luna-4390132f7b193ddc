@@ -46,6 +46,13 @@ foreign import javascript safe "res = window.getProjectVisualizers($1); $r = Obj
 getProjectVisualizers :: FilePath -> IO [String]
 getProjectVisualizers fp = fmap pFromJSVal . toList <$> getProjectVisualizers' (convert fp)
 
+foreign import javascript safe "res = window.getImportedVisualizers($1, $2); $r = Object.keys(typeof res == 'object' ? res : {});"
+    getImportedVisualizers' :: JSString -> JSString -> IO JSArray
+
+getImportedVisualizers :: String -> FilePath -> IO [String]
+getImportedVisualizers libName fp = fmap pFromJSVal . toList
+    <$> getImportedVisualizers' (convert libName) (convert fp)
+
 foreign import javascript safe "window.checkInternalVisualizer($1)"
     checkInternalVisualizer' :: JSString -> IO JSString
 
@@ -64,6 +71,13 @@ foreign import javascript safe "window.checkProjectVisualizer($1, $2)"
 checkProjectVisualizer :: String -> String -> IO String
 checkProjectVisualizer name rep = convert <$> checkProjectVisualizer' (convert name) (convert rep)
 
+foreign import javascript safe "window.checkImportedVisualizer($1, $2, $3)"
+    checkImportedVisualizer' :: JSString -> JSString -> JSString -> IO JSString
+
+checkImportedVisualizer :: String -> String -> String -> IO String
+checkImportedVisualizer libName name rep = convert
+    <$> checkImportedVisualizer' (convert libName) (convert name) (convert rep)
+
 mkInternalVisualizersMap :: IO (Map String String)
 mkInternalVisualizersMap = getInternalVisualizers >>= fmap Map.fromList . mapM (\name -> (name,) <$> checkInternalVisualizer name)
 
@@ -73,6 +87,10 @@ mkLunaVisualizersMap = Map.fromList . fmap (id &&& checkLunaVisualizer) <$> getL
 mkProjectVisualizersMap :: FilePath -> IO (Map String (String -> IO String))
 mkProjectVisualizersMap fp = Map.fromList . fmap (id &&& checkProjectVisualizer) <$> getProjectVisualizers fp
 
+mkImportedVisualizersMap :: String -> FilePath -> IO (Map String (String -> IO String))
+mkImportedVisualizersMap libName fp
+    = Map.fromList . fmap (id &&& checkImportedVisualizer libName)
+        <$> getImportedVisualizers libName fp
 
 foreign import javascript safe "visualizerFramesManager.sendData($1, $2, $3);"
     sendVisualizationData' :: JSString -> JSString -> JSString -> IO ()

@@ -1,75 +1,23 @@
 module Empire.Server.Graph where
 
+import Prologue hiding (Item, when)
+
 import qualified Compress
-import           Control.Arrow                           ((&&&))
-import           Control.Concurrent                      (forkIO)
-import           Control.Concurrent.MVar                 (readMVar)
-import           Control.Concurrent.STM.TChan            (writeTChan)
-import           Control.Error                           (runExceptT)
-import           Control.Lens                            (to, traversed, use,
-                                                          (.=), (^..))
-import           Control.Monad                           (when)
-import           Control.Monad.Catch                     (handle, try)
-import           Control.Monad.Reader                    (asks)
-import           Control.Monad.State                     (StateT, evalStateT,
-                                                          get)
-import           Control.Monad.STM                       (atomically)
 import qualified Data.Binary                             as Bin
-import           Data.ByteString                         (ByteString)
-import           Data.ByteString.Lazy                    (fromStrict)
-import           Data.Char                               (isUpper)
 import qualified Data.HashMap.Strict                     as HashMap
 import qualified Data.IntMap                             as IntMap
-import           Data.List                               (break, find,
-                                                          partition, sortBy)
-import           Data.List.Split                         (splitOneOf)
-import           Data.Map                                (Map)
 import qualified Data.Map                                as Map
-import           Data.Maybe                              (isJust, isNothing,
-                                                          listToMaybe,
-                                                          maybeToList)
 import qualified Data.Set                                as Set
-import           Data.Text                               (stripPrefix)
 import qualified Data.Text                               as Text
-import           Data.Traversable                        (forM)
-import           Data.UUID.Types                         (UUID)
 import qualified Data.UUID.Types                         as UUID
 import qualified Data.UUID.V4                            as UUID
-import           Empire.ASTOp                            (runASTOp)
 import qualified Empire.ASTOps.Print                     as Print
-import qualified Empire.ASTOps.Read                      as ASTRead
-import           Empire.Commands.Autolayout              (autolayoutNodes)
-import qualified Empire.Commands.Code                    as Code
 import qualified Empire.Commands.Graph                   as Graph
 import qualified Empire.Commands.GraphBuilder            as GraphBuilder
-import           Empire.Commands.GraphBuilder            (buildClassGraph,
-                                                          buildConnections,
-                                                          buildGraph,
-                                                          buildNodes,
-                                                          getNodeCode,
-                                                          getNodeName)
-import           Empire.Data.AST                         (SomeASTException, astExceptionFromException,
-                                                          astExceptionToException)
 import qualified Empire.Data.Graph                       as Graph (code,
                                                                    nodeCache)
-import           Empire.Empire                           (Empire)
 import qualified Empire.Empire                           as Empire
-import           Empire.Env                              (Env)
 import qualified Empire.Env                              as Env
-import           Empire.Server.Server                    (defInverse,
-                                                          errorMessage,
-                                                          modifyGraph,
-                                                          modifyGraphOk,
-                                                          prettyException,
-                                                          replyFail, replyOk,
-                                                          replyResult,
-                                                          sendToBus',
-                                                          webGUIHack,
-                                                          withDefaultResult,
-                                                          withDefaultResultTC)
-import           Luna.Package                            (findPackageFileForFile,
-                                                          findPackageRootForFile,
-                                                          getRelativePathForModule)
 import qualified LunaStudio.API.Atom.GetBuffer           as GetBuffer
 import qualified LunaStudio.API.Atom.Substitute          as Substitute
 import qualified LunaStudio.API.Control.Interpreter      as Interpreter
@@ -99,68 +47,98 @@ import qualified LunaStudio.API.Graph.SetNodeExpression  as SetNodeExpression
 import qualified LunaStudio.API.Graph.SetNodesMeta       as SetNodesMeta
 import qualified LunaStudio.API.Graph.SetPortDefault     as SetPortDefault
 import qualified LunaStudio.API.Graph.TypeCheck          as TypeCheck
-import           LunaStudio.API.Request                  (Request (..))
 import qualified LunaStudio.API.Response                 as Response
 import qualified LunaStudio.API.Topic                    as Topic
-import           LunaStudio.Data.Breadcrumb              (Breadcrumb (..))
 import qualified LunaStudio.Data.Breadcrumb              as Breadcrumb
 import qualified LunaStudio.Data.CameraTransformation    as Camera
-import           LunaStudio.Data.Code                    (Code (Code))
-import           LunaStudio.Data.Connection              as Connection
-import           LunaStudio.Data.Diff                    (Diff, diff,
-                                                          guiStateDiff)
 import qualified LunaStudio.Data.Diff                    as Diff
-import           LunaStudio.Data.Graph                   (Graph (..))
 import qualified LunaStudio.Data.Graph                   as GraphAPI
-import           LunaStudio.Data.GraphLocation           (GraphLocation (..))
 import qualified LunaStudio.Data.GraphLocation           as GraphLocation
-import           LunaStudio.Data.GUIState                (GUIState (GUIState))
 import qualified LunaStudio.Data.GUIState                as GUIState
-import           LunaStudio.Data.LabeledTree             (LabeledTree (LabeledTree))
-import           LunaStudio.Data.Node                    (ExpressionNode (..),
-                                                          NodeId)
 import qualified LunaStudio.Data.Node                    as Node
-import           LunaStudio.Data.NodeLoc                 (NodeLoc (..))
 import qualified LunaStudio.Data.NodeLoc                 as NodeLoc
-import           LunaStudio.Data.NodeMeta                (NodeMeta)
 import qualified LunaStudio.Data.NodeMeta                as NodeMeta
 import qualified LunaStudio.Data.NodeSearcher            as NS
-import           LunaStudio.Data.NodeValue               (NodeValue (NodeValue))
-import           LunaStudio.Data.Port                    (InPort (..),
-                                                          InPortIndex (..),
-                                                          OutPort (..),
-                                                          OutPortIndex (..),
-                                                          Port (..),
-                                                          PortState (..),
-                                                          getPortNumber)
 import qualified LunaStudio.Data.Port                    as Port
-import           LunaStudio.Data.PortDefault             (PortValue (..))
-import           LunaStudio.Data.PortRef                 (InPortRef (..),
-                                                          OutPortRef (..))
-import           LunaStudio.Data.PortRef                 as PortRef
-import           LunaStudio.Data.Position                (Position)
 import qualified LunaStudio.Data.Position                as Position
-import           LunaStudio.Data.Project                 (LocationSettings)
 import qualified LunaStudio.Data.Project                 as Project
-import           LunaStudio.Data.TypeRep                 (TypeRep (TStar))
-import           LunaStudio.Data.Visualization           (VisualizationValue (..))
-import           Path                                    (fromAbsFile,
-                                                          fromRelFile,
-                                                          parseAbsFile)
 import qualified Path
-import           Prologue                                hiding (Item, when)
 import qualified Safe
-import           System.Environment                      (getEnv)
-import           System.FilePath                         (dropFileName,
-                                                          replaceFileName,
-                                                          (</>))
 import qualified System.Log.MLogger                      as Logger
 import qualified ZMQ.Bus.Bus                             as Bus
 import qualified ZMQ.Bus.Config                          as Config
 import qualified ZMQ.Bus.Data.Message                    as Message
 import qualified ZMQ.Bus.EndPoint                        as EP
-import           ZMQ.Bus.Trans                           (BusT (..))
 import qualified ZMQ.Bus.Trans                           as BusT
+
+import Control.Arrow                 ((&&&))
+import Control.Concurrent            (forkIO)
+import Control.Concurrent.MVar       (readMVar)
+import Control.Concurrent.STM.TChan  (writeTChan)
+import Control.Error                 (runExceptT)
+import Control.Lens                  (to, traversed, use, (.=), (^..))
+import Control.Monad                 (when)
+import Control.Monad.Catch           (handle, try)
+import Control.Monad.Reader          (asks)
+import Control.Monad.State           (StateT, evalStateT, get)
+import Control.Monad.STM             (atomically)
+import Data.ByteString               (ByteString)
+import Data.ByteString.Lazy          (fromStrict)
+import Data.Char                     (isUpper)
+import Data.List                     (break, find, partition, sortBy)
+import Data.List.Split               (splitOneOf)
+import Data.Map                      (Map)
+import Data.Maybe                    (isJust, isNothing, listToMaybe,
+                                      maybeToList)
+import Data.Text                     (stripPrefix)
+import Data.Traversable              (forM)
+import Data.UUID.Types               (UUID)
+import Empire.ASTOp                  (runASTOp)
+import Empire.Commands.Autolayout    (autolayoutNodes)
+import Empire.Commands.GraphBuilder  (buildClassGraph, buildConnections,
+                                      buildGraph, buildNodes, getNodeCode,
+                                      getNodeName)
+import Empire.Data.AST               (SomeASTException,
+                                      astExceptionFromException,
+                                      astExceptionToException)
+import Empire.Empire                 (Empire)
+import Empire.Env                    (Env)
+import Empire.Server.Server          (defInverse, errorMessage, modifyGraph,
+                                      modifyGraphOk, prettyException, replyFail,
+                                      replyOk, replyResult, sendToBus',
+                                      webGUIHack, withDefaultResult,
+                                      withDefaultResultTC)
+import Luna.Package                  (findPackageFileForFile,
+                                      findPackageRootForFile,
+                                      getRelativePathForModule, includedLibs)
+import LunaStudio.API.Request        (Request (..))
+import LunaStudio.Data.Breadcrumb    (Breadcrumb (..))
+import LunaStudio.Data.Code          (Code (Code))
+import LunaStudio.Data.Connection    as Connection
+import LunaStudio.Data.Diff          (Diff, diff, guiStateDiff)
+import LunaStudio.Data.Graph         (Graph (..))
+import LunaStudio.Data.GraphLocation (GraphLocation (..))
+import LunaStudio.Data.GUIState      (GUIState (GUIState))
+import LunaStudio.Data.LabeledTree   (LabeledTree (LabeledTree))
+import LunaStudio.Data.Node          (ExpressionNode (..), NodeId)
+import LunaStudio.Data.NodeLoc       (NodeLoc (..))
+import LunaStudio.Data.NodeMeta      (NodeMeta)
+import LunaStudio.Data.NodeValue     (NodeValue (NodeValue))
+import LunaStudio.Data.Port          (InPort (..), InPortIndex (..),
+                                      OutPort (..), OutPortIndex (..),
+                                      Port (..), PortState (..), getPortNumber)
+import LunaStudio.Data.PortDefault   (PortValue (..))
+import LunaStudio.Data.PortRef       (InPortRef (..), OutPortRef (..))
+import LunaStudio.Data.PortRef       as PortRef
+import LunaStudio.Data.Position      (Position)
+import LunaStudio.Data.Project       (LocationSettings)
+import LunaStudio.Data.TypeRep       (TypeRep (TStar))
+import LunaStudio.Data.Visualization (VisualizationValue (..))
+import LunaStudio.Data.Visualizer    (ExternalVisualizers (ExternalVisualizers))
+import Path                          (fromAbsFile, fromRelFile, parseAbsFile)
+import System.Environment            (getEnv)
+import System.FilePath               (dropFileName, replaceFileName, (</>))
+import ZMQ.Bus.Trans                 (BusT (..))
 
 
 logger :: Logger.Logger
@@ -272,7 +250,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 (Breadcrumb [])
                 mempty
                 def
-                mempty
+                def
                 mempty
                 . Left . Graph.prepareGraphError $ toException e)
         (location, guiState) <- handle makeError $ do
@@ -295,11 +273,17 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                         (Breadcrumb ["main"])
                         (view Project.currentBreadcrumb)
                         mayModuleSettings
-            graph            <- Graph.getGraph location
-            crumb            <- Graph.decodeLocation location
-            code             <- Code <$> Graph.getCode location
-            let mayVisPath    = ((</> "visualizers") . Path.toFilePath)
-                    <$> mayPackageRoot
+            graph <- Graph.getGraph location
+            crumb <- Graph.decodeLocation location
+            code  <- Code <$> Graph.getCode location
+            libsVisPaths <- Map.fromList . fmap
+                (\(libName, visLibPath)
+                    -> (convert libName, visLibPath </> "visualizers"))
+                <$> includedLibs
+            let mayProjectVisPath
+                    = ((</> "visualizers") . Path.toFilePath) <$> mayPackageRoot
+                externalVisPaths
+                    = ExternalVisualizers mayProjectVisPath libsVisPaths
                 defaultCamera = maybe
                     def
                     (`Camera.getCameraForRectangle` def)
@@ -322,7 +306,7 @@ handleGetProgram = modifyGraph defInverse action replyResult where
                 crumb
                 typeRepToVisMap
                 camera
-                mayVisPath
+                externalVisPaths
                 code
                 $ Right graph)
         withJust mayPrevSettings

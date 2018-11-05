@@ -1,38 +1,43 @@
 module LunaStudio.Data.Project where
 
-import           Prologue                             hiding (TypeRep)
+import Prologue hiding (TypeRep)
 
-import qualified Control.Lens.Aeson                   as Lens
-import qualified Data.HashMap.Strict                  as HashMap
-import qualified Data.Map                             as Map
-import qualified Data.Text                            as Text
+import qualified Control.Lens.Aeson  as Lens
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Map            as Map
+import qualified Data.Text           as Text
 
-import           Control.Lens                         ((?~), to)
-import           Data.Aeson                           (FromJSON (parseJSON), ToJSON (toEncoding, toJSON))
-import           Data.Binary                          (Binary (get, put))
-import           Data.Hashable                        (Hashable)
-import           Data.HashMap.Strict                  (HashMap)
-import           Data.IntMap.Lazy                     (IntMap)
-import           Data.Map                             (Map)
-import           Data.Maybe                           (listToMaybe)
-import           Data.UUID.Types                      (UUID)
-import           Data.Yaml                            (decodeFileEither, encodeFile)
-import           LunaStudio.Data.Breadcrumb           (Breadcrumb)
-import           LunaStudio.Data.CameraTransformation (CameraTransformation)
-import           LunaStudio.Data.Library              (Library)
-import           LunaStudio.Data.TypeRep              (TypeRep)
-import           LunaStudio.Data.Visualizer           (Visualizer (Visualizer), VisualizerId (VisualizerId), VisualizerName, VisualizerPath,
-                                                       VisualizerType (InternalVisualizer, LunaVisualizer, ProjectVisualizer), visualizerId,
-                                                       visualizerName, visualizerRelPath, visualizerType)
-import           System.FilePath                      (splitDirectories)
-import           System.IO                            (hFlush, stdout)
+import Control.Lens                         (to, (?~))
+import Data.Aeson                           (FromJSON (parseJSON),
+                                             ToJSON (toEncoding, toJSON))
+import Data.Binary                          (Binary (get, put))
+import Data.Hashable                        (Hashable)
+import Data.HashMap.Strict                  (HashMap)
+import Data.IntMap.Lazy                     (IntMap)
+import Data.List                            (find)
+import Data.Map                             (Map)
+import Data.Maybe                           (listToMaybe)
+import Data.UUID.Types                      (UUID)
+import Data.Yaml                            (decodeFileEither, encodeFile)
+import LunaStudio.Data.Breadcrumb           (Breadcrumb)
+import LunaStudio.Data.CameraTransformation (CameraTransformation)
+import LunaStudio.Data.Library              (Library)
+import LunaStudio.Data.TypeRep              (TypeRep)
+import LunaStudio.Data.Visualizer           (Visualizer (Visualizer),
+                                             VisualizerId (VisualizerId),
+                                             VisualizerName, VisualizerPath,
+                                             VisualizerType (ImportedVisualizer, InternalVisualizer, LunaVisualizer, ProjectVisualizer),
+                                             visualizerId, visualizerName,
+                                             visualizerRelPath, visualizerType)
+import System.FilePath                      (splitDirectories)
+import System.IO                            (hFlush, stdout)
 
 
 type ProjectId = UUID
 
 data Project = Project
-    { _name     :: String
-    , _libs     :: IntMap Library
+    { _name :: String
+    , _libs :: IntMap Library
     } deriving (Eq, Generic, Show)
 
 makeLenses ''Project
@@ -61,8 +66,8 @@ data ProjectSettings = ProjectSettings
 
 --TODO: Replace (VisualizerName, VisualizerPath) with VisualizerId but manage conflicts between versions
 data LocationSettings = LocationSettings
-    { _visMap   :: Maybe (HashMap TypeRep (VisualizerName, VisualizerPath))
-    , _camera   :: CameraTransformation
+    { _visMap :: Maybe (HashMap TypeRep (VisualizerName, VisualizerPath))
+    , _camera :: CameraTransformation
     } deriving (Eq, Generic, Show)
 
 makeLenses ''BreadcrumbSettings
@@ -161,6 +166,8 @@ toOldAPI v = (prefixedName, visPath) where
     getPrefix InternalVisualizer = "InternalVisualizer: "
     getPrefix LunaVisualizer     = "LunaVisualizer: "
     getPrefix ProjectVisualizer  = "ProjectVisualizer: "
+    getPrefix (ImportedVisualizer libName)
+        = "ImportedVisualizer: " <> libName <> ": "
     visId        = v ^. visualizerId
     visType      = visId ^. visualizerType
     visName      = visId ^. visualizerName
@@ -169,10 +176,20 @@ toOldAPI v = (prefixedName, visPath) where
 
 fromOldAPI :: (VisualizerName, VisualizerPath) -> Visualizer
 fromOldAPI (visName, visPath) = Visualizer visId visPath where
-    visId          = uncurry VisualizerId nameAndType
-    stripPref p    = Text.stripPrefix p visName
-    mayInternalVis = (, InternalVisualizer) <$> stripPref "InternalVisualizer: "
-    mayLunaVis     = (, LunaVisualizer)     <$> stripPref "LunaVisualizer: "
-    mayProjectVis  = (, ProjectVisualizer)  <$> stripPref "ProjectVisualizer: "
-    nameAndType    = fromJust (visName, LunaVisualizer) . listToMaybe
-        $ catMaybes [mayInternalVis, mayLunaVis, mayProjectVis]
+    visId              = fromJust defVisId $ listToMaybe parsedVisIds
+    defVisId           = VisualizerId LunaVisualizer visName
+    parsedVisIds       = catMaybes
+        [mayInternalVisId, mayLunaVisId, mayProjectVisId, mayImportedVisId]
+    mayInternalVisId   = VisualizerId InternalVisualizer <$> mayInternalName
+    mayLunaVisId       = VisualizerId LunaVisualizer     <$> mayLunaName
+    mayProjectVisId    = VisualizerId ProjectVisualizer  <$> mayProjectName
+    mayImportedVisId   = VisualizerId <$> mayImportedType <*> mayImportedName
+    stripPref p        = Text.stripPrefix p visName
+    mayInternalName    = stripPref "InternalVisualizer: "
+    mayLunaName        = stripPref "LunaVisualizer: "
+    mayProjectName     = stripPref "ProjectVisualizer: "
+    mayImportedType    = ImportedVisualizer <$> mayImportedLibName
+    mayImportedLibName
+        = Text.takeWhile (/= ':') <$> stripPref "ImportedVisualizer: "
+    mayImportedName    = Text.drop 2 . Text.dropWhile (/= ':')
+        <$> stripPref "ImportedVisualizer: "

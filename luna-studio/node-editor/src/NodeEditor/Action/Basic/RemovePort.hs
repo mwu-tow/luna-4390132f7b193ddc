@@ -3,14 +3,21 @@ module NodeEditor.Action.Basic.RemovePort where
 import           Common.Action.Command                    (Command)
 import           Common.Prelude
 import           LunaStudio.Data.Connection               (Connection (Connection))
-import           LunaStudio.Data.PortRef                  (OutPortRef, OutPortRef (OutPortRef), nodeLoc, srcPortId)
+import           LunaStudio.Data.PortRef                  (OutPortRef (OutPortRef),
+                                                           nodeLoc, srcPortId)
 import           NodeEditor.Action.Basic.AddConnection    (localAddConnection)
 import           NodeEditor.Action.Basic.RemoveConnection (localRemoveConnection)
 import           NodeEditor.Action.Basic.UpdateNode       (localUpdateInputNode)
 import qualified NodeEditor.Action.Batch                  as Batch
-import           NodeEditor.Action.State.NodeEditor       (getConnectionsContainingNode, getInputNode, resetSuccessors)
-import           NodeEditor.React.Model.Connection        (connectionId, dst, src)
-import           NodeEditor.React.Model.Node.SidebarNode  (countProjectionPorts, hasPort, inputIsDef, inputSidebarPorts, isInputSidebar)
+import           NodeEditor.Action.State.NodeEditor       (getConnectionsContainingNode,
+                                                           getInputNode,
+                                                           resetSuccessors)
+import           NodeEditor.React.Model.Connection        (connectionId, dst,
+                                                           src)
+import           NodeEditor.React.Model.Node.SidebarNode  (countProjectionPorts,
+                                                           hasPort, inputIsDef,
+                                                           inputSidebarPorts,
+                                                           isInputSidebar)
 import           NodeEditor.React.Model.Port              (OutPortIndex (Projection))
 import           NodeEditor.State.Global                  (State)
 
@@ -38,7 +45,7 @@ localRemovePort (OutPortRef nid pid@(Projection pos : _)) = do
                             if i == pos
                                 then void . localRemoveConnection $ conn ^. connectionId
                             else when (i >= pos) $
-                                void . localAddConnection $ Connection (conn ^. src & srcPortId .~ Projection (i-1) : p) (conn ^. dst)
+                                void . localAddConnection $ Connection (conn ^. src & srcPortId .~ Projection (i - 1) : p) (conn ^. dst)
 
                     _ -> return ()
                 return True

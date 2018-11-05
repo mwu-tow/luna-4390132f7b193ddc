@@ -42,39 +42,81 @@ import qualified LunaStudio.API.Graph.SetPortDefault         as SetPortDefault
 import qualified LunaStudio.API.Response                     as Response
 import           LunaStudio.Data.Breadcrumb                  (containsNode)
 import qualified LunaStudio.Data.Connection                  as API
-import           LunaStudio.Data.Diff                        (Diff (Diff), Modification (..))
+import           LunaStudio.Data.Diff                        (Diff (Diff),
+                                                              Modification (..))
 import qualified LunaStudio.Data.Diff                        as Diff
-import           LunaStudio.Data.Error                       (Error (Error), GraphError (BreadcrumbDoesNotExist), LunaError, errorType)
+import           LunaStudio.Data.Error                       (Error (Error), GraphError (BreadcrumbDoesNotExist),
+                                                              LunaError,
+                                                              errorType)
 import qualified LunaStudio.Data.Error                       as ErrorAPI
 import           LunaStudio.Data.GraphLocation               (GraphLocation)
 import qualified LunaStudio.Data.GraphLocation               as GraphLocation
 import qualified LunaStudio.Data.Node                        as API
-import           LunaStudio.Data.NodeLoc                     (NodePath, prependPath)
+import           LunaStudio.Data.NodeLoc                     (NodePath,
+                                                              prependPath)
 import qualified LunaStudio.Data.NodeLoc                     as NodeLoc
-import           NodeEditor.Action.Basic                     (NodeUpdateModification (KeepNodeMeta, KeepPorts, MergePorts), centerGraph, exitBreadcrumb,
-                                                              localAddConnection, localAddSearcherHints, localMerge, localMoveProject,
-                                                              localRemoveConnection, localRemoveNode, localRenameNode, localSetInputSidebar,
-                                                              localSetNodeExpression, localSetNodeMeta, localSetOutputSidebar,
-                                                              localUpdateCanEnterExpressionNode, localUpdateExpressionNodeInPorts,
-                                                              localUpdateExpressionNodeOutPorts, localUpdateIsDefinition,
-                                                              localUpdateNodeCode, localUpdateNodeTypecheck, localUpdateOrAddExpressionNode,
-                                                              setCurrentImports, updateNodeValueAndVisualization, updateScene,
+import           NodeEditor.Action.Basic                     (NodeUpdateModification (KeepNodeMeta, KeepPorts, MergePorts),
+                                                              centerGraph,
+                                                              exitBreadcrumb,
+                                                              localAddConnection,
+                                                              localAddSearcherHints,
+                                                              localMerge,
+                                                              localMoveProject,
+                                                              localRemoveConnection,
+                                                              localRemoveNode,
+                                                              localRenameNode,
+                                                              localSetInputSidebar,
+                                                              localSetNodeExpression,
+                                                              localSetNodeMeta,
+                                                              localSetOutputSidebar,
+                                                              localUpdateCanEnterExpressionNode,
+                                                              localUpdateExpressionNodeInPorts,
+                                                              localUpdateExpressionNodeOutPorts,
+                                                              localUpdateIsDefinition,
+                                                              localUpdateNodeCode,
+                                                              localUpdateNodeTypecheck,
+                                                              localUpdateOrAddExpressionNode,
+                                                              setCurrentImports,
+                                                              updateNodeValueAndVisualization,
+                                                              updateScene,
                                                               updateWithAPIGraph)
-import           NodeEditor.Action.Basic.Revert              (revertAddConnection, revertAddNode, revertAddPort, revertAddSubgraph,
-                                                              revertMovePort, revertRemoveConnection, revertRemoveNodes, revertRemovePort,
-                                                              revertRenameNode, revertRenamePort, revertSetNodeExpression,
-                                                              revertSetNodesMeta, revertSetPortDefault)
-import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime, modifyTime, refreshTime, touchCurrentlySelected, updateClient)
+import           NodeEditor.Action.Basic.Revert              (revertAddConnection,
+                                                              revertAddNode,
+                                                              revertAddPort,
+                                                              revertAddSubgraph,
+                                                              revertMovePort,
+                                                              revertRemoveConnection,
+                                                              revertRemoveNodes,
+                                                              revertRemovePort,
+                                                              revertRenameNode,
+                                                              revertRenamePort,
+                                                              revertSetNodeExpression,
+                                                              revertSetNodesMeta,
+                                                              revertSetPortDefault)
+import           NodeEditor.Action.Basic.UpdateCollaboration (bumpTime,
+                                                              modifyTime,
+                                                              refreshTime,
+                                                              touchCurrentlySelected,
+                                                              updateClient)
 import           NodeEditor.Action.Batch                     (collaborativeModify)
-import           NodeEditor.Action.State.App                 (getWorkspace, modifyApp, setBreadcrumbs)
-import           NodeEditor.Action.State.Graph               (inCurrentLocation, isCurrentLocation)
-import           NodeEditor.Action.State.NodeEditor          (modifyExpressionNode, setGraphStatus, setNodeProfilingData,
-                                                              setScreenTransform, updateMonads, updateVisualizers)
+import           NodeEditor.Action.State.App                 (getWorkspace,
+                                                              modifyApp,
+                                                              setBreadcrumbs)
+import           NodeEditor.Action.State.Graph               (inCurrentLocation,
+                                                              isCurrentLocation)
+import           NodeEditor.Action.State.NodeEditor          (modifyExpressionNode,
+                                                              setGraphStatus,
+                                                              setNodeProfilingData,
+                                                              setScreenTransform,
+                                                              updateMonads,
+                                                              updateVisualizers)
 import           NodeEditor.Action.UUID                      (isOwnRequest)
 import qualified NodeEditor.Batch.Workspace                  as Workspace
 import           NodeEditor.Event.Batch                      (Event (..))
 import qualified NodeEditor.Event.Event                      as Event
-import           NodeEditor.Handler.Backend.Common           (doNothing, doNothing2, handleResponse)
+import           NodeEditor.Handler.Backend.Common           (doNothing,
+                                                              doNothing2,
+                                                              handleResponse)
 import           NodeEditor.React.Model.App                  (workspace)
 import qualified NodeEditor.React.Model.Node.ExpressionNode  as Node
 import           NodeEditor.React.Model.NodeEditor           (GraphStatus (GraphError))
@@ -146,8 +188,8 @@ applyModification p nm = \case
         $ convert <$> m ^. Diff.newOutPortTree
     SetOutputSidebar m ->
         localSetOutputSidebar p $ m ^. Diff.newOutputSidebar
-    SetProjectVisPath m ->
-        updateVisualizers $ m ^. Diff.newProjectVisPath
+    SetExternalVisPath m ->
+        updateVisualizers $ m ^. Diff.newExternalVisPath
 
 
 applyDiff :: GraphLocation -> Set NodeUpdateModification -> Diff
@@ -199,7 +241,7 @@ handle (Event.Batch ev) = Just $ case ev of
                     $ workspace . _Just . Workspace.currentLocation .= location
                 Atom.setActiveLocation location
             ownRequest <- isOwnRequest requestId
-            let worksForForeignRequest (Diff.SetProjectVisPath     _) = False
+            let worksForForeignRequest (Diff.SetExternalVisPath    _) = False
                 worksForForeignRequest (Diff.SetDefaultVisualizers _) = False
                 worksForForeignRequest _                              = True
                 diff = if ownRequest

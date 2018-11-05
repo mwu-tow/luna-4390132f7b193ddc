@@ -8,11 +8,16 @@ import qualified Data.Map.Lazy                              as Map
 import           LunaStudio.API.Graph.CollaborationUpdate   (ClientId)
 import qualified NodeEditor.Action.Batch                    as Batch
 import           NodeEditor.Action.State.NodeEditor         (getSelectedNodes, modifyExpressionNodes_)
-import           NodeEditor.Data.Color                      (Color (Color), fromColor)
-import           NodeEditor.React.Model.Node.ExpressionNode (modify, nodeLoc, touch)
+import           NodeEditor.Data.Color                      (Color (Color, fromColor))
+import           NodeEditor.React.Model.Node.ExpressionNode (modify, nodeLoc,
+                                                             touch)
 import qualified NodeEditor.React.Model.Node.ExpressionNode as Node
-import           NodeEditor.State.Collaboration             (Client (Client), colorId, knownClients, lastSeen)
-import           NodeEditor.State.Global                    (State, collaboration)
+import           NodeEditor.State.Collaboration             (Client (Client),
+                                                             colorId,
+                                                             knownClients,
+                                                             lastSeen)
+import           NodeEditor.State.Global                    (State,
+                                                             collaboration)
 
 updateCollaboration :: Command State ()
 updateCollaboration = expireTouchedNodes >> everyNSeconds refreshTime touchCurrentlySelected

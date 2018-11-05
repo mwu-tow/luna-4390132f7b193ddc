@@ -1,42 +1,75 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.Action.Visualization where
 
-import           Common.Action.Command                      (Command)
-import           Common.Prelude
-import qualified Data.Map                                   as Map
-import           JS.Visualizers                             (notifyStreamRestart, registerVisualizerFrame, sendVisualizationData)
-import           LunaStudio.Data.NodeLoc                    (NodeLoc)
-import           LunaStudio.Data.TypeRep                    (toConstructorRep)
-import           NodeEditor.Action.Basic                    (selectNode, setNodeMeta)
-import           NodeEditor.Action.State.Action             (beginActionWithKey, checkAction, checkIfActionPerfoming, continueActionWithKey,
-                                                             removeActionFromState, updateActionWithKey)
-import           NodeEditor.Action.State.NodeEditor         (getExpressionNode, getExpressionNodeType, getNodeMeta, getNodeVisualizations,
-                                                             getSelectedNodes, getVisualizationBackup, getVisualizersForType,
-                                                             modifyExpressionNode, modifyNodeEditor, modifySearcher, setVisualizationData,
-                                                             updateDefaultVisualizer, updatePreferedVisualizer)
-import           NodeEditor.Action.UUID                     (getUUID)
-import           NodeEditor.React.Model.Node.ExpressionNode (nodeLoc, visualizationsEnabled)
-import           NodeEditor.React.Model.NodeEditor          (VisualizationBackup (MessageBackup, StreamBackup, ValueBackup),
-                                                             nodeVisualizations)
-import qualified NodeEditor.React.Model.Searcher            as Searcher
-import           NodeEditor.React.Model.Visualization       (RunningVisualization (RunningVisualization), VisualizationId,
-                                                             VisualizationMode (Focused, FullScreen, Preview),
-                                                             VisualizationParent (Node, Searcher), VisualizationStatus (Outdated),
-                                                             Visualizer (Visualizer), VisualizerId,
-                                                             VisualizerProperties (VisualizerProperties), awaitingDataMsg,
-                                                             idleVisualizations, idleVisualizerProperties, noVisMsg, runningVisualizer,
-                                                             selectedVisualizerId, stopVisualizations, visualizationId, visualizationMode,
-                                                             visualizationStatus, visualizations, visualizerProperties, visualizers)
-import qualified NodeEditor.React.Model.Visualization       as Vis
-import           NodeEditor.State.Action                    (Action (begin, continue, end, update),
-                                                             DocVisualizationActive (DocVisualizationActive),
-                                                             VisualizationActive (VisualizationActive), docVisualizationActiveAction,
-                                                             docVisualizationActiveSelectedMode, docVisualizationActiveTriggeredByVis,
-                                                             searcherAction, visualizationActiveAction, visualizationActiveNodeLoc,
-                                                             visualizationActiveSelectedMode, visualizationActiveTriggeredByVis,
-                                                             visualizationActiveVisualizationId)
-import           NodeEditor.State.Global                    (State)
+import Common.Prelude
+
+import qualified Data.Map                             as Map
+import qualified NodeEditor.React.Model.Searcher      as Searcher
+import qualified NodeEditor.React.Model.Visualization as Vis
+
+import Common.Action.Command                      (Command)
+import JS.Visualizers                             (notifyStreamRestart,
+                                                   registerVisualizerFrame,
+                                                   sendVisualizationData)
+import LunaStudio.Data.NodeLoc                    (NodeLoc)
+import LunaStudio.Data.TypeRep                    (toConstructorRep)
+import NodeEditor.Action.Basic                    (selectNode, setNodeMeta)
+import NodeEditor.Action.State.Action             (beginActionWithKey,
+                                                   checkAction,
+                                                   checkIfActionPerfoming,
+                                                   continueActionWithKey,
+                                                   removeActionFromState,
+                                                   updateActionWithKey)
+import NodeEditor.Action.State.NodeEditor         (getExpressionNode,
+                                                   getExpressionNodeType,
+                                                   getNodeMeta,
+                                                   getNodeVisualizations,
+                                                   getSelectedNodes,
+                                                   getVisualizationBackup,
+                                                   getVisualizersForType,
+                                                   modifyExpressionNode,
+                                                   modifyNodeEditor,
+                                                   modifySearcher,
+                                                   setVisualizationData,
+                                                   updateDefaultVisualizer,
+                                                   updatePreferedVisualizer)
+import NodeEditor.Action.UUID                     (getUUID)
+import NodeEditor.React.Model.Node.ExpressionNode (nodeLoc,
+                                                   visualizationsEnabled)
+import NodeEditor.React.Model.NodeEditor          (nodeVisualizations)
+import NodeEditor.React.Model.Visualization       (RunningVisualization (RunningVisualization),
+                                                   VisualizationBackup (MessageBackup, StreamBackup, ValueBackup),
+                                                   VisualizationId,
+                                                   VisualizationMode (Focused, FullScreen, Preview),
+                                                   VisualizationParent (Node, Searcher),
+                                                   VisualizationStatus (Outdated),
+                                                   Visualizer (Visualizer),
+                                                   VisualizerId,
+                                                   VisualizerProperties (VisualizerProperties),
+                                                   awaitingDataMsg,
+                                                   idleVisualizations,
+                                                   idleVisualizerProperties,
+                                                   noVisMsg, runningVisualizer,
+                                                   selectedVisualizerId,
+                                                   stopVisualizations,
+                                                   visualizationId,
+                                                   visualizationMode,
+                                                   visualizationStatus,
+                                                   visualizations,
+                                                   visualizerProperties,
+                                                   visualizers)
+import NodeEditor.State.Action                    (Action (begin, continue, end, update),
+                                                   DocVisualizationActive (DocVisualizationActive),
+                                                   VisualizationActive (VisualizationActive),
+                                                   docVisualizationActiveAction,
+                                                   docVisualizationActiveSelectedMode,
+                                                   docVisualizationActiveTriggeredByVis,
+                                                   searcherAction,
+                                                   visualizationActiveAction,
+                                                   visualizationActiveNodeLoc,
+                                                   visualizationActiveSelectedMode,
+                                                   visualizationActiveTriggeredByVis,
+                                                   visualizationActiveVisualizationId)
+import NodeEditor.State.Global                    (State)
 
 
 instance Action (Command State) VisualizationActive where

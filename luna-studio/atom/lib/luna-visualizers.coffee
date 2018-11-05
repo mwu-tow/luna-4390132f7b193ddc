@@ -9,6 +9,7 @@ lunaVisPath     = path.join lunaBaseVisPath, lunaVisName
 internalVisualizers = []
 lunaVisualizers     = []
 projectVisualizers  = []
+importedVisualizers = {}
 
 
 listVisualizers = (visPath, name) -> 
@@ -47,10 +48,14 @@ module.exports = () ->
     window.getLunaVisualizers     = () ->
         lunaVisualizers = getVisualizersForPath lunaVisPath
         lunaVisualizers
-    window.getProjectVisualizers      = (path) ->
+    window.getProjectVisualizers = (path) ->
         projectVisualizers = getVisualizersForPath path
         projectVisualizers
-    window.checkInternalVisualizer = (name)         -> internalVisualizers[name]()
-    window.checkLunaVisualizer     = (name, tpeRep) -> lunaVisualizers[name](tpeRep)
-    window.checkProjectVisualizer  = (name, tpeRep) -> projectVisualizers[name](tpeRep)
+    window.getImportedVisualizers = (libName, path) ->
+        importedVisualizers[libName] = getVisualizersForPath path
+        importedVisualizers[libName]
+    window.checkInternalVisualizer = (name)                  -> internalVisualizers[name]()
+    window.checkLunaVisualizer     = (name, tpeRep)          -> lunaVisualizers[name](tpeRep)
+    window.checkProjectVisualizer  = (name, tpeRep)          -> projectVisualizers[name](tpeRep)
+    window.checkImportedVisualizer = (libName, name, tpeRep) -> importedVisualizers[libName][name](tpeRep)
 

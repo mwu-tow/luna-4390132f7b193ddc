@@ -1,20 +1,28 @@
 module NodeEditor.Action.Basic.AddPort where
 
-import           Common.Action.Command                   (Command)
-import           Common.Prelude
-import           LunaStudio.Data.Connection              (Connection (Connection))
-import           LunaStudio.Data.LabeledTree             (LabeledTree (LabeledTree))
-import           LunaStudio.Data.Port                    (Port (Port))
-import           LunaStudio.Data.PortRef                 (InPortRef, OutPortRef (OutPortRef), srcPortId)
-import           LunaStudio.Data.TypeRep                 (TypeRep (TStar))
-import           NodeEditor.Action.Basic.AddConnection   (localAddConnection)
-import           NodeEditor.Action.Basic.UpdateNode      (localUpdateInputNode)
-import qualified NodeEditor.Action.Batch                 as Batch
-import           NodeEditor.Action.State.NodeEditor      (getConnectionsContainingNode, getInputNode)
-import qualified NodeEditor.React.Model.Connection       as Connection
-import           NodeEditor.React.Model.Node.SidebarNode (countProjectionPorts, inputSidebarPorts)
-import           NodeEditor.React.Model.Port             (OutPortIndex (Projection), OutPorts (OutPorts), PortState (NotConnected))
-import           NodeEditor.State.Global                 (State)
+import Common.Prelude
+
+import qualified NodeEditor.Action.Batch           as Batch
+import qualified NodeEditor.React.Model.Connection as Connection
+
+import Common.Action.Command                   (Command)
+import LunaStudio.Data.Connection              (Connection (Connection))
+import LunaStudio.Data.LabeledTree             (LabeledTree (LabeledTree))
+import LunaStudio.Data.Port                    (Port (Port))
+import LunaStudio.Data.PortRef                 (InPortRef,
+                                                OutPortRef (OutPortRef),
+                                                srcPortId)
+import LunaStudio.Data.TypeRep                 (TypeRep (TStar))
+import NodeEditor.Action.Basic.AddConnection   (localAddConnection)
+import NodeEditor.Action.Basic.UpdateNode      (localUpdateInputNode)
+import NodeEditor.Action.State.NodeEditor      (getConnectionsContainingNode,
+                                                getInputNode)
+import NodeEditor.React.Model.Node.SidebarNode (countProjectionPorts,
+                                                inputSidebarPorts)
+import NodeEditor.React.Model.Port             (OutPortIndex (Projection),
+                                                OutPorts (OutPorts),
+                                                PortState (NotConnected))
+import NodeEditor.State.Global                 (State)
 
 
 addPort :: OutPortRef -> Maybe InPortRef -> Maybe Text -> Command State ()

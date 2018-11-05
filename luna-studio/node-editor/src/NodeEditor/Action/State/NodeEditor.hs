@@ -1,10 +1,7 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase             #-}
-{-# LANGUAGE TypeFamilies           #-}
 module NodeEditor.Action.State.NodeEditor where
 
-import           Common.Prelude                              hiding (get)
+import Common.Prelude hiding (get)
+import Common.Report  (warning)
 
 import qualified Control.Monad.State                         as M
 import qualified Data.HashMap.Strict                         as HashMap
@@ -23,46 +20,69 @@ import qualified NodeEditor.React.Model.Searcher             as Searcher
 import qualified NodeEditor.React.Model.Visualization        as Visualization
 import qualified NodeEditor.State.Global                     as Global
 
-import           Common.Action.Command                       (Command)
-import           Control.Arrow                               ((&&&))
-import           Data.Map.Lazy                               (Map)
-import           Data.Monoid                                 (First (First), getFirst)
-import           LunaStudio.Data.CameraTransformation        (CameraTransformation)
-import           LunaStudio.Data.GraphLocation               (breadcrumb)
-import           LunaStudio.Data.MonadPath                   (MonadPath)
-import           LunaStudio.Data.NodeMeta                    (NodeMeta)
-import           LunaStudio.Data.NodeSearcher                (ImportName, ModuleHints)
-import           LunaStudio.Data.Port                        (_WithDefault)
-import           LunaStudio.Data.PortDefault                 (PortDefault)
-import           LunaStudio.Data.PortRef                     (AnyPortRef (..), InPortRef (..), OutPortRef (..))
-import           LunaStudio.Data.Position                    (Position)
-import           LunaStudio.Data.TypeRep                     (TypeRep (TStar), toConstructorRep)
-import           LunaStudio.Data.Visualizer                  (applyType, fromJSInternalVisualizersMap, fromJSVisualizersMap)
-import           NodeEditor.Action.State.App                 (get, getWorkspace, modify, modifyApp)
-import           NodeEditor.Action.UUID                      (getUUID)
-import           NodeEditor.Batch.Workspace                  (currentLocation)
-import           NodeEditor.Data.Graph                       (Graph (Graph))
-import           NodeEditor.React.Model.App                  (nodeEditor)
-import           NodeEditor.React.Model.Breadcrumbs          (isTopLevel)
-import           NodeEditor.React.Model.Connection           (Connection, ConnectionId, ConnectionsMap, HalfConnection, PosConnection,
-                                                              connectionId, containsNode, containsPortRef, dstNodeLoc, srcNodeLoc,
-                                                              toConnectionsMap)
-import           NodeEditor.React.Model.Layout               (Layout, Scene)
-import           NodeEditor.React.Model.Node                 (InputNode, Node (Expression, Input, Output), NodeLoc, OutputNode, inPortAt,
-                                                              inPortsList, nodeLoc, outPortAt, outPortsList, toNodesMap)
-import           NodeEditor.React.Model.Node.ExpressionNode  (ExpressionNode, isSelected)
-import           NodeEditor.React.Model.NodeEditor           (GraphStatus, NodeEditor, VisualizationBackup,
-                                                              VisualizersPaths (VisualizersPaths))
-import           NodeEditor.React.Model.Port                 (InPort, OutPort, state)
-import           NodeEditor.React.Model.Searcher             (Searcher)
-import           NodeEditor.React.Model.Visualization        (NodeVisualizations, VisualizationId, Visualizer (Visualizer),
-                                                              VisualizerId (VisualizerId), VisualizerPath,
-                                                              VisualizerProperties (VisualizerProperties),
-                                                              VisualizerType (LunaVisualizer, ProjectVisualizer), errorVisId,
-                                                              placeholderVisId, visualizerId, visualizerId, visualizerType,
-                                                              _InternalVisualizer)
-import           NodeEditor.State.Global                     (State, internalVisualizers, nodeSearcherData, preferedVisualizers,
-                                                              visualizers)
+import Common.Action.Command                      (Command)
+import Control.Arrow                              ((&&&))
+import Data.Map.Lazy                              (Map)
+import Data.Monoid                                (First (First), getFirst)
+import LunaStudio.Data.CameraTransformation       (CameraTransformation)
+import LunaStudio.Data.GraphLocation              (breadcrumb)
+import LunaStudio.Data.MonadPath                  (MonadPath)
+import LunaStudio.Data.NodeMeta                   (NodeMeta)
+import LunaStudio.Data.NodeSearcher               (ImportName, ModuleHints)
+import LunaStudio.Data.Port                       (_WithDefault)
+import LunaStudio.Data.PortDefault                (PortDefault)
+import LunaStudio.Data.PortRef                    (AnyPortRef (..),
+                                                   InPortRef (..),
+                                                   OutPortRef (..))
+import LunaStudio.Data.Position                   (Position)
+import LunaStudio.Data.TypeRep                    (TypeRep (TStar),
+                                                   toConstructorRep)
+import LunaStudio.Data.Visualizer                 (applyType,
+                                                   fromJSInternalVisualizersMap,
+                                                   fromJSVisualizersMap)
+import NodeEditor.Action.State.App                (get, getWorkspace, modify,
+                                                   modifyApp)
+import NodeEditor.Action.UUID                     (getUUID)
+import NodeEditor.Batch.Workspace                 (currentLocation)
+import NodeEditor.Data.Graph                      (Graph (Graph))
+import NodeEditor.React.Model.App                 (nodeEditor)
+import NodeEditor.React.Model.Breadcrumbs         (isTopLevel)
+import NodeEditor.React.Model.Connection          (Connection, ConnectionId,
+                                                   ConnectionsMap,
+                                                   HalfConnection,
+                                                   PosConnection, connectionId,
+                                                   containsNode,
+                                                   containsPortRef, dstNodeLoc,
+                                                   srcNodeLoc, toConnectionsMap)
+import NodeEditor.React.Model.Layout              (Layout, Scene)
+import NodeEditor.React.Model.Node                (InputNode, Node (Expression, Input, Output),
+                                                   NodeLoc, OutputNode,
+                                                   inPortAt, inPortsList,
+                                                   nodeLoc, outPortAt,
+                                                   outPortsList, toNodesMap)
+import NodeEditor.React.Model.Node.ExpressionNode (ExpressionNode, isSelected)
+import NodeEditor.React.Model.NodeEditor          (GraphStatus, NodeEditor)
+import NodeEditor.React.Model.Port                (InPort, OutPort, state)
+import NodeEditor.React.Model.Searcher            (Searcher)
+import NodeEditor.React.Model.Visualization       (ExternalVisualizers,
+                                                   NodeVisualizations,
+                                                   VisualizationBackup,
+                                                   VisualizationId,
+                                                   Visualizer (Visualizer),
+                                                   VisualizerId (VisualizerId),
+                                                   VisualizerPath,
+                                                   VisualizerProperties (VisualizerProperties),
+                                                   VisualizerType (ImportedVisualizer, LunaVisualizer, ProjectVisualizer),
+                                                   Visualizers (Visualizers),
+                                                   errorVisId,
+                                                   mapExternalVisualizersWithKeyM,
+                                                   placeholderVisId,
+                                                   visualizerId, visualizerType,
+                                                   _InternalVisualizer)
+import NodeEditor.State.Global                    (State, internalVisualizers,
+                                                   nodeSearcherData,
+                                                   preferedVisualizers,
+                                                   visualizers)
 
 
 getNodeEditor :: Command State NodeEditor
@@ -361,34 +381,41 @@ getLocalFunctions = do
 
 getVisualizationsBackupMap :: Command State (Map NodeLoc VisualizationBackup)
 getVisualizationsBackupMap
-    = view (NE.visualizationsBackup . NE.backupMap) <$> getNodeEditor
+    = view (NE.visualizationsBackup . Visualization.backupMap) <$> getNodeEditor
 
 getVisualizationBackup :: NodeLoc -> Command State (Maybe VisualizationBackup)
 getVisualizationBackup nl = Map.lookup nl <$> getVisualizationsBackupMap
 
 removeBackupForNodes :: [NodeLoc] -> Command State ()
 removeBackupForNodes nls = modifyNodeEditor
-    $ NE.visualizationsBackup . NE.backupMap
+    $ NE.visualizationsBackup . Visualization.backupMap
         %= \backupMap -> foldl (flip Map.delete) backupMap nls
 
-updateVisualizers :: Maybe FilePath -> Command State ()
-updateVisualizers mayProjectVisPath = do
+updateVisualizers :: ExternalVisualizers FilePath -> Command State ()
+updateVisualizers externalVisPaths = do
     internalVisPath <- liftIO $ JS.getInternalVisualizersLibraryPath
     lunaVisPath     <- liftIO $ JS.getLunaVisualizersLibraryPath
     modifyNodeEditor $ NE.visualizersLibPaths
-        .= VisualizersPaths internalVisPath lunaVisPath mayProjectVisPath
+        .= Visualizers internalVisPath lunaVisPath externalVisPaths
+    let toMatcherMap tpe = Map.mapKeys (VisualizerId tpe) . fromJSVisualizersMap
+        externalToMatcherMap tpe fp
+            = toMatcherMap tpe <$> JS.mkProjectVisualizersMap fp
 
-    internalVisMap
-        <- liftIO $ fromJSInternalVisualizersMap <$> JS.mkInternalVisualizersMap
-    lunaVisMap <- liftIO $ Map.mapKeys
-        (flip VisualizerId LunaVisualizer)
-        . fromJSVisualizersMap <$> JS.mkLunaVisualizersMap
-    projectVisMap  <- case mayProjectVisPath of
-        Nothing -> return mempty
-        Just fp -> liftIO $ Map.mapKeys
-            (flip VisualizerId ProjectVisualizer)
-            . fromJSVisualizersMap <$> JS.mkProjectVisualizersMap fp
-    Global.visualizers         .= Map.union lunaVisMap projectVisMap
+    internalVisMap <- liftIO
+        $ fromJSInternalVisualizersMap <$> JS.mkInternalVisualizersMap
+    lunaVisMap <- liftIO
+        $ toMatcherMap LunaVisualizer <$> JS.mkLunaVisualizersMap
+    externalVis <- liftIO $ mapExternalVisualizersWithKeyM
+        (\fp -> toMatcherMap
+            ProjectVisualizer
+            <$> JS.mkProjectVisualizersMap fp)
+        (\libName fp -> toMatcherMap
+            (ImportedVisualizer libName)
+            <$> JS.mkImportedVisualizersMap (convert libName) fp)
+        externalVisPaths
+    let externalVisMap = foldl Map.union mempty externalVis
+
+    Global.visualizers .= Map.union lunaVisMap externalVisMap
     Global.internalVisualizers .= internalVisMap
 
 updateNodeVisualizers :: NodeLoc -> Command State ()
@@ -501,7 +528,9 @@ setPlaceholderVisualization nl = getExpressionNode nl >>= \mayN -> do
     case mayN of
         Nothing -> clearVisualizationsForNode nl
         Just n  -> getPlaceholderVisualizer >>= \case
-            Nothing             -> clearVisualizationsForNode nl
+            Nothing -> do
+                warning "Visualization unavailable. Cannot find visualizer."
+                clearVisualizationsForNode nl
             Just placeholderVis -> do
                 mayVis <- maybe
                     (return def)
@@ -542,7 +571,9 @@ setErrorVisualization nl = getExpressionNode nl >>= \mayN -> do
     if isNothing mayN
         then clearVisualizationsForNode nl
         else getErrorVisualizer >>= \case
-            Nothing       -> clearVisualizationsForNode nl
+            Nothing -> do
+                warning "Detailed error info unavailable. Cannot find error visualizer."
+                clearVisualizationsForNode nl
             Just errorVis
                 -> modifyNodeEditor $ NE.nodeVisualizations %= \visMap -> do
                     let prevVis = maybe
@@ -629,39 +660,40 @@ isNewData nl vp = (Just vp /=) <$> getVisualizationBackup nl
 
 setVisualizationData :: NodeLoc -> VisualizationBackup -> Bool
     -> Command State ()
-setVisualizationData nl backup@(NE.ValueBackup val) overwrite
+setVisualizationData nl backup@(Visualization.ValueBackup val) overwrite
     = whenM ((overwrite ||) <$> isNewData nl backup) $ do
-        modifyNodeEditor
-            $ NE.visualizationsBackup . NE.backupMap . at nl ?= backup
+        modifyNodeEditor $ NE.visualizationsBackup
+            . Visualization.backupMap . at nl ?= backup
         visIds <- updateVisualizationsForNode nl
         withJustM (maybe def toConstructorRep <$> getExpressionNodeType nl)
             $ \cRep -> liftIO . forM_ visIds
                 $ \visId -> JS.sendVisualizationData visId cRep val
-setVisualizationData nl backup@(NE.StreamBackup values) _overwrite@True
+setVisualizationData nl backup@(Visualization.StreamBackup values) _overwrite@True
     = whenM (isNewData nl backup) $ do
-        modifyNodeEditor
-            $ NE.visualizationsBackup . NE.backupMap . at nl ?= backup
+        modifyNodeEditor $ NE.visualizationsBackup
+            . Visualization.backupMap . at nl ?= backup
         visIds <- updateVisualizationsForNode nl
         withJustM (maybe def toConstructorRep <$> getExpressionNodeType nl)
             $ \cRep -> liftIO . forM_ visIds
                 $ \visId -> JS.notifyStreamRestart visId cRep $ reverse values
-setVisualizationData nl (NE.StreamBackup values) _overwrite@False = do
-    modifyNodeEditor
-        $ NE.visualizationsBackup . NE.backupMap . ix nl . NE._StreamBackup
-            %= (values <>)
-    visIds <- maybe def (Map.keys . view Visualization.visualizations)
+setVisualizationData nl (Visualization.StreamBackup values) _overwrite@False = do
+    modifyNodeEditor $ NE.visualizationsBackup . Visualization.backupMap . ix nl
+        . Visualization._StreamBackup %= (values <>)
+    visIds <- maybe
+        def
+        (Map.keys . view Visualization.visualizations)
         <$> getNodeVisualizations nl
     liftIO . forM_ visIds $ forM_ values . JS.sendStreamDatapoint
-setVisualizationData nl backup@(NE.MessageBackup msg) overwrite
+setVisualizationData nl backup@(Visualization.MessageBackup msg) overwrite
     = whenM ((overwrite ||) <$> isNewData nl backup) $ do
-        modifyNodeEditor
-            $ NE.visualizationsBackup . NE.backupMap . at nl ?= backup
+        modifyNodeEditor $ NE.visualizationsBackup
+            . Visualization.backupMap . at nl ?= backup
         visIds <- setPlaceholderVisualization nl
         liftIO . forM_ visIds $ flip JS.sendInternalData msg
-setVisualizationData nl backup@(NE.ErrorBackup msg) overwrite
+setVisualizationData nl backup@(Visualization.ErrorBackup msg) overwrite
     = whenM ((overwrite ||) <$> isNewData nl backup) $ do
-        modifyNodeEditor
-            $ NE.visualizationsBackup . NE.backupMap . at nl ?= backup
+        modifyNodeEditor $ NE.visualizationsBackup
+            . Visualization.backupMap . at nl ?= backup
         visIds <- setErrorVisualization nl
         liftIO . forM_ visIds $ flip JS.sendInternalData msg
 
@@ -687,6 +719,6 @@ resetNode nl = do
             $ (oldInPorts /= newInPorts) && (oldOutPorts /= newOutPorts)
     setVisualizationData
         nl
-        (NE.MessageBackup Visualization.awaitingDataMsg)
+        (Visualization.MessageBackup Visualization.awaitingDataMsg)
         True
     return $ fromMaybe False $ getFirst maySuccess

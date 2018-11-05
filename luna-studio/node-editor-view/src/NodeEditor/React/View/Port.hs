@@ -1,20 +1,26 @@
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.React.View.Port where
 
 import           Common.Prelude
 import qualified Data.Aeson                       as Aeson
 import           LunaStudio.Data.Angle            (Angle)
 import           LunaStudio.Data.Constants        (nodePropertiesWidth)
-import           LunaStudio.Data.PortRef          (AnyPortRef (InPortRef'), InPortRef, toAnyPortRef)
+import           LunaStudio.Data.PortRef          (AnyPortRef (InPortRef'),
+                                                   InPortRef, toAnyPortRef)
 import qualified NodeEditor.Event.Mouse           as Mouse
 import qualified NodeEditor.Event.UI              as UI
 import qualified NodeEditor.React.Event.Port      as Port
 import           NodeEditor.React.IsRef           (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight, nodeRadius, nodeRadius', portAliasRadius, portRadius)
+import           NodeEditor.React.Model.Constants (connectionWidth, lineHeight,
+                                                   nodeRadius, nodeRadius',
+                                                   portAliasRadius, portRadius)
 import           NodeEditor.React.Model.Node      (NodeLoc)
-import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'), InPortIndex (Arg, Self), IsOnly, Mode (..),
-                                                   argumentConstructorOffsetY, getPortNumber, isInPort, isInvisible, isSelf, portAngleStart,
+import           NodeEditor.React.Model.Port      (AnyPort, AnyPortId (InPortId', OutPortId'),
+                                                   InPortIndex (Arg, Self),
+                                                   IsOnly, Mode (..),
+                                                   argumentConstructorOffsetY,
+                                                   getPortNumber, isInPort,
+                                                   isInvisible, isSelf,
+                                                   portAngleStart,
                                                    portAngleStop)
 import qualified NodeEditor.React.Model.Port      as Port
 import qualified NodeEditor.React.View.Style      as Style
@@ -204,15 +210,15 @@ portIO = React.defineView "port-io" $ \(ref, nl, p, num, numOfArgs, isTopLevel) 
         ax addGaps = jsShow2 . startPortArcX addGaps . (+) nodeRadius
         ay addGaps = jsShow2 . startPortArcY addGaps . (+) nodeRadius
         bx addGaps = jsShow2 . stopPortArcX  addGaps . (+) nodeRadius
-        by addGaps = jsShow2 . stopPortArcY  addGaps . (+) nodeRadius
+        bY addGaps = jsShow2 . stopPortArcY  addGaps . (+) nodeRadius
         cx addGaps = jsShow2 $ stopPortArcX  addGaps nodeRadius'
         cy addGaps = jsShow2 $ stopPortArcY  addGaps nodeRadius'
         dx addGaps = jsShow2 $ startPortArcX addGaps nodeRadius'
         dy addGaps = jsShow2 $ startPortArcY addGaps nodeRadius'
         r1 = jsShow2 . (+) nodeRadius
-        r2 = jsShow2 nodeRadius'                 
+        r2 = jsShow2 nodeRadius'
         svgPath a b = "M"  <> ax a b <> " " <> ay a b <>
-                     " A " <> r1 b   <> " " <> r1 b   <> " 0 0 " <> svgFlag1 <> " " <> bx a b <> " " <> by a b <>
+                     " A " <> r1 b   <> " " <> r1 b   <> " 0 0 " <> svgFlag1 <> " " <> bx a b <> " " <> bY a b <>
                      " L " <> cx a   <> " " <> cy a   <>
                      " A " <> r2     <> " " <> r2     <> " 0 0 " <> svgFlag2 <> " " <> dx a   <> " " <> dy a   <>
                      " Z"

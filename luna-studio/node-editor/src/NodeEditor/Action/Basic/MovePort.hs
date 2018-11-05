@@ -4,14 +4,21 @@ import           Common.Action.Command                   (Command)
 import           Common.Prelude
 import           LunaStudio.Data.Connection              (Connection (Connection))
 import           LunaStudio.Data.LabeledTree             (value)
-import           LunaStudio.Data.PortRef                 (OutPortRef, OutPortRef (OutPortRef), nodeLoc, srcPortId)
+import           LunaStudio.Data.PortRef                 (OutPortRef (OutPortRef),
+                                                          nodeLoc, srcPortId)
 import           NodeEditor.Action.Basic.AddConnection   (localAddConnection)
 import           NodeEditor.Action.Basic.UpdateNode      (localUpdateInputNode)
 import qualified NodeEditor.Action.Batch                 as Batch
-import           NodeEditor.Action.State.NodeEditor      (getConnectionsContainingNode, getInputNode, resetSuccessors)
+import           NodeEditor.Action.State.NodeEditor      (getConnectionsContainingNode,
+                                                          getInputNode,
+                                                          resetSuccessors)
 import           NodeEditor.React.Model.Connection       (dst, src)
-import           NodeEditor.React.Model.Node.SidebarNode (countProjectionPorts, hasPort, inputSidebarPorts, isInputSidebar)
-import           NodeEditor.React.Model.Port             (OutPortIndex (Projection), portId)
+import           NodeEditor.React.Model.Node.SidebarNode (countProjectionPorts,
+                                                          hasPort,
+                                                          inputSidebarPorts,
+                                                          isInputSidebar)
+import           NodeEditor.React.Model.Port             (OutPortIndex (Projection),
+                                                          portId)
 import           NodeEditor.State.Global                 (State)
 
 
@@ -51,12 +58,12 @@ localMovePort (OutPortRef nid pid@(Projection pos : p')) newPos =
                         else if i > pos && i <= newPos
                             then void . localAddConnection $ Connection
                                 (conn ^. src
-                                    & srcPortId .~ Projection (i-1) : p)
+                                    & srcPortId .~ Projection (i - 1) : p)
                                 (conn ^. dst)
                         else when (i < pos && i >= newPos) $
                             void . localAddConnection $ Connection
                                 (conn ^. src
-                                    & srcPortId .~ Projection (i+1) : p)
+                                    & srcPortId .~ Projection (i + 1) : p)
                                 (conn ^. dst)
                     _ -> return ()
                 return . Just $ OutPortRef nid (Projection newPos : p')

@@ -1,29 +1,31 @@
 module LunaStudio.Data.GUIState where
 
-import           Data.Aeson.Types                     (FromJSON, ToJSON)
-import           Data.Binary                          (Binary (get, put))
-import           Data.Hashable                        (Hashable)
-import           Data.HashMap.Strict                  (HashMap)
-import qualified Data.HashMap.Strict                  as HashMap
-import           Data.Set                             (Set)
-import           LunaStudio.Data.Breadcrumb           (Breadcrumb, BreadcrumbItem, Named)
-import           LunaStudio.Data.CameraTransformation (CameraTransformation)
-import           LunaStudio.Data.Code                 (Code)
-import           LunaStudio.Data.Error                (Error, GraphError)
-import           LunaStudio.Data.Graph                (Graph)
-import           LunaStudio.Data.NodeSearcher         (ImportName)
-import           LunaStudio.Data.TypeRep              (TypeRep)
-import           LunaStudio.Data.Visualizer           (Visualizer)
-import           Prologue                             hiding (TypeRep)
+import Prologue hiding (TypeRep)
+
+import qualified Data.HashMap.Strict as HashMap
+
+import Data.Aeson.Types                     (FromJSON, ToJSON)
+import Data.Binary                          (Binary (get, put))
+import Data.Hashable                        (Hashable)
+import Data.HashMap.Strict                  (HashMap)
+import Data.Set                             (Set)
+import LunaStudio.Data.Breadcrumb           (Breadcrumb, BreadcrumbItem, Named)
+import LunaStudio.Data.CameraTransformation (CameraTransformation)
+import LunaStudio.Data.Code                 (Code)
+import LunaStudio.Data.Error                (Error, GraphError)
+import LunaStudio.Data.Graph                (Graph)
+import LunaStudio.Data.NodeSearcher         (ImportName)
+import LunaStudio.Data.TypeRep              (TypeRep)
+import LunaStudio.Data.Visualizer           (ExternalVisualizers, Visualizer)
 
 
 data GUIState = GUIState
-    { _breadcrumb             :: Breadcrumb (Named BreadcrumbItem)
-    , _defaultVisualizers     :: HashMap TypeRep Visualizer
-    , _camera                 :: CameraTransformation
-    , _projectVisualizersPath :: Maybe FilePath
-    , _code                   :: Code
-    , _graph                  :: Either (Error GraphError) Graph
+    { _breadcrumb               :: Breadcrumb (Named BreadcrumbItem)
+    , _defaultVisualizers       :: HashMap TypeRep Visualizer
+    , _camera                   :: CameraTransformation
+    , _externalVisualizersPaths :: ExternalVisualizers FilePath
+    , _code                     :: Code
+    , _graph                    :: Either (Error GraphError) Graph
     } deriving (Eq, Generic, Show)
 
 makeLenses ''GUIState

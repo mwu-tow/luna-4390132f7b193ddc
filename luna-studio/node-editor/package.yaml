@@ -7,8 +7,13 @@ author:              New Byte Order <contact@luna-lang.org>
 maintainer:          New Byte Order <contact@luna-lang.org>
 
 default-extensions:
+  - AllowAmbiguousTypes
+  - ApplicativeDo
+  - Arrows
   - BangPatterns
+  - BinaryLiterals
   - ConstraintKinds
+  - DataKinds
   - DefaultSignatures
   - DeriveDataTypeable
   - DeriveFoldable
@@ -16,16 +21,36 @@ default-extensions:
   - DeriveGeneric
   - DeriveTraversable
   - DoAndIfThenElse
+  - DuplicateRecordFields
+  - EmptyDataDecls
   - FlexibleContexts
   - FlexibleInstances
+  - FunctionalDependencies
   - GeneralizedNewtypeDeriving
+  - InstanceSigs
   - LambdaCase
-  - MultiParamTypeClasses
+  - LiberalTypeSynonyms
+  - MonadComprehensions
+  - MultiWayIf
+  - NamedWildCards
+  - NegativeLiterals
   - NoImplicitPrelude
+  - NumDecimals
+  - OverloadedLabels
+  - OverloadedStrings
+  - PackageImports
+  - QuasiQuotes
+  - RankNTypes
+  - RecursiveDo
+  - RelaxedPolyRec
   - ScopedTypeVariables
   - StandaloneDeriving
   - TemplateHaskell
   - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeFamilyDependencies
+  - TypeOperators
   - ViewPatterns
 
 ghc-options:
