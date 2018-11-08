@@ -40,7 +40,7 @@ type MonadDevelop m = (MonadGetter Options m, MonadStates '[EnvConfig, RepoConfi
 
 instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
     defaultHostConfig = return $ DevelopConfig
-        { _stackPath      = "https://github.com/commercialhaskell/stack/releases/download/v1.6.3/stack-1.6.3-linux-x86_64-static.tar.gz"
+        { _stackPath      = "https://github.com/commercialhaskell/stack/releases/download/v1.9.1/stack-1.9.1-linux-x86_64-static.tar.gz"
         , _devPath        = "luna-develop"
         , _appsPath       = "apps"
         , _toolsPath      = "tools"
@@ -50,7 +50,7 @@ instance Monad m => MonadHostConfig DevelopConfig 'Linux arch m where
 
 instance Monad m => MonadHostConfig DevelopConfig 'Darwin arch m where
     defaultHostConfig = reconfig <$> defaultHostConfigFor @Linux where
-        reconfig cfg = cfg & stackPath .~ "https://github.com/commercialhaskell/stack/releases/download/v1.6.3/stack-1.6.3-osx-x86_64.tar.gz"
+        reconfig cfg = cfg & stackPath .~ "https://github.com/commercialhaskell/stack/releases/download/v1.9.1/stack-1.9.1-osx-x86_64.tar.gz"
 
 instance Monad m => MonadHostConfig DevelopConfig 'Windows arch m where
     defaultHostConfig = defaultHostConfigFor @Linux
