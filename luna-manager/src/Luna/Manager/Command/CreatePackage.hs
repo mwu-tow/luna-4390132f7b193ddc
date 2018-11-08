@@ -15,7 +15,7 @@ import Luna.Manager.Command.Options   (MakePackageOpts, Options,
 import Luna.Manager.Component.Pretty
 import Luna.Manager.Component.Version (Version, readVersion)
 import Luna.Manager.Network
-import Luna.Manager.Shell.Shelly      (MonadSh, runProcess)
+import Luna.Manager.Shell.Shelly      (MonadSh, runProcess, runRawSystem)
 import Luna.Manager.System            (generateChecksum, makeExecutable)
 import Luna.Manager.System.Env
 import Luna.Manager.System.Host
@@ -27,10 +27,13 @@ import System.Exit
 import qualified Control.Exception.Safe            as Exception
 import qualified Crypto.Hash                       as Crypto
 import qualified Data.ByteString.Lazy.Char8        as BSLChar
+import qualified Filesystem.Path.CurrentOS         as FP
 import qualified Data.Text                         as Text
+import qualified Data.Text.IO                      as Text
 import qualified Luna.Manager.Archive              as Archive
 import qualified Luna.Manager.Command.Options      as Opts
 import qualified Luna.Manager.Component.Repository as Repository
+import qualified Luna.Manager.Legal                as Legal
 import qualified Luna.Manager.Logger               as Logger
 import qualified Luna.Manager.Shell.Shelly         as Shelly
 import qualified Safe
@@ -310,10 +313,101 @@ downloadExternalPkgs cfgFolderPath resolvedApp opts = do
 
     return $ concat pkgs
 
+updateExeInfo :: MonadCreatePackage m
+    => Version -> FilePath -> m ()
+updateExeInfo version exePath = do
+    let exeName    = filename exePath
+        resHacker  =
+            "C:\\Program Files (x86)\\Resource Hacker\\ResourceHacker.exe"
+        resPath    = FP.replaceExtension exePath "res"
+        rcPath     = FP.replaceExtension exePath "rc"
+    liftIO $ Text.writeFile (encodeString rcPath) $
+        createExeVersionManifest version (convert $ encodeString exeName)
+    runRawSystem resHacker [ "-open", Shelly.toTextIgnore rcPath
+                           , "-save", Shelly.toTextIgnore resPath
+                           , "-action", "compile"
+                           , "-log", "CONSOLE"
+                           ]
+    runRawSystem resHacker [ "-open", Shelly.toTextIgnore exePath
+                           , "-save", Shelly.toTextIgnore exePath
+                           , "-action", "addoverwrite"
+                           , "-resource", Shelly.toTextIgnore resPath
+                           , "-log", "CONSOLE"
+                           ]
+    Shelly.rm_rf rcPath
+    Shelly.rm_rf resPath
+
+createExeVersionManifest :: Version -> Text -> Text
+createExeVersionManifest version exeName =
+    let versionFormat    = showPretty version
+        winVersionFormat = Text.replace "." "," versionFormat
+    in Text.unlines [
+        "VS_VERSION_INFO VERSIONINFO"
+      , Text.concat ["    FILEVERSION    ", winVersionFormat]
+      , Text.concat ["    PRODUCTVERSION ", winVersionFormat]
+      , "{"
+      , "    BLOCK \"StringFileInfo\""
+      , "    {"
+      , "        BLOCK \"040904b0\""
+      , "        {"
+      , Text.concat [
+            "            VALUE \"CompanyName\",        \""
+          , Legal.companyName
+          , "\""
+          ]
+      , Text.concat [
+            "            VALUE \"FileDescription\",    \""
+          , Legal.productDescription
+          , "\""
+          ]
+      , Text.concat [
+            "            VALUE \"FileVersion\",        \""
+          , versionFormat
+          , "\""
+          ]
+      , Text.concat [
+            "            VALUE \"LegalCopyright\",     \""
+          , Legal.copyright
+          , "\""
+          ]
+      , Text.concat [
+            "            VALUE \"OriginalFilename\",   \""
+          , exeName
+          , "\""
+          ]
+      , Text.concat [
+            "            VALUE \"ProductName\",        \""
+          , Legal.productName
+          , "\""
+          ]
+      , Text.concat [
+            "            VALUE \"ProductVersion\",     \""
+          , versionFormat
+          , "\""
+          ]
+      , "        }"
+      , "    }"
+      , "    BLOCK \"VarFileInfo\""
+      , "    {"
+      , "        VALUE \"Translation\", 0x409, 1200"
+      , "    }"
+      , "}"
+        ]
+
+
+updateWindowsMetadata :: MonadCreatePackage m
+    => Version -> FilePath -> FilePath -> m ()
+updateWindowsMetadata version privateBinFolder mainBin = do
+    updateExeInfo version mainBin
+    binaries <- liftIO . listDirectory $ encodeString privateBinFolder
+    forM_ binaries $ \b -> do
+        let fullPath = privateBinFolder </> decodeString b
+        updateExeInfo version fullPath
+
 signWindowsBinary :: MonadCreatePackage m => Text -> m ()
 signWindowsBinary binPath = do
-    let signTool     =  "c:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64\\signtool.exe"
-        timestampUrl = "http://timestamp.comodoca.com/authenticode"
+    let signTool     = "c:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64\\signtool.exe"
+        timestampUrl = "http://timestamp.digicert.com"
     certPath <- liftIO $ convert <$> getEnv "CERT_PATH"
     certPass <- liftIO $ convert <$> getEnv "CERT_PASS"
     runProcess signTool [ "sign", "/v", "/f", certPath, "/p", certPass
@@ -440,6 +534,7 @@ createPkg cfgFolderPath s3GuiURL resolvedApplication = do
     when (currentHost == Windows) $ do
         let appName' = convert appName
             binary   = publicBinsFolder </> appName' </> appName' <.> "exe"
+        updateWindowsMetadata appVersion privateBinsFolder binary
         signWindowsBinaries privateBinsFolder binary
 
     when (currentHost == Darwin) $

@@ -3,6 +3,7 @@ module Luna.Manager.Shell.Shelly (module Luna.Manager.Shell.Shelly, module X) wh
 
 import Prologue hiding (FilePath)
 
+import           Control.Concurrent          (threadDelay)
 import qualified Control.Exception.Safe      as Exception
 import           Control.Monad.Raise         (MonadException, raise)
 import           Control.Monad.State.Layered as State
@@ -51,16 +52,31 @@ runProcess :: (Logger.LoggerMonad m, MonadIO m) => FilePath -> [Text] -> m ()
 runProcess path args = do
     let pathStr = encodeString path
         argsStr = map convert args
-    (_, out, err) <- liftIO $ Process.readProcessWithExitCode pathStr argsStr ""
+    (ec, out, err) <- liftIO $ Process.readProcessWithExitCode pathStr argsStr ""
+    Logger.log $ convert $ show ec
     Logger.log $ convert out
     Logger.log $ convert err
+
+runRawSystem :: (Logger.LoggerMonad m, MonadIO m) => FilePath -> [Text] -> m ()
+runRawSystem path args = do
+    let pathStr = encodeString path
+        argsStr = map convert args
+    ec <- liftIO $ Process.system $ "\"" <> pathStr <> "\"" <> " " <> unwords argsStr
+    Logger.log $ convert $ show ec
 
 rm_rf :: (Logger.LoggerMonad m, MonadIO m, MonadSh m, MonadCatch m) => FilePath -> m ()
 rm_rf path = case currentHost of
     Linux -> Sh.rm_rf path
     Darwin -> Sh.rm_rf path
     Windows -> do
-        Prologue.whenM (Sh.test_d path) $ runCommand "rmdir /s /q " path
+        let removeRepeatedly = do
+                exists <- Sh.test_d path
+                Prologue.when exists $ do
+                    runCommand "rmdir /s /q " path
+                    let oneSecond = 1 * 1000000
+                    liftIO $ threadDelay oneSecond
+                    removeRepeatedly
+        removeRepeatedly
         Prologue.whenM (Sh.test_e path) $ runCommand "rm " path
 
 switchVerbosity :: Logger.LoggerMonad m => m a -> m a
