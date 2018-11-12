@@ -25,6 +25,11 @@ data Kind
 
 makePrisms ''Kind
 
+className :: Getter Kind (Maybe ClassName)
+className = to getter where
+    getter Function                = Nothing
+    getter (Constructor className) = Just className
+    getter (Method      className) = Just className
 
 data Symbol = Symbol
     { _symbolName          :: Name
@@ -32,6 +37,7 @@ data Symbol = Symbol
     , _kind                :: Kind
     , _symbolDocumentation :: Documentation
     , _weight              :: Weight
+    , _initialBonus        :: Int
     } deriving (Eq, Show)
 
 makeLenses ''Symbol
@@ -39,18 +45,12 @@ makeLenses ''Symbol
 instance SearcherData Symbol where
     name              = symbolName
     rawDocumentation  = symbolDocumentation
-    prefix            = library . Library.name
+    prefix            = kind . className . to (fromMaybe def)
     hintTextSeparator = to $ const " . "
     score =
         let importScore s = if s ^. library . Library.imported
                 then Library.importedBonus
                 else Library.notImportedPenalty
-            getter s = Score (importScore s) def (s ^. weight)
+            bonus  s = s ^. initialBonus + importScore s
+            getter s = Score (bonus s) def (s ^. weight)
         in to getter
-
-parentClass :: Getter Symbol (Maybe ClassName)
-parentClass = to $ classGetter . kindGetter where
-    kindGetter s = s ^. kind
-    classGetter Function                = Nothing
-    classGetter (Constructor className) = Just className
-    classGetter (Method      className) = Just className

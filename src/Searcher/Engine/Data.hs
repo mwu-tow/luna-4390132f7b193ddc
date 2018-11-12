@@ -12,8 +12,8 @@ import Searcher.Engine.Data.Score (Score)
 
 
 class Eq a => SearcherData a where
-    name              :: Getter a Name
-    rawDocumentation  :: Getter a Documentation
+    name              :: Lens' a Name
+    rawDocumentation  :: Lens' a Documentation
     documentation     :: Getter a (Maybe Documentation)
     documentation = to $ \sd -> if Text.null $ sd ^. rawDocumentation
         then Nothing

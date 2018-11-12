@@ -17,7 +17,7 @@ import Test.Hspec
 
 makeSymbols :: [Text] -> [Symbol]
 makeSymbols = map makeSymbol where
-    makeSymbol func = Symbol func (Library def True) Function def 1
+    makeSymbol func = Symbol func (Library def True) Function def 1 def
 
 topResultNameShouldBe :: [Match Symbol] -> Text -> Expectation
 topResultNameShouldBe []    _ = expectationFailure "Result is empty"
@@ -88,13 +88,13 @@ spec = do
             let res = search "foobar" $ makeSymbols ["fooBar", "foobar"]
             topResultShouldHaveBestScore res
         it "methods matching class are first for empty query" $ do
-            let bestEntry = Symbol "%" (Library def True) (Method "Int")  def 0.7
-                entries = [ Symbol "+" (Library def True) (Method "Int")  def 0.7
-                          , Symbol "+" (Library def True) (Method "Text") def 0.5
-                          , Symbol "%" (Library def True) (Method "Text") def 0.5
-                          , Symbol "+" (Library def True) Function        def 0.3
-                          , Symbol "%" (Library def True) Function        def 0.3
-                          , Symbol "+" (Library def True) Function        def 0.2
+            let bestEntry = Symbol "%" (Library def True) (Method "Int")  def 0.7 def
+                entries = [ Symbol "+" (Library def True) (Method "Int")  def 0.7 def
+                          , Symbol "+" (Library def True) (Method "Text") def 0.5 def
+                          , Symbol "%" (Library def True) (Method "Text") def 0.5 def
+                          , Symbol "+" (Library def True) Function        def 0.3 def
+                          , Symbol "%" (Library def True) Function        def 0.3 def
+                          , Symbol "+" (Library def True) Function        def 0.2 def
                           , bestEntry
                           ]
                 res = search "" entries
