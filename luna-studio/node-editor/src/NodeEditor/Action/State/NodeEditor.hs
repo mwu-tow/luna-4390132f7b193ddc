@@ -8,8 +8,8 @@ import qualified Data.HashMap.Strict                         as HashMap
 import qualified Data.Map.Lazy                               as Map
 import qualified Data.Set                                    as Set
 import qualified JS.Visualizers                              as JS
-import qualified LunaStudio.Data.NodeSearcher                as NS
 import qualified LunaStudio.Data.PortRef                     as PortRef
+import qualified LunaStudio.Data.Searcher.Node               as NS
 import qualified NodeEditor.Action.Batch                     as Batch
 import qualified NodeEditor.Action.State.Internal.NodeEditor as Internal
 import qualified NodeEditor.React.Model.Layout               as Scene
@@ -28,13 +28,13 @@ import LunaStudio.Data.CameraTransformation       (CameraTransformation)
 import LunaStudio.Data.GraphLocation              (breadcrumb)
 import LunaStudio.Data.MonadPath                  (MonadPath)
 import LunaStudio.Data.NodeMeta                   (NodeMeta)
-import LunaStudio.Data.NodeSearcher               (ImportName, ModuleHints)
 import LunaStudio.Data.Port                       (_WithDefault)
 import LunaStudio.Data.PortDefault                (PortDefault)
 import LunaStudio.Data.PortRef                    (AnyPortRef (..),
                                                    InPortRef (..),
                                                    OutPortRef (..))
 import LunaStudio.Data.Position                   (Position)
+import LunaStudio.Data.Searcher.Node              (LibrariesHintsMap)
 import LunaStudio.Data.TypeRep                    (TypeRep (TStar),
                                                    toConstructorRep)
 import LunaStudio.Data.Visualizer                 (applyType,
@@ -324,11 +324,11 @@ setScreenTransform :: CameraTransformation -> Command State ()
 setScreenTransform camera
     = modifyNodeEditor $ NE.layout . Scene.screenTransform .= camera
 
-getNodeSearcherData :: Command State (Map ImportName ModuleHints)
+getNodeSearcherData :: Command State LibrariesHintsMap
 getNodeSearcherData = getAvailableImports <$> use nodeSearcherData where
     getAvailableImports nsd = Map.filterWithKey
-        (\k _ -> Set.member k $ nsd ^. NS.currentImports)
-        $ nsd ^. NS.imports
+        (\k _ -> Set.member k $ nsd ^. NS.importedLibraries)
+        $ nsd ^. NS.libraries
 
 class NodeEditorElementId a where
     inGraph :: a -> Command State Bool
@@ -372,12 +372,12 @@ getLocalFunctions :: Command State [Text]
 getLocalFunctions = do
     functionsNames <- toList . Set.fromList
         . fmap (view Port.name) . concatMap outPortsList <$> getAllNodes
-    searcherMode <- fmap2 (view Searcher.mode) $ getSearcher
-    let lambdaArgsNames = case searcherMode of
-            Just (Searcher.Node _ (Searcher.NodeModeInfo _ _ argNames _) _)
-                -> argNames
-            _   -> []
-    return $ functionsNames <> lambdaArgsNames
+    let getLambdaArgsNames s = fromMaybe mempty
+            $ s ^? Searcher.mode . Searcher._NodeSearcher
+                . Searcher.modeData . Searcher._ExpressionMode
+                . Searcher.argumentsNames
+    lambdaArgsNames <- maybe mempty getLambdaArgsNames <$> getSearcher
+    pure $ functionsNames <> lambdaArgsNames
 
 getVisualizationsBackupMap :: Command State (Map NodeLoc VisualizationBackup)
 getVisualizationsBackupMap
@@ -677,11 +677,10 @@ setVisualizationData nl backup@(Visualization.StreamBackup values) _overwrite@Tr
             $ \cRep -> liftIO . forM_ visIds
                 $ \visId -> JS.notifyStreamRestart visId cRep $ reverse values
 setVisualizationData nl (Visualization.StreamBackup values) _overwrite@False = do
-    modifyNodeEditor $ NE.visualizationsBackup . Visualization.backupMap . ix nl
+    modifyNodeEditor $ NE.visualizationsBackup
+        . Visualization.backupMap . ix nl
         . Visualization._StreamBackup %= (values <>)
-    visIds <- maybe
-        def
-        (Map.keys . view Visualization.visualizations)
+    visIds <- maybe def (Map.keys . view Visualization.visualizations)
         <$> getNodeVisualizations nl
     liftIO . forM_ visIds $ forM_ values . JS.sendStreamDatapoint
 setVisualizationData nl backup@(Visualization.MessageBackup msg) overwrite
