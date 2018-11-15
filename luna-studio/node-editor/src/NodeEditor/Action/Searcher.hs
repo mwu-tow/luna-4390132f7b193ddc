@@ -224,21 +224,21 @@ adjustCameraToSearcher mode = do
                 overRightEdge       = topX + searcherWidth / 2 > screenWidth
                 overLeftEdge        = topX - searcherWidth / 2 < 0
                 overTopEdge         = topY < 0
-                xShift = if searcherWidth > screenWidth
-                        then Nothing
-                    else if overRightEdge
-                        then Just $ topX + searcherWidth / 2 - screenWidth
-                    else if overLeftEdge
-                        then Just $ topX - searcherWidth / 2
-                        else Nothing
-                yShift = if bottomY - topY > screenHeight
-                        then Just $ bottomY - screenHeight
-                    else if overTopEdge
-                        then Just topY
-                        else Nothing
+                shiftToRight        = topX + searcherWidth / 2 - screenWidth
+                shiftToLeft         = topX - searcherWidth / 2
+                verticalOverflow    = bottomY - topY > screenHeight
+                xShift = if searcherWidth > screenWidth then Nothing
+                    else if overRightEdge               then Just shiftToRight
+                    else if overLeftEdge                then Just shiftToLeft
+                    else Nothing
+                yShift = if verticalOverflow then Just $ bottomY - screenHeight
+                    else if overTopEdge      then Just topY
+                    else Nothing
             in if isNothing xShift && isNothing yShift
                 then Nothing
-                else Just $ Vector2 (fromMaybe def xShift) (fromMaybe def yShift)
+                else Just $ Vector2
+                    (fromMaybe def xShift)
+                    (fromMaybe def yShift)
         mayCameraDelta = join $ getCameraDelta
             <$> maySearcherBottom
             <*> maySearcherTop
@@ -315,11 +315,11 @@ handleTabPressed action = withJustM getSearcher $ \s ->
 
 updateInputWithSelectedHint :: Searcher -> Command State ()
 updateInputWithSelectedHint action =
-    let updateDividedInput h input = do
+    let updateDividedInput textToInsert input = do
             let mayNextChar         = input ^? Input.suffix . ix 0
                 needsSpace c        = not $ elem c [' ', ')']
                 trailingSpaceNeeded = maybe True needsSpace mayNextChar
-                updatedQuery        = h ^. Searcher.name
+                updatedQuery        = textToInsert
                     <> if trailingSpaceNeeded then " " else mempty
                 updatedInput  = input & Input.query .~ updatedQuery
                 caretPosition
@@ -329,12 +329,14 @@ updateInputWithSelectedHint action =
                 caretPosition
                 caretPosition
                 action
-    in withJustM getSearcher $ \s ->
-        withJust (s ^. Searcher.selectedHint) $ \h -> do
-            withJust (h ^? Searcher._NodeHint) includeImport
+    in withJustM getSearcher $ \s -> do
+        mapM
+            includeImport
+            $ s ^? Searcher.selectedHint . _Just . Searcher._NodeHint
+        withJust (s ^. Searcher.selectedHintText) $ \textToInsert ->
             withJust
                 (s ^? Searcher.input . Input._DividedInput)
-                $ updateDividedInput h
+                $ updateDividedInput textToInsert
 
 accept :: (Event -> IO ()) -> Searcher -> Command State ()
 accept scheduleEvent action = do

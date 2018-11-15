@@ -32,29 +32,21 @@ data NewNodeData = NewNodeData
     , _connectionSource :: Maybe OutPortRef
     } deriving (Eq, Generic, Show)
 
-makeLenses ''NewNodeData
-
 data ExpressionData = ExpressionData
     { _newNodeData    :: Maybe NewNodeData
     , _className      :: Maybe ClassName
     , _argumentsNames :: [Name]
     } deriving (Eq, Generic, Show)
 
-makeLenses ''ExpressionData
-
 data PortNameData = PortNameData
     { _portId :: OutPortId
     } deriving (Eq, Generic, Show)
-
-makeLenses ''PortNameData
 
 data NodeSearcherMode
     = ExpressionMode ExpressionData
     | NodeNameMode
     | PortNameMode   PortNameData
     deriving (Eq, Generic, Show)
-
-makePrisms ''NodeSearcherMode
 
 data NodesData a = NodesData
     { _nodeLoc                    :: NodeLoc
@@ -63,7 +55,11 @@ data NodesData a = NodesData
     , _documentationVisualization :: Maybe RunningVisualization
     } deriving (Eq, Generic, Show)
 
+makeLenses ''ExpressionData
+makeLenses ''NewNodeData
 makeLenses ''NodesData
+makeLenses ''PortNameData
+makePrisms ''NodeSearcherMode
 
 --TODO[LJK]: Replace mockedSearcherNodId with:
 -- mockedSearcherNodeId = unsafePerformIO genNewID
