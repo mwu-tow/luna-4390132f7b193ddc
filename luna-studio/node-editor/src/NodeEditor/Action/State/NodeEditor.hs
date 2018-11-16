@@ -613,6 +613,16 @@ updateVisualizationsForNode nl = getExpressionNode nl >>= \case
             if not (ExpressionNode.hasData n) || isNothing mayVis
                 then setPlaceholderVisualization nl
                 else withJust mayVis $ \vis -> do
+                    let visualizer
+                            = case n ^. ExpressionNode.defaultVisualizer of
+                                Nothing     -> fst vis
+                                Just defVis -> maybe
+                                    (fst vis)
+                                    (\vp -> defVis
+                                        & Visualization.visualizerRelPath .~ vp)
+                                    $ Map.lookup
+                                        (defVis ^. visualizerId)
+                                        $ snd vis
                     modifyNodeEditor $ NE.nodeVisualizations %= \visMap -> do
                         let prevVis = maybe
                                 def
@@ -629,8 +639,8 @@ updateVisualizationsForNode nl = getExpressionNode nl >>= \case
                                 then [Visualization.IdleVisualization
                                     Visualization.Ready
                                     $ Visualization.VisualizerProperties
-                                        (fst vis)
-                                        . Just $ (fst vis) ^. visualizerId
+                                        visualizer
+                                        . Just $ visualizer ^. visualizerId
                                     ]
                                 else []
                         Map.insert
@@ -641,7 +651,7 @@ updateVisualizationsForNode nl = getExpressionNode nl >>= \case
                                 $ snd vis
                             )
                             visMap
-                    updateDefaultVisualizer nl (Just $ fst vis) False
+                    updateDefaultVisualizer nl (Just visualizer) False
                     recoverVisualizations nl
 
 updatePreferedVisualizer :: TypeRep -> Visualizer -> Command State ()
