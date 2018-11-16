@@ -315,11 +315,11 @@ handleTabPressed action = withJustM getSearcher $ \s ->
 
 updateInputWithSelectedHint :: Searcher -> Command State ()
 updateInputWithSelectedHint action =
-    let updateDividedInput textToInsert input = do
+    let updateDividedInput h input = do
             let mayNextChar         = input ^? Input.suffix . ix 0
                 needsSpace c        = not $ elem c [' ', ')']
                 trailingSpaceNeeded = maybe True needsSpace mayNextChar
-                updatedQuery        = textToInsert
+                updatedQuery        = h ^. Searcher.name
                     <> if trailingSpaceNeeded then " " else mempty
                 updatedInput  = input & Input.query .~ updatedQuery
                 caretPosition
@@ -329,14 +329,12 @@ updateInputWithSelectedHint action =
                 caretPosition
                 caretPosition
                 action
-    in withJustM getSearcher $ \s -> do
-        mapM
-            includeImport
-            $ s ^? Searcher.selectedHint . _Just . Searcher._NodeHint
-        withJust (s ^. Searcher.selectedHintText) $ \textToInsert ->
+    in withJustM getSearcher $ \s ->
+        withJust (s ^. Searcher.selectedHint) $ \h -> do
+            withJust (h ^? Searcher._NodeHint) includeImport
             withJust
                 (s ^? Searcher.input . Input._DividedInput)
-                $ updateDividedInput textToInsert
+                $ updateDividedInput h
 
 accept :: (Event -> IO ()) -> Searcher -> Command State ()
 accept scheduleEvent action = do

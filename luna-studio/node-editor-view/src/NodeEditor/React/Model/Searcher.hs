@@ -13,16 +13,14 @@ import Searcher.Engine                       as X (IsMatch, Match, Range,
 
 import Common.Prelude
 
-import qualified Data.Text                             as Text
-import qualified Data.UUID.Types                       as UUID
-import qualified Data.Vector.Unboxed                   as Vector
-import qualified Luna.Syntax.Text.Lexer                as Lexer
-import qualified LunaStudio.Data.PortRef               as PortRef
-import qualified NodeEditor.Event.Shortcut             as Shortcut
-import qualified NodeEditor.React.Model.Searcher.Input as Input
-import qualified NodeEditor.React.Model.Searcher.Mode  as Mode
-import qualified Searcher.Engine.Data.Match            as Match
-import qualified Searcher.Engine.Data.Symbol           as Symbol
+import qualified Data.Text                            as Text
+import qualified Data.UUID.Types                      as UUID
+import qualified Data.Vector.Unboxed                  as Vector
+import qualified Luna.Syntax.Text.Lexer               as Lexer
+import qualified LunaStudio.Data.PortRef              as PortRef
+import qualified NodeEditor.Event.Shortcut            as Shortcut
+import qualified NodeEditor.React.Model.Searcher.Mode as Mode
+import qualified Searcher.Engine.Data.Match           as Match
 
 import Data.Text32                          (Text32)
 import LunaStudio.Data.NodeLoc              (NodeId, NodeLoc)
@@ -78,28 +76,3 @@ takeHints limit (NodeSearcher    ns) = NodeSearcher $ ns & nodes %~ take limit
 dropHints :: Int -> Mode -> Mode
 dropHints offset (CommandSearcher cs) = CommandSearcher $ drop offset cs
 dropHints offset (NodeSearcher    ns) = NodeSearcher $ ns & nodes %~ drop offset
-
-selectedHintText :: Getter Searcher (Maybe Text)
-selectedHintText = to $ \s -> do
-    let dotPreceded = case s ^. input of
-            RawInput {}    -> True
-            DividedInput i ->
-                let strippedPrefix = Text.strip $ i ^. Input.prefix
-                in not (Text.null strippedPrefix)
-                    && Text.last strippedPrefix == '.'
-        inExpressionMode = has
-            (mode . _NodeSearcher . modeData . _ExpressionMode)
-            s
-        isConnected = has
-            (mode . _NodeSearcher . modeData
-                . _ExpressionMode . className . _Just)
-            s
-        emptyInput = Text.null . Text.strip $ s ^. inputText
-        fromHint (CommandHint m) = m ^. name
-        fromHint (NodeHint    m) =
-            if inExpressionMode
-                && has (Match.hint . Symbol.kind . Symbol._Method) m
-                && not ((isConnected && emptyInput) || dotPreceded)
-                then m ^. prefixedName
-                else m ^. name
-    fromHint <$> s ^. selectedHint

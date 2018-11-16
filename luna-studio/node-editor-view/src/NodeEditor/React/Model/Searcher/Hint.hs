@@ -5,7 +5,7 @@ module NodeEditor.React.Model.Searcher.Hint
 
 import Searcher.Engine            as X (Command, Match, MatchKind (AllCharsMatched, CaseInsensitiveEquality, CaseSensitiveEquality, NotFullyMatched),
                                         Name, Prefix, Range, Symbol)
-import Searcher.Engine.Data.Match as X (IsMatch (matchKind, matchedCharacters), SearcherData (documentation, hintTextSeparator, name, prefix, prefixedName, rawDocumentation, score))
+import Searcher.Engine.Data.Match as X (IsMatch (matchKind, matchedCharacters), SearcherData (documentation, hintTextSeparator, name, prefix, rawDocumentation, score))
 
 import Common.Prelude
 
