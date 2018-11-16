@@ -19,30 +19,39 @@ makePrisms ''Hint
 
 
 instance SearcherData Hint where
-    name = lens getter setter where
-        getter (CommandHint h) = h ^. name
-        getter (NodeHint    h) = h ^. name
-        setter (CommandHint h) n = CommandHint $ h & name .~ n
-        setter (NodeHint    h) n = NodeHint    $ h & name .~ n
-    rawDocumentation = lens getter setter where
-        getter (CommandHint h) = h ^. rawDocumentation
-        getter (NodeHint    h) = h ^. rawDocumentation
-        setter (CommandHint h) d = CommandHint $ h & rawDocumentation .~ d
-        setter (NodeHint    h) d = NodeHint    $ h & rawDocumentation .~ d
-    prefix = to getter where
-        getter (CommandHint h) = h ^. prefix
-        getter (NodeHint    h) = h ^. prefix
-    score = to getter where
-        getter (CommandHint h) = h ^. score
-        getter (NodeHint    h) = h ^. score
-    hintTextSeparator = to getter where
-        getter (CommandHint h) = h ^. hintTextSeparator
-        getter (NodeHint    h) = h ^. hintTextSeparator
+    name =
+        let getter (CommandHint h) = h ^. name
+            getter (NodeHint    h) = h ^. name
+            setter (CommandHint h) n = CommandHint $ h & name .~ n
+            setter (NodeHint    h) n = NodeHint    $ h & name .~ n
+        in lens getter setter
+    rawDocumentation =
+        let getter (CommandHint h) = h ^. rawDocumentation
+            getter (NodeHint    h) = h ^. rawDocumentation
+            setter (CommandHint h) d
+                = CommandHint $ h & rawDocumentation .~ d
+            setter (NodeHint   h) d
+                = NodeHint   $ h & rawDocumentation .~ d
+        in lens getter setter
+    prefix =
+        let getter (CommandHint h) = h ^. prefix
+            getter (NodeHint    h) = h ^. prefix
+        in to getter
+    score =
+        let getter (CommandHint h) = h ^. score
+            getter (NodeHint    h) = h ^. score
+        in to getter
+    hintTextSeparator =
+        let getter (CommandHint h) = h ^. hintTextSeparator
+            getter (NodeHint    h) = h ^. hintTextSeparator
+        in to getter
 
 instance IsMatch Hint where
-    matchKind = to getter where
-        getter (CommandHint h) = h ^. matchKind
-        getter (NodeHint    h) = h ^. matchKind
-    matchedCharacters = to getter where
-        getter (CommandHint h) = h ^. matchedCharacters
-        getter (NodeHint    h) = h ^. matchedCharacters
+    matchKind =
+        let getter (CommandHint h) = h ^. matchKind
+            getter (NodeHint    h) = h ^. matchKind
+        in to getter
+    matchedCharacters =
+        let getter (CommandHint h) = h ^. matchedCharacters
+            getter (NodeHint    h) = h ^. matchedCharacters
+        in to getter

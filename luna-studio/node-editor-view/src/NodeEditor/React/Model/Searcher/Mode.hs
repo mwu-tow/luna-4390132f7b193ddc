@@ -15,8 +15,10 @@ import Common.Prelude
 
 import qualified NodeEditor.React.Model.Searcher.Mode.Node as NodeSearcher
 
+
 import LunaStudio.Data.PortRef              (OutPortRef)
 import NodeEditor.React.Model.Visualization (RunningVisualization)
+
 
 
 data Mode
@@ -35,8 +37,9 @@ connectedPortRef = to
     $ (^? _NodeSearcher . NodeSearcher.connectedPortRef . _Just)
 
 documentationVisualization :: Lens' Mode (Maybe RunningVisualization)
-documentationVisualization = lens getter setter where
-    getter m
-        = m ^? _NodeSearcher . NodeSearcher.documentationVisualization . _Just
-    setter m rv
-        = m & _NodeSearcher . NodeSearcher.documentationVisualization .~ rv
+documentationVisualization =
+    let getter m = m ^? _NodeSearcher
+            . NodeSearcher.documentationVisualization . _Just
+        setter m rv = m & _NodeSearcher
+            . NodeSearcher.documentationVisualization .~ rv
+    in lens getter setter

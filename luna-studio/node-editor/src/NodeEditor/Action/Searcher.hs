@@ -224,21 +224,21 @@ adjustCameraToSearcher mode = do
                 overRightEdge       = topX + searcherWidth / 2 > screenWidth
                 overLeftEdge        = topX - searcherWidth / 2 < 0
                 overTopEdge         = topY < 0
-                shiftToRight        = topX + searcherWidth / 2 - screenWidth
-                shiftToLeft         = topX - searcherWidth / 2
-                verticalOverflow    = bottomY - topY > screenHeight
-                xShift = if searcherWidth > screenWidth then Nothing
-                    else if overRightEdge               then Just shiftToRight
-                    else if overLeftEdge                then Just shiftToLeft
-                    else Nothing
-                yShift = if verticalOverflow then Just $ bottomY - screenHeight
-                    else if overTopEdge      then Just topY
-                    else Nothing
+                xShift = if searcherWidth > screenWidth
+                        then Nothing
+                    else if overRightEdge
+                        then Just $ topX + searcherWidth / 2 - screenWidth
+                    else if overLeftEdge
+                        then Just $ topX - searcherWidth / 2
+                        else Nothing
+                yShift = if bottomY - topY > screenHeight
+                        then Just $ bottomY - screenHeight
+                    else if overTopEdge
+                        then Just topY
+                        else Nothing
             in if isNothing xShift && isNothing yShift
                 then Nothing
-                else Just $ Vector2
-                    (fromMaybe def xShift)
-                    (fromMaybe def yShift)
+                else Just $ Vector2 (fromMaybe def xShift) (fromMaybe def yShift)
         mayCameraDelta = join $ getCameraDelta
             <$> maySearcherBottom
             <*> maySearcherTop
