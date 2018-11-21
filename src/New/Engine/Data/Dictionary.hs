@@ -23,6 +23,8 @@ makeLenses ''Dictionary
 
 instance Default Dictionary where def = Node (-1) mempty
 
+invalid :: ID -> Bool
+invalid = (< 0)
 
 getID :: State.Monad ID m => m ID
 getID = do
@@ -40,7 +42,7 @@ insert sd = insertKeyed (sd ^. text, sd) where
         else insertAtChar (Text.head k) (Text.drop 1 k, v) dict
     updateValue :: (SearcherData a, State.Monad IDMap m, State.Monad ID m)
         => a -> Dictionary -> m Dictionary
-    updateValue v dict = if dict ^. nodeId >= 0
+    updateValue v dict = if not . invalid $ dict ^. nodeId
         then pure dict
         else getID >>= \newId -> do 
             State.modify_ @IDMap $ Map.insert (v ^. text) newId
@@ -86,7 +88,7 @@ insertMultiple = addToDictionary . preprocess where
         pure $ dict & branches .~ newBranches
     updateValue :: (SearcherData a, State.Monad IDMap m, State.Monad ID m)
         => [a] -> Dictionary -> m Dictionary
-    updateValue sd dict = if dict ^. nodeId >= 0 || null sd
+    updateValue sd dict = if (not . invalid $ dict ^. nodeId) || null sd
         then pure dict
         else getID >>= \newId -> do 
             State.modify_ @IDMap $ Map.insert ((unsafeHead sd) ^. text) newId
