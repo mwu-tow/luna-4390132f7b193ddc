@@ -17,15 +17,27 @@ tests:
       - lens
       - text
 
+benchmarks:
+    searcher-benchmark:
+        source-dirs: benchmark
+        main: Main.hs
+        ghc-options: -Wall -O2 -threaded
+        dependencies:
+            - base
+            - criterion
+            - fuzzy-text
+    
 
 library:
   source-dirs: src
-  ghc-options: -Wall -O2 -threaded
+  ghc-options: -Wall -O2
   dependencies:
     - base
     - containers
-    - prologue
+    - layered-state
     - lens
+    - nested-containers
+    - prologue
     - text
 
 default-extensions:
@@ -72,7 +84,6 @@ default-extensions:
     - TupleSections
     - TypeApplications
     - TypeFamilies
-    - TypeFamilyDependencies
     - TypeSynonymInstances
     - TypeOperators
     - ViewPatterns
