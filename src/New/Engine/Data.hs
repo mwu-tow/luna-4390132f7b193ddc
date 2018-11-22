@@ -7,4 +7,4 @@ import Data.Text (Text)
 
 
 class Eq a => SearcherData a where
-    text :: Lens' a Text 
+    text :: Getter a Text 

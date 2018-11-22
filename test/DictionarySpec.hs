@@ -5,6 +5,8 @@ import Test.Hspec
 
 import qualified Data.Map  as Map
 import qualified Data.Text as Text
+import qualified New.Engine.Data.Dictionary as Dictionary
+import qualified Control.Monad.State.Layered as State
 
 import Control.Exception (throw)
 import Data.Map                   (Map)
@@ -26,6 +28,11 @@ makeLenses ''DictionaryStructureException
 makePrisms ''DictionaryStructureExceptionType
 
 instance Exception DictionaryStructureException
+
+
+instance SearcherData Text where
+    text = to id
+
 
 recursiveCheckTreeStructure :: Text -> IDMap -> Dictionary -> IO ()
 recursiveCheckTreeStructure matchedPrefix idMap dict = check where
@@ -99,4 +106,47 @@ spec = do
                     [ ('a', Node 0 mempty)
                     , ('b', Node 1 mempty) ])
             dictionaryStructureExceptionSelector
-
+    describe "test insert function" $ do
+        it "value is in map" $ 
+            let perform = State.execDefT @IDMap . State.evalDefT @ID
+            in perform (Dictionary.insert (Text.pack "a") def) >>=
+                shouldBe (Map.singleton (Text.pack "a") 0)
+        it "value is in dictionary" $
+            let perform = State.evalDefT @IDMap . State.evalDefT @ID
+            in perform (Dictionary.insert (Text.pack "a") def) >>=
+                checkTreeStructure (Map.singleton (Text.pack "a") 0)
+        it "values are in map" $ 
+            let perform = State.execDefT @IDMap . State.evalDefT @ID
+                action  = Dictionary.insert (Text.pack "aa") def
+                    >>= Dictionary.insert (Text.pack "ab")
+            in perform action >>= shouldBe 
+                (Map.fromList [(Text.pack "aa", 0), (Text.pack "ab", 1)])
+        it "values are in dictionary" $
+            let perform = State.evalDefT @IDMap . State.evalDefT @ID
+                action  = Dictionary.insert (Text.pack "aa") def
+                    >>= Dictionary.insert (Text.pack "ab")
+            in perform action >>= checkTreeStructure
+                    (Map.fromList [(Text.pack "aa", 0), (Text.pack "ab", 1)])
+    describe "test insertMultiple function" $ do
+        it "value is in map" $ 
+            let perform = State.execDefT @IDMap . State.evalDefT @ID
+            in perform (Dictionary.insertMultiple [Text.pack "a"] def) >>=
+                shouldBe (Map.singleton (Text.pack "a") 0)
+        it "value is in dictionary" $
+            let perform = State.evalDefT @IDMap . State.evalDefT @ID
+            in perform (Dictionary.insertMultiple [Text.pack "a"] def) >>=
+                checkTreeStructure (Map.singleton (Text.pack "a") 0)
+        it "values are in map" $ 
+            let perform = State.execDefT @IDMap . State.evalDefT @ID
+                action  = Dictionary.insertMultiple
+                    [Text.pack "aa", Text.pack "ab"] 
+                    def
+            in perform action >>= shouldBe 
+                (Map.fromList [(Text.pack "aa", 0), (Text.pack "ab", 1)])
+        it "values are in dictionary" $
+            let perform = State.evalDefT @IDMap . State.evalDefT @ID
+                action  = Dictionary.insertMultiple
+                    [Text.pack "aa", Text.pack "ab"] 
+                    def
+            in perform action >>= checkTreeStructure
+                    (Map.fromList [(Text.pack "aa", 0), (Text.pack "ab", 1)])

@@ -13,8 +13,9 @@ tests:
       - containers
       - fuzzy-text
       - hspec
-      - prologue
+      - layered-state
       - lens
+      - prologue
       - text
 
 benchmarks:
