@@ -30,10 +30,6 @@ makePrisms ''DictionaryStructureExceptionType
 instance Exception DictionaryStructureException
 
 
-instance SearcherData Text where
-    text = to id
-
-
 recursiveCheckTreeStructure :: Text -> IDMap -> Dictionary -> IO ()
 recursiveCheckTreeStructure matchedPrefix idMap dict = check where
     accFunction acc k v = if Text.null k

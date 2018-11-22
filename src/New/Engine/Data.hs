@@ -7,4 +7,8 @@ import Data.Text (Text)
 
 
 class Eq a => SearcherData a where
-    text :: Getter a Text 
+    text :: Getter a Text
+
+
+instance SearcherData Text where
+    text = to id
