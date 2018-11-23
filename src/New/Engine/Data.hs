@@ -1,14 +1,23 @@
 {-# LANGUAGE Strict #-}
 module New.Engine.Data where
 
-import New.Engine.Prelude
+import Prologue
 
-import Data.Text (Text)
+import Control.Lens (Getter, to)
+import Data.Text    (Text)
 
+
+--------------------------
+-- === SearcherData === --
+--------------------------
+
+-- === Definition === --
 
 class Eq a => SearcherData a where
     text :: Getter a Text
 
+
+-- === Instances === ---
 
 instance SearcherData Text where
     text = to id

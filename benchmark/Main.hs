@@ -1,13 +1,12 @@
 module Main where
 
 import Criterion.Main
-import New.Engine.Prelude
+import Prologue
 
 import qualified Data.Text as Text
 
-import Data.Text (Text)
+import Data.Text     (Text)
 import System.Random (mkStdGen, randomRs)
-
 
 
 wordLengthLimit :: Int
