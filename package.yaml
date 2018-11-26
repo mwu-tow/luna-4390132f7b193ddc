@@ -28,6 +28,7 @@ benchmarks:
       - containers
       - criterion
       - fuzzy-text
+      - layered-state
       - prologue
       - random
       - text
