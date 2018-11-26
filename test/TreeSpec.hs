@@ -11,8 +11,8 @@ import qualified New.Engine.Data.Tree        as Tree
 import Control.Exception    (throw)
 import Control.Lens         (makePrisms)
 import Data.Set             (Set)
-import New.Engine.Data.Tree (Index (Index), IndexMap, Node (Node), branches,
-                             index)
+import New.Engine.Data.Index (Index (Index), IndexMap)
+import New.Engine.Data.Tree (Node (Node), branches, index)
 
 
 data TreeStructureExceptionType

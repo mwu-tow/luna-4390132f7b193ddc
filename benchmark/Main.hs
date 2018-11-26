@@ -7,10 +7,10 @@ import qualified Control.Monad.State.Layered as State
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Tree        as Tree
 
-import Data.Text            (Text)
-import New.Engine.Data      (SearcherData)
-import New.Engine.Data.Tree (Index, IndexMap)
-import System.Random        (mkStdGen, randomRs)
+import Data.Text             (Text)
+import New.Engine.Data       (SearcherData)
+import New.Engine.Data.Index (Index, IndexMap)
+import System.Random         (mkStdGen, randomRs)
 
 
 wordLengthRange :: (Int, Int)

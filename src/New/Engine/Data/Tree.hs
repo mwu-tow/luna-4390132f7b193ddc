@@ -1,5 +1,10 @@
 {-# LANGUAGE Strict #-}
-module New.Engine.Data.Tree where
+module New.Engine.Data.Tree
+    ( module New.Engine.Data.Tree
+    , module X
+    ) where
+
+import New.Engine.Data.Index as X (HasIndex (index))
 
 import Prologue hiding (Index)
 
@@ -7,45 +12,13 @@ import qualified Control.Monad.State.Layered as State
 import qualified Data.List                   as List
 import qualified Data.Map                    as Map
 import qualified Data.Text                   as Text
+import qualified New.Engine.Data.Index       as Index
 
-import Control.Arrow   ((&&&))
-import Control.Lens    (to, (?~), _Just)
-import Data.Map        (Map)
-import New.Engine.Data (SearcherData, text)
-
-
--------------------
--- === Index === --
--------------------
-
--- === Definition === --
-
-newtype Index = Index Int deriving (Eq, Generic, Num, Ord, Show)
-makeClassy ''Index
-
-notExists :: Index
-notExists = -1
-
-instance Default Index where def = notExists
-instance NFData  Index
-
--- === Utils === --
-
-isInvalid :: Index -> Bool
-isInvalid = (< 0)
-
-getIndex :: State.Monad Index m => m Index
-getIndex = State.modify @Index (\prev -> let curr = prev + 1 in (curr,curr))
-{-# INLINE getIndex #-}
-
-----------------------
--- === IndexMap === --
-----------------------
-
--- === Definition === --
-
-type IndexMap = Map Text Index
-
+import Control.Arrow         ((&&&))
+import Control.Lens          (to, (?~), _Just)
+import Data.Map              (Map)
+import New.Engine.Data       (SearcherData, text)
+import New.Engine.Data.Index (Index, IndexMap)
 
 ------------------
 -- === Node === --
@@ -73,10 +46,10 @@ insert sd n = insertKeyed (sd ^. text) sd n where
         Nothing -> updateValue v node
         Just c  -> insertAtChar c (Text.drop 1 k) v node
     updateValue :: TreeContext m a => a -> Node -> m Node
-    updateValue v node = if not . isInvalid $ node ^. index
+    updateValue v node = if not . Index.isInvalid $ node ^. index
         then pure node
         else do
-            newIndex <- getIndex
+            newIndex <- Index.get
             State.modify_ @IndexMap $ Map.insert (v ^. text) newIndex
             pure $ node & index .~ newIndex
     insertAtChar :: TreeContext m a => Char -> Text -> a -> Node -> m Node
@@ -100,10 +73,10 @@ insertMultiple input n = addToNode (keyed input) n where
         newBranches <- foldlMWithKey processData mempty $ groupByFirstLetter sd
         pure $ node & branches .~ newBranches
     updateValue :: TreeContext m a => [a] -> Node -> m Node
-    updateValue sd node = if (not . isInvalid $ node ^. index) || null sd
+    updateValue sd node = if (not . Index.isInvalid $ node ^. index) || null sd
         then pure node
         else do
-            newIndex <- getIndex
+            newIndex <- Index.get
             let withText    = for_ (sd ^? to head . _Just . text)
                 updateMap t = State.modify_ @IndexMap $ Map.insert t newIndex
             withText updateMap
