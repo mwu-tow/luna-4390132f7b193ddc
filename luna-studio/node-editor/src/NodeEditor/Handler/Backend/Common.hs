@@ -48,7 +48,7 @@ logError :: Topic.MessageTopic (Response.Response req inv res)
     => Response.Response req inv res -> Error LunaError -> Command State ()
 logError response err = error errStr where
     str = Text.unpack $ err ^. ErrorAPI.errorContent
-    errStr = str <> "\n\nwhile processing event\n\n" <> Topic.topic response
+    errStr = str <> "\n\nwhile processing event\n\n" <> Topic.topic' response
 
 resend :: (BinaryRequest r, GraphRequest r, Topic.MessageTopic (Request r))
     => r -> Command State ()

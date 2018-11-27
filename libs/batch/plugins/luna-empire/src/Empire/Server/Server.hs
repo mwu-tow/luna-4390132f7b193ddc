@@ -19,6 +19,7 @@ import           Prologue
 import           System.Environment            (getEnv)
 import           System.FilePath               (replaceFileName, (</>))
 
+import qualified Empire.ApiHandlers            as Api
 import qualified Empire.Commands.Graph         as Graph
 import           Empire.Data.AST               (SomeASTException)
 import           Empire.Empire                 (Empire, runEmpire)
@@ -31,7 +32,6 @@ import           LunaStudio.API.Request        (Request (..))
 import qualified LunaStudio.API.Response       as Response
 import           LunaStudio.API.Topic          (MessageTopic)
 import qualified LunaStudio.API.Topic          as Topic
-import           LunaStudio.Data.Diff          (Diff, diff)
 import           LunaStudio.Data.Error         (Error, LunaError, errorContent)
 import           LunaStudio.Data.Graph         (Graph (..))
 import qualified LunaStudio.Data.Graph         as GraphAPI
@@ -54,8 +54,8 @@ sendToBus topic bin = do
     liftIO $ atomically $ writeTChan chan
         $ Message.Message topic $ Compress.pack $ Bin.encode bin
 
-sendToBus' :: (MessageTopic a, Binary a) => a -> StateT Env BusT ()
-sendToBus' msg = sendToBus (Topic.topic msg) msg
+sendToBus' :: forall a. (MessageTopic a, Binary a) => a -> StateT Env BusT ()
+sendToBus' msg = sendToBus (Topic.topic @a) msg
 
 replyFail :: forall a b c. Response.ResponseResult a b c
     => Logger.Logger -> Error LunaError -> Request a -> Response.Status b
@@ -70,29 +70,27 @@ replyOk :: forall a b. Response.ResponseResult a b ()
     => Request a -> b -> StateT Env BusT ()
 replyOk req inv = do
     time <- liftIO currentISO8601Time
-    logger Logger.info $ time <> "\t:: sending ok for " <> Topic.topic req
+    logger Logger.info $ time <> "\t:: sending ok for " <> Topic.topic @(Request a)
     sendToBus' $ Response.ok req inv
 
 replyResult :: forall a b c. (Response.ResponseResult a b c, Show c)
     => Request a -> b -> c -> StateT Env BusT ()
 replyResult req inv res = do
     time <- liftIO currentISO8601Time
-    logger Logger.info $ time <> "\t:: sending response for " <> Topic.topic req
+    logger Logger.info $ time <> "\t:: sending response for " <> Topic.topic @(Request a)
     logger Logger.info $ time <> "\t:: " <> show res
     sendToBus' $ Response.result req inv res
 
 errorMessage :: String
 errorMessage = "error during processing request "
 
-formatErrorMessage :: MessageTopic a => a -> String -> String
-formatErrorMessage req msg = errorMessage <> (Topic.topic req) <> ": " <> msg
-
-defaultLibraryPath = "Main.luna"
+formatErrorMessage :: forall a. MessageTopic a => a -> String -> String
+formatErrorMessage req msg = errorMessage <> (Topic.topic @a) <> ": " <> msg
 
 webGUIHack :: G.GraphRequest req => req -> IO req
 webGUIHack req = do
     lunaroot <- liftIO $ getEnv Package.lunaRootEnv
-    let path = lunaroot </> "projects" </> defaultLibraryPath
+    let path = lunaroot </> "projects" </> Package.mainFile
         realLocation = req ^. G.location
         realFile     = realLocation ^. GraphLocation.filePath
         hackedReq    = if null realFile
@@ -108,7 +106,7 @@ modifyGraph :: forall req inv res res'.
     -> (Request req -> inv -> res -> StateT Env BusT ()) -> Request req
     -> StateT Env BusT ()
 modifyGraph inverse action success origReq@(Request uuid guiID request') = do
-    logger Logger.info $ Topic.topic origReq <> ": " <> show request'
+    logger Logger.info $ Topic.topic @(Request req) <> ": " <> show request'
     request          <- liftIO $ webGUIHack request'
     currentEmpireEnv <- use Env.empireEnv
     empireNotifEnv   <- use Env.empireNotif
@@ -131,34 +129,34 @@ modifyGraph inverse action success origReq@(Request uuid guiID request') = do
                     Env.empireEnv .= newEmpireEnv
                     success origReq inv result
 
-modifyGraphOk :: forall req inv res .
+modifyGraphOk :: forall req inv.
     ( Show req
     , Bin.Binary req
     , G.GraphRequest req
     , Response.ResponseResult req inv ()
-    ) => (req -> Empire inv) -> (req -> Empire res) -> Request req
+    ) => (req -> Empire inv) -> (req -> Empire ()) -> Request req
     -> StateT Env BusT ()
 modifyGraphOk inverse action = modifyGraph inverse action reply where
+    reply :: Request req -> inv -> () -> StateT Env BusT ()
     reply req inv _ = replyOk req inv
+
+type GraphRequestContext req inv result = (
+    Show req, Show result, Bin.Binary req, G.GraphRequest req,
+    Response.ResponseResult req inv result, Api.Modification req,
+    Response.InverseOf req ~ inv, Response.ResultOf req ~ result
+    )
+
+type GraphRequestContext'  req     =
+    GraphRequestContext'' req (Response.ResultOf req)
+type GraphRequestContext'' req res =
+    GraphRequestContext   req (Response.InverseOf req) res
+
+handle :: GraphRequestContext' req => Request req -> StateT Env BusT ()
+handle = modifyGraph Api.buildInverse Api.perform replyResult
+
+handleOk :: GraphRequestContext'' req () => Request req -> StateT Env BusT ()
+handleOk = modifyGraph Api.buildInverse Api.perform replyResult
 
 defInverse :: a -> Empire ()
 defInverse = const $ pure ()
 
-catchAllExceptions :: Empire a -> Empire (Either SomeException a)
-catchAllExceptions act = try act
-
-withDefaultResult' :: (GraphLocation -> Empire Graph) -> GraphLocation
-    -> Empire a -> Empire Diff
-withDefaultResult' getFinalGraph location action = do
-    oldGraph <- (_Left %~ Graph.prepareGraphError)
-        <$> catchAllExceptions (Graph.getGraphNoTC location)
-    void action
-    newGraph <- (_Left %~ Graph.prepareGraphError)
-        <$> catchAllExceptions (getFinalGraph location)
-    pure $ diff oldGraph newGraph
-
-withDefaultResult :: GraphLocation -> Empire a -> Empire Diff
-withDefaultResult = withDefaultResult' Graph.getGraphNoTC
-
-withDefaultResultTC :: GraphLocation -> Empire a -> Empire Diff
-withDefaultResultTC = withDefaultResult' Graph.getGraph

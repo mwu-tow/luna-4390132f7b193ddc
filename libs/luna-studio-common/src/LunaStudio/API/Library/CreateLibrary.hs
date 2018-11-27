@@ -42,13 +42,10 @@ instance ToJSON Update
 
 
 type Response = Response.Response Request () Result
-instance Response.ResponseResult Request () Result
+type instance Response.InverseOf Request = ()
+type instance Response.ResultOf  Request = Result
 
-topicPrefix :: T.Topic
-topicPrefix = "empire.library.create"
-instance T.MessageTopic (R.Request Request) where
-    topic _ = topicPrefix <> T.request
-instance T.MessageTopic Response            where
-    topic _ = topicPrefix <> T.response
-instance T.MessageTopic Update              where
-    topic _ = topicPrefix <> T.update
+instance T.MessageTopic Request where
+    topic = "empire.library.create"
+instance T.MessageTopic Update where
+    topic = T.topic @Request <> T.update

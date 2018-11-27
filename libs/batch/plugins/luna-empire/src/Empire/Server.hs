@@ -92,7 +92,7 @@ logger = Logger.getLogger $(Logger.moduleName)
 sendStarted :: BusEndPoints -> IO ()
 sendStarted endPoints = do
     let content = Compress.pack .  Bin.encode $ EmpireStarted.Status
-    void $ Bus.runBus endPoints $ Bus.send Flag.Enable $ Message.Message (Topic.topic EmpireStarted.Status) content
+    void $ Bus.runBus endPoints $ Bus.send Flag.Enable $ Message.Message (Topic.topic' EmpireStarted.Status) content
 
 requestCapability, tcCapability :: Int
 requestCapability = 0
@@ -272,10 +272,6 @@ handleRequest logMsg topic content = do
 handleUpdate :: String -> String -> ByteString -> StateT Env BusT ()
 handleUpdate logMsg topic content = do
     logger Logger.info logMsg
-    let update = if topic == "empire.graph.node.updateMeta.update"
-                      then Just (Bin.decode content :: SetNodesMeta.Update)
-                      else Nothing
-    forM_ update $ Graph.handleSetNodesMetaUpdate
 
 handleStatus :: String -> String -> ByteString -> StateT Env BusT ()
 handleStatus logMsg _ content = logger Logger.info logMsg

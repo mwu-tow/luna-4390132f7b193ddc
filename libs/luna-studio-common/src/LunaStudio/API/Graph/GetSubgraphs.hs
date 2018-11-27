@@ -4,8 +4,6 @@ import           Data.Aeson.Types              (ToJSON)
 import           Data.Binary                   (Binary)
 import           Data.Map                      (Map)
 import qualified LunaStudio.API.Graph.Request  as G
-import qualified LunaStudio.API.Request        as R
-import qualified LunaStudio.API.Response       as Response
 import qualified LunaStudio.API.Topic          as T
 import           LunaStudio.Data.Breadcrumb    (BreadcrumbItem)
 import           LunaStudio.Data.Graph         (Graph)
@@ -33,13 +31,5 @@ instance ToJSON Result
 
 instance G.GraphRequest Request where location = location
 
-
-type Response = Response.Response Request () Result
-instance Response.ResponseResult Request () Result
-
-topicPrefix :: T.Topic
-topicPrefix = "empire.graph.node.getSubgraph"
-instance T.MessageTopic (R.Request Request)  where
-    topic _ = topicPrefix <> T.request
-instance T.MessageTopic Response             where
-    topic _ = topicPrefix <> T.response
+instance T.MessageTopic Request  where
+    topic = "empire.graph.node.getSubgraph"
