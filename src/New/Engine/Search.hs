@@ -2,7 +2,7 @@ module New.Engine.Search where
 
 import Prologue hiding (Index)
 
-import qualified Data.Map                    as Map
+import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Match       as Match

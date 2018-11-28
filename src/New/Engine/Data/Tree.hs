@@ -10,12 +10,12 @@ import New.Engine.Data.Index as X (HasIndex (index))
 import Prologue hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
-import qualified Data.Map                    as Map
+import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 
 import Control.Lens          ((?~))
-import Data.Map              (Map)
+import Data.Map.Strict       (Map)
 import New.Engine.Data.Index (Index, IndexMap)
 
 
