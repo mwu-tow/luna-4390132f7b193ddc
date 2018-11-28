@@ -9,15 +9,12 @@ import New.Engine.Data.Index as X (HasIndex (index))
 import Prologue hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
-import qualified Data.List                   as List
 import qualified Data.Map                    as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 
-import Control.Arrow         ((&&&))
-import Control.Lens          (to, (?~), _Just)
+import Control.Lens          ((?~))
 import Data.Map              (Map)
-import New.Engine.Data       (SearcherData, text)
 import New.Engine.Data.Index (Index, IndexMap)
 
 

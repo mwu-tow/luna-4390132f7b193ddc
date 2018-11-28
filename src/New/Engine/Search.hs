@@ -14,9 +14,11 @@ import New.Engine.Data.Index (Index)
 import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
 
 
+
 --------------------
 -- === Result === --
 --------------------
+
 
 -- === Definition === --
 
@@ -37,6 +39,7 @@ instance Ord    Result where
             | matchTypeOrd /= EQ = matchTypeOrd
             | otherwise          = pointsOrd
 
+            
 -- === API === --
 
 search :: Text -> Tree.Node -> Map Index Result
