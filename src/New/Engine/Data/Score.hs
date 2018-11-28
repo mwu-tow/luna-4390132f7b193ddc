@@ -4,6 +4,8 @@ module New.Engine.Data.Score where
 
 import Prologue
 
+import Control.Lens.TH as Lens
+
 
 
 -------------------
@@ -13,6 +15,7 @@ import Prologue
 -- === Definition === --
 
 newtype Score = Score Int deriving (Eq, Generic, Num, Ord, Show)
+Lens.makeWrapped ''Score
 
 
 -- === Instances === --
