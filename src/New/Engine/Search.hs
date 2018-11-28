@@ -8,10 +8,12 @@ import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Tree        as Tree
 
-import Data.Char             (isLetter, isUpper, toLower, toUpper)
-import Data.Map              (Map)
-import New.Engine.Data.Index (Index)
-import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
+import Data.Char             ( isLetter, isUpper, toLower, toUpper )
+import Data.Map              ( Map )
+import New.Engine.Data.Index ( Index )
+import New.Engine.Data.Match ( Match, MatchKind ( CaseInsensitiveEquality
+                                , CaseSensitiveEquality, AllCharsMatched
+                                , NotFullyMatched ))
 
 
 
@@ -31,7 +33,8 @@ makeLenses ''Result
 
 instance NFData Result
 instance Ord    Result where
-    -- TODO[LJK]: This should be replaced with scoring match kind as soon as old algorithm is recreated
+    -- TODO [LJK]: This should be replaced with scoring match kind as soon as
+    -- old algorithm is recreated
     compare r1 r2 = compareResults where
         matchTypeOrd = (r1 ^. kind)   `compare` (r2 ^. kind)
         pointsOrd    = (r1 ^. points) `compare` (r2 ^. points)
@@ -39,14 +42,17 @@ instance Ord    Result where
             | matchTypeOrd /= EQ = matchTypeOrd
             | otherwise          = pointsOrd
 
-            
+
 -- === API === --
 
 search :: Text -> Tree.Node -> Map Index Result
 search query tree
     = recursiveSearch query tree CaseSensitiveEquality mempty 0 mempty
 
--- TODO[LJK]: If performance is good enough we could also try to skip chars in query so `hread` could be matched with `head`
+-- TODO [LJK]: If performance is good enough we could also try to skip chars in
+-- query so `hread` could be matched with `head`
+-- [Ara] This should only come into play if there are no matches for a given
+-- query.
 recursiveSearch :: Text
     -> Tree.Node
     -> MatchKind
@@ -104,3 +110,4 @@ matchQueryHead qHead qSuffix node matchKind matched pos scoreMap =
         processSuffix n
             = recursiveSearch qSuffix n matchKind newRange newPos scoreMap
     in maybe scoreMap processSuffix mayMatchedNode
+
