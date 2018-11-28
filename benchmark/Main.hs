@@ -31,7 +31,7 @@ randomExistingQuery database = database !! idx where
 
 mkEnv :: (Text, Tree.Node)
 mkEnv = (randomExistingQuery db, test_insert db) where
-    db = generateTextInput 1000000
+    db = generateTextInput 10000
 
 test_insert :: [Text] -> Tree.Node
 test_insert txts = Tree.eval $ Tree.insertMultiple txts def
@@ -45,7 +45,7 @@ test_search (query, tree) = search query tree
 main :: IO ()
 main = do
     defaultMain
-        [ env (pure $ generateTextInput 100000) $ \ ~database
+        [ env (pure $ generateTextInput 10000) $ \ ~database
             -> bench "insert" $ nf test_insert database
         , env (pure mkEnv) $ \ ~input
             -> bench "search" $ nf test_search input
