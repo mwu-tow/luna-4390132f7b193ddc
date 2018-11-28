@@ -24,24 +24,18 @@ data Result = Result
     { _kind   :: !MatchKind
     , _match  :: !Match
     , _points :: {-# UNPACK #-} !Int
-    } deriving (Eq, Show)
-
+    } deriving (Eq, Generic, Show)
 makeLenses ''Result
 
-instance Ord Result where
+instance NFData Result
+instance Ord    Result where
     -- TODO[LJK]: This should be replaced with scoring match kind as soon as old algorithm is recreated
     compare r1 r2 = compareResults where
-        notFullyMatchedOrd
-            | r1 ^. kind == r2 ^. kind      = EQ
-            | r1 ^. kind == NotFullyMatched = GT
-            | r2 ^. kind == NotFullyMatched = LT
-            | otherwise                     = EQ
         matchTypeOrd = (r1 ^. kind)   `compare` (r2 ^. kind)
         pointsOrd    = (r1 ^. points) `compare` (r2 ^. points)
         compareResults
-            | notFullyMatchedOrd /= EQ = notFullyMatchedOrd
-            | matchTypeOrd       /= EQ = matchTypeOrd
-            | otherwise                = pointsOrd
+            | matchTypeOrd /= EQ = matchTypeOrd
+            | otherwise          = pointsOrd
 
 -- === API === --
 
@@ -62,17 +56,18 @@ recursiveSearch query node matchKind matched pos scoreMap' = do
         result     = Result resultKind matched 0
         scoreMap   = insertResult (node ^. Tree.index) result scoreMap'
         caseInsensitiveEquality = min matchKind CaseInsensitiveEquality
-        matchWithHead h newMatchKind sMap = matchQueryHead
-            h (Text.drop 1 query) node newMatchKind matched pos sMap
-        matchHead h
-            | not $ isLetter h = matchWithHead h matchKind scoreMap
+        mayUnconsQuery          = Text.uncons query
+        matchWithHead h t newMatchKind sMap = matchQueryHead
+            h t node newMatchKind matched pos sMap
+        matchHead h t
+            | not $ isLetter h = matchWithHead h t matchKind scoreMap
             | isUpper h
-                = matchWithHead (toLower h) caseInsensitiveEquality
-                $ matchWithHead h matchKind scoreMap
+                = matchWithHead (toLower h) t caseInsensitiveEquality
+                $ matchWithHead h t matchKind scoreMap
             | otherwise
-                = matchWithHead (toUpper h) caseInsensitiveEquality
-                $ matchWithHead h matchKind scoreMap
-        updatedMap = maybe scoreMap matchHead $ Tree.textHead query
+                = matchWithHead (toUpper h) t caseInsensitiveEquality
+                $ matchWithHead h t matchKind scoreMap
+        updatedMap = maybe scoreMap (uncurry matchHead) mayUnconsQuery
     skipDataHead query node matched pos updatedMap
 
 

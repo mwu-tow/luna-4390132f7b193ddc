@@ -6,18 +6,22 @@ import Prologue hiding (Index)
 import Control.Lens (Getter, makePrisms, to)
 
 
+
 -------------------
 -- === Range === --
 -------------------
+
 
 -- === Definition === --
 
 data Range = Range
     { _begin :: !Int
     , _len   :: !Int
-    } deriving (Eq, Ord, Show)
-
+    } deriving (Eq, Generic, Ord, Show)
 makeLenses ''Range
+
+instance NFData Range
+
 
 -- === API === --
 
@@ -30,19 +34,24 @@ fromPosition pos = Range pos 1
 {-# INLINE fromPosition #-}
 
 
+
 -----------------------
 -- === MatchKind === --
 -----------------------
 
+
 -- === Definition === --
 
-newtype Match
-    = Match { _reversed_range :: [Range] } deriving (Eq, Show)
+newtype Match = Match 
+    { _reversed_range :: [Range]
+    } deriving (Eq, Generic, Show)
 
 makeLenses ''Match
 
 instance Mempty    Match where mempty = Match mempty
+instance NFData    Match
 instance Semigroup Match where (<>)   = merge
+
 
 -- === API === --
 
@@ -77,19 +86,22 @@ merge m1 m2 = do
 {-# INLINE merge #-}
 
 
+
 -----------------------
 -- === MatchKind === --
 -----------------------
 
+
 -- === Definition === --
 
 data MatchKind
-    = CaseSensitiveEquality
-    | CaseInsensitiveEquality
+    = NotFullyMatched
     | AllCharsMatched
-    | NotFullyMatched
-    deriving (Eq, Ord, Show)
-
+    | CaseInsensitiveEquality
+    | CaseSensitiveEquality
+    deriving (Eq, Generic, Ord, Show)
 makePrisms ''MatchKind
+
+instance NFData MatchKind
 
 
