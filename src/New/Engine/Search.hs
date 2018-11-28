@@ -6,7 +6,9 @@ import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Match       as Match
+import qualified New.Engine.Data.Score       as Score
 import qualified New.Engine.Data.Tree        as Tree
+import qualified New.Engine.Metric           as Metric
 
 import Data.Char             ( isLetter, isUpper, toLower, toUpper )
 import Data.Map              ( Map )
@@ -14,6 +16,7 @@ import New.Engine.Data.Index ( Index )
 import New.Engine.Data.Match ( Match, MatchKind ( CaseInsensitiveEquality
                                 , CaseSensitiveEquality, AllCharsMatched
                                 , NotFullyMatched ))
+import New.Engine.Data.Score ( Score )
 
 
 
@@ -27,7 +30,7 @@ import New.Engine.Data.Match ( Match, MatchKind ( CaseInsensitiveEquality
 data Result = Result
     { _kind   :: !MatchKind
     , _match  :: !Match
-    , _points :: {-# UNPACK #-} !Int
+    , _points :: {-# UNPACK #-} !Score
     } deriving (Eq, Generic, Show)
 makeLenses ''Result
 
@@ -79,7 +82,6 @@ recursiveSearch query node matchKind matched pos scoreMap' = do
         updatedMap = maybe scoreMap (uncurry matchHead) mayUnconsQuery
     skipDataHead query node matched pos updatedMap
 
-
 insertResult :: Index -> Result -> Map Index Result -> Map Index Result
 insertResult i r m = if Index.isInvalid i then m else Map.insertWith max i r m
 {-# INLINE insertResult #-}
@@ -110,4 +112,8 @@ matchQueryHead qHead qSuffix node matchKind matched pos scoreMap =
         processSuffix n
             = recursiveSearch qSuffix n matchKind newRange newPos scoreMap
     in maybe scoreMap processSuffix mayMatchedNode
+
+test :: Map Index Result
+test = search "Tst" . Tree.eval
+    $ Tree.insertMultiple ["Test", "Testing", "Tester", "Foo", "Foot"] def
 
