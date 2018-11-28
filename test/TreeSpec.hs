@@ -4,15 +4,15 @@ import Prologue   hiding (Index)
 import Test.Hspec
 
 import qualified Control.Monad.State.Layered as State
-import qualified Data.Map                    as Map
+import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Tree        as Tree
 
-import Control.Exception    (throw)
-import Control.Lens         (makePrisms)
-import Data.Set             (Set)
+import Control.Exception     (throw)
+import Control.Lens          (makePrisms)
+import Data.Set              (Set)
 import New.Engine.Data.Index (Index (Index), IndexMap)
-import New.Engine.Data.Tree (Node (Node), branches, index)
+import New.Engine.Data.Tree  (Node (Node), branches, index)
 
 
 data TreeStructureExceptionType
@@ -52,9 +52,9 @@ recursiveCheckTreeStructure matchedPrefix indexMap dict = check where
             IncorrectBranches
             (Map.keysSet slicedMap)
             (Map.keysSet $ dict ^. branches)
-        for_ (toList slicedMap) $ \(c, newIndexMap) -> 
-            for_ (dict ^. branches . at c) $ recursiveCheckTreeStructure 
-                (Text.snoc matchedPrefix c) 
+        for_ (toList slicedMap) $ \(c, newIndexMap) ->
+            for_ (dict ^. branches . at c) $ recursiveCheckTreeStructure
+                (Text.snoc matchedPrefix c)
                 newIndexMap
 
 checkTreeStructure :: IndexMap -> Node -> IO ()

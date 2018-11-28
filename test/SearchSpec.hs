@@ -4,7 +4,7 @@ import Prologue   hiding (Index)
 import Test.Hspec
 
 import qualified Data.List            as List
-import qualified Data.Map             as Map
+import qualified Data.Map.Strict      as Map
 import qualified New.Engine.Data.Tree as Tree
 
 import New.Engine.Search (search)

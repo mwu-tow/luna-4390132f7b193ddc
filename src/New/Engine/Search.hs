@@ -2,14 +2,14 @@ module New.Engine.Search where
 
 import Prologue hiding (Index)
 
-import qualified Data.Map                    as Map
+import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Tree        as Tree
 
 import Data.Char             (isLetter, isUpper, toLower, toUpper)
-import Data.Map              (Map)
+import Data.Map.Strict       (Map)
 import New.Engine.Data.Index (Index)
 import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
 
@@ -39,7 +39,7 @@ instance Ord    Result where
             | matchTypeOrd /= EQ = matchTypeOrd
             | otherwise          = pointsOrd
 
-            
+
 -- === API === --
 
 search :: Text -> Tree.Node -> Map Index Result
