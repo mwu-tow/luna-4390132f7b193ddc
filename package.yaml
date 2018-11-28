@@ -7,7 +7,6 @@ tests:
   spec:
     main: Spec.hs
     source-dirs: test
-    ghc-options: -Wall -O2 -threaded
     dependencies:
       - base
       - containers
@@ -22,7 +21,6 @@ benchmarks:
   searcher-benchmark:
     source-dirs: benchmark
     main: Main.hs
-    ghc-options: -Wall -O2 -threaded
     dependencies:
       - base
       - containers
@@ -36,7 +34,6 @@ benchmarks:
 
 library:
   source-dirs: src
-  ghc-options: -Wall -O2
   dependencies:
     - base
     - containers

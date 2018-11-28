@@ -1,5 +1,23 @@
 resolver: lts-12.6
 
+ghc-options:
+  $locals:
+    -O2
+    -Wall
+    -Wno-name-shadowing
+    -fexcess-precision
+    -fexpose-all-unfoldings
+    -flate-dmd-anal
+    -fmax-worker-args=1000
+    -fsimpl-tick-factor=400
+    -fspec-constr-keen
+    -fspecialise-aggressively
+    -fstatic-argument-transformation
+    -funbox-strict-fields
+    -threaded
+  $everything:
+    -fconstraint-solver-iterations=100
+
 extra-deps: 
     - cond-0.4.1.1
     - container-1.1.5
