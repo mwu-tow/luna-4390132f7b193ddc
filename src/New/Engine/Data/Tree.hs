@@ -20,6 +20,8 @@ import Data.Map              (Map)
 import New.Engine.Data       (SearcherData, text)
 import New.Engine.Data.Index (Index, IndexMap)
 
+
+
 ------------------
 -- === Node === --
 ------------------
@@ -27,90 +29,60 @@ import New.Engine.Data.Index (Index, IndexMap)
 -- === Definition === --
 
 data Node = Node
-    { __index   :: {-# UNPACK #-} !Index
-    , _branches :: !(Map Char Node)
+    { __index   :: Index
+    , _branches :: Map Char Node
     } deriving (Eq, Generic, Show)
-
 makeLenses ''Node
 
-instance Default  Node where def   = Node def mempty
+instance Default  Node where def   = Node def def
 instance HasIndex Node where index = node_index
 instance NFData   Node
 
+
 -- === API === --
 
-insert :: TreeContext m a => a -> Node -> m Node
-insert sd n = insertKeyed (sd ^. text) sd n where
-    insertKeyed :: TreeContext m a => Text -> a -> Node -> m Node
-    insertKeyed k v node = case textHead k of
-        Nothing -> updateValue v node
-        Just c  -> insertAtChar c (Text.drop 1 k) v node
-    updateValue :: TreeContext m a => a -> Node -> m Node
-    updateValue v node = if not . Index.isInvalid $ node ^. index
-        then pure node
-        else do
+type TreeContext m =
+    ( State.Monad Index m
+    , State.Monad IndexMap m 
+    )
+
+eval :: State.StateT Index (State.State IndexMap) a -> a
+eval = State.evalDef @IndexMap
+    . State.evalDefT @Index
+{-# INLINE eval #-}
+
+run :: State.StateT Index (State.State IndexMap) a -> (a, Index, IndexMap)
+run = flatTuple . State.runDef @IndexMap . State.runDefT @Index
+    where flatTuple ((a, b), c) = (a,b,c)
+{-# INLINE run #-}
+
+insert :: TreeContext m => Text -> Node -> m Node
+insert = \txt n -> let
+    insertKeyed :: TreeContext m => Text -> Node -> m Node
+    insertKeyed k node = case Text.uncons k of
+        Nothing          -> updateValue node
+        Just (!c, !txt') -> insertAtChar c txt' node
+
+    updateValue :: TreeContext m => Node -> m Node
+    updateValue node = let 
+        idx       = node ^. index
+        updateMap = do 
             newIndex <- Index.get
-            State.modify_ @IndexMap $ Map.insert (v ^. text) newIndex
-            pure $ node & index .~ newIndex
-    insertAtChar :: TreeContext m a => Char -> Text -> a -> Node -> m Node
-    insertAtChar c k v node =
-        let update val = node & branches . at c ?~ val
-        in update <$> insertKeyed k v (fromJust def $ node ^. branches . at c)
+            State.modify_ @IndexMap $! Map.insert txt newIndex
+            pure $! node & index .~ newIndex
+        in if Index.isInvalid idx then updateMap else pure node
+    {-# INLINE updateValue #-}
 
-insertMultiple :: TreeContext m a => [a] -> Node -> m Node
-insertMultiple input n = addToNode (keyed input) n where
-    addToNode :: TreeContext m a => [(Text, a)] -> Node -> m Node
-    addToNode keyedData node = do
-        let (targets, rest) = List.partition (Text.null . fst) keyedData
-        updated <- updateValue (snd <$> targets) node
-        updateBranches rest updated
-    updateBranches :: TreeContext m a => [(Text, a)] -> Node -> m Node
-    updateBranches sd node = do
-        let processData acc c v = do
-                updated <- addToNode v
-                    $ fromJust def $ node ^. branches . at c
-                pure $ Map.insert c updated acc
-        newBranches <- foldlMWithKey processData mempty $ groupByFirstLetter sd
-        pure $ node & branches .~ newBranches
-    updateValue :: TreeContext m a => [a] -> Node -> m Node
-    updateValue sd node = if (not . Index.isInvalid $ node ^. index) || null sd
-        then pure node
-        else do
-            newIndex <- Index.get
-            let withText    = for_ (sd ^? to head . _Just . text)
-                updateMap t = State.modify_ @IndexMap $ Map.insert t newIndex
-            withText updateMap
-            pure $ node & index .~ newIndex
+    insertAtChar :: TreeContext m => Char -> Text -> Node -> m Node
+    insertAtChar c k node =
+        let update      = \val -> node & branches . at c ?~ val
+            prevBranchM = node ^. branches . at c
+            prevBranch  = fromJust def prevBranchM
+            newBranch   = insertKeyed k prevBranch 
+        in update <$> newBranch
+    in insertKeyed txt n
+{-# INLINE insert #-}
 
--- === Utils ==== --
-
-type TreeContext m a =
-    ( SearcherData a
-    , State.Monad Index m
-    , State.Monad IndexMap m )
-
-textHead :: Text -> Maybe Char
-textHead t = if Text.null t then Nothing else Just $ Text.head t
-{-# INLINE textHead #-}
-
-foldlMWithKey :: Monad m => (a -> k -> b -> m a) -> a -> Map k b -> m a
-foldlMWithKey f initVal = Map.foldlWithKey
-    (\acc k v -> acc >>= \a -> f a k v)
-    (pure initVal)
-{-# INLINE foldlMWithKey #-}
-
-groupByFirstLetter :: [(Text, a)] -> Map Char [(Text,a)]
-groupByFirstLetter sd = foldl
-    (\acc (k, v) -> Map.insertWith (<>) k (pure v) acc)
-    mempty
-    $ mapMaybe detachHead sd
-{-# INLINE groupByFirstLetter #-}
-
-keyed :: SearcherData a => [a] -> [(Text, a)]
-keyed = List.sortOn fst . fmap (view text &&& id)
-{-# INLINE keyed #-}
-
-detachHead :: (Text, a) -> Maybe (Char, (Text, a))
-detachHead (k, v) = (, (Text.drop 1 k, v)) <$> textHead k
-{-# INLINE detachHead #-}
-
+insertMultiple :: TreeContext m => [Text] -> Node -> m Node
+insertMultiple txts node = foldlM (flip insert) node txts
+{-# INLINE insertMultiple #-}
