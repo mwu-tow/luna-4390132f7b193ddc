@@ -77,19 +77,21 @@ merge m1 m2 = Match $ mergeRanges range1 range2 where
     range2 = m2 ^. reversed_range 
     mergeRanges r1 [] = r1
     mergeRanges [] r2 = r2
-    mergeRanges prev1@(h1:t1) prev2@(h2:t2) = do
-        let h1Beg = h1 ^. begin
-            h2Beg = h2 ^. begin
-            h1End = h1 ^. end
-            h2End = h2 ^. end
-            minBeg = min h1Beg h2Beg
-            maxEnd = max h1End h2End
-            mergedLen = maxEnd - minBeg
-            mergedH1  = Range minBeg mergedLen
-            new1      = mergedH1:t1
-        if      h1Beg > h2Beg then mergeRanges prev2 prev1
-        else if h1Beg > h2End then h1 : mergeRanges t1 prev2
-        else mergeRanges new1 t2
+    mergeRanges prev1@((!h1) : (!t1)) prev2@((!h2) : (!t2)) = let
+        h1Beg     = h1 ^. begin
+        h2Beg     = h2 ^. begin
+        h1End     = h1 ^. end
+        h2End     = h2 ^. end
+        minBeg    = min h1Beg h2Beg
+        maxEnd    = max h1End h2End
+        mergedLen = maxEnd - minBeg
+        mergedH1  = Range minBeg mergedLen
+        new1      = mergedH1:t1
+        in if h1Beg > h2Beg 
+                then mergeRanges prev2 prev1
+            else if h1Beg > h2End 
+                then let newT1 = mergeRanges t1 prev2 in h1 : newT1
+            else mergeRanges new1 t2
 {-# INLINE merge #-}
 
 

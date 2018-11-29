@@ -9,7 +9,7 @@ import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Tree        as Tree
 
-import Data.Char             (isLower, isUpper, toLower, toUpper)
+import Data.Char             (isLetter, isUpper, toLower, toUpper)
 import Data.Map.Strict       (Map)
 import New.Engine.Data.Index (Index)
 import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
@@ -46,8 +46,10 @@ instance Ord    Result where
 -- === API === --
 
 search :: Text -> Tree.Node -> Map Index Result
-search query tree
-    = recursiveSearch query tree CaseSensitiveEquality mempty 0 mempty
+search query tree = let 
+    initPosition = 0
+    equality     = CaseSensitiveEquality
+    in recursiveSearch query tree equality mempty initPosition mempty
 
 -- TODO[LJK]: If performance is good enough we could also try to skip chars in query so `hread` could be matched with `head`
 recursiveSearch :: Text
@@ -57,24 +59,23 @@ recursiveSearch :: Text
     -> Int
     -> Map Index Result
     -> Map Index Result
-recursiveSearch query node matchKind matched pos scoreMap' = do
+recursiveSearch query node matchKind matched pos scoreMap = do
     let resultKind = if Text.null query then matchKind else NotFullyMatched
         result     = Result resultKind matched 0
         idx        = node ^. Tree.index
-        scoreMap   = insertResult idx result scoreMap'
+        scoreMap'  = insertResult idx result scoreMap
         caseInsensitiveEquality = min matchKind CaseInsensitiveEquality
         mayUnconsQuery = Text.uncons query
         matchWithHead h t newMatchKind sMap = matchQueryHead
             h t node newMatchKind matched pos sMap
+        matchWithLetter h t = let 
+            counterCase = if isUpper h then toLower h else toUpper h
+            in matchWithHead counterCase t caseInsensitiveEquality
+                $ matchWithHead h t matchKind scoreMap'
         matchHead h t
-            | isUpper h
-                = matchWithHead (toLower h) t caseInsensitiveEquality
-                $ matchWithHead h t matchKind scoreMap
-            | isLower h
-                = matchWithHead (toUpper h) t caseInsensitiveEquality
-                $ matchWithHead h t matchKind scoreMap
-            | otherwise = matchWithHead h t matchKind scoreMap
-        updatedMap = maybe scoreMap (uncurry matchHead) mayUnconsQuery
+            | isLetter h = matchWithLetter h t
+            | otherwise  = matchWithHead   h t matchKind scoreMap'
+        updatedMap = maybe scoreMap' (uncurry matchHead) mayUnconsQuery
     skipDataHead query node matched pos updatedMap
 
 
