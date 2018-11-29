@@ -50,7 +50,7 @@ makeLenses ''Match
 
 instance Mempty    Match where mempty = Match mempty
 instance NFData    Match
-instance Semigroup Match where (<>)   = merge
+instance Semigroup Match where (<>) = merge
 
 
 -- === API === --

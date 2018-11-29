@@ -4,11 +4,13 @@ import Criterion.Main
 import Prologue       hiding (Index)
 
 import qualified Data.Map              as Map
+import qualified New.Engine.Data.Match as Match
 import qualified New.Engine.Data.Tree  as Tree
 
 import Data.Map              (Map)
 import Data.Text             (Text)
 import New.Engine.Data.Index (Index (Index), IndexMap)
+import New.Engine.Data.Match (Match)
 import New.Engine.Search     (Result, search)
 import System.Random         (mkStdGen, randomR, randomRs)
 
@@ -74,6 +76,14 @@ randomHintText :: Text
 randomHintText = txt where (txt, _, _) = randomHint
 {-# NOINLINE randomHintText #-}
 
+mergeInput :: (Match, Match)
+mergeInput = (match1, match2) where
+    wordLength = 100
+    (positions1, positions2) = splitAt (maxWordLength `quot` 2) $ 
+        take maxWordLength $ randomRs (0, maxWordLength) $ mkStdGen 31
+    mkMatch = foldl (flip Match.addPosition) mempty
+    match1  = mkMatch positions1
+    match2  = mkMatch positions2
 
 -------------------
 -- === Utils === --
@@ -104,6 +114,9 @@ test_updateValue (k, n, idx, idxMap)
     = Tree.evalWith idx idxMap $ Tree.updateValue k n
 {-# NOINLINE test_updateValue #-}
 
+test_merge :: (Match, Match) -> Match
+test_merge (m1, m2) = Match.merge m1 m2
+{-# NOINLINE test_merge #-}
 
 
 ------------------------
@@ -126,4 +139,5 @@ main = do
         [ bgroup   "insert" benchInsert
         , envBench "lookup" (pure (randomHintText, treeInput)) $ test_lookup
         , envBench "search" (pure (randomHintText, treeInput)) $ test_search
+        , envBench "merge"  (pure mergeInput)                  $ test_merge
         ]
