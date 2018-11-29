@@ -6,11 +6,12 @@ import Prologue       hiding (Index)
 import qualified Data.Map              as Map
 import qualified New.Engine.Data.Match as Match
 import qualified New.Engine.Data.Tree  as Tree
+import qualified New.Engine.Search     as Search
 
 import Data.Map              (Map)
 import Data.Text             (Text)
 import New.Engine.Data.Index (Index (Index), IndexMap)
-import New.Engine.Data.Match (Match)
+import New.Engine.Data.Match (Match, MatchKind)
 import New.Engine.Search     (Result, search)
 import System.Random         (mkStdGen, randomR, randomRs)
 
@@ -76,14 +77,18 @@ randomHintText :: Text
 randomHintText = txt where (txt, _, _) = randomHint
 {-# NOINLINE randomHintText #-}
 
+randomHintNode :: Tree.Node
+randomHintNode = node where (_, _, node) = randomHint
+{-# NOINLINE randomHintNode #-}
+
 mergeInput :: (Match, Match)
 mergeInput = (match1, match2) where
-    wordLength = 100
     (positions1, positions2) = splitAt (maxWordLength `quot` 2) $ 
         take maxWordLength $ randomRs (0, maxWordLength) $ mkStdGen 31
     mkMatch = foldl (flip Match.addPosition) mempty
     match1  = mkMatch positions1
     match2  = mkMatch positions2
+{-# NOINLINE mergeInput #-}
 
 -------------------
 -- === Utils === --
@@ -105,18 +110,24 @@ test_lookup :: (Text, Tree.Node) -> Maybe Tree.Node
 test_lookup (k, tree) = Tree.lookup k tree
 {-# NOINLINE test_lookup #-}
 
+test_insertUpdateValue :: (Text, Tree.Node, Index, IndexMap) -> Tree.Node
+test_insertUpdateValue (k, n, idx, idxMap)
+    = Tree.evalWith idx idxMap $ Tree.updateValue k n
+{-# NOINLINE test_insertUpdateValue #-}
+
 test_search :: (Text, Tree.Node) -> Map Index Result
 test_search (query, tree) = search query tree
 {-# NOINLINE test_search #-}
 
-test_updateValue :: (Text, Tree.Node, Index, IndexMap) -> Tree.Node
-test_updateValue (k, n, idx, idxMap)
-    = Tree.evalWith idx idxMap $ Tree.updateValue k n
-{-# NOINLINE test_updateValue #-}
+test_searchUpdateValue :: (Text, Tree.Node, MatchKind, Match, Map Index Result) 
+    -> Map Index Result
+test_searchUpdateValue (suffix, node, matchKind, matched, resultMap) 
+    = Search.updateValue suffix node matchKind matched resultMap
+{-# NOINLINE test_searchUpdateValue #-}
 
-test_merge :: (Match, Match) -> Match
-test_merge (m1, m2) = Match.merge m1 m2
-{-# NOINLINE test_merge #-}
+test_matchMerge :: (Match, Match) -> Match
+test_matchMerge (m1, m2) = Match.merge m1 m2
+{-# NOINLINE test_matchMerge #-}
 
 
 ------------------------
@@ -127,17 +138,25 @@ benchInsert :: [Benchmark]
 benchInsert =
     [ envBench "update value"
         ( pure ("", treeInput, inputNextIndex, inputIndexMap))
-        test_updateValue
+        test_insertUpdateValue
     , envBench "insert" (pure textInput) test_insert
     ]
 {-# INLINE benchInsert #-}
 
+benchSearch :: [Benchmark]
+benchSearch =
+    [ envBench "update value"
+        ( pure ("", randomHintNode, Match.AllCharsMatched, mempty, mempty))
+        test_searchUpdateValue
+    , envBench "merge"  (pure mergeInput)                  test_matchMerge
+    , envBench "search" (pure (randomHintText, treeInput)) test_search
+    ]
+{-# INLINE benchSearch #-}
 
 main :: IO ()
 main = do
     defaultMain
         [ bgroup   "insert" benchInsert
-        , envBench "lookup" (pure (randomHintText, treeInput)) $ test_lookup
-        , envBench "search" (pure (randomHintText, treeInput)) $ test_search
-        , envBench "merge"  (pure mergeInput)                  $ test_merge
+        , bgroup   "search" benchSearch
+        , envBench "lookup" (pure (randomHintText, treeInput)) test_lookup
         ]

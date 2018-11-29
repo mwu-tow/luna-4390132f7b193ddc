@@ -60,12 +60,8 @@ recursiveSearch :: Text
     -> Map Index Result
     -> Map Index Result
 recursiveSearch query node matchKind matched pos scoreMap = do
-    let resultKind = if Text.null query then matchKind else NotFullyMatched
-        result     = Result resultKind matched 0
-        idx        = node ^. Tree.index
-        scoreMap'  = insertResult idx result scoreMap
+    let mayUnconsQuery          = Text.uncons query
         caseInsensitiveEquality = min matchKind CaseInsensitiveEquality
-        mayUnconsQuery = Text.uncons query
         matchWithHead h t newMatchKind sMap = matchQueryHead
             h t node newMatchKind matched pos sMap
         matchWithLetter h t = let 
@@ -75,9 +71,18 @@ recursiveSearch query node matchKind matched pos scoreMap = do
         matchHead h t
             | isLetter h = matchWithLetter h t
             | otherwise  = matchWithHead   h t matchKind scoreMap'
+        scoreMap'  = updateValue query node matchKind matched scoreMap
         updatedMap = maybe scoreMap' (uncurry matchHead) mayUnconsQuery
     skipDataHead query node matched pos updatedMap
 
+updateValue :: Text -> Tree.Node -> MatchKind -> Match -> Map Index Result 
+    -> Map Index Result
+updateValue suffix node matchKind matched scoreMap = let
+    idx        = node ^. Tree.index
+    result     = Result resultKind matched 0
+    resultKind = if Text.null suffix then matchKind else NotFullyMatched
+    in insertResult idx result scoreMap
+{-# INLINE updateValue #-}
 
 insertResult :: Index -> Result -> Map Index Result -> Map Index Result
 insertResult i r m = if Index.isInvalid i then m else Map.insertWith max i r m
@@ -92,7 +97,7 @@ skipDataHead :: Text
 skipDataHead query node matched pos scoreMap = Map.foldl
     (\acc n -> recursiveSearch query n AllCharsMatched matched pos acc)
     scoreMap
-    $ node ^. Tree.branches
+    $! node ^. Tree.branches
 
 matchQueryHead :: Char
     -> Text
