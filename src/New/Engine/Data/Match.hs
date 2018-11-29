@@ -72,17 +72,24 @@ addRange r m = merge (singleton r) m
 {-# INLINE addRange #-}
 
 merge :: Match -> Match -> Match
-merge m1 m2 = do
-    let mergeRanges r1 [] = r1
-        mergeRanges [] r2 = r2
-        mergeRanges prev1@(h1:t1) prev2@(h2:t2)
-            | h1 ^. begin > h2 ^. begin = mergeRanges prev2 prev1
-            | h1 ^. begin > h2 ^. end   = h1 : mergeRanges t1 prev2
-            | otherwise                 = mergeRanges (newH1:t1) t2 where
-                minBeg = min (h1 ^. begin) (h2 ^. begin)
-                maxEnd = max (h1 ^. end)   (h2 ^. end)
-                newH1  = Range minBeg $ maxEnd - minBeg
-    Match $ mergeRanges (m1 ^. reversed_range) (m2 ^. reversed_range)
+merge m1 m2 = Match $ mergeRanges range1 range2 where
+    range1 = m1 ^. reversed_range 
+    range2 = m2 ^. reversed_range 
+    mergeRanges r1 [] = r1
+    mergeRanges [] r2 = r2
+    mergeRanges prev1@(h1:t1) prev2@(h2:t2) = do
+        let h1Beg = h1 ^. begin
+            h2Beg = h2 ^. begin
+            h1End = h1 ^. end
+            h2End = h2 ^. end
+            minBeg = min h1Beg h2Beg
+            maxEnd = max h1End h2End
+            mergedLen = maxEnd - minBeg
+            mergedH1  = Range minBeg mergedLen
+            new1      = mergedH1:t1
+        if      h1Beg > h2Beg then mergeRanges prev2 prev1
+        else if h1Beg > h2End then h1 : mergeRanges t1 prev2
+        else mergeRanges new1 t2
 {-# INLINE merge #-}
 
 
