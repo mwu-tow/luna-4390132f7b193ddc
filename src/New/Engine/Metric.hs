@@ -35,16 +35,15 @@ type family Metrics ss :: Constraint where
 -- === API === --
 
 -- TODO [Ara] run/exec/eval
--- TODO [Ara] updateMetrics
 
 class P.Monad m => Update (t :: k) m where
-    updateMetrics :: State.Monad t m => Text -> Text -> m Score
+    updateMetrics :: Text -> Text -> m Score
 
 instance Monad s m => Update (s :: Type) m where
     updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
 
-instance Monad s m => Update ((s ': '[]) :: [Type]) m where
-    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
+instance P.Monad m => Update ('[] :: [Type]) m where
+    updateMetrics _ _ = pure $ def @Score
 
 instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
     updateMetrics tx1 tx2 = do
@@ -79,11 +78,14 @@ someFn2 = do
     pure newScore
 
 runSomeFn :: Score
-runSomeFn = State.evalDef @DummyState $ State.evalDefT @DummyState2 $ someFn
+runSomeFn = State.evalDef @DummyState
+    . State.evalDefT @DummyState3
+    . State.evalDefT @DummyState2
+    $ someFn
 
-someFn :: MonadMetrics '[DummyState, DummyState2] m => m Score
+someFn :: forall s m . (s ~ '[DummyState, DummyState2, DummyState3], MonadMetrics s m) => m Score
 someFn = do
-    newScore <- updateMetric @DummyState "a" "a"
+    newScore <- updateMetrics @s "a" "a"
 
     pure newScore
 
@@ -94,34 +96,44 @@ runSomeFn3 :: Score
 runSomeFn3 = State.evalDef @DummyState $ State.evalDefT @DummyState2 $ someFn3
 
 data DummyState = DummyState
-    { _someNumber   :: !Int
-    , _lastBuffer   :: ![Text]
-    , _currentScore :: !Score
+    { _currentScore :: !Score
     } deriving (Eq, Generic, Ord, Show)
 
 instance Default DummyState where
-    def = DummyState def def def
+    def = DummyState def
 
 instance NFData DummyState
 
 instance Metric DummyState where
     updateMetric _ _ = do
         _ <- State.get @DummyState
-        pure $ Score.Score 0
+        pure $ Score.Score 1
 
 data DummyState2 = DummyState2
-    { _someNumber1   :: !Int
-    , _lastBuffer1   :: ![Text]
-    , _currentScore1 :: !Score
+    { _currentScore2 :: !Score
     } deriving (Eq, Generic, Ord, Show)
 
 instance Default DummyState2 where
-    def = DummyState2 def def def
+    def = DummyState2 def
 
 instance NFData DummyState2
 
 instance Metric DummyState2 where
     updateMetric _ _ = do
         _ <- State.get @DummyState2
-        pure $ Score.Score 0
+        pure $ Score.Score 1
+
+data DummyState3 = DummyState3
+    { _currentScore3 :: !Score
+    } deriving (Eq, Generic, Ord, Show)
+
+instance Default DummyState3 where
+    def = DummyState3 def
+
+instance NFData DummyState3
+
+instance Metric DummyState3 where
+    updateMetric _ _ = do
+        _ <- State.get @DummyState3
+        pure $ Score.Score 1
 
