@@ -29,11 +29,11 @@ class (Default a, NFData a) => Metric a where
     updateMetric :: Text -> Text -> State.State a Score
     runMetric    :: State.State a Score -> Score
 
--- TODO [Ara] Factor out metric state as associated type family.
--- TODO [Ara] Possible to have a `runMetrics` function over a type-level list?
--- TODO [Ara] Similarly with `updateMetrics` that returns the current compound
--- score.
+-- Stack of States, each of which is restricted to the MetricState typeclass.
+-- A function to `runMetrics` and to `updateMetrics` that operate over the
+-- type-level list.
 
+-- Alternatively, just a typeclass, extended by the state type.
 
 -- === API === --
 
@@ -51,9 +51,8 @@ class (Default a, NFData a) => Metric a where
 -- === Utility Functions === --
 -------------------------------
 
-type Test = '[DummyState]
 
-type Test2 a = State.MonadStates Test a
+-------------------------------------------------------------------------------
 
 data DummyState = DummyState
     { _someNumber   :: !Int
@@ -69,9 +68,21 @@ instance NFData DummyState
 
 instance Metric DummyState where
     updateMetric = undefined
+    runMetric = undefined
 
--- TODO [Ara] Now the question is how to make this usable.
+data DummyState2 = DummyState2
+    { _someNumber1   :: !Int
+    , _lastBuffer1   :: ![Text]
+    , _currentScore1 :: !Score
+    } deriving (Eq, Generic, Ord, Show)
+makeLenses ''DummyState2
 
-testMetrics :: IO ()
-testMetrics = print ("Foo" :: String)
+instance Default DummyState2 where
+    def = DummyState2 def def def
+
+instance NFData DummyState2
+
+instance Metric DummyState2 where
+    updateMetric = undefined
+    runMetric = undefined
 
