@@ -3,8 +3,8 @@ module Main where
 import Criterion.Main
 import Prologue       hiding (Index)
 
-import qualified Data.Map                    as Map
-import qualified New.Engine.Data.Tree        as Tree
+import qualified Data.Map              as Map
+import qualified New.Engine.Data.Tree  as Tree
 
 import Data.Map              (Map)
 import Data.Text             (Text)
@@ -13,11 +13,28 @@ import New.Engine.Search     (Result, search)
 import System.Random         (mkStdGen, randomR, randomRs)
 
 
-wordLengthRange :: (Int, Int)
-wordLengthRange = (3, 30)
+
+-------------------
+-- === Input === --
+-------------------
+
+
+-- === Config === --
 
 inputLength :: Int
 inputLength = 50000
+
+minWordLength :: Int
+minWordLength = 3
+
+maxWordLength :: Int
+maxWordLength = 30
+
+wordLengthRange :: (Int, Int)
+wordLengthRange = (minWordLength, maxWordLength)
+
+
+-- === Generated === --
 
 textInput :: [Text]
 textInput = do
@@ -57,6 +74,19 @@ randomHintText :: Text
 randomHintText = txt where (txt, _, _) = randomHint
 {-# NOINLINE randomHintText #-}
 
+
+-------------------
+-- === Utils === --
+-------------------
+
+envBench :: (NFData a, NFData env)
+    => String -> IO env -> (env -> a) -> Benchmark
+envBench name pre fun = env pre $ \ ~input -> bench name $ nf fun input
+{-# INLINE envBench #-}
+
+
+-- === Test functions === --
+
 test_insert :: [Text] -> Tree.Node
 test_insert txts = Tree.eval $ Tree.insertMultiple txts def
 {-# NOINLINE test_insert #-}
@@ -70,28 +100,30 @@ test_search (query, tree) = search query tree
 {-# NOINLINE test_search #-}
 
 test_updateValue :: (Text, Tree.Node, Index, IndexMap) -> Tree.Node
-test_updateValue (k, n, idx, idxMap) 
+test_updateValue (k, n, idx, idxMap)
     = Tree.evalWith idx idxMap $ Tree.updateValue k n
 {-# NOINLINE test_updateValue #-}
 
-insertBenchmarks :: [Benchmark]
-insertBenchmarks = 
+
+
+------------------------
+-- === Benchmarks === --
+------------------------
+
+benchInsert :: [Benchmark]
+benchInsert =
     [ envBench "update value"
         ( pure ("", treeInput, inputNextIndex, inputIndexMap))
         test_updateValue
     , envBench "insert" (pure textInput) test_insert
     ]
-{-# INLINE insertBenchmarks #-}
+{-# INLINE benchInsert #-}
 
-envBench :: (NFData a, NFData env)
-    => String -> IO env -> (env -> a) -> Benchmark
-envBench name pre fun = env pre $ \ ~input -> bench name $ nf fun input
-{-# INLINE envBench #-}
 
 main :: IO ()
 main = do
     defaultMain
-        [ bgroup   "insert" insertBenchmarks
+        [ bgroup   "insert" benchInsert
         , envBench "lookup" (pure (randomHintText, treeInput)) $ test_lookup
         , envBench "search" (pure (randomHintText, treeInput)) $ test_search
         ]
