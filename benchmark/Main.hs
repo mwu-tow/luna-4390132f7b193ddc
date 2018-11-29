@@ -3,6 +3,7 @@ module Main where
 import Criterion.Main
 import Prologue       hiding (Index)
 
+import qualified Criterion.Types       as Options
 import qualified Data.Map              as Map
 import qualified New.Engine.Data.Match as Match
 import qualified New.Engine.Data.Tree  as Tree
@@ -83,7 +84,7 @@ randomHintNode = node where (_, _, node) = randomHint
 
 mergeInput :: (Match, Match)
 mergeInput = (match1, match2) where
-    (positions1, positions2) = splitAt (maxWordLength `quot` 2) $ 
+    (positions1, positions2) = splitAt (maxWordLength `quot` 2) $
         take maxWordLength $ randomRs (0, maxWordLength) $ mkStdGen 31
     mkMatch = foldl (flip Match.addPosition) mempty
     match1  = mkMatch positions1
@@ -119,9 +120,9 @@ test_search :: (Text, Tree.Node) -> Map Index Result
 test_search (query, tree) = search query tree
 {-# NOINLINE test_search #-}
 
-test_searchUpdateValue :: (Text, Tree.Node, MatchKind, Match, Map Index Result) 
+test_searchUpdateValue :: (Text, Tree.Node, MatchKind, Match, Map Index Result)
     -> Map Index Result
-test_searchUpdateValue (suffix, node, matchKind, matched, resultMap) 
+test_searchUpdateValue (suffix, node, matchKind, matched, resultMap)
     = Search.updateValue suffix node matchKind matched resultMap
 {-# NOINLINE test_searchUpdateValue #-}
 
@@ -154,8 +155,9 @@ benchSearch =
 {-# INLINE benchSearch #-}
 
 main :: IO ()
-main = do
-    defaultMain
+main = let
+    cfg = defaultConfig { Options.resamples = 10000 }
+    in defaultMainWith cfg
         [ bgroup   "insert" benchInsert
         , bgroup   "search" benchSearch
         , envBench "lookup" (pure (randomHintText, treeInput)) test_lookup
