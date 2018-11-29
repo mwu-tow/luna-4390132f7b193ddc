@@ -14,7 +14,6 @@ import New.Engine.Data.Score (Score)
 
 
 
-
 --------------------
 -- === Metric === --
 --------------------
@@ -35,6 +34,7 @@ type family Metrics ss :: Constraint where
 -- === API === --
 
 -- TODO [Ara] run/exec/eval
+-- TODO [Ara] Test suite
 
 class P.Monad m => Update (t :: k) m where
     updateMetrics :: Text -> Text -> m Score
@@ -54,28 +54,9 @@ instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-runSomeFn2 :: Score
-runSomeFn2 = State.evalDef @DummyState someFn2
-
-someFn2 :: Monad DummyState m => m Score
-someFn2 = do
-    newScore <- updateMetric @DummyState "A" "a"
-
-    pure newScore
+--------------------------
+-- === Testing Code === --
+--------------------------
 
 runSomeFn :: Score
 runSomeFn = State.evalDef @DummyState
@@ -83,17 +64,13 @@ runSomeFn = State.evalDef @DummyState
     . State.evalDefT @DummyState2
     $ someFn
 
-someFn :: forall s m . (s ~ '[DummyState, DummyState2, DummyState3], MonadMetrics s m) => m Score
+type MetricPasses = '[DummyState, DummyState2, DummyState3]
+
+someFn :: forall m . MonadMetrics MetricPasses m => m Score
 someFn = do
-    newScore <- updateMetrics @s "a" "a"
+    newScore <- updateMetrics @MetricPasses "a" "a"
 
     pure newScore
-
-someFn3 :: State.MonadStates '[DummyState, DummyState2] m => m Score
-someFn3 = pure $ Score.Score 0
-
-runSomeFn3 :: Score
-runSomeFn3 = State.evalDef @DummyState $ State.evalDefT @DummyState2 $ someFn3
 
 data DummyState = DummyState
     { _currentScore :: !Score
