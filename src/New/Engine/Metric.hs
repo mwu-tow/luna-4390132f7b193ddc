@@ -5,41 +5,11 @@ module New.Engine.Metric where
 
 import Prologue hiding (Monad)
 
-import Control.Monad.State.Layered as State
-import New.Engine.Data.Score       as Score
+import qualified Control.Monad.State.Layered as State
+import qualified New.Engine.Data.Score       as Score
 
--- TODO [Ara] Design for metrics
--- Idea for metric as a typeclass, with type-applied arguments.
--- Can be compile-time only.
--- Needs next letter in query and next letter in database.
--- Return current score. (as Int)
--- Can potentially be stateful.
--- e.g. Prefix matcher contains state about collected points, multipliers and
--- context info.
+import New.Engine.Data.Score (Score)
 
-data DummyState = DummyState
-    { _someNumber   :: !Int
-    , _lastBuffer   :: ![Text]
-    , _currentScore :: !Score
-    } deriving (Eq, Generic, Ord, Show)
-makeLenses ''DummyState
-
-instance Default DummyState where
-    def = DummyState def def def
-
-instance NFData DummyState
-
-data DummyState2 = DummyState2
-    { _someNumber1   :: !Int
-    , _lastBuffer1   :: ![Text]
-    , _currentScore1 :: !Score
-    } deriving (Eq, Generic, Ord, Show)
-makeLenses ''DummyState2
-
-instance Default DummyState2 where
-    def = DummyState2 def def def
-
-instance NFData DummyState2
 
 
 --------------------
@@ -48,56 +18,87 @@ instance NFData DummyState2
 
 -- === Definition === --
 
--- Stack of States, each of which is restricted to the MetricState typeclass.
--- A function to `runMetrics` and to `updateMetrics` that operate over the
--- type-level list.
-
--- Alternatively, just a typeclass, extended by the state type.
 
 -- === API === --
 
 
 -- === Instances === --
 
-someFn :: State.MonadStates '[DummyState, DummyState2] m => m Score
-someFn = do
-    st  <- get @DummyState
-    st2 <- get @DummyState2
+class (Default s, NFData s) => Metric s where
+    updateMetric :: forall m . State.Monad s m => Text -> Text -> m Score
 
+type Monad s m        = (Metric s, State.Monad s m)
+type MonadMetrics s m = (Metrics s, State.MonadStates s m)
+
+type family Metrics ss :: Constraint where
+    Metrics (s ': ss) = (Metric s, Metrics ss)
+    Metrics '[]       = ()
+
+runSomeFn2 :: Score
+runSomeFn2 = State.evalDef @DummyState someFn2
+
+someFn2 :: Monad DummyState m => m Score
+someFn2 = do
+    newScore <- updateMetric @DummyState "A" "a"
+
+    pure newScore
+
+runSomeFn :: Score
+runSomeFn = State.evalDef @DummyState $ State.evalDefT @DummyState2 $ someFn
+
+someFn :: MonadMetrics '[DummyState, DummyState2] m => m Score
+someFn = do
     newScore <- updateMetric @DummyState "a" "a"
 
     pure newScore
 
--- Minimal is updateMetric as the rest are defaulted.
+someFn3 :: State.MonadStates '[DummyState, DummyState2] m => m Score
+someFn3 = pure $ Score.Score 0
 
-updateMetric :: forall s m . State.Monad s m => Text -> Text -> m Score
-updateMetric _ _ = pure $ Score 1
+runSomeFn3 :: Score
+runSomeFn3 = State.evalDef @DummyState $ State.evalDefT @DummyState2 $ someFn3
 
-runMetric :: forall s m a . State.Monad s m => m a -> (s, a)
-runMetric = undefined
+-- TODO [Ara] run/exec/eval
 
-evalMetric :: forall s m a . State.Monad s m => m a -> a
-evalMetric = undefined
+-- TODO [Ara] Destructure things
 
-execMetric :: forall s m a . State.Monad s m => m a -> s
-execMetric = undefined
+
+
 
 
 -------------------------------
 -- === Utility Functions === --
 -------------------------------
 
--- class (Default a, NFData a) => MonadMetric a m where
-    -- updateMetric :: Text -> Text -> m a
-    -- runMetric    :: m a -> Score
+data DummyState = DummyState
+    { _someNumber   :: !Int
+    , _lastBuffer   :: ![Text]
+    , _currentScore :: !Score
+    } deriving (Eq, Generic, Ord, Show)
 
--- type family MonadMetrics as m :: Constraint where
-    -- MonadMetrics (a ': as) m = (MonadMetric a m, MonadMetrics as m)
-    -- MonadMetrics '[]       m = ()
+instance Default DummyState where
+    def = DummyState def def def
 
--- TODO [Ara] Class for the updateMetrics function.
+instance NFData DummyState
 
+instance Metric DummyState where
+    updateMetric _ _ = do
+        _ <- State.get @DummyState
+        pure $ Score.Score 0
 
+data DummyState2 = DummyState2
+    { _someNumber1   :: !Int
+    , _lastBuffer1   :: ![Text]
+    , _currentScore1 :: !Score
+    } deriving (Eq, Generic, Ord, Show)
 
--------------------------------------------------------------------------------
+instance Default DummyState2 where
+    def = DummyState2 def def def
+
+instance NFData DummyState2
+
+instance Metric DummyState2 where
+    updateMetric _ _ = do
+        _ <- State.get @DummyState2
+        pure $ Score.Score 0
 
