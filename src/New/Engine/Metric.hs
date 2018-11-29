@@ -5,10 +5,13 @@ module New.Engine.Metric where
 
 import Prologue hiding (Monad)
 
+import qualified Prologue as P (Monad)
+
 import qualified Control.Monad.State.Layered as State
 import qualified New.Engine.Data.Score       as Score
 
 import New.Engine.Data.Score (Score)
+
 
 
 
@@ -18,21 +21,53 @@ import New.Engine.Data.Score (Score)
 
 -- === Definition === --
 
-
--- === API === --
-
-
--- === Instances === --
-
 class (Default s, NFData s) => Metric s where
-    updateMetric :: forall m . State.Monad s m => Text -> Text -> m Score
+    updateMetric :: State.Monad (s :: Type) m => Text -> Text -> m Score
 
-type Monad s m        = (Metric s, State.Monad s m)
-type MonadMetrics s m = (Metrics s, State.MonadStates s m)
+type Monad s m        = (P.Monad m, Metric s, State.Monad s m)
+type MonadMetrics s m = (P.Monad m, Metrics s, State.MonadStates s m)
 
 type family Metrics ss :: Constraint where
     Metrics (s ': ss) = (Metric s, Metrics ss)
     Metrics '[]       = ()
+
+
+-- === API === --
+
+-- TODO [Ara] run/exec/eval
+-- TODO [Ara] updateMetrics
+
+class P.Monad m => Update (t :: k) m where
+    updateMetrics :: State.Monad t m => Text -> Text -> m Score
+
+instance Monad s m => Update (s :: Type) m where
+    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
+
+instance Monad s m => Update ((s ': '[]) :: [Type]) m where
+    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
+
+instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
+    updateMetrics tx1 tx2 = do
+        res1 <- updateMetrics @s  tx1 tx2
+        res2 <- updateMetrics @ss tx1 tx2
+
+        pure $ res1 + res2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 runSomeFn2 :: Score
 runSomeFn2 = State.evalDef @DummyState someFn2
@@ -57,18 +92,6 @@ someFn3 = pure $ Score.Score 0
 
 runSomeFn3 :: Score
 runSomeFn3 = State.evalDef @DummyState $ State.evalDefT @DummyState2 $ someFn3
-
--- TODO [Ara] run/exec/eval
-
--- TODO [Ara] Destructure things
-
-
-
-
-
--------------------------------
--- === Utility Functions === --
--------------------------------
 
 data DummyState = DummyState
     { _someNumber   :: !Int
