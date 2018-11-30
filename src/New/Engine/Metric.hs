@@ -61,11 +61,14 @@
 --
 --      ```
 --      runSearch :: (Monad m) => m (Map Index Result)
---      runSearch = State.evalDefT @DummyMetric
+--      runSearch = State.evalDefT @DummyMetric3
 --          . State.evalDefT @DummyMetric2
---          . State.evalDefT @DummyMetric3
+--          . State.evalDefT @DummyMetric
 --          $ search @MetricPasses inputText textTree
 --      ```
+--
+--    It should be noted that the order of these evaluations _will_ matter in
+--    some contexts, so match them to the reverse order of your type-level list.
 --
 -- This will then 'just work'. As the search is run, the update functions on
 -- all of your metrics will be called, and used to score the results returned by
@@ -109,6 +112,29 @@ type family Metrics ss :: Constraint where
 
 -- === API === --
 
+class P.Monad m => Update (t :: k) m where
+    updateMetrics :: Text -> Text -> m Score
+
+
+
+-- === Instances === --
+
+instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
+    updateMetrics tx1 tx2 = do
+        res1 <- updateMetrics @s  tx1 tx2
+        res2 <- updateMetrics @ss tx1 tx2
+
+        pure $ res1 + res2
+
+instance P.Monad m => Update ('[] :: [Type]) m where
+    updateMetrics _ _ = pure $ def @Score
+
+instance Monad s m => Update (s :: Type) m where
+    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
+
+
+-- === Under Development === --
+
 -- TODO [Ara] eval
 
 -- `ss` is the list of state types, of which st is a member
@@ -133,29 +159,6 @@ class (P.Monad m, P.Monad n, Default s1, Default s2)
 instance (P.Monad m, P.Monad n, Default s1, Default s2, n ~ State.StateT s1 m)
     => Eval (s :: Type) m n s1 s2 where
     evalT_ layer = State.evalDefT @s2 layer
-
----------------------------------------- Sep into API and instances
-class P.Monad m => Update (t :: k) m where
-    updateMetrics :: Text -> Text -> m Score
-
-instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
-    updateMetrics tx1 tx2 = do
-        res1 <- updateMetrics @s  tx1 tx2
-        res2 <- updateMetrics @ss tx1 tx2
-
-        pure $ res1 + res2
-
-instance P.Monad m => Update ('[] :: [Type]) m where
-    updateMetrics _ _ = pure $ def @Score
-
-instance Monad s m => Update (s :: Type) m where
-    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
-
-
-
---------------------------
--- === Testing Code === --
---------------------------
 
 -- someFn :: State.StateT S1 (State.StateT S2 (State.StateT S3 n)) a
 --                           ^                                   ^

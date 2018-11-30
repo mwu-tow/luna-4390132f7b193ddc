@@ -56,24 +56,33 @@ instance Metric DummyMetric3 where
 
 type MetricPasses = '[DummyMetric, DummyMetric2, DummyMetric3]
 
-evalMetrics :: IO Score
-evalMetrics = State.evalDefT @DummyMetric
-    . State.evalDefT @DummyMetric3
+evalMetrics :: forall m a . MonadIO m => State.StatesT MetricPasses m a -> m a
+evalMetrics metricFn = State.evalDefT @DummyMetric3
     . State.evalDefT @DummyMetric2
-    $ combinedMetricUpdate
+    . State.evalDefT @DummyMetric
+    $ metricFn
 
 combinedMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
 combinedMetricUpdate = Metric.updateMetrics @MetricPasses "a" "a" >>= pure
 
-expectedScore :: Score
-expectedScore = Score.Score 3
+splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
+splitMetricUpdate = do
+    res1 <- Metric.updateMetric @DummyMetric  "a" "a"
+    res2 <- Metric.updateMetric @DummyMetric2 "a" "a"
+    res3 <- Metric.updateMetric @DummyMetric3 "a" "a"
 
-testMetrics :: IO Score -> IO Score -> Expectation
-testMetrics val1 val2 = do
+    pure $ res1 + res2 + res3
+
+expectedScore :: IO Score
+expectedScore = pure $ Score.Score 3
+
+gives :: IO Score -> IO Score -> Expectation
+gives val1 val2 = do
     value1 <- val1
     value2 <- val2
 
     value1 `shouldBe` value2
+
 
 
 -------------------
@@ -81,9 +90,13 @@ testMetrics val1 val2 = do
 -------------------
 
 spec :: Spec
-spec = do
+spec =
     describe "Updating Metrics" $ do
-        it "is correct when evaluated as a group" $ True `shouldBe` True
-        it "is correct when evaluated in isolation" $ True `shouldBe` True
-        it "is correct between evaluation strategies" $ True `shouldBe` True
+        it "is correct when evaluated as a group"
+            $ (evalMetrics combinedMetricUpdate) `gives` expectedScore
+        it "is correct when evaluated in isolation"
+            $ (evalMetrics splitMetricUpdate) `gives` expectedScore
+        it "is correct between evaluation strategies"
+            $ (evalMetrics splitMetricUpdate) `gives`
+                (evalMetrics combinedMetricUpdate)
 
