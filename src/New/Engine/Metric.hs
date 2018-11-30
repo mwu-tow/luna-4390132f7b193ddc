@@ -44,18 +44,21 @@ evalT = undefined
 
 -- Needs to build the chain of State.evalT @s ...
 -- This (as one function) then gets called on the computation.
-class P.Monad m => Eval (t :: k) m where
-    evalT_ :: forall s1 s2 n a . (P.Monad n, Default s1, Default s2, n ~ State.StateT s1 m)
-        => State.StateT s2 n a -> State.StateT s1 m a
+class (P.Monad m, P.Monad n, Default s1, Default s2)
+    => Eval (t :: k) m n s1 s2 where
+    evalT_ :: forall a . State.StateT s2 n a -> State.StateT s1 m a
 
-instance (Monad s m, Eval ss m) => Eval ((s ': ss) :: [Type]) m where
-    evalT_ = undefined
+instance (P.Monad m, Eval ss m n s1 s2, Default s1, Default s2, n ~ State.StateT s1 m)
+    => Eval ((s ': ss) :: [Type]) m n s1 s2 where
+    evalT_ layer = undefined
 
-instance P.Monad m => Eval ('[] :: [Type]) m where
-    evalT_ = undefined
+instance (P.Monad m, P.Monad n, Default s1, Default s2, s1 ~ s2, n ~ m)
+    => Eval ('[] :: [Type]) m n s1 s2 where
+    evalT_ layer = layer
 
-instance Monad s m => Eval (s :: Type) m where
-    evalT_ = State.evalDefT
+instance (P.Monad m, P.Monad n, Default s1, Default s2, n ~ State.StateT s1 m)
+    => Eval (s :: Type) m n s1 s2 where
+    evalT_ layer = State.evalDefT @s2 layer
 
 ---------------------------------------- Sep into API and instances
 class P.Monad m => Update (t :: k) m where
@@ -80,11 +83,11 @@ instance Monad s m => Update (s :: Type) m where
 -- === Testing Code === --
 --------------------------
 
-type MetricPasses = '[DummyState, DummyState2, DummyState3]
-
 -- someFn :: State.StateT S1 (State.StateT S2 (State.StateT S3 n)) a
 --                           ^                                   ^
 --                        st |_______________ m _________________| a
+
+type MetricPasses = '[DummyState, DummyState2, DummyState3]
 
 runSomeFn :: IO Score
 -- runSomeFn = evalT @MetricPasses someFn
