@@ -68,6 +68,12 @@ combinedMetricUpdate = Metric.updateMetrics @MetricPasses "a" "a" >>= pure
 expectedScore :: Score
 expectedScore = Score.Score 3
 
+testMetrics :: IO Score -> IO Score -> Expectation
+testMetrics val1 val2 = do
+    value1 <- val1
+    value2 <- val2
+
+    value1 `shouldBe` value2
 
 
 -------------------

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module New.Engine.MainSpec (spec) where
+module Searcher.Engine.MainSpec (spec) where
 
 import Searcher.Engine.Prelude
 
