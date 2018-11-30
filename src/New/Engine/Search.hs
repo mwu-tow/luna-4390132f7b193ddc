@@ -11,20 +11,13 @@ import qualified New.Engine.Data.Score       as Score
 import qualified New.Engine.Data.Tree        as Tree
 import qualified New.Engine.Metric           as Metric
 
-<<<<<<< HEAD
-import Data.Char             ( isLetter, isUpper, toLower, toUpper )
+import Data.Char             ( isLetter, isUpper, isLower, toLower, toUpper )
 import Data.Map              ( Map )
 import New.Engine.Data.Index ( Index )
 import New.Engine.Data.Match ( Match, MatchKind ( CaseInsensitiveEquality
                                 , CaseSensitiveEquality, AllCharsMatched
                                 , NotFullyMatched ))
 import New.Engine.Data.Score ( Score )
-=======
-import Data.Char             (isLower, isUpper, toLower, toUpper)
-import Data.Map.Strict       (Map)
-import New.Engine.Data.Index (Index)
-import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
->>>>>>> fast-searcher
 
 
 
@@ -36,31 +29,14 @@ import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSen
 -- === Definition === --
 
 data Result = Result
-<<<<<<< HEAD
-    { _kind   :: !MatchKind
-    , _match  :: !Match
-    , _points :: {-# UNPACK #-} !Score
-=======
     { _kind   :: MatchKind
     , _match  :: Match
     , _points :: Int
->>>>>>> fast-searcher
     } deriving (Eq, Generic, Show)
 makeLenses ''Result
 
 instance NFData Result
 instance Ord    Result where
-<<<<<<< HEAD
-    -- TODO [LJK]: This should be replaced with scoring match kind as soon as
-    -- old algorithm is recreated
-    compare r1 r2 = compareResults where
-        matchTypeOrd = (r1 ^. kind)   `compare` (r2 ^. kind)
-        pointsOrd    = (r1 ^. points) `compare` (r2 ^. points)
-        compareResults
-            | matchTypeOrd /= EQ = matchTypeOrd
-            | otherwise          = pointsOrd
-
-=======
     -- TODO[LJK]: This should be replaced with scoring match kind as soon as old algorithm is recreated
     compare r1 r2
         | matchTypeOrd /= EQ = matchTypeOrd
@@ -70,8 +46,7 @@ instance Ord    Result where
             r2Points = r2 ^. points
             r1Points = r1 ^. points
             matchTypeOrd = r1Kind `compare` r2Kind
-            
->>>>>>> fast-searcher
+
 
 -- === API === --
 
