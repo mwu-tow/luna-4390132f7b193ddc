@@ -14,10 +14,12 @@ import Data.Text    (Text)
 -- === Definition === --
 
 class Eq a => SearcherData a where
-    text :: Getter a Text
+    text           :: Getter a Text
+    calculateScore :: Int -> a -> Int
 
 
 -- === Instances === ---
 
 instance SearcherData Text where
-    text = to id
+    text               = to id
+    calculateScore p _ = p
