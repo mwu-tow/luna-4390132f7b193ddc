@@ -5,8 +5,8 @@ maintainer: Luna Team <contact@luna-lang.org>
 
 tests:
   spec:
-    main: Spec.hs
-    source-dirs: test
+    main: Main.hs
+    source-dirs: test/spec
     dependencies:
       - base
       - containers
@@ -30,7 +30,7 @@ benchmarks:
       - prologue
       - random
       - text
-    
+
 
 library:
   source-dirs: src

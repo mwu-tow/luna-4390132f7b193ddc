@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module New.Engine.Data.Tree
     ( module New.Engine.Data.Tree
     , module X
@@ -40,12 +41,12 @@ instance NFData   Node
 
 type TreeContext m =
     ( State.Monad Index m
-    , State.Monad IndexMap m 
+    , State.Monad IndexMap m
     )
 
 eval :: State.StateT Index (State.State IndexMap) a -> a
-eval = State.evalDef @IndexMap
-    . State.evalDefT @Index
+eval = State.evalDef  @IndexMap
+     . State.evalDefT @Index
 {-# INLINE eval #-}
 
 run :: State.StateT Index (State.State IndexMap) a -> (a, Index, IndexMap)
@@ -61,9 +62,9 @@ insert = \txt n -> let
         Just (!c, !txt') -> insertAtChar c txt' node
 
     updateValue :: TreeContext m => Node -> m Node
-    updateValue node = let 
+    updateValue node = let
         idx       = node ^. index
-        updateMap = do 
+        updateMap = do
             newIndex <- Index.get
             State.modify_ @IndexMap $! Map.insert txt newIndex
             pure $! node & index .~ newIndex
@@ -75,7 +76,7 @@ insert = \txt n -> let
         let update      = \val -> node & branches . at c ?~ val
             prevBranchM = node ^. branches . at c
             prevBranch  = fromJust def prevBranchM
-            newBranch   = insertKeyed k prevBranch 
+            newBranch   = insertKeyed k prevBranch
         in update <$> newBranch
     in insertKeyed txt n
 {-# INLINE insert #-}

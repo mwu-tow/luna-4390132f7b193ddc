@@ -50,3 +50,4 @@ main = do
         , env (pure mkEnv) $ \ ~input
             -> bench "search" $ nf test_search input
         ]
+

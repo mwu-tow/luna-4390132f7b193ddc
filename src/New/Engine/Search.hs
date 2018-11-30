@@ -7,12 +7,17 @@ import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Match       as Match
+import qualified New.Engine.Data.Score       as Score
 import qualified New.Engine.Data.Tree        as Tree
+import qualified New.Engine.Metric           as Metric
 
-import Data.Char             (isLower, isUpper, toLower, toUpper)
-import Data.Map.Strict       (Map)
-import New.Engine.Data.Index (Index)
-import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
+import Data.Char             ( isLetter, isUpper, isLower, toLower, toUpper )
+import Data.Map              ( Map )
+import New.Engine.Data.Index ( Index )
+import New.Engine.Data.Match ( Match, MatchKind ( CaseInsensitiveEquality
+                                , CaseSensitiveEquality, AllCharsMatched
+                                , NotFullyMatched ))
+import New.Engine.Data.Score ( Score )
 
 
 
@@ -41,7 +46,7 @@ instance Ord    Result where
             r2Points = r2 ^. points
             r1Points = r1 ^. points
             matchTypeOrd = r1Kind `compare` r2Kind
-            
+
 
 -- === API === --
 
@@ -49,7 +54,10 @@ search :: Text -> Tree.Node -> Map Index Result
 search query tree
     = recursiveSearch query tree CaseSensitiveEquality mempty 0 mempty
 
--- TODO[LJK]: If performance is good enough we could also try to skip chars in query so `hread` could be matched with `head`
+-- TODO [LJK]: If performance is good enough we could also try to skip chars in
+-- query so `hread` could be matched with `head`
+-- [Ara] This should only come into play if there are no matches for a given
+-- query.
 recursiveSearch :: Text
     -> Tree.Node
     -> MatchKind
@@ -76,7 +84,6 @@ recursiveSearch query node matchKind matched pos scoreMap' = do
             | otherwise = matchWithHead h t matchKind scoreMap
         updatedMap = maybe scoreMap (uncurry matchHead) mayUnconsQuery
     skipDataHead query node matched pos updatedMap
-
 
 insertResult :: Index -> Result -> Map Index Result -> Map Index Result
 insertResult i r m = if Index.isInvalid i then m else Map.insertWith max i r m
@@ -108,3 +115,8 @@ matchQueryHead qHead qSuffix node matchKind matched pos scoreMap =
         processSuffix n
             = recursiveSearch qSuffix n matchKind newRange newPos scoreMap
     in maybe scoreMap processSuffix mayMatchedNode
+
+test :: Map Index Result
+test = search "Tst" . Tree.eval
+    $ Tree.insertMultiple ["Test", "Testing", "Tester", "Foo", "Foot"] def
+
