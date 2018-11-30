@@ -135,12 +135,14 @@ instance Monad s m => Update (s :: Type) m where
 
 -- === Under Development === --
 
--- TODO [Ara] eval
+-- someFn :: State.StateT S1 (State.StateT S2 (State.StateT S3 n)) a
+--                           ^                                   ^
+--                        st |_______________ m _________________| a
+--
+-- Where `n` is potentially a deeper stack of the same or some concrete monad.
 
--- `ss` is the list of state types, of which st is a member
--- Takes a computation in soome number of metrics
-evalT :: (Metrics ss, P.Monad m) => ()
-evalT = undefined
+-- TODO [Ara] eval
+-- TODO [Ara] Move to layered-state when relevant
 
 -- Needs to build the chain of State.evalT @s ...
 -- This (as one function) then gets called on the computation.
@@ -159,8 +161,4 @@ class (P.Monad m, P.Monad n, Default s1, Default s2)
 instance (P.Monad m, P.Monad n, Default s1, Default s2, n ~ State.StateT s1 m)
     => Eval (s :: Type) m n s1 s2 where
     evalT_ layer = State.evalDefT @s2 layer
-
--- someFn :: State.StateT S1 (State.StateT S2 (State.StateT S3 n)) a
---                           ^                                   ^
---                        st |_______________ m _________________| a
 
