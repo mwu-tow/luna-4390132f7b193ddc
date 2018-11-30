@@ -75,8 +75,6 @@
 -- with this interface, please see the metrics included with the library in the
 -- `Engine.Metric.*` modules.
 
--- TODO [Ara] Test suite
-
 {-# LANGUAGE Strict    #-}
 {-# LANGUAGE PolyKinds #-}
 
@@ -87,7 +85,6 @@ import Prologue hiding (Monad)
 import qualified Prologue as P (Monad)
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Score       as Score
 
 import New.Engine.Data.Score (Score)
 
@@ -163,58 +160,4 @@ instance Monad s m => Update (s :: Type) m where
 -- someFn :: State.StateT S1 (State.StateT S2 (State.StateT S3 n)) a
 --                           ^                                   ^
 --                        st |_______________ m _________________| a
-
-type MetricPasses = '[DummyMetric, DummyMetric2, DummyMetric3]
-
-runSomeFn :: IO Score
--- runSomeFn = evalT @MetricPasses someFn
-runSomeFn = (State.evalDefT @DummyMetric
-    . State.evalDefT @DummyMetric3
-    . State.evalDefT @DummyMetric2) someFn
-
-someFn :: forall m . MonadMetrics MetricPasses m => m Score
-someFn = do
-    newScore <- updateMetrics @MetricPasses "a" "a"
-
-    pure newScore
-
-data DummyMetric = DummyMetric
-    { currentScore :: !Score
-    } deriving (Eq, Generic, Ord, Show)
-
-instance Default DummyMetric where
-    def = DummyMetric def
-
-instance NFData DummyMetric
-
-instance Metric DummyMetric where
-    updateMetric _ _ = State.get @DummyMetric >>= \st -> pure $ currentScore st
-
-data DummyMetric2 = DummyMetric2
-    { _currentScore2 :: !Score
-    } deriving (Eq, Generic, Ord, Show)
-
-instance Default DummyMetric2 where
-    def = DummyMetric2 def
-
-instance NFData DummyMetric2
-
-instance Metric DummyMetric2 where
-    updateMetric _ _ = do
-        _ <- State.get @DummyMetric2
-        pure $ Score.Score 1
-
-data DummyMetric3 = DummyMetric3
-    { _currentScore3 :: !Score
-    } deriving (Eq, Generic, Ord, Show)
-
-instance Default DummyMetric3 where
-    def = DummyMetric3 def
-
-instance NFData DummyMetric3
-
-instance Metric DummyMetric3 where
-    updateMetric _ _ = do
-        _ <- State.get @DummyMetric3
-        pure $ Score.Score 1
 
