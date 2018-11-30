@@ -33,17 +33,33 @@ type family Metrics ss :: Constraint where
 
 -- === API === --
 
--- TODO [Ara] run/exec/eval
+-- TODO [Ara] Brief module documentation (to help explain the arcane).
+-- TODO [Ara] eval
 -- TODO [Ara] Test suite
 
+-- `ss` is the list of state types, of which st is a member
+-- Takes a computation in soome number of metrics
+evalT :: (Metrics ss, P.Monad m) => ()
+evalT = undefined
+
+-- Needs to build the chain of State.evalT @s ...
+-- This (as one function) then gets called on the computation.
+class P.Monad m => Eval (t :: k) m where
+    evalT_ :: forall s1 s2 n a . (P.Monad n, Default s1, Default s2, n ~ State.StateT s1 m)
+        => State.StateT s2 n a -> State.StateT s1 m a
+
+instance (Monad s m, Eval ss m) => Eval ((s ': ss) :: [Type]) m where
+    evalT_ = undefined
+
+instance P.Monad m => Eval ('[] :: [Type]) m where
+    evalT_ = undefined
+
+instance Monad s m => Eval (s :: Type) m where
+    evalT_ = State.evalDefT
+
+---------------------------------------- Sep into API and instances
 class P.Monad m => Update (t :: k) m where
     updateMetrics :: Text -> Text -> m Score
-
-instance Monad s m => Update (s :: Type) m where
-    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
-
-instance P.Monad m => Update ('[] :: [Type]) m where
-    updateMetrics _ _ = pure $ def @Score
 
 instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
     updateMetrics tx1 tx2 = do
@@ -52,19 +68,29 @@ instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
 
         pure $ res1 + res2
 
+instance P.Monad m => Update ('[] :: [Type]) m where
+    updateMetrics _ _ = pure $ def @Score
+
+instance Monad s m => Update (s :: Type) m where
+    updateMetrics tx1 tx2 = updateMetric @s tx1 tx2
+
 
 
 --------------------------
 -- === Testing Code === --
 --------------------------
 
-runSomeFn :: Score
-runSomeFn = State.evalDef @DummyState
-    . State.evalDefT @DummyState3
-    . State.evalDefT @DummyState2
-    $ someFn
-
 type MetricPasses = '[DummyState, DummyState2, DummyState3]
+
+-- someFn :: State.StateT S1 (State.StateT S2 (State.StateT S3 n)) a
+--                           ^                                   ^
+--                        st |_______________ m _________________| a
+
+runSomeFn :: IO Score
+-- runSomeFn = evalT @MetricPasses someFn
+runSomeFn = (State.evalDefT @DummyState
+    . State.evalDefT @DummyState3
+    . State.evalDefT @DummyState2) someFn
 
 someFn :: forall m . MonadMetrics MetricPasses m => m Score
 someFn = do
