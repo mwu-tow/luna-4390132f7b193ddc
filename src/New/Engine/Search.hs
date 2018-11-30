@@ -1,3 +1,4 @@
+{-# LANGUAGE Strict #-}
 module New.Engine.Search where
 
 import Prologue hiding (Index)
@@ -10,6 +11,7 @@ import qualified New.Engine.Data.Score       as Score
 import qualified New.Engine.Data.Tree        as Tree
 import qualified New.Engine.Metric           as Metric
 
+<<<<<<< HEAD
 import Data.Char             ( isLetter, isUpper, toLower, toUpper )
 import Data.Map              ( Map )
 import New.Engine.Data.Index ( Index )
@@ -17,6 +19,12 @@ import New.Engine.Data.Match ( Match, MatchKind ( CaseInsensitiveEquality
                                 , CaseSensitiveEquality, AllCharsMatched
                                 , NotFullyMatched ))
 import New.Engine.Data.Score ( Score )
+=======
+import Data.Char             (isLower, isUpper, toLower, toUpper)
+import Data.Map.Strict       (Map)
+import New.Engine.Data.Index (Index)
+import New.Engine.Data.Match (Match, MatchKind (CaseInsensitiveEquality, CaseSensitiveEquality, AllCharsMatched, NotFullyMatched))
+>>>>>>> fast-searcher
 
 
 
@@ -28,14 +36,21 @@ import New.Engine.Data.Score ( Score )
 -- === Definition === --
 
 data Result = Result
+<<<<<<< HEAD
     { _kind   :: !MatchKind
     , _match  :: !Match
     , _points :: {-# UNPACK #-} !Score
+=======
+    { _kind   :: MatchKind
+    , _match  :: Match
+    , _points :: Int
+>>>>>>> fast-searcher
     } deriving (Eq, Generic, Show)
 makeLenses ''Result
 
 instance NFData Result
 instance Ord    Result where
+<<<<<<< HEAD
     -- TODO [LJK]: This should be replaced with scoring match kind as soon as
     -- old algorithm is recreated
     compare r1 r2 = compareResults where
@@ -45,6 +60,18 @@ instance Ord    Result where
             | matchTypeOrd /= EQ = matchTypeOrd
             | otherwise          = pointsOrd
 
+=======
+    -- TODO[LJK]: This should be replaced with scoring match kind as soon as old algorithm is recreated
+    compare r1 r2
+        | matchTypeOrd /= EQ = matchTypeOrd
+        | otherwise          = r1Points `compare` r2Points where
+            r1Kind   = r1 ^. kind
+            r2Kind   = r2 ^. kind
+            r2Points = r2 ^. points
+            r1Points = r1 ^. points
+            matchTypeOrd = r1Kind `compare` r2Kind
+            
+>>>>>>> fast-searcher
 
 -- === API === --
 
@@ -66,19 +93,20 @@ recursiveSearch :: Text
 recursiveSearch query node matchKind matched pos scoreMap' = do
     let resultKind = if Text.null query then matchKind else NotFullyMatched
         result     = Result resultKind matched 0
-        scoreMap   = insertResult (node ^. Tree.index) result scoreMap'
+        idx        = node ^. Tree.index
+        scoreMap   = insertResult idx result scoreMap'
         caseInsensitiveEquality = min matchKind CaseInsensitiveEquality
-        mayUnconsQuery          = Text.uncons query
+        mayUnconsQuery = Text.uncons query
         matchWithHead h t newMatchKind sMap = matchQueryHead
             h t node newMatchKind matched pos sMap
         matchHead h t
-            | not $ isLetter h = matchWithHead h t matchKind scoreMap
             | isUpper h
                 = matchWithHead (toLower h) t caseInsensitiveEquality
                 $ matchWithHead h t matchKind scoreMap
-            | otherwise
+            | isLower h
                 = matchWithHead (toUpper h) t caseInsensitiveEquality
                 $ matchWithHead h t matchKind scoreMap
+            | otherwise = matchWithHead h t matchKind scoreMap
         updatedMap = maybe scoreMap (uncurry matchHead) mayUnconsQuery
     skipDataHead query node matched pos updatedMap
 
