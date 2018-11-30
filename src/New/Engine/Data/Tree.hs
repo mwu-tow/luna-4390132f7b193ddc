@@ -13,15 +13,16 @@ import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 
-import Control.Lens          ((?~), to, _Just)
+import Control.Lens          (Getter, to, (?~), _Just)
 import Data.Map.Strict       (Map)
-import New.Engine.Data.Index (Index, IndexMap)
+import New.Engine.Data.Index (Index (Index), IndexMap)
 
 
 
 ------------------
 -- === Node === --
 ------------------
+
 
 -- === Definition === --
 
@@ -36,68 +37,82 @@ instance HasIndex Node where index = node_index
 instance NFData   Node
 
 
+
+------------------
+-- === Tree === --
+------------------
+
+
+-- === Definition === --
+
+data Tree = Tree
+    { _root     :: Node
+    , _indexMap :: IndexMap
+    } deriving (Eq, Generic, Show)
+makeLenses ''Tree
+
+instance Default Tree where def = Tree def def
+instance NFData  Tree
+
+nextIndex :: Getter Tree Index
+nextIndex = to $! \tree -> Index $! tree ^. indexMap . to Map.size
+{-# INLINE nextIndex #-}
+
+
 -- === API === --
 
-type TreeContext m =
-    ( State.Monad Index m
-    , State.Monad IndexMap m 
-    )
+mk :: [Text] -> Tree
+mk txts = insertMultiple txts def
+{-# INLINE mk #-}
 
-eval :: State.StateT Index (State.State IndexMap) a -> a
-eval = State.evalDef @IndexMap
-    . State.evalDefT @Index
-{-# INLINE eval #-}
+singleton :: Text -> Tree
+singleton txt = insert txt def
+{-# INLINE singleton #-}
 
-evalWith 
-    :: Index -> IndexMap -> State.StateT Index (State.State IndexMap) a -> a
-evalWith idx idxMap 
-    = flip (State.eval  @IndexMap) idxMap 
-    . flip (State.evalT @Index)    idx
-{-# INLINE evalWith #-}
-
-run :: State.StateT Index (State.State IndexMap) a -> (a, Index, IndexMap)
-run = flatTuple . State.runDef @IndexMap . State.runDefT @Index
-    where flatTuple ((a, b), c) = (a,b,c)
-{-# INLINE run #-}
-
-runWith :: Index -> IndexMap -> State.StateT Index (State.State IndexMap) a 
-    -> (a, Index, IndexMap)
-runWith idx idxMap = let flatTuple ((a, b), c) = (a,b,c) in flatTuple 
-    . flip (State.run  @IndexMap) idxMap
-    . flip (State.runT @Index)    idx
-{-# INLINE runWith #-}
-
-insert :: TreeContext m => Text -> Node -> m Node
-insert = \txt n -> let
-    insertKeyed :: TreeContext m => Text -> Node -> m Node
-    insertKeyed k node = case Text.uncons k of
-        Nothing          -> updateValue txt node
-        Just (!c, !txt') -> insertAtChar c txt' node
-    insertAtChar :: TreeContext m => Char -> Text -> Node -> m Node
-    insertAtChar c k node =
-        let update      = \val -> node & branches . at c ?~ val
-            prevBranchM = node ^. branches . at c
-            prevBranch  = fromJust def prevBranchM
-            newBranch   = insertKeyed k prevBranch 
-        in update <$> newBranch
-    in insertKeyed txt n
+insert :: Text -> Tree -> Tree
+insert txt tree = let
+    root'         = tree ^. root
+    idxMap        = tree ^. indexMap
+    insertToNode' = insertToNode txt txt root'
+    (updatedRoot, updatedMap) = State.run @IndexMap insertToNode' idxMap
+    in tree
+        & root     .~ updatedRoot
+        & indexMap .~ updatedMap
 {-# INLINE insert #-}
 
-updateValue :: TreeContext m => Text -> Node -> m Node
-updateValue k node = let 
+insertToNode :: State.Monad IndexMap m => Text -> Text -> Node -> m Node
+insertToNode suffix txt node = case Text.uncons suffix of
+    Nothing           -> updateValue txt node
+    Just ((!h), (!t)) -> do
+        let mayNextBranch = node ^. branches . at h
+            nextBranch    = fromJust def mayNextBranch
+        branch <- insertToNode t txt nextBranch
+        pure $! node & branches . at h ?~ branch
+
+{-# INLINE insertToNode #-}
+
+
+updateValue :: State.Monad IndexMap m => Text -> Node -> m Node
+updateValue k node = let
     idx       = node ^. index
-    updateMap = do 
+    updateMap = do
         newIndex <- Index.get
         State.modify_ @IndexMap $! Map.insert k newIndex
         pure $! node & index .~ newIndex
     in if Index.isInvalid idx then updateMap else pure node
 {-# INLINE updateValue #-}
 
-insertMultiple :: TreeContext m => [Text] -> Node -> m Node
-insertMultiple txts node = foldlM (flip insert) node txts
+insertMultiple :: [Text] -> Tree -> Tree
+insertMultiple txts tree = foldl (flip insert) tree txts where
 {-# INLINE insertMultiple #-}
 
-lookup :: Text -> Node -> Maybe Node
-lookup txt n = case Text.uncons txt of
+lookup :: Text -> Tree -> Maybe Node
+lookup txt tree = lookupNode txt root' where
+    root' = tree ^. root
+{-# INLINE lookup #-}
+
+lookupNode :: Text -> Node -> Maybe Node
+lookupNode txt n = case Text.uncons txt of
     Nothing       -> Just n
-    Just (!h, !t) -> n ^? branches . at h . _Just . to (lookup t) . _Just
+    Just (!h, !t) -> n ^? branches . at h . _Just . to (lookupNode t) . _Just
+{-# INLINE lookupNode #-}

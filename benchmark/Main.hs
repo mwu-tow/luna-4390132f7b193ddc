@@ -3,18 +3,22 @@ module Main where
 import Criterion.Main
 import Prologue       hiding (Index)
 
-import qualified Criterion.Types       as Options
-import qualified Data.Map              as Map
-import qualified New.Engine.Data.Match as Match
-import qualified New.Engine.Data.Tree  as Tree
-import qualified New.Engine.Search     as Search
+import qualified Control.Monad.State.Layered as State
+import qualified Criterion.Types             as Options
+import qualified Data.List                   as List
+import qualified New.Engine.Data.Index       as Index
+import qualified New.Engine.Data.Substring   as Substring
+import qualified New.Engine.Data.Tree        as Tree
+import qualified New.Engine.Search           as Search
 
-import Data.Map              (Map)
-import Data.Text             (Text)
-import New.Engine.Data.Index (Index (Index), IndexMap)
-import New.Engine.Data.Match (Match, MatchKind)
-import New.Engine.Search     (Result, search)
-import System.Random         (mkStdGen, randomR, randomRs)
+
+import Data.Map.Strict           (Map)
+import Data.Text                 (Text)
+import New.Engine.Data.Index     (Index (Index), IndexMap)
+import New.Engine.Data.Result    (Match)
+import New.Engine.Data.Substring (Substring)
+import New.Engine.Data.Tree      (Tree)
+import System.Random             (Random (random, randomR), mkStdGen, randomRs)
 
 
 
@@ -40,6 +44,12 @@ wordLengthRange = (minWordLength, maxWordLength)
 
 -- === Generated === --
 
+instance Random Index where
+    random g    = (Index randomInt, nextGen) where
+        (randomInt, nextGen) = random g
+    randomR (Index beg, Index end) g = (Index randomInt, nextGen) where
+        (randomInt, nextGen) = randomR (beg, end) g
+
 textInput :: [Text]
 textInput = do
     let gen              = mkStdGen 13
@@ -50,45 +60,43 @@ textInput = do
     convert . fst $ foldl addWord (mempty, infCharList) wordsLength
 {-# NOINLINE textInput #-}
 
-treeInputWithContext :: (Tree.Node, Index, IndexMap)
-treeInputWithContext = Tree.run $ Tree.insertMultiple textInput def
-{-# NOINLINE treeInputWithContext #-}
-
-treeInput :: Tree.Node
-treeInput = tree where (tree, _, _) = treeInputWithContext
+treeInput :: Tree
+treeInput = Tree.mk textInput
 {-# NOINLINE treeInput #-}
 
-inputNextIndex :: Index
-inputNextIndex = idx where (_, idx, _) = treeInputWithContext
-{-# NOINLINE inputNextIndex #-}
+indexMap :: IndexMap
+indexMap = treeInput ^. Tree.indexMap
+{-# NOINLINE indexMap #-}
 
-inputIndexMap :: IndexMap
-inputIndexMap = idxMap where (_, _, idxMap) = treeInputWithContext
-{-# NOINLINE inputIndexMap #-}
+inputRoot :: Tree.Node
+inputRoot = treeInput ^. Tree.root
+{-# NOINLINE inputRoot #-}
 
-randomHint :: (Text, Index, Tree.Node)
-randomHint = (k, idx, n) where
-    (tree, (Index maxIdx), idxMap) = treeInputWithContext
-    randomK  = fst $ randomR (0, maxIdx - 1) $ mkStdGen 23
-    (k, idx) = Map.elemAt randomK idxMap
-    (Just n) = Tree.lookup k tree
+
+nextIndex :: Index
+nextIndex = treeInput ^. Tree.nextIndex
+{-# NOINLINE nextIndex #-}
+
+randomIndex :: Index
+randomIndex = fst $ randomR (0, nextIndex - 1) $ mkStdGen 23
+{-# NOINLINE randomIndex #-}
+
+randomHint :: Text
+randomHint = fst hint where
+    (Just hint) = List.find (\(_, idx) -> idx == randomIndex) $ toList indexMap
 {-# NOINLINE randomHint #-}
 
-randomHintText :: Text
-randomHintText = txt where (txt, _, _) = randomHint
-{-# NOINLINE randomHintText #-}
-
 randomHintNode :: Tree.Node
-randomHintNode = node where (_, _, node) = randomHint
+randomHintNode = node where (Just node) = Tree.lookup randomHint treeInput
 {-# NOINLINE randomHintNode #-}
 
-mergeInput :: (Match, Match)
-mergeInput = (match1, match2) where
+mergeInput :: (Substring, Substring)
+mergeInput = (substr1, substr2) where
     (positions1, positions2) = splitAt (maxWordLength `quot` 2) $
         take maxWordLength $ randomRs (0, maxWordLength) $ mkStdGen 31
-    mkMatch = foldl (flip Match.addPosition) mempty
-    match1  = mkMatch positions1
-    match2  = mkMatch positions2
+    mkSubstr = foldl (flip Substring.addPosition) mempty
+    substr1  = mkSubstr positions1
+    substr2  = mkSubstr positions2
 {-# NOINLINE mergeInput #-}
 
 -------------------
@@ -103,54 +111,89 @@ envBench name pre fun = env pre $ \ ~input -> bench name $ nf fun input
 
 -- === Test functions === --
 
-test_insert :: [Text] -> Tree.Node
-test_insert txts = Tree.eval $ Tree.insertMultiple txts def
-{-# NOINLINE test_insert #-}
+test_mkTree :: [Text] -> Tree
+test_mkTree txts = Tree.mk txts
+{-# NOINLINE test_mkTree #-}
 
-test_lookup :: (Text, Tree.Node) -> Maybe Tree.Node
-test_lookup (k, tree) = Tree.lookup k tree
-{-# NOINLINE test_lookup #-}
+test_insertToNode :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
+test_insertToNode (txt, node, idxMap) = let
+    insertToNode = Tree.insertToNode txt txt node
+    in State.run @IndexMap insertToNode idxMap
+{-# NOINLINE test_insertToNode #-}
 
-test_insertUpdateValue :: (Text, Tree.Node, Index, IndexMap) -> Tree.Node
-test_insertUpdateValue (k, n, idx, idxMap)
-    = Tree.evalWith idx idxMap $ Tree.updateValue k n
+test_insertUpdateValue :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
+test_insertUpdateValue (k, n, idxMap) = let
+    updateVal = Tree.updateValue k n
+    in State.run @IndexMap updateVal idxMap
 {-# NOINLINE test_insertUpdateValue #-}
 
-test_search :: (Text, Tree.Node) -> Map Index Result
-test_search (query, tree) = search query tree
-{-# NOINLINE test_search #-}
 
-test_searchUpdateValue :: (Text, Tree.Node, MatchKind, Match, Map Index Result)
-    -> Map Index Result
-test_searchUpdateValue (suffix, node, matchKind, matched, resultMap)
-    = Search.updateValue suffix node matchKind matched resultMap
+test_nextIndex :: IndexMap -> Index
+test_nextIndex idxMap = State.eval @IndexMap Index.get idxMap
+{-# NOINLINE test_nextIndex #-}
+
+test_lookup :: (Text, Tree) -> Maybe Tree.Node
+test_lookup (txt, tree) = Tree.lookup txt tree
+{-# NOINLINE test_lookup #-}
+
+test_lookupNode :: (Text, Tree.Node) -> Maybe Tree.Node
+test_lookupNode (txt, node) = Tree.lookupNode txt node
+{-# NOINLINE test_lookupNode #-}
+
+
+test_substrMerge :: (Substring, Substring) -> Substring
+test_substrMerge (s1, s2) = Substring.merge s1 s2
+{-# NOINLINE test_substrMerge #-}
+
+test_searchUpdateValue
+    :: (Text, Tree.Node, Substring.Kind, Substring, Map Index Match)
+    -> Map Index Match
+test_searchUpdateValue (suffix, node, sKind, matched, resultMap)
+    = Search.updateValue suffix node sKind matched resultMap
 {-# NOINLINE test_searchUpdateValue #-}
 
-test_matchMerge :: (Match, Match) -> Match
-test_matchMerge (m1, m2) = Match.merge m1 m2
-{-# NOINLINE test_matchMerge #-}
-
+test_matchQuery :: (Text, Tree) -> Map Index Match
+test_matchQuery (query, tree) = Search.matchQuery query tree
+{-# NOINLINE test_matchQuery #-}
 
 ------------------------
 -- === Benchmarks === --
 ------------------------
 
-benchInsert :: [Benchmark]
-benchInsert =
-    [ envBench "update value"
-        ( pure ("", treeInput, inputNextIndex, inputIndexMap))
-        test_insertUpdateValue
-    , envBench "insert" (pure textInput) test_insert
-    ]
-{-# INLINE benchInsert #-}
+benchTree :: [Benchmark]
+benchTree = benchmarks where
+    benchmarks =
+        [ bgroup "insert" benchInsert
+        , bgroup "lookup" benchLookup ]
+    benchInsert =
+        [ envBench "mk" (pure textInput) test_mkTree
+        , envBench "insertToNode"
+            (pure (randomHint, inputRoot, def))
+            test_insertToNode
+        , envBench "update value"
+            ( pure ("", inputRoot, indexMap))
+            test_insertUpdateValue
+        , envBench "nextIndex"
+            (pure indexMap)
+            test_nextIndex
+        ]
+    benchLookup =
+        [ envBench "lookup"
+            (pure (randomHint, treeInput))
+            test_lookup
+        , envBench "lookupNode"
+            (pure (randomHint, inputRoot))
+            test_lookupNode
+        ]
+{-# INLINE benchTree #-}
 
 benchSearch :: [Benchmark]
 benchSearch =
-    [ envBench "update value"
-        ( pure ("", randomHintNode, Match.AllCharsMatched, mempty, mempty))
+    [ envBench "updateValue"
+        ( pure ("", randomHintNode, Substring.FullMatch, mempty, mempty))
         test_searchUpdateValue
-    , envBench "merge"  (pure mergeInput)                  test_matchMerge
-    , envBench "search" (pure (randomHintText, treeInput)) test_search
+    , envBench "substrMerge" (pure mergeInput)              test_substrMerge
+    , envBench "matchQuery"   (pure (randomHint, treeInput)) test_matchQuery
     ]
 {-# INLINE benchSearch #-}
 
@@ -158,7 +201,6 @@ main :: IO ()
 main = let
     cfg = defaultConfig { Options.resamples = 10000 }
     in defaultMainWith cfg
-        [ bgroup   "insert" benchInsert
+        [ bgroup   "tree"   benchTree
         , bgroup   "search" benchSearch
-        , envBench "lookup" (pure (randomHintText, treeInput)) test_lookup
         ]

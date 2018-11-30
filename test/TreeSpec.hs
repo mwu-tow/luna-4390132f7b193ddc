@@ -3,7 +3,6 @@ module TreeSpec (spec) where
 import Prologue   hiding (Index)
 import Test.Hspec
 
-import qualified Control.Monad.State.Layered as State
 import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Tree        as Tree
@@ -11,8 +10,8 @@ import qualified New.Engine.Data.Tree        as Tree
 import Control.Exception     (throw)
 import Control.Lens          (makePrisms)
 import Data.Set              (Set)
-import New.Engine.Data.Index (Index (Index), IndexMap)
-import New.Engine.Data.Tree  (Node (Node), branches, index)
+import New.Engine.Data.Index (Index, IndexMap)
+import New.Engine.Data.Tree  (Tree (Tree), Node (Node), branches, index)
 
 
 data TreeStructureExceptionType
@@ -57,9 +56,11 @@ recursiveCheckTreeStructure matchedPrefix indexMap dict = check where
                 (Text.snoc matchedPrefix c)
                 newIndexMap
 
-checkTreeStructure :: IndexMap -> Node -> IO ()
-checkTreeStructure indexMap dict = catch check handleException where
-    check = recursiveCheckTreeStructure mempty indexMap dict
+checkTreeStructure :: Tree -> IO ()
+checkTreeStructure tree = catch check handleException where
+    indexMap = tree ^. Tree.indexMap
+    root     = tree ^. Tree.root
+    check    = recursiveCheckTreeStructure mempty indexMap root
     handleException :: TreeStructureException -> IO ()
     handleException e =
         let k = e ^. dictionaryKey
@@ -76,14 +77,14 @@ dictionaryStructureExceptionSelector = const True
 spec :: Spec
 spec = do
     describe "tree structure check tests" $ do
-        it "works on empty tree" $ checkTreeStructure mempty def
-        it "works with single letter" $ checkTreeStructure
+        it "works on empty tree" $ checkTreeStructure def
+        it "works with single letter" $ checkTreeStructure $ Tree
+            (Node def $ Map.singleton 'a' $ Node 0 mempty)
             (Map.singleton "a" 0)
-            $ Node def $ Map.singleton 'a' $ Node 0 mempty
-        it "works with branched data" $ checkTreeStructure
-            (Map.fromList [("aa", 0), ("ab", 1)])
+        it "works with branched data" $ checkTreeStructure $ flip Tree
+            (fromList [("aa", 0), ("ab", 1)])
             $ Node def $ Map.singleton
-                'a' $ Node def $ Map.fromList
+                'a' $ Node def $ fromList
                     [ ('a', Node 0 mempty)
                     , ('b', Node 1 mempty) ]
         it "throws exception when map empty and dict not empty" $ shouldThrow
@@ -100,53 +101,32 @@ spec = do
                 mempty
                 (Map.singleton "ab" 0)
                 $ Node def $ Map.singleton
-                'a' $ Node def $ Map.fromList
+                'a' $ Node def $ fromList
                     [ ('a', Node 0 mempty)
                     , ('b', Node 1 mempty) ])
             dictionaryStructureExceptionSelector
     describe "test insert function" $ do
-        it "value is in map" $
-            let perform = State.execDefT @IndexMap . State.evalDefT @Index
-            in perform (Tree.insert (Text.pack "a") def) >>=
-                shouldBe (Map.singleton (Text.pack "a") 0)
-        it "value is in dictionary" $
-            let perform = State.evalDefT @IndexMap . State.evalDefT @Index
-            in perform (Tree.insert (Text.pack "a") def) >>=
-                checkTreeStructure (Map.singleton (Text.pack "a") $ Index 0)
-        it "values are in map" $
-            let perform = State.execDefT @IndexMap . State.evalDefT @Index
-                action  = Tree.insert (Text.pack "aa") def
-                    >>= Tree.insert (Text.pack "ab")
-            in perform action >>= shouldBe
-                (Map.fromList [(Text.pack "aa", 0), (Text.pack "ab", 1)])
-        it "values are in dictionary" $
-            let perform = State.evalDefT @IndexMap . State.evalDefT @Index
-                action  = Tree.insert (Text.pack "aa") def
-                    >>= Tree.insert (Text.pack "ab")
-            in perform action >>= checkTreeStructure (Map.fromList
-                [ (Text.pack "aa", 0)
-                , (Text.pack "ab", 1) ])
+        it "value is in map" $ let
+            tree   = Tree.singleton "a"
+            idxMap = tree ^. Tree.indexMap
+            in idxMap `shouldBe` Map.singleton "a" 0
+        it "value is in dictionary" $ let
+            tree   = Tree.singleton "a"
+            in checkTreeStructure tree
+        it "values are in map" $ let
+            tree = Tree.mk ["aa", "ab"]
+            idxMap = tree ^. Tree.indexMap
+            in idxMap `shouldBe` fromList [("aa", 0), ("ab", 1)]
+        it "values are in dictionary" $ checkTreeStructure $ Tree.mk ["aa", "ab"]
     describe "test insertMultiple function" $ do
-        it "value is in map" $
-            let perform = State.execDefT @IndexMap . State.evalDefT @Index
-            in perform (Tree.insertMultiple [Text.pack "a"] def) >>=
-                shouldBe (Map.singleton (Text.pack "a") 0)
-        it "value is in dictionary" $
-            let perform = State.evalDefT @IndexMap . State.evalDefT @Index
-            in perform (Tree.insertMultiple [Text.pack "a"] def) >>=
-                checkTreeStructure (Map.singleton (Text.pack "a") 0)
-        it "values are in map" $
-            let perform = State.execDefT @IndexMap . State.evalDefT @Index
-                action  = Tree.insertMultiple
-                    [Text.pack "aa", Text.pack "ab"]
-                    def
-            in perform action >>= shouldBe
-                (Map.fromList [(Text.pack "aa", 0), (Text.pack "ab", 1)])
-        it "values are in dictionary" $
-            let perform = State.evalDefT @IndexMap . State.evalDefT @Index
-                action  = Tree.insertMultiple
-                    [Text.pack "aa", Text.pack "ab"]
-                    def
-            in perform action >>= checkTreeStructure (Map.fromList
-                [ (Text.pack "aa", 0)
-                , (Text.pack "ab", 1) ])
+        it "value is in map" $ let 
+            tree   = Tree.singleton "a"
+            idxMap = tree ^. Tree.indexMap
+            in idxMap `shouldBe` (Map.singleton "a" 0)
+        it "value is in dictionary" $ checkTreeStructure $ Tree.singleton "a"
+        it "values are in map" $ let
+            tree   = Tree.mk ["aa", "ab"]
+            idxMap = tree ^. Tree.indexMap 
+            in idxMap `shouldBe` fromList [("aa", 0), ("ab", 1)]
+        it "values are in dictionary" 
+            $ checkTreeStructure $ Tree.mk ["aa", "ab"]

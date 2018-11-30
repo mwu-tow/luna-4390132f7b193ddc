@@ -4,8 +4,9 @@ module New.Engine.Data.Index where
 import Prologue hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
+import qualified Data.Map.Strict             as Map
 
-import Data.Map (Map)
+import Data.Map.Strict (Map)
 
 
 -------------------
@@ -28,8 +29,11 @@ instance NFData  Index
 isInvalid :: Index -> Bool
 isInvalid = (< 0)
 
-get :: State.Monad Index m => m Index
-get = State.modify @Index (\prev -> let curr = prev + 1 in (curr,curr))
+get :: State.Monad IndexMap m => m Index
+get = do
+    idxMap <- State.get @IndexMap
+    let nextIndex = Index $! Map.size idxMap
+    pure nextIndex
 {-# INLINE get #-}
 
 ----------------------
