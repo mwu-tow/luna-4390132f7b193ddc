@@ -15,7 +15,7 @@ import qualified New.Engine.Data.Index       as Index
 
 import Control.Lens          (Getter, to, (?~), _Just)
 import Data.Map.Strict       (Map)
-import New.Engine.Data.Index (Index (Index), IndexMap)
+import New.Engine.Data.Index (Index (Index), TextMap)
 
 
 
@@ -36,6 +36,8 @@ instance Default  Node where def   = Node def def
 instance HasIndex Node where index = node_index
 instance NFData   Node
 
+type Root = Node
+
 
 
 ------------------
@@ -46,8 +48,8 @@ instance NFData   Node
 -- === Definition === --
 
 data Tree = Tree
-    { _root     :: Node
-    , _indexMap :: IndexMap
+    { _root    :: Root
+    , _textMap :: TextMap
     } deriving (Eq, Generic, Show)
 makeLenses ''Tree
 
@@ -55,7 +57,7 @@ instance Default Tree where def = Tree def def
 instance NFData  Tree
 
 nextIndex :: Getter Tree Index
-nextIndex = to $! \tree -> Index $! tree ^. indexMap . to Map.size
+nextIndex = to $! \tree -> Index $! tree ^. textMap . to Map.size
 {-# INLINE nextIndex #-}
 
 
@@ -72,15 +74,15 @@ singleton txt = insert txt def
 insert :: Text -> Tree -> Tree
 insert txt tree = let
     root'         = tree ^. root
-    idxMap        = tree ^. indexMap
+    txtMap        = tree ^. textMap
     insertToNode' = insertToNode txt txt root'
-    (updatedRoot, updatedMap) = State.run @IndexMap insertToNode' idxMap
+    (updatedRoot, updatedMap) = State.run @TextMap insertToNode' txtMap
     in tree
-        & root     .~ updatedRoot
-        & indexMap .~ updatedMap
+        & root    .~ updatedRoot
+        & textMap .~ updatedMap
 {-# INLINE insert #-}
 
-insertToNode :: State.Monad IndexMap m => Text -> Text -> Node -> m Node
+insertToNode :: State.Monad TextMap m => Text -> Text -> Node -> m Node
 insertToNode suffix txt node = case Text.uncons suffix of
     Nothing           -> updateValue txt node
     Just ((!h), (!t)) -> do
@@ -92,12 +94,12 @@ insertToNode suffix txt node = case Text.uncons suffix of
 {-# INLINE insertToNode #-}
 
 
-updateValue :: State.Monad IndexMap m => Text -> Node -> m Node
-updateValue k node = let
+updateValue :: State.Monad TextMap m => Text -> Node -> m Node
+updateValue txt node = let
     idx       = node ^. index
     updateMap = do
         newIndex <- Index.get
-        State.modify_ @IndexMap $! Map.insert k newIndex
+        State.modify_ @TextMap $! Map.insert newIndex txt
         pure $! node & index .~ newIndex
     in if Index.isInvalid idx then updateMap else pure node
 {-# INLINE updateValue #-}

@@ -4,10 +4,13 @@ module New.Engine.Data.Result where
 import Prologue hiding (Index)
 
 import qualified New.Engine.Data.Substring as Substring
-import qualified New.Engine.Data as Data
+import qualified New.Engine.Data.Database  as Database
+import qualified New.Engine.Data.Index as Index
 
+import Data.Map.Strict (Map)
 import New.Engine.Data.Substring (Substring)
-import New.Engine.Data (SearcherData)
+import New.Engine.Data.Index (Index)
+import New.Engine.Data.Database (SearcherData)
 import Control.Lens (Getter, to)
 
 
@@ -56,4 +59,8 @@ score :: SearcherData a => Getter (Result a) Int
 score = to $! \r -> let
     matchPoints' = r ^. match . matchPoints
     hint'        = r ^. hint
-    in Data.calculateScore matchPoints' hint'
+    in Database.calculateScore matchPoints' hint'
+
+mkMap :: SearcherData a 
+    => Map Index a -> Index.TextMap -> Map Index Match -> [Result a]
+mkMap dataMap txtMap matchMap = mempty

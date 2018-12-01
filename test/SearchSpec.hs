@@ -15,31 +15,31 @@ spec = do
     describe "matchQuery function" $ do
         it "all values from tree are in map" $ let
             tree = Tree.mk ["aa", "ab"]
-            idxMap  = tree ^. Tree.indexMap
+            txtMap  = tree ^. Tree.textMap
             in shouldMatchList
-                (Map.elems idxMap)
+                (Map.keys txtMap)
                 (Map.keys $ Search.matchQuery mempty tree)
         it "case sensitive is better than insensitive" $ let
             tree    = Tree.mk ["bar", "Bar"]
-            idxMap  = tree ^. Tree.indexMap
+            txtMap  = tree ^. Tree.textMap
             results = Search.matchQuery "bar" tree
             maxIdx  = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
-            in Just maxIdx `shouldBe` Map.lookup "bar" idxMap
+            in maxIdx `shouldBe` 0
         it "equality is better then matching" $ let
             tree    = Tree.mk ["baru", "Bar"]
-            idxMap  = tree ^. Tree.indexMap
+            txtMap  = tree ^. Tree.textMap
             results = Search.matchQuery "bar" tree
             maxIdx  = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
-            in Just maxIdx `shouldBe` Map.lookup "Bar" idxMap
+            in maxIdx `shouldBe` 1
         it "matching all is better than not" $ let
             tree    = Tree.mk ["abc", "adc"]
-            idxMap  = tree ^. Tree.indexMap
+            txtMap  = tree ^. Tree.textMap
             results = Search.matchQuery "ab" tree
             maxIdx  = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
-            in Just maxIdx `shouldBe` Map.lookup "abc" idxMap
+            in maxIdx `shouldBe` 0

@@ -6,6 +6,7 @@ import Prologue       hiding (Index)
 import qualified Control.Monad.State.Layered as State
 import qualified Criterion.Types             as Options
 import qualified Data.List                   as List
+import qualified Data.Map.Strict             as Map
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Substring   as Substring
 import qualified New.Engine.Data.Tree        as Tree
@@ -14,7 +15,7 @@ import qualified New.Engine.Search           as Search
 
 import Data.Map.Strict           (Map)
 import Data.Text                 (Text)
-import New.Engine.Data.Index     (Index (Index), IndexMap)
+import New.Engine.Data.Index     (Index (Index), TextMap)
 import New.Engine.Data.Result    (Match)
 import New.Engine.Data.Substring (Substring)
 import New.Engine.Data.Tree      (Tree)
@@ -64,9 +65,9 @@ treeInput :: Tree
 treeInput = Tree.mk textInput
 {-# NOINLINE treeInput #-}
 
-indexMap :: IndexMap
-indexMap = treeInput ^. Tree.indexMap
-{-# NOINLINE indexMap #-}
+textMap :: TextMap
+textMap = treeInput ^. Tree.textMap
+{-# NOINLINE textMap #-}
 
 inputRoot :: Tree.Node
 inputRoot = treeInput ^. Tree.root
@@ -82,8 +83,7 @@ randomIndex = fst $ randomR (0, nextIndex - 1) $ mkStdGen 23
 {-# NOINLINE randomIndex #-}
 
 randomHint :: Text
-randomHint = fst hint where
-    (Just hint) = List.find (\(_, idx) -> idx == randomIndex) $ toList indexMap
+randomHint = txt where (Just txt) = Map.lookup randomIndex textMap
 {-# NOINLINE randomHint #-}
 
 randomHintNode :: Tree.Node
@@ -115,21 +115,21 @@ test_mkTree :: [Text] -> Tree
 test_mkTree txts = Tree.mk txts
 {-# NOINLINE test_mkTree #-}
 
-test_insertToNode :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
-test_insertToNode (txt, node, idxMap) = let
+test_insertToNode :: (Text, Tree.Node, TextMap) -> (Tree.Node, TextMap)
+test_insertToNode (txt, node, txtMap) = let
     insertToNode = Tree.insertToNode txt txt node
-    in State.run @IndexMap insertToNode idxMap
+    in State.run @TextMap insertToNode txtMap
 {-# NOINLINE test_insertToNode #-}
 
-test_insertUpdateValue :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
-test_insertUpdateValue (k, n, idxMap) = let
-    updateVal = Tree.updateValue k n
-    in State.run @IndexMap updateVal idxMap
+test_insertUpdateValue :: (Text, Tree.Node, TextMap) -> (Tree.Node, TextMap)
+test_insertUpdateValue (txt, n, txtMap) = let
+    updateVal = Tree.updateValue txt n
+    in State.run @TextMap updateVal txtMap
 {-# NOINLINE test_insertUpdateValue #-}
 
 
-test_nextIndex :: IndexMap -> Index
-test_nextIndex idxMap = State.eval @IndexMap Index.get idxMap
+test_nextIndex :: TextMap -> Index
+test_nextIndex txtMap = State.eval @TextMap Index.get txtMap
 {-# NOINLINE test_nextIndex #-}
 
 test_lookup :: (Text, Tree) -> Maybe Tree.Node
@@ -171,10 +171,10 @@ benchTree = benchmarks where
             (pure (randomHint, inputRoot, def))
             test_insertToNode
         , envBench "update value"
-            ( pure ("", inputRoot, indexMap))
+            ( pure ("", inputRoot, textMap))
             test_insertUpdateValue
         , envBench "nextIndex"
-            (pure indexMap)
+            (pure textMap)
             test_nextIndex
         ]
     benchLookup =
