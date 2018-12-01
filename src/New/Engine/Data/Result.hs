@@ -60,7 +60,3 @@ score = to $! \r -> let
     matchPoints' = r ^. match . matchPoints
     hint'        = r ^. hint
     in Database.calculateScore matchPoints' hint'
-
-mkMap :: SearcherData a 
-    => Map Index a -> Index.TextMap -> Map Index Match -> [Result a]
-mkMap dataMap txtMap matchMap = mempty

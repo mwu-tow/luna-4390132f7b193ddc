@@ -7,6 +7,7 @@ import qualified Control.Monad.State.Layered as State
 import qualified Criterion.Types             as Options
 import qualified Data.List                   as List
 import qualified Data.Map.Strict             as Map
+import qualified New.Engine.Data.Database    as Database
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Substring   as Substring
 import qualified New.Engine.Data.Tree        as Tree
@@ -15,10 +16,10 @@ import qualified New.Engine.Search           as Search
 
 import Data.Map.Strict           (Map)
 import Data.Text                 (Text)
-import New.Engine.Data.Index     (Index (Index), TextMap)
+import New.Engine.Data.Database  (Database)
+import New.Engine.Data.Index     (Index (Index), IndexMap)
 import New.Engine.Data.Result    (Match)
 import New.Engine.Data.Substring (Substring)
-import New.Engine.Data.Tree      (Tree)
 import System.Random             (Random (random, randomR), mkStdGen, randomRs)
 
 
@@ -61,21 +62,24 @@ textInput = do
     convert . fst $ foldl addWord (mempty, infCharList) wordsLength
 {-# NOINLINE textInput #-}
 
-treeInput :: Tree
-treeInput = Tree.mk textInput
-{-# NOINLINE treeInput #-}
+databaseInput :: Database Text
+databaseInput = Database.mk textInput
+{-# NOINLINE databaseInput #-}
 
-textMap :: TextMap
-textMap = treeInput ^. Tree.textMap
+hintsMap :: Map Index [Text]
+hintsMap = databaseInput ^. Database.hints
+
+textMap :: IndexMap
+textMap = databaseInput ^. Database.textMap
 {-# NOINLINE textMap #-}
 
 inputRoot :: Tree.Node
-inputRoot = treeInput ^. Tree.root
+inputRoot = databaseInput ^. Database.tree
 {-# NOINLINE inputRoot #-}
 
 
 nextIndex :: Index
-nextIndex = treeInput ^. Tree.nextIndex
+nextIndex = Database.nextIndex databaseInput 
 {-# NOINLINE nextIndex #-}
 
 randomIndex :: Index
@@ -83,11 +87,13 @@ randomIndex = fst $ randomR (0, nextIndex - 1) $ mkStdGen 23
 {-# NOINLINE randomIndex #-}
 
 randomHint :: Text
-randomHint = txt where (Just txt) = Map.lookup randomIndex textMap
+randomHint = txt ^. Database.text where 
+    (Just txts) = Map.lookup randomIndex hintsMap
+    (Just txt)  = head txts
 {-# NOINLINE randomHint #-}
 
 randomHintNode :: Tree.Node
-randomHintNode = node where (Just node) = Tree.lookup randomHint treeInput
+randomHintNode = node where (Just node) = Tree.lookup randomHint inputRoot
 {-# NOINLINE randomHintNode #-}
 
 mergeInput :: (Substring, Substring)
@@ -111,29 +117,30 @@ envBench name pre fun = env pre $ \ ~input -> bench name $ nf fun input
 
 -- === Test functions === --
 
-test_mkTree :: [Text] -> Tree
-test_mkTree txts = Tree.mk txts
+test_mkTree :: [Text] -> (Tree.Root, IndexMap)
+test_mkTree txts = State.run @IndexMap mkTree mempty where
+    mkTree = Tree.mk txts
 {-# NOINLINE test_mkTree #-}
 
-test_insertToNode :: (Text, Tree.Node, TextMap) -> (Tree.Node, TextMap)
-test_insertToNode (txt, node, txtMap) = let
+test_insertToNode :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
+test_insertToNode (txt, node, idxMap) = let
     insertToNode = Tree.insertToNode txt txt node
-    in State.run @TextMap insertToNode txtMap
+    in State.run @IndexMap insertToNode idxMap
 {-# NOINLINE test_insertToNode #-}
 
-test_insertUpdateValue :: (Text, Tree.Node, TextMap) -> (Tree.Node, TextMap)
+test_insertUpdateValue :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
 test_insertUpdateValue (txt, n, txtMap) = let
     updateVal = Tree.updateValue txt n
-    in State.run @TextMap updateVal txtMap
+    in State.run @IndexMap updateVal txtMap
 {-# NOINLINE test_insertUpdateValue #-}
 
 
-test_nextIndex :: TextMap -> Index
-test_nextIndex txtMap = State.eval @TextMap Index.get txtMap
+test_nextIndex :: IndexMap -> Index
+test_nextIndex txtMap = State.eval @IndexMap Index.get txtMap
 {-# NOINLINE test_nextIndex #-}
 
-test_lookup :: (Text, Tree) -> Maybe Tree.Node
-test_lookup (txt, tree) = Tree.lookup txt tree
+test_lookup :: (Text, Tree.Root) -> Maybe Tree.Node
+test_lookup (txt, root) = Tree.lookup txt root
 {-# NOINLINE test_lookup #-}
 
 test_lookupNode :: (Text, Tree.Node) -> Maybe Tree.Node
@@ -152,8 +159,8 @@ test_searchUpdateValue (suffix, node, sKind, matched, resultMap)
     = Search.updateValue suffix node sKind matched resultMap
 {-# NOINLINE test_searchUpdateValue #-}
 
-test_matchQuery :: (Text, Tree) -> Map Index Match
-test_matchQuery (query, tree) = Search.matchQuery query tree
+test_matchQuery :: (Text, Tree.Root) -> Map Index Match
+test_matchQuery (query, root) = Search.matchQuery query root
 {-# NOINLINE test_matchQuery #-}
 
 ------------------------
@@ -179,7 +186,7 @@ benchTree = benchmarks where
         ]
     benchLookup =
         [ envBench "lookup"
-            (pure (randomHint, treeInput))
+            (pure (randomHint, inputRoot))
             test_lookup
         , envBench "lookupNode"
             (pure (randomHint, inputRoot))
@@ -193,7 +200,7 @@ benchSearch =
         ( pure ("", randomHintNode, Substring.FullMatch, mempty, mempty))
         test_searchUpdateValue
     , envBench "substrMerge" (pure mergeInput)              test_substrMerge
-    , envBench "matchQuery"   (pure (randomHint, treeInput)) test_matchQuery
+    , envBench "matchQuery"  (pure (randomHint, inputRoot)) test_matchQuery
     ]
 {-# INLINE benchSearch #-}
 

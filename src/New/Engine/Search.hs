@@ -14,15 +14,13 @@ import Data.Map.Strict           (Map)
 import New.Engine.Data.Index     (Index)
 import New.Engine.Data.Result    (Match (Match))
 import New.Engine.Data.Substring (Substring)
-import New.Engine.Data.Tree      (Tree)
 
 -- === API === --
 
 -- === Utils === --
 
-matchQuery :: Text -> Tree -> Map Index Match
-matchQuery query tree = let
-    root         = tree ^. Tree.root
+matchQuery :: Text -> Tree.Root -> Map Index Match
+matchQuery query root = let
     initPosition = 0
     equality     = Substring.Equal
     in recursiveMatchQuery query root equality mempty initPosition mempty

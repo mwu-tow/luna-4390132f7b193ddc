@@ -32,9 +32,9 @@ instance NFData  Index
 isInvalid :: Index -> Bool
 isInvalid = (< 0)
 
-get :: State.Monad TextMap m => m Index
+get :: State.Monad IndexMap m => m Index
 get = do
-    txtMap <- State.get @TextMap
+    txtMap <- State.get @IndexMap
     let nextIndex = Index $! Map.size txtMap
     pure nextIndex
 {-# INLINE get #-}
@@ -42,10 +42,10 @@ get = do
 
 
 ---------------------
--- === TextMap === --
+-- === IndexMap === --
 ---------------------
 
 
 -- === Definition === --
 
-type TextMap = Map Index Text
+type IndexMap = Map Text Index
