@@ -4,7 +4,9 @@ import Prologue
 import Test.Hspec
 
 import qualified Control.Monad.State.Layered as State
+import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Score       as Score
+import qualified New.Engine.Data.Substring   as Substring
 import qualified New.Engine.Metric           as Metric
 
 import New.Engine.Data.Score (Score)
@@ -26,7 +28,7 @@ instance Default DummyMetric where
 instance NFData DummyMetric
 
 instance Metric DummyMetric where
-    updateMetric _ _ = State.get @DummyMetric >>= \st -> pure $ currentScore st
+    updateMetric _ _ _ = State.get @DummyMetric >>= \st -> pure $ currentScore st
 
 data DummyMetric2 = DummyMetric2
     { currentScore2 :: !Score
@@ -38,7 +40,7 @@ instance Default DummyMetric2 where
 instance NFData DummyMetric2
 
 instance Metric DummyMetric2 where
-    updateMetric _ _ = State.get @DummyMetric2 >>= \st ->
+    updateMetric _ _ _ = State.get @DummyMetric2 >>= \st ->
         pure $ currentScore2 st
 
 data DummyMetric3 = DummyMetric3
@@ -51,7 +53,7 @@ instance Default DummyMetric3 where
 instance NFData DummyMetric3
 
 instance Metric DummyMetric3 where
-    updateMetric _ _ = State.get @DummyMetric3 >>= \st ->
+    updateMetric _ _ _ = State.get @DummyMetric3 >>= \st ->
         pure $ currentScore3 st
 
 type MetricPasses = '[DummyMetric, DummyMetric2, DummyMetric3]
@@ -62,14 +64,19 @@ evalMetrics metricFn = State.evalDefT @DummyMetric3
     . State.evalDefT @DummyMetric
     $ metricFn
 
+mockedState :: Match.State
+mockedState = Match.State mempty substring Substring.Equal 1 1 where
+    substring = Substring.singleton $! Substring.fromPosition 0
+
 combinedMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
-combinedMetricUpdate = Metric.updateMetrics @MetricPasses "a" "a" >>= pure
+combinedMetricUpdate
+    = Metric.updateMetrics @MetricPasses 'a' 'a' mockedState >>= pure
 
 splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
 splitMetricUpdate = do
-    res1 <- Metric.updateMetric @DummyMetric  "a" "a"
-    res2 <- Metric.updateMetric @DummyMetric2 "a" "a"
-    res3 <- Metric.updateMetric @DummyMetric3 "a" "a"
+    res1 <- Metric.updateMetric @DummyMetric  'a' 'a' mockedState
+    res2 <- Metric.updateMetric @DummyMetric2 'a' 'a' mockedState
+    res3 <- Metric.updateMetric @DummyMetric3 'a' 'a' mockedState
 
     pure $ res1 + res2 + res3
 

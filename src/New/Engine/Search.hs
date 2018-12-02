@@ -3,20 +3,27 @@ module New.Engine.Search where
 
 import Prologue hiding (Index)
 
-import qualified Data.List           as List
+import qualified Data.List                 as List
 import qualified Data.Map.Strict           as Map
 import qualified Data.Text                 as Text
 import qualified New.Engine.Data.Database  as Database
 import qualified New.Engine.Data.Index     as Index
+import qualified New.Engine.Data.Match     as Match
 import qualified New.Engine.Data.Substring as Substring
 import qualified New.Engine.Data.Tree      as Tree
 
-import Data.Char                 (isLetter, isUpper, toLower, toUpper)
-import Data.Map.Strict           (Map)
-import New.Engine.Data.Database  (SearcherData, Database)
-import New.Engine.Data.Index     (Index)
-import New.Engine.Data.Result    (Match (Match), Result (Result))
-import New.Engine.Data.Substring (Substring)
+import Data.Char                (isLetter, isUpper, toLower, toUpper)
+import Data.Map.Strict          (Map)
+import New.Engine.Data.Database (Database, SearcherData)
+import New.Engine.Data.Index    (Index)
+import New.Engine.Data.Match    (Match (Match))
+import New.Engine.Data.Result   (Result (Result))
+
+
+
+--------------------
+-- === Search === --
+--------------------
 
 
 -- === API === --
@@ -40,49 +47,35 @@ toResultMap hintsMap matchesMap = let
 
 
 matchQuery :: Text -> Tree.Root -> Map Index Match
-matchQuery query root = let
-    initPosition = 0
-    equality     = Substring.Equal
-    in recursiveMatchQuery query root equality mempty initPosition mempty
+matchQuery query root = recursiveMatchQuery root state mempty where
+    state = Match.mkState query
 {-# INLINE matchQuery #-}
 
 -- TODO [LJK]: If performance is good enough we could also try to skip chars in
 -- query so `hread` could be matched with `head`
 -- [Ara] This should only come into play if there are no matches for a given
 -- query.
-recursiveMatchQuery :: Text
-    -> Tree.Node
-    -> Substring.Kind
-    -> Substring
-    -> Int
+recursiveMatchQuery :: Tree.Node
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
-recursiveMatchQuery query node sKind matched pos scoreMap = do
-    let mayUnconsQuery    = Text.uncons query
-        caseInsensitiveEq = min sKind Substring.CaseInsensitiveEqual
-        matchWithHead h t newMatchKind sMap = matchQueryHead
-            h t node newMatchKind matched pos sMap
-        matchWithLetter h t = let
-            counterCase = if isUpper h then toLower h else toUpper h
-            in matchWithHead counterCase t caseInsensitiveEq
-                $ matchWithHead h t sKind scoreMap'
-        matchHead h t
-            | isLetter h = matchWithLetter h t
-            | otherwise  = matchWithHead   h t sKind scoreMap'
-        scoreMap'  = updateValue query node sKind matched scoreMap
-        updatedMap = maybe scoreMap' (uncurry matchHead) mayUnconsQuery
-    skipDataHead query node matched pos updatedMap
+recursiveMatchQuery node state scoreMap
+    =  skipDataHead   node state
+    $! matchQueryHead node state
+    $! updateValue    node state scoreMap
 
-updateValue :: Text
-    -> Tree.Node
-    -> Substring.Kind
-    -> Substring
+
+updateValue :: Tree.Node
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
-updateValue suffix node sKind matched scoreMap = let
-    idx    = node ^. Tree.index
-    sKind' = if Text.null suffix then sKind else Substring.Other
-    match  = Match matched sKind' 0
+updateValue node state scoreMap = let
+    idx       = node  ^. Tree.index
+    suffix    = state ^. Match.remainingSuffix
+    substring = state ^. Match.currentSubstring
+    kind      = state ^. Match.currentKind
+    kind'     = if Text.null suffix then kind else Substring.Other
+    match     = Match substring kind' def
     in insertMatch idx match scoreMap
 {-# INLINE updateValue #-}
 
@@ -90,32 +83,63 @@ insertMatch :: Index -> Match -> Map Index Match -> Map Index Match
 insertMatch i r m = if Index.isInvalid i then m else Map.insertWith max i r m
 {-# INLINE insertMatch #-}
 
-skipDataHead :: Text
-    -> Tree.Node
-    -> Substring
-    -> Int
+skipDataHead :: Tree.Node
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
-skipDataHead query node matched pos scoreMap = Map.foldl
-    (\acc n -> recursiveMatchQuery query n Substring.FullMatch matched pos acc)
-    scoreMap
-    $! node ^. Tree.branches
+skipDataHead node state scoreMap = let
+    updatedState = state
+        & Match.currentKind .~ Substring.FullMatch
+        & Match.positionInData %~ (+1)
+    in Map.foldl
+        (\acc n -> recursiveMatchQuery n updatedState acc)
+        scoreMap
+        $! node ^. Tree.branches
 
-matchQueryHead :: Char
-    -> Text
-    -> Tree.Node
-    -> Substring.Kind
-    -> Substring
-    -> Int
+matchQueryHead :: Tree.Node
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
-matchQueryHead qHead qSuffix node sKind matched pos scoreMap =
-    let mayMatchedNode = node ^. Tree.branches . at qHead
-        newPos         = pos + 1
-        newRange       = Substring.addPosition pos matched
-        processSuffix n
-            = recursiveMatchQuery qSuffix n sKind newRange newPos scoreMap
-    in maybe scoreMap processSuffix mayMatchedNode
+matchQueryHead node state scoreMap = let
+    suffix = state ^. Match.remainingSuffix
+    in case Text.uncons suffix of
+        Nothing            -> scoreMap
+        Just ((!h), (!t)) -> let
+            branches     = node ^. Tree.branches
+            -- This part should be lazy
+            -- START --
+            counterCaseH = if isUpper h then toLower h else toUpper h
+            mayCaseSensitiveNextNode   = Map.lookup h branches
+            mayCaseInsensitiveNextNode = Map.lookup counterCaseH branches
+            updateKind = \prev -> min prev Substring.CaseInsensitiveEqual
+            posInData  = state ^. Match.positionInData
+            substring  = state ^. Match.currentSubstring
+            updatedSubstring = Substring.addPosition posInData substring
+            caseSensitiveState = state
+                & Match.remainingSuffix .~ t
+                & Match.positionInData  %~ (+1)
+                & Match.positionInQuery %~ (+1)
+                & Match.currentSubstring .~ updatedSubstring
+            caseInsensitiveState = caseSensitiveState
+                & Match.currentKind %~ updateKind
+            matchCaseSensitive :: Map Index Match -> Map Index Match
+            matchCaseSensitive = \scoreMap' -> maybe
+                scoreMap'
+                (\n -> recursiveMatchQuery n caseSensitiveState scoreMap')
+                mayCaseSensitiveNextNode
+            matchCaseInsensitive :: Map Index Match -> Map Index Match
+            matchCaseInsensitive = \scoreMap' -> maybe
+                scoreMap'
+                (\n -> recursiveMatchQuery n caseInsensitiveState scoreMap')
+                mayCaseInsensitiveNextNode
+            defMatchers :: [Map Index Match -> Map Index Match]
+            defMatchers   = [matchCaseSensitive]
+            extraMatchers :: [Map Index Match -> Map Index Match]
+            extraMatchers = [matchCaseInsensitive]
+            matchers :: [Map Index Match -> Map Index Match]
+            matchers = defMatchers <> if isLetter h then extraMatchers else []
+            -- END --
+            in foldl (\acc matcher -> matcher acc) scoreMap matchers
 
 test :: [Result Text]
 test = search "Tst" $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]

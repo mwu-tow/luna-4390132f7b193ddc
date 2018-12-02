@@ -3,15 +3,32 @@ module New.Engine.SearchSpec (spec) where
 import Prologue   hiding (Index)
 import Test.Hspec
 
-import qualified Data.List                as List
-import qualified Data.Map.Strict          as Map
-import qualified New.Engine.Data.Database as Database
-import qualified New.Engine.Search        as Search
+import qualified Data.List                 as List
+import qualified Data.Map.Strict           as Map
+import qualified New.Engine.Data.Database  as Database
+import qualified New.Engine.Data.Match     as Match
+import qualified New.Engine.Data.Substring as Substring
+import qualified New.Engine.Data.Tree      as Tree
+import qualified New.Engine.Search         as Search
 
 
 
 spec :: Spec
 spec = do
+    describe "updateValue function" $ do
+        it "map is updated" $ let
+            node  = Tree.Node 0 mempty
+            state = Match.mkState def
+            in shouldBe
+                (Search.updateValue node state mempty)
+                (Map.singleton 0 def)
+        it "match kind is correct" $ let
+            node     = Tree.Node 0 mempty
+            state    = Match.mkState def
+            scoreMap = Search.updateValue node state mempty
+            mayMatch = Map.lookup 0 scoreMap
+            mayMatchKind = view Match.kind <$> mayMatch
+            in mayMatchKind `shouldBe` Just Substring.Equal
     describe "matchQuery function" $ do
         it "all values from tree are in map" $ let
             input :: [Text]

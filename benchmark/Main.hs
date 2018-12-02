@@ -9,6 +9,7 @@ import qualified Data.Map.Strict             as Map
 import qualified New.Engine.Data.Database    as Database
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Substring   as Substring
+import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Tree        as Tree
 import qualified New.Engine.Search           as Search
 
@@ -17,7 +18,7 @@ import Data.Map.Strict           (Map)
 import Data.Text                 (Text)
 import New.Engine.Data.Database  (Database)
 import New.Engine.Data.Index     (Index (Index), IndexMap)
-import New.Engine.Data.Result    (Match)
+import New.Engine.Data.Match     (Match)
 import New.Engine.Data.Substring (Substring)
 import System.Random             (Random (random, randomR), mkStdGen, randomRs)
 
@@ -78,7 +79,7 @@ inputRoot = databaseInput ^. Database.tree
 
 
 nextIndex :: Index
-nextIndex = Database.nextIndex databaseInput 
+nextIndex = Database.nextIndex databaseInput
 {-# NOINLINE nextIndex #-}
 
 randomIndex :: Index
@@ -86,7 +87,7 @@ randomIndex = fst $ randomR (0, nextIndex - 1) $ mkStdGen 23
 {-# NOINLINE randomIndex #-}
 
 randomHint :: Text
-randomHint = txt ^. Database.text where 
+randomHint = txt ^. Database.text where
     (Just txts) = Map.lookup randomIndex hintsMap
     (Just txt)  = head txts
 {-# NOINLINE randomHint #-}
@@ -152,10 +153,10 @@ test_substrMerge (s1, s2) = Substring.merge s1 s2
 {-# NOINLINE test_substrMerge #-}
 
 test_searchUpdateValue
-    :: (Text, Tree.Node, Substring.Kind, Substring, Map Index Match)
+    :: (Tree.Node, Match.State, Map Index Match)
     -> Map Index Match
-test_searchUpdateValue (suffix, node, sKind, matched, resultMap)
-    = Search.updateValue suffix node sKind matched resultMap
+test_searchUpdateValue (node, state, resultMap)
+    = Search.updateValue node state resultMap
 {-# NOINLINE test_searchUpdateValue #-}
 
 test_matchQuery :: (Text, Tree.Root) -> Map Index Match
@@ -196,7 +197,7 @@ benchTree = benchmarks where
 benchSearch :: [Benchmark]
 benchSearch =
     [ envBench "updateValue"
-        ( pure ("", randomHintNode, Substring.FullMatch, mempty, mempty))
+        ( pure (randomHintNode, Match.mkState def, mempty))
         test_searchUpdateValue
     , envBench "substrMerge" (pure mergeInput)              test_substrMerge
     , envBench "matchQuery"  (pure (randomHint, inputRoot)) test_matchQuery
