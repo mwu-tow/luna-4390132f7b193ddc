@@ -1,4 +1,4 @@
-{-# LANGUAGE Strict    #-}
+{-# LANGUAGE Strict #-}
 module New.Engine.Metric.SkipPenalty where
 
 import Prologue
@@ -25,8 +25,8 @@ penalty = to $! \m -> let
     in Score $! points * mult
 
 instance Default SkipPenalty where def = SkipPenalty def (-4)
-instance NFData SkipPenalty
-instance Metric SkipPenalty where
+instance NFData  SkipPenalty
+instance Metric  SkipPenalty where
     updateMetric c1 c2 = let 
         updateState    = State.modify_ @SkipPenalty (& skippedLetters %~ (+1))
         charsEqual     = toLower c1 == toLower c2
