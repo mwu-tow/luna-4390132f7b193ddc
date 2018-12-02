@@ -5,7 +5,6 @@ import Prologue       hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
 import qualified Criterion.Types             as Options
-import qualified Data.List                   as List
 import qualified Data.Map.Strict             as Map
 import qualified New.Engine.Data.Database    as Database
 import qualified New.Engine.Data.Index       as Index

@@ -7,7 +7,6 @@ import qualified New.Engine.Data.Tree as Tree
 import qualified Data.Map.Strict as Map
 import qualified Control.Monad.State.Layered as State
 
-import New.Engine.Data.Tree (Node)
 import New.Engine.Data.Index (Index (Index), IndexMap)
 import Data.Map.Strict (Map)
 import Control.Lens (Getter, to)

@@ -5,11 +5,8 @@ import Prologue hiding (Index)
 
 import qualified New.Engine.Data.Substring as Substring
 import qualified New.Engine.Data.Database  as Database
-import qualified New.Engine.Data.Index as Index
 
-import Data.Map.Strict (Map)
 import New.Engine.Data.Substring (Substring)
-import New.Engine.Data.Index (Index)
 import New.Engine.Data.Database (SearcherData)
 import Control.Lens (Getter, to)
 

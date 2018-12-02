@@ -6,7 +6,6 @@ import Test.Hspec
 import qualified Data.List                as List
 import qualified Data.Map.Strict          as Map
 import qualified New.Engine.Data.Database as Database
-import qualified New.Engine.Data.Tree     as Tree
 import qualified New.Engine.Search        as Search
 
 
@@ -28,7 +27,6 @@ spec = do
             input = ["bar", "Bar"]
             database = Database.mk input
             root     = database ^. Database.tree
-            txtMap   = database ^. Database.textMap
             results  = Search.matchQuery "bar" root
             maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
@@ -39,7 +37,6 @@ spec = do
             input = ["baru", "Bar"]
             database = Database.mk input
             root     = database ^. Database.tree
-            txtMap   = database ^. Database.textMap
             results  = Search.matchQuery "bar" root
             maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
@@ -50,7 +47,6 @@ spec = do
             input = ["abc", "adc"]
             database = Database.mk input
             root     = database ^. Database.tree
-            txtMap   = database ^. Database.textMap
             results  = Search.matchQuery "ab" root
             maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)

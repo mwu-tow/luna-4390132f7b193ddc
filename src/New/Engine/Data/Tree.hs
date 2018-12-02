@@ -14,9 +14,9 @@ import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
 import qualified New.Engine.Data.Index       as Index
 
-import Control.Lens          (Getter, to, (?~), _Just)
+import Control.Lens          (to, (?~), _Just)
 import Data.Map.Strict       (Map)
-import New.Engine.Data.Index (Index (Index), IndexMap)
+import New.Engine.Data.Index (Index, IndexMap)
 
 
 
