@@ -49,6 +49,7 @@ newtype Substring = Substring
 makeLenses ''Substring
 
 instance Mempty    Substring where mempty = Substring mempty
+instance Default   Substring where def    = mempty
 instance NFData    Substring
 instance Semigroup Substring where (<>) = merge
 

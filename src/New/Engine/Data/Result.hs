@@ -26,8 +26,9 @@ data Match = Match
     } deriving (Eq, Generic, Show)
 makeLenses ''Match
 
-instance NFData Match
-instance Ord    Match where
+instance NFData  Match
+instance Default Match where def = Match def Substring.Equal def
+instance Ord     Match where
     -- TODO[LJK]: This should be replaced with scoring match kind as soon as old algorithm is recreated
     compare m1 m2 = (m1Kind, m1Points) `compare` (m2Kind, m2Points) where
         m1Kind   = m1 ^. matchKind
