@@ -78,8 +78,8 @@
 -- with this interface, please see the metrics included with the library in the
 -- `Engine.Metric.*` modules.
 
-{-# LANGUAGE Strict    #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE Strict    #-}
 
 module New.Engine.Metric where
 
@@ -88,6 +88,7 @@ import Prologue hiding (Monad)
 import qualified Prologue as P (Monad)
 
 import qualified Control.Monad.State.Layered as State
+import qualified New.Engine.Data.Match       as Match
 
 import New.Engine.Data.Score (Score)
 
@@ -100,7 +101,7 @@ import New.Engine.Data.Score (Score)
 -- === Definition === --
 
 class (Default s, NFData s) => Metric s where
-    updateMetric :: State.Monad (s :: Type) m => Char -> Char -> m Score
+    updateMetric :: State.Monad (s :: Type) m => Char -> Match.State -> m Score
 
 type Monad s m        = (P.Monad m, Metric s, State.Monad s m)
 type MonadMetrics s m = (P.Monad m, Metrics s, State.MonadStates s m)
@@ -113,16 +114,16 @@ type family Metrics ss :: Constraint where
 -- === API === --
 
 class P.Monad m => Update (t :: k) m where
-    updateMetrics :: Char -> Char -> m Score
+    updateMetrics :: Char -> Match.State -> m Score
 
 
 
 -- === Instances === --
 
 instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
-    updateMetrics c1 c2 = do
-        res1 <- updateMetrics @s  c1 c2
-        res2 <- updateMetrics @ss c1 c2
+    updateMetrics h ms = do
+        res1 <- updateMetrics @s  h ms
+        res2 <- updateMetrics @ss h ms
 
         pure $ res1 + res2
 
@@ -130,7 +131,7 @@ instance P.Monad m => Update ('[] :: [Type]) m where
     updateMetrics _ _ = pure $ def @Score
 
 instance Monad s m => Update (s :: Type) m where
-    updateMetrics c1 c2 = updateMetric @s c1 c2
+    updateMetrics h ms = updateMetric @s h ms
 
 
 -- === Under Development === --

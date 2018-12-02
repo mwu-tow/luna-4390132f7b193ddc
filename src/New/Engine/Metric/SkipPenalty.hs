@@ -4,6 +4,8 @@ module New.Engine.Metric.SkipPenalty where
 import Prologue
 
 import qualified Control.Monad.State.Layered as State
+import qualified Data.Text as Text
+import qualified New.Engine.Data.Match as Match
 
 import New.Engine.Metric (Metric (updateMetric))
 import New.Engine.Data.Score (Score (Score))
@@ -27,9 +29,11 @@ penalty = to $! \m -> let
 instance Default SkipPenalty where def = SkipPenalty def (-4)
 instance NFData  SkipPenalty
 instance Metric  SkipPenalty where
-    updateMetric c1 c2 = let 
+    updateMetric h s = let
+        query          = s ^. Match.remainingSuffix
+        mayHead        = fst <$> Text.uncons query
         updateState    = State.modify_ @SkipPenalty (& skippedLetters %~ (+1))
-        charsEqual     = toLower c1 == toLower c2
+        charsEqual     = Just (toLower h) == fmap toLower mayHead
         updateIfDiffer = unless charsEqual updateState
         skipPenaltyM   = State.get @SkipPenalty
         penaltyM       = view penalty <$> skipPenaltyM
