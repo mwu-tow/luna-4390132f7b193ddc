@@ -9,6 +9,7 @@ import qualified Data.Map.Strict             as Map
 import qualified New.Engine.Data.Database    as Database
 import qualified New.Engine.Data.Index       as Index
 import qualified New.Engine.Data.Substring   as Substring
+import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Tree        as Tree
 import qualified New.Engine.Search           as Search
 
@@ -19,7 +20,6 @@ import New.Engine.Data.Database  (Database)
 import New.Engine.Data.Index     (Index (Index), IndexMap)
 import New.Engine.Data.Match     (Match)
 import New.Engine.Data.Substring (Substring)
-import New.Engine.Search         (mkMatchState)
 import System.Random             (Random (random, randomR), mkStdGen, randomRs)
 
 
@@ -153,7 +153,7 @@ test_substrMerge (s1, s2) = Substring.merge s1 s2
 {-# NOINLINE test_substrMerge #-}
 
 test_searchUpdateValue
-    :: (Tree.Node, Search.MatchState, Map Index Match)
+    :: (Tree.Node, Match.State, Map Index Match)
     -> Map Index Match
 test_searchUpdateValue (node, state, resultMap)
     = Search.updateValue node state resultMap
@@ -197,7 +197,7 @@ benchTree = benchmarks where
 benchSearch :: [Benchmark]
 benchSearch =
     [ envBench "updateValue"
-        ( pure (randomHintNode, mkMatchState def, mempty))
+        ( pure (randomHintNode, Match.mkState def, mempty))
         test_searchUpdateValue
     , envBench "substrMerge" (pure mergeInput)              test_substrMerge
     , envBench "matchQuery"  (pure (randomHint, inputRoot)) test_matchQuery

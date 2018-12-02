@@ -21,29 +21,6 @@ import New.Engine.Data.Result   (Result (Result))
 
 
 
-------------------------
--- === MatchState === --
-------------------------
-
-
--- === Definition === --
-
-data MatchState = MatchState
-    { _remainingSuffix :: Text
-    , _currentMatch    :: Match
-    , _positionInQuery :: Int
-    , _positionInData  :: Int
-    } deriving (Eq, Generic, Show)
-makeLenses ''MatchState
-
-instance NFData MatchState
-
-mkMatchState :: Text -> MatchState
-mkMatchState = \query -> MatchState query def def def
-{-# INLINE mkMatchState #-}
-
-
-
 --------------------
 -- === Search === --
 --------------------
@@ -71,7 +48,7 @@ toResultMap hintsMap matchesMap = let
 
 matchQuery :: Text -> Tree.Root -> Map Index Match
 matchQuery query root = recursiveMatchQuery root state mempty where
-    state = mkMatchState query
+    state = Match.mkState query
 {-# INLINE matchQuery #-}
 
 -- TODO [LJK]: If performance is good enough we could also try to skip chars in
@@ -79,7 +56,7 @@ matchQuery query root = recursiveMatchQuery root state mempty where
 -- [Ara] This should only come into play if there are no matches for a given
 -- query.
 recursiveMatchQuery :: Tree.Node
-    -> MatchState
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
 recursiveMatchQuery node state scoreMap
@@ -89,13 +66,13 @@ recursiveMatchQuery node state scoreMap
 
 
 updateValue :: Tree.Node
-    -> MatchState
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
 updateValue node state scoreMap = let
     idx    = node  ^. Tree.index
-    suffix = state ^. remainingSuffix
-    match  = state ^. currentMatch
+    suffix = state ^. Match.remainingSuffix
+    match  = state ^. Match.currentMatch
     updateKind   = \k -> if Text.null suffix then k else Substring.Other
     updatedMatch = match & Match.kind %~ updateKind
     in insertMatch idx updatedMatch scoreMap
@@ -106,24 +83,24 @@ insertMatch i r m = if Index.isInvalid i then m else Map.insertWith max i r m
 {-# INLINE insertMatch #-}
 
 skipDataHead :: Tree.Node
-    -> MatchState
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
 skipDataHead node state scoreMap = let
     updatedState = state
-        & currentMatch . Match.kind .~ Substring.FullMatch
-        & positionInData %~ (+1)
+        & Match.currentMatch . Match.kind .~ Substring.FullMatch
+        & Match.positionInData %~ (+1)
     in Map.foldl
         (\acc n -> recursiveMatchQuery n updatedState acc)
         scoreMap
         $! node ^. Tree.branches
 
 matchQueryHead :: Tree.Node
-    -> MatchState
+    -> Match.State
     -> Map Index Match
     -> Map Index Match
 matchQueryHead node state scoreMap = let
-    suffix = state ^. remainingSuffix
+    suffix = state ^. Match.remainingSuffix
     in case Text.uncons suffix of
         Nothing            -> scoreMap
         Just ((!h), (!t)) -> let
@@ -134,16 +111,16 @@ matchQueryHead node state scoreMap = let
             mayCaseSensitiveNextNode   = Map.lookup h branches
             mayCaseInsensitiveNextNode = Map.lookup counterCaseH branches
             updateKind = \prev -> min prev Substring.CaseInsensitiveEqual
-            posInData  = state ^. positionInData
-            substring  = state ^. currentMatch . Match.substring
+            posInData  = state ^. Match.positionInData
+            substring  = state ^. Match.currentMatch . Match.substring
             updatedSubstring = Substring.addPosition posInData substring
             caseSensitiveState = state
-                & remainingSuffix .~ t
-                & positionInData  %~ (+1)
-                & positionInQuery %~ (+1)
-                & currentMatch . Match.substring .~ updatedSubstring
+                & Match.remainingSuffix .~ t
+                & Match.positionInData  %~ (+1)
+                & Match.positionInQuery %~ (+1)
+                & Match.currentMatch . Match.substring .~ updatedSubstring
             caseInsensitiveState = caseSensitiveState
-                & currentMatch . Match.kind %~ updateKind
+                & Match.currentMatch . Match.kind %~ updateKind
             matchCaseSensitive :: Map Index Match -> Map Index Match
             matchCaseSensitive = \scoreMap' -> maybe
                 scoreMap'

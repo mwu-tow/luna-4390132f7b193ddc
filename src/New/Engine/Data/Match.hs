@@ -32,3 +32,26 @@ instance Ord     Match where
         m2Kind   = m2 ^. kind
         m2Points = m2 ^. points
         m1Points = m1 ^. points
+
+
+
+-------------------
+-- === State === --
+-------------------
+
+
+-- === Definition === --
+
+data State = State
+    { _remainingSuffix :: Text
+    , _currentMatch    :: Match
+    , _positionInQuery :: Int
+    , _positionInData  :: Int
+    } deriving (Eq, Generic, Show)
+makeLenses ''State
+
+instance NFData State
+
+mkState :: Text -> State
+mkState = \query -> State query def def def
+{-# INLINE mkState #-}
