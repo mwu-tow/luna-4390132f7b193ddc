@@ -92,6 +92,9 @@ import qualified New.Engine.Data.Match       as Match
 
 import New.Engine.Data.Score (Score)
 
+-- TODO [Ara] Implement getMetrics
+-- TODO [Ara] Fix sig and impl of updateMetrics
+
 
 
 --------------------
@@ -101,8 +104,9 @@ import New.Engine.Data.Score (Score)
 -- === Definition === --
 
 class (Default s, NFData s) => Metric s where
-    updateMetric :: State.Monad (s :: Type) m 
-        => Char -> Char -> Match.State -> m Score
+    updateMetric :: State.Monad (s :: Type) m
+        => Char -> Char -> Match.State -> m ()
+    getMetric :: State.Monad (s :: Type) m => m Score
 
 type Monad s m        = (P.Monad m, Metric s, State.Monad s m)
 type MonadMetrics s m = (P.Monad m, Metrics s, State.MonadStates s m)
@@ -115,24 +119,37 @@ type family Metrics ss :: Constraint where
 -- === API === --
 
 class P.Monad m => Update (t :: k) m where
-    updateMetrics :: Char -> Char -> Match.State -> m Score
+    updateMetrics :: Char -> Char -> Match.State -> m ()
 
+class P.Monad m => Get (t :: k) m where
+    getMetrics :: m Score
 
 
 -- === Instances === --
 
 instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
-    updateMetrics c1 c2 ms = do
-        res1 <- updateMetrics @s  c1 c2 ms
-        res2 <- updateMetrics @ss c1 c2 ms
-
-        pure $ res1 + res2
+    updateMetrics c1 c2 ms = updateMetrics @s c1 c2 ms
+        >> updateMetrics @ss c1 c2 ms
+        >> pure ()
 
 instance P.Monad m => Update ('[] :: [Type]) m where
-    updateMetrics _ _ _ = pure $ def @Score
+    updateMetrics _ _ _ = pure ()
 
 instance Monad s m => Update (s :: Type) m where
     updateMetrics c1 c2 ms = updateMetric @s c1 c2 ms
+
+instance (Monad s m, Get ss m) => Get ((s ': ss) :: [Type]) m where
+    getMetrics = do
+        res1 <- getMetrics @s
+        res2 <- getMetrics @ss
+
+        pure $ res1 + res2
+
+instance P.Monad m => Get ('[] :: [Type]) m where
+    getMetrics = pure $ def @Score
+
+instance Monad s m => Get (s :: Type) m where
+    getMetrics = getMetric @s
 
 
 -- === Under Development === --

@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module New.Engine.Search where
 
 import Prologue hiding (Index)
@@ -24,7 +25,6 @@ import New.Engine.Data.Result   (Result (Result))
 --------------------
 -- === Search === --
 --------------------
-
 
 -- === API === --
 
@@ -63,7 +63,6 @@ recursiveMatchQuery node state scoreMap
     =  skipDataHead   node state
     $! matchQueryHead node state
     $! updateValue    node state scoreMap
-
 
 updateValue :: Tree.Node
     -> Match.State
@@ -116,30 +115,40 @@ matchQueryHead node state scoreMap = let
             substring  = state ^. Match.currentSubstring
             updatedSubstring = Substring.addPosition posInData substring
             caseSensitiveState = state
-                & Match.remainingSuffix .~ t
-                & Match.positionInData  %~ (+1)
-                & Match.positionInQuery %~ (+1)
+                & Match.remainingSuffix  .~ t
+                & Match.positionInData   %~ (+1)
+                & Match.positionInQuery  %~ (+1)
                 & Match.currentSubstring .~ updatedSubstring
             caseInsensitiveState = caseSensitiveState
                 & Match.currentKind %~ updateKind
+
             matchCaseSensitive :: Map Index Match -> Map Index Match
             matchCaseSensitive = \scoreMap' -> maybe
                 scoreMap'
                 (\n -> recursiveMatchQuery n caseSensitiveState scoreMap')
                 mayCaseSensitiveNextNode
+            {-# INLINEABLE matchCaseSensitive #-}
+
             matchCaseInsensitive :: Map Index Match -> Map Index Match
             matchCaseInsensitive = \scoreMap' -> maybe
                 scoreMap'
                 (\n -> recursiveMatchQuery n caseInsensitiveState scoreMap')
                 mayCaseInsensitiveNextNode
+            {-# INLINEABLE matchCaseInsensitive #-}
+
             defMatchers :: [Map Index Match -> Map Index Match]
             defMatchers   = [matchCaseSensitive]
+            {-# INLINEABLE defMatchers #-}
+
             extraMatchers :: [Map Index Match -> Map Index Match]
             extraMatchers = [matchCaseInsensitive]
+            {-# INLINEABLE extraMatchers #-}
+
             matchers :: [Map Index Match -> Map Index Match]
             matchers = defMatchers <> if isLetter h then extraMatchers else []
+            {-# INLINEABLE matchers #-}
             -- END --
-            in foldl (\acc matcher -> matcher acc) scoreMap matchers
+            in foldl' (\acc matcher -> matcher acc) scoreMap matchers
 
 test :: [Result Text]
 test = search "Tst" $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]

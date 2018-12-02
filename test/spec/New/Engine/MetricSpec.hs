@@ -19,42 +19,55 @@ import New.Engine.Metric     (Metric)
 ---------------------------
 
 data DummyMetric = DummyMetric
-    { currentScore :: !Score
+    { _currentScore :: !Score
     } deriving (Eq, Generic, Ord, Show)
+makeLenses ''DummyMetric
 
 instance Default DummyMetric where
-    def = DummyMetric $ Score.Score 1
+    def = DummyMetric $ Score.Score 0
 
 instance NFData DummyMetric
 
 instance Metric DummyMetric where
-    updateMetric _ _ _ = State.get @DummyMetric >>= \st -> pure $ currentScore st
+    updateMetric _ _ _ = State.get @DummyMetric >>= \st ->
+        State.put @DummyMetric $ st & currentScore %~ (+1)
+
+    getMetric = State.get @DummyMetric >>= \st ->
+        pure $ st ^. currentScore
 
 data DummyMetric2 = DummyMetric2
-    { currentScore2 :: !Score
+    { _currentScore2 :: !Score
     } deriving (Eq, Generic, Ord, Show)
+makeLenses ''DummyMetric2
 
 instance Default DummyMetric2 where
-    def = DummyMetric2 $ Score.Score 1
+    def = DummyMetric2 $ Score.Score 0
 
 instance NFData DummyMetric2
 
 instance Metric DummyMetric2 where
     updateMetric _ _ _ = State.get @DummyMetric2 >>= \st ->
-        pure $ currentScore2 st
+        State.put @DummyMetric2 $ st & currentScore2 %~ (+1)
+
+    getMetric = State.get @DummyMetric2 >>= \st ->
+        pure $ st ^. currentScore2
 
 data DummyMetric3 = DummyMetric3
-    { currentScore3 :: !Score
+    { _currentScore3 :: !Score
     } deriving (Eq, Generic, Ord, Show)
+makeLenses ''DummyMetric3
 
 instance Default DummyMetric3 where
-    def = DummyMetric3 $ Score.Score 1
+    def = DummyMetric3 $ Score.Score 0
 
 instance NFData DummyMetric3
 
 instance Metric DummyMetric3 where
     updateMetric _ _ _ = State.get @DummyMetric3 >>= \st ->
-        pure $ currentScore3 st
+        State.put @DummyMetric3 $ st & currentScore3 %~ (+1)
+
+    getMetric = State.get @DummyMetric3 >>= \st ->
+        pure $ st ^. currentScore3
 
 type MetricPasses = '[DummyMetric, DummyMetric2, DummyMetric3]
 
@@ -68,20 +81,39 @@ mockedState :: Match.State
 mockedState = Match.State mempty substring Substring.Equal 1 1 where
     substring = Substring.singleton $! Substring.fromPosition 0
 
-combinedMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
+combinedMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m ()
 combinedMetricUpdate
-    = Metric.updateMetrics @MetricPasses 'a' 'a' mockedState >>= pure
+    = Metric.updateMetrics @MetricPasses 'a' 'a' mockedState >> pure ()
 
-splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
-splitMetricUpdate = do
-    res1 <- Metric.updateMetric @DummyMetric  'a' 'a' mockedState
-    res2 <- Metric.updateMetric @DummyMetric2 'a' 'a' mockedState
-    res3 <- Metric.updateMetric @DummyMetric3 'a' 'a' mockedState
+splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m ()
+splitMetricUpdate = Metric.updateMetric @DummyMetric  'a' 'a' mockedState
+    >> Metric.updateMetric @DummyMetric2 'a' 'a' mockedState
+    >> Metric.updateMetric @DummyMetric3 'a' 'a' mockedState
+    >> pure ()
+
+combinedUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
+combinedUpdateAndGet = combinedMetricUpdate >> Metric.getMetrics @MetricPasses
+    >>= \score -> pure score
+
+splitUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
+splitUpdateAndGet = do
+    splitMetricUpdate
+
+    res1 <- Metric.getMetric @DummyMetric
+    res2 <- Metric.getMetric @DummyMetric2
+    res3 <- Metric.getMetric @DummyMetric3
 
     pure $ res1 + res2 + res3
 
-expectedScore :: IO Score
-expectedScore = pure $ Score.Score 3
+dualUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
+dualUpdateAndGet = do
+    Metric.updateMetrics @MetricPasses 'a' 'a' mockedState
+    Metric.updateMetrics @MetricPasses 'a' 'a' mockedState
+
+    Metric.getMetrics @MetricPasses >>= pure
+
+expectedScore :: Score
+expectedScore = Score.Score 3
 
 gives :: IO Score -> IO Score -> Expectation
 gives val1 val2 = do
@@ -97,13 +129,18 @@ gives val1 val2 = do
 -------------------
 
 spec :: Spec
-spec =
-    describe "Updating Metrics" $ do
+spec = do
+    describe "Getting Metric Results" $ do
         it "is correct when evaluated as a group"
-            $ (evalMetrics combinedMetricUpdate) `gives` expectedScore
+            $ (evalMetrics combinedUpdateAndGet) `gives` pure expectedScore
         it "is correct when evaluated in isolation"
-            $ (evalMetrics splitMetricUpdate) `gives` expectedScore
+            $ (evalMetrics splitUpdateAndGet) `gives` pure expectedScore
         it "is correct between evaluation strategies"
-            $ (evalMetrics splitMetricUpdate) `gives`
-                (evalMetrics combinedMetricUpdate)
+            $ (evalMetrics splitUpdateAndGet) `gives`
+                (evalMetrics combinedUpdateAndGet)
+    describe "Updating Metrics" $ do
+        it "is correct when updated once"
+            $ (evalMetrics combinedUpdateAndGet) `gives` pure expectedScore
+        it "is correct when updated twice"
+            $ (evalMetrics dualUpdateAndGet) `gives` pure (2 * expectedScore)
 

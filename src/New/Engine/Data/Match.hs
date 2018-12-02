@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module New.Engine.Data.Match where
 
 import Prologue hiding (Index)
@@ -12,7 +13,6 @@ import New.Engine.Data.Substring (Substring)
 -------------------
 -- === Match === --
 -------------------
-
 
 -- === Definition === --
 
@@ -39,7 +39,6 @@ instance Ord     Match where
 -- === State === --
 -------------------
 
-
 -- === Definition === --
 
 data State = State
@@ -56,3 +55,4 @@ instance NFData State
 mkState :: Text -> State
 mkState = \query -> State query def Substring.Equal def def
 {-# INLINE mkState #-}
+

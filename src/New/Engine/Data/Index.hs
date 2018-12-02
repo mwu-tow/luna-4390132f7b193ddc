@@ -9,7 +9,6 @@ import qualified Data.Map.Strict             as Map
 import Data.Map.Strict (Map)
 
 
-
 -------------------
 -- === Index === --
 -------------------
@@ -17,27 +16,23 @@ import Data.Map.Strict (Map)
 
 -- === Definition === --
 
-newtype Index = Index Int deriving (Eq, Generic, Num, Ord, Show)
-makeClassy ''Index
-
-notExists :: Index
-notExists = -1
-
-instance Default Index where def = notExists
-instance NFData  Index
+type Index = Int
 
 
--- === Utils === --
+-- === API === --
 
 isInvalid :: Index -> Bool
 isInvalid = (< 0)
 
 get :: State.Monad IndexMap m => m Index
-get = do
-    txtMap <- State.get @IndexMap
-    let nextIndex = Index $! Map.size txtMap
-    pure nextIndex
+get = State.get @IndexMap >>= pure . Map.size
 {-# INLINE get #-}
+
+
+-- === Constants === --
+
+notExists :: Index
+notExists = -1
 
 
 
@@ -45,7 +40,7 @@ get = do
 -- === IndexMap === --
 ---------------------
 
-
 -- === Definition === --
 
 type IndexMap = Map Text Index
+

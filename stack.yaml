@@ -18,7 +18,7 @@ ghc-options:
   $everything:
     -fconstraint-solver-iterations=100
 
-extra-deps: 
+extra-deps:
     - cond-0.4.1.1
     - container-1.1.5
     - convert-1.5

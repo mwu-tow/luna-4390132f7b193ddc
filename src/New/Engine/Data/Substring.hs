@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module New.Engine.Data.Substring where
 
 import Prologue hiding (Index)
@@ -11,12 +12,11 @@ import Control.Lens (Getter, makePrisms, to)
 -- === Range === --
 -------------------
 
-
 -- === Definition === --
 
 data Range = Range
-    { _begin :: !Int
-    , _len   :: !Int
+    { _begin :: Int
+    , _len   :: Int
     } deriving (Eq, Generic, Ord, Show)
 makeLenses ''Range
 
@@ -39,6 +39,7 @@ fromPosition pos = Range pos 1
 -- === Substring === --
 -----------------------
 
+-- TODO [Ara] Swap the `[Range]` for `Data.Sequence Range` for better perf.
 
 -- === Definition === --
 
@@ -67,7 +68,7 @@ totalLength = to $! \s -> let
     in foldl addLengths def revRange
 {-# INLINE totalLength #-}
 
--- -- This returns number which is each range length multiplied by 
+-- -- This returns number which is each range length multiplied by
 -- -- `range * (range + 1) `quot` 2` and summed together
 -- accumulatedLength :: Getter Substring Int
 -- accumulatedLength = to $! \s -> let

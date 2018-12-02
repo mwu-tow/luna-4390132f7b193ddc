@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Main where
 
 import Criterion.Main
@@ -13,21 +15,19 @@ import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Tree        as Tree
 import qualified New.Engine.Search           as Search
 
-
 import Data.Map.Strict           (Map)
 import Data.Text                 (Text)
 import New.Engine.Data.Database  (Database)
-import New.Engine.Data.Index     (Index (Index), IndexMap)
+import New.Engine.Data.Index     (Index, IndexMap)
 import New.Engine.Data.Match     (Match)
 import New.Engine.Data.Substring (Substring)
-import System.Random             (Random (random, randomR), mkStdGen, randomRs)
+import System.Random             (Random (randomR), mkStdGen, randomRs)
 
 
 
 -------------------
 -- === Input === --
 -------------------
-
 
 -- === Config === --
 
@@ -45,12 +45,6 @@ wordLengthRange = (minWordLength, maxWordLength)
 
 
 -- === Generated === --
-
-instance Random Index where
-    random g    = (Index randomInt, nextGen) where
-        (randomInt, nextGen) = random g
-    randomR (Index beg, Index end) g = (Index randomInt, nextGen) where
-        (randomInt, nextGen) = randomR (beg, end) g
 
 textInput :: [Text]
 textInput = do
@@ -76,7 +70,6 @@ textMap = databaseInput ^. Database.textMap
 inputRoot :: Tree.Node
 inputRoot = databaseInput ^. Database.tree
 {-# NOINLINE inputRoot #-}
-
 
 nextIndex :: Index
 nextIndex = Database.nextIndex databaseInput
@@ -104,6 +97,8 @@ mergeInput = (substr1, substr2) where
     substr1  = mkSubstr positions1
     substr2  = mkSubstr positions2
 {-# NOINLINE mergeInput #-}
+
+
 
 -------------------
 -- === Utils === --
@@ -134,7 +129,6 @@ test_insertUpdateValue (txt, n, txtMap) = let
     in State.run @IndexMap updateVal txtMap
 {-# NOINLINE test_insertUpdateValue #-}
 
-
 test_nextIndex :: IndexMap -> Index
 test_nextIndex txtMap = State.eval @IndexMap Index.get txtMap
 {-# NOINLINE test_nextIndex #-}
@@ -146,7 +140,6 @@ test_lookup (txt, root) = Tree.lookup txt root
 test_lookupNode :: (Text, Tree.Node) -> Maybe Tree.Node
 test_lookupNode (txt, node) = Tree.lookupNode txt node
 {-# NOINLINE test_lookupNode #-}
-
 
 test_substrMerge :: (Substring, Substring) -> Substring
 test_substrMerge (s1, s2) = Substring.merge s1 s2
