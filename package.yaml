@@ -5,42 +5,27 @@ maintainer: Luna Team <contact@luna-lang.org>
 
 tests:
   spec:
-    main: Main.hs
-    source-dirs: test/spec
+    main: Spec.hs
+    source-dirs: test
+    ghc-options: -Wall -O2 -threaded
     dependencies:
       - base
       - containers
       - fuzzy-text
       - hspec
-      - layered-state
+      - prologue
       - lens
-      - prologue
-      - text
-
-benchmarks:
-  searcher-benchmark:
-    source-dirs: benchmark
-    main: Main.hs
-    dependencies:
-      - base
-      - containers
-      - criterion
-      - fuzzy-text
-      - layered-state
-      - prologue
-      - random
       - text
 
 
 library:
   source-dirs: src
+  ghc-options: -Wall -O2 -threaded
   dependencies:
     - base
     - containers
-    - layered-state
-    - lens
-    - nested-containers
     - prologue
+    - lens
     - text
 
 default-extensions:
@@ -87,6 +72,7 @@ default-extensions:
     - TupleSections
     - TypeApplications
     - TypeFamilies
+    - TypeFamilyDependencies
     - TypeSynonymInstances
     - TypeOperators
     - ViewPatterns

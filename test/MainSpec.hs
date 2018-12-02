@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Searcher.Engine.MainSpec (spec) where
+module MainSpec (spec) where
 
 import Searcher.Engine.Prelude
 
@@ -30,7 +30,7 @@ topResultEntryShouldBe (h:_) e = h ^. Match.hint `shouldBe` e
 topResultShouldHaveBestScore :: [Match Symbol] -> Expectation
 topResultShouldHaveBestScore []      = expectationFailure "Result is empty"
 topResultShouldHaveBestScore [_]     = def
-topResultShouldHaveBestScore (h:s:_) = h ^. Data.score . Score.total
+topResultShouldHaveBestScore (h:s:_) = h ^. Data.score . Score.total 
     `shouldSatisfy` (> s ^. Data.score . Score.total)
 
 spec :: Spec
