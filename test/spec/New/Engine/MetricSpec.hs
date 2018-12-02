@@ -32,7 +32,7 @@ instance Metric DummyMetric where
     updateMetric _ _ _ = State.get @DummyMetric >>= \st ->
         State.put @DummyMetric $ st & currentScore %~ (+1)
 
-    getMetric = State.get @DummyMetric >>= \st ->
+    getMetric _ = State.get @DummyMetric >>= \st ->
         pure $ st ^. currentScore
 
 data DummyMetric2 = DummyMetric2
@@ -49,7 +49,7 @@ instance Metric DummyMetric2 where
     updateMetric _ _ _ = State.get @DummyMetric2 >>= \st ->
         State.put @DummyMetric2 $ st & currentScore2 %~ (+1)
 
-    getMetric = State.get @DummyMetric2 >>= \st ->
+    getMetric _ = State.get @DummyMetric2 >>= \st ->
         pure $ st ^. currentScore2
 
 data DummyMetric3 = DummyMetric3
@@ -66,7 +66,7 @@ instance Metric DummyMetric3 where
     updateMetric _ _ _ = State.get @DummyMetric3 >>= \st ->
         State.put @DummyMetric3 $ st & currentScore3 %~ (+1)
 
-    getMetric = State.get @DummyMetric3 >>= \st ->
+    getMetric _ = State.get @DummyMetric3 >>= \st ->
         pure $ st ^. currentScore3
 
 type MetricPasses = '[DummyMetric, DummyMetric2, DummyMetric3]
@@ -92,16 +92,16 @@ splitMetricUpdate = Metric.updateMetric @DummyMetric  'a' 'a' mockedState
     >> pure ()
 
 combinedUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
-combinedUpdateAndGet = combinedMetricUpdate >> Metric.getMetrics @MetricPasses
-    >>= \score -> pure score
+combinedUpdateAndGet = combinedMetricUpdate
+    >> Metric.getMetrics @MetricPasses mockedState
 
 splitUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
 splitUpdateAndGet = do
     splitMetricUpdate
 
-    res1 <- Metric.getMetric @DummyMetric
-    res2 <- Metric.getMetric @DummyMetric2
-    res3 <- Metric.getMetric @DummyMetric3
+    res1 <- Metric.getMetric @DummyMetric  mockedState
+    res2 <- Metric.getMetric @DummyMetric2 mockedState
+    res3 <- Metric.getMetric @DummyMetric3 mockedState
 
     pure $ res1 + res2 + res3
 
@@ -110,7 +110,7 @@ dualUpdateAndGet = do
     Metric.updateMetrics @MetricPasses 'a' 'a' mockedState
     Metric.updateMetrics @MetricPasses 'a' 'a' mockedState
 
-    Metric.getMetrics @MetricPasses >>= pure
+    Metric.getMetrics @MetricPasses mockedState >>= pure
 
 expectedScore :: Score
 expectedScore = Score.Score 3

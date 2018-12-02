@@ -106,7 +106,7 @@ import New.Engine.Data.Score (Score)
 class (Default s, NFData s) => Metric s where
     updateMetric :: State.Monad (s :: Type) m
         => Char -> Char -> Match.State -> m ()
-    getMetric :: State.Monad (s :: Type) m => m Score
+    getMetric :: State.Monad (s :: Type) m => Match.State -> m Score
 
 type Monad s m        = (P.Monad m, Metric s, State.Monad s m)
 type MonadMetrics s m = (P.Monad m, Metrics s, State.MonadStates s m)
@@ -122,7 +122,7 @@ class P.Monad m => Update (t :: k) m where
     updateMetrics :: Char -> Char -> Match.State -> m ()
 
 class P.Monad m => Get (t :: k) m where
-    getMetrics :: m Score
+    getMetrics :: Match.State -> m Score
 
 
 -- === Instances === --
@@ -139,17 +139,17 @@ instance Monad s m => Update (s :: Type) m where
     updateMetrics c1 c2 ms = updateMetric @s c1 c2 ms
 
 instance (Monad s m, Get ss m) => Get ((s ': ss) :: [Type]) m where
-    getMetrics = do
-        res1 <- getMetrics @s
-        res2 <- getMetrics @ss
+    getMetrics matchState = do
+        res1 <- getMetrics @s  matchState
+        res2 <- getMetrics @ss matchState
 
         pure $ res1 + res2
 
 instance P.Monad m => Get ('[] :: [Type]) m where
-    getMetrics = pure $ def @Score
+    getMetrics _ = pure $ def @Score
 
 instance Monad s m => Get (s :: Type) m where
-    getMetrics = getMetric @s
+    getMetrics matchState = getMetric @s matchState
 
 
 -- === Under Development === --

@@ -34,12 +34,12 @@ spec = do
                 .  State.evalDefT @SkipPenalty
                 .  State.evalDefT @SequenceBonus
                 .  State.evalDefT @PrefixBonus
-                $! Search.updateValue @DefaultMetrics node state mempty
+                $! Search.updateValue node state mempty
             in updatedMap `shouldBe` Map.singleton 0 def
         it "match kind is correct" $ let
             node          = Tree.Node 0 mempty
             state         = Match.mkState def
-            scoreMapM     = Search.updateValue @DefaultMetrics node state mempty
+            scoreMapM     = Search.updateValue node state mempty
             mayMatchM     = Map.lookup 0 <$> scoreMapM
             mayMatchKindM = view Match.kind `fmap2` mayMatchM
             updatedKind   = runIdentity
@@ -65,7 +65,7 @@ spec = do
                 .  State.evalDefT @SkipPenalty
                 .  State.evalDefT @SequenceBonus
                 .  State.evalDefT @PrefixBonus
-                $! Search.matchQuery @DefaultMetrics mempty root
+                $! Search.matchQuery mempty root
             in Map.keys hints' `shouldMatchList` Map.keys resultMap
         it "case sensitive is better than insensitive" $ let
             input :: [Text]
@@ -79,7 +79,7 @@ spec = do
                 .  State.evalDefT @SkipPenalty
                 .  State.evalDefT @SequenceBonus
                 .  State.evalDefT @PrefixBonus
-                $! Search.matchQuery @DefaultMetrics "bar" root
+                $! Search.matchQuery "bar" root
             maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
@@ -96,7 +96,7 @@ spec = do
                 .  State.evalDefT @SkipPenalty
                 .  State.evalDefT @SequenceBonus
                 .  State.evalDefT @PrefixBonus
-                $! Search.matchQuery @DefaultMetrics "bar" root
+                $! Search.matchQuery "bar" root
             maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
@@ -113,7 +113,7 @@ spec = do
                 .  State.evalDefT @SkipPenalty
                 .  State.evalDefT @SequenceBonus
                 .  State.evalDefT @PrefixBonus
-                $! Search.matchQuery @DefaultMetrics "ab" root
+                $! Search.matchQuery "ab" root
             maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results

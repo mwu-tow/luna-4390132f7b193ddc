@@ -125,7 +125,7 @@ defSearch = \query database -> runIdentity
         .  State.evalDefT @SkipPenalty
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
-        $! Search.search @DefaultMetrics query database
+        $! Search.search query database
 {-# INLINE defSearch #-}
 
 defMatchQuery :: Text -> Tree.Root -> (Map Index Match)
@@ -136,7 +136,7 @@ defMatchQuery = \query database -> runIdentity
         .  State.evalDefT @SkipPenalty
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
-        $! Search.matchQuery @DefaultMetrics query database
+        $! Search.matchQuery query database
 {-# INLINE defMatchQuery #-}
 
 defSearchUpdateValue
@@ -148,7 +148,7 @@ defSearchUpdateValue = \node state resultMap -> runIdentity
         .  State.evalDefT @SkipPenalty
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
-        $! Search.updateValue @DefaultMetrics node state resultMap
+        $! Search.updateValue node state resultMap
 {-# INLINE defSearchUpdateValue #-}
 
 
