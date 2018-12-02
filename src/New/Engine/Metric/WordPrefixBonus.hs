@@ -54,8 +54,8 @@ instance Metric  WordPrefixBonus where
         State.put @WordPrefixBonus updatedBonusState
         mult <- State.use @WordPrefixBonus multiplier
         let newRevRange     = updatedPrefixes ^. Substring.reversedRange
-            accRangeLength  = \r -> 
-                let rLen = r ^. Substring.len 
+            accRangeLength  = \r -> let 
+                rLen = r ^. Substring.len 
                 in rLen * (rLen + 1) `quot` 2
             appendAccLength = \acc r -> acc + accRangeLength r
             points          = foldl appendAccLength def newRevRange
