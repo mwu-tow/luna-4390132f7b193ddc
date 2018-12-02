@@ -4,21 +4,29 @@ module New.Engine.Search where
 
 import Prologue hiding (Index)
 
-import qualified Data.List                 as List
-import qualified Data.Map.Strict           as Map
-import qualified Data.Text                 as Text
-import qualified New.Engine.Data.Database  as Database
-import qualified New.Engine.Data.Index     as Index
-import qualified New.Engine.Data.Match     as Match
-import qualified New.Engine.Data.Substring as Substring
-import qualified New.Engine.Data.Tree      as Tree
+import qualified Control.Monad.State.Layered as State
+import qualified Data.List                   as List
+import qualified Data.Map.Strict             as Map
+import qualified Data.Text                   as Text
+import qualified New.Engine.Data.Database    as Database
+import qualified New.Engine.Data.Index       as Index
+import qualified New.Engine.Data.Match       as Match
+import qualified New.Engine.Data.Substring   as Substring
+import qualified New.Engine.Data.Tree        as Tree
+import qualified New.Engine.Metric           as Metric
 
-import Data.Char                (isLetter, isUpper, toLower, toUpper)
-import Data.Map.Strict          (Map)
-import New.Engine.Data.Database (Database, SearcherData)
-import New.Engine.Data.Index    (Index)
-import New.Engine.Data.Match    (Match (Match))
-import New.Engine.Data.Result   (Result (Result))
+import Data.Char                         (isLetter, isUpper, toLower, toUpper)
+import Data.Map.Strict                   (Map)
+import New.Engine.Data.Database          (Database, SearcherData)
+import New.Engine.Data.Index             (Index)
+import New.Engine.Data.Match             (Match (Match))
+import New.Engine.Data.Result            (Result (Result))
+import New.Engine.Metric.PrefixBonus     (PrefixBonus)
+import New.Engine.Metric.SequenceBonus   (SequenceBonus)
+import New.Engine.Metric.SkipPenalty     (SkipPenalty)
+import New.Engine.Metric.SuffixBonus     (SuffixBonus)
+import New.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
+import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 
 
 
@@ -26,14 +34,17 @@ import New.Engine.Data.Result   (Result (Result))
 -- === Search === --
 --------------------
 
+
 -- === API === --
 
-search :: SearcherData a => Text -> Database a -> [Result a]
-search query database = let
-    root    = database ^. Database.tree
-    hints   = database ^. Database.hints
-    matches = matchQuery query root
-    in List.sort $! concat $! Map.elems $! toResultMap hints matches
+search :: forall ss m a . (Metric.MonadMetrics ss m , SearcherData a)
+    => Text -> Database a -> m [Result a]
+search query database = do
+    let root    = database ^. Database.tree
+        hints   = database ^. Database.hints
+    matches <- matchQuery @ss query root
+    let results = concat $! Map.elems $! toResultMap hints matches
+    pure $! List.sort results
 {-# INLINE search #-}
 
 
@@ -46,8 +57,9 @@ toResultMap hintsMap matchesMap = let
 {-# INLINE toResultMap #-}
 
 
-matchQuery :: Text -> Tree.Root -> Map Index Match
-matchQuery query root = recursiveMatchQuery root state mempty where
+matchQuery :: forall ss m . Metric.MonadMetrics ss m
+    => Text -> Tree.Root -> m (Map Index Match)
+matchQuery query root = recursiveMatchQuery @ss root state mempty where
     state = Match.mkState query
 {-# INLINE matchQuery #-}
 
@@ -55,19 +67,21 @@ matchQuery query root = recursiveMatchQuery root state mempty where
 -- query so `hread` could be matched with `head`
 -- [Ara] This should only come into play if there are no matches for a given
 -- query.
-recursiveMatchQuery :: Tree.Node
+recursiveMatchQuery :: forall ss m . Metric.MonadMetrics ss m
+    => Tree.Node
     -> Match.State
     -> Map Index Match
-    -> Map Index Match
+    -> m (Map Index Match)
 recursiveMatchQuery node state scoreMap
-    =  skipDataHead   node state
-    $! matchQueryHead node state
-    $! updateValue    node state scoreMap
+    =   skipDataHead   @ss node state
+    =<< matchQueryHead @ss node state
+    =<< updateValue    @ss node state scoreMap
 
-updateValue :: Tree.Node
+updateValue :: forall ss m . Metric.MonadMetrics ss m
+    => Tree.Node
     -> Match.State
     -> Map Index Match
-    -> Map Index Match
+    -> m (Map Index Match)
 updateValue node state scoreMap = let
     idx       = node  ^. Tree.index
     suffix    = state ^. Match.remainingSuffix
@@ -75,34 +89,36 @@ updateValue node state scoreMap = let
     kind      = state ^. Match.currentKind
     kind'     = if Text.null suffix then kind else Substring.Other
     match     = Match substring kind' def
-    in insertMatch idx match scoreMap
+    in pure $! insertMatch idx match scoreMap
 {-# INLINE updateValue #-}
 
 insertMatch :: Index -> Match -> Map Index Match -> Map Index Match
 insertMatch i r m = if Index.isInvalid i then m else Map.insertWith max i r m
 {-# INLINE insertMatch #-}
 
-skipDataHead :: Tree.Node
+skipDataHead :: forall ss m . Metric.MonadMetrics ss m
+    => Tree.Node
     -> Match.State
     -> Map Index Match
-    -> Map Index Match
+    -> m (Map Index Match)
 skipDataHead node state scoreMap = let
     updatedState = state
         & Match.currentKind .~ Substring.FullMatch
         & Match.positionInData %~ (+1)
-    in Map.foldl
-        (\acc n -> recursiveMatchQuery n updatedState acc)
+    in foldlM
+        (\acc n -> recursiveMatchQuery @ss n updatedState acc)
         scoreMap
         $! node ^. Tree.branches
 
-matchQueryHead :: Tree.Node
+matchQueryHead :: forall ss m . Metric.MonadMetrics ss m
+    => Tree.Node
     -> Match.State
     -> Map Index Match
-    -> Map Index Match
+    -> m (Map Index Match)
 matchQueryHead node state scoreMap = let
     suffix = state ^. Match.remainingSuffix
     in case Text.uncons suffix of
-        Nothing            -> scoreMap
+        Nothing            -> pure scoreMap
         Just ((!h), (!t)) -> let
             branches     = node ^. Tree.branches
             -- This part should be lazy
@@ -122,34 +138,57 @@ matchQueryHead node state scoreMap = let
             caseInsensitiveState = caseSensitiveState
                 & Match.currentKind %~ updateKind
 
-            matchCaseSensitive :: Map Index Match -> Map Index Match
+            matchCaseSensitive :: forall ss m . Metric.MonadMetrics ss m
+                => Map Index Match -> m (Map Index Match)
             matchCaseSensitive = \scoreMap' -> maybe
-                scoreMap'
-                (\n -> recursiveMatchQuery n caseSensitiveState scoreMap')
+                (pure scoreMap')
+                (\n -> recursiveMatchQuery @ss n caseSensitiveState scoreMap')
                 mayCaseSensitiveNextNode
             {-# INLINEABLE matchCaseSensitive #-}
 
-            matchCaseInsensitive :: Map Index Match -> Map Index Match
+            matchCaseInsensitive :: forall ss m . Metric.MonadMetrics ss m
+                => Map Index Match -> m (Map Index Match)
             matchCaseInsensitive = \scoreMap' -> maybe
-                scoreMap'
-                (\n -> recursiveMatchQuery n caseInsensitiveState scoreMap')
+                (pure scoreMap')
+                (\n -> recursiveMatchQuery @ss n caseInsensitiveState scoreMap')
                 mayCaseInsensitiveNextNode
             {-# INLINEABLE matchCaseInsensitive #-}
 
-            defMatchers :: [Map Index Match -> Map Index Match]
-            defMatchers   = [matchCaseSensitive]
+            defMatchers :: forall ss m . Metric.MonadMetrics ss m
+                => [Map Index Match -> m (Map Index Match)]
+            defMatchers = [matchCaseSensitive @ss]
             {-# INLINEABLE defMatchers #-}
 
-            extraMatchers :: [Map Index Match -> Map Index Match]
-            extraMatchers = [matchCaseInsensitive]
+            extraMatchers :: forall ss m . Metric.MonadMetrics ss m
+                => [Map Index Match -> m (Map Index Match)]
+            extraMatchers = [matchCaseInsensitive @ss]
             {-# INLINEABLE extraMatchers #-}
 
-            matchers :: [Map Index Match -> Map Index Match]
-            matchers = defMatchers <> if isLetter h then extraMatchers else []
+            matchers :: forall ss m . Metric.MonadMetrics ss m
+                => [Map Index Match -> m (Map Index Match)]
+            matchers = defMatchers @ss <> if isLetter h then extraMatchers @ss else []
             {-# INLINEABLE matchers #-}
             -- END --
-            in foldl' (\acc matcher -> matcher acc) scoreMap matchers
+            in foldlM (\acc matcher -> matcher acc) scoreMap $! matchers @ss
+
+type DefaultMetrics =
+    '[ PrefixBonus
+    , SequenceBonus
+    , SkipPenalty
+    , SuffixBonus
+    , WordPrefixBonus
+    , WordSuffixBonus ]
 
 test :: [Result Text]
-test = search "Tst" $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]
+test = runIdentity
+    $! State.evalDefT @WordSuffixBonus
+    .  State.evalDefT @WordPrefixBonus
+    .  State.evalDefT @SuffixBonus
+    .  State.evalDefT @SkipPenalty
+    .  State.evalDefT @SequenceBonus
+    .  State.evalDefT @PrefixBonus
+    $! search
+        @DefaultMetrics
+        "Tst"
+        $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]
 
