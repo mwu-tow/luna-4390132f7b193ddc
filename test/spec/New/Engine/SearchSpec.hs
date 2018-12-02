@@ -3,43 +3,52 @@ module New.Engine.SearchSpec (spec) where
 import Prologue   hiding (Index)
 import Test.Hspec
 
-import qualified Data.List            as List
-import qualified Data.Map.Strict      as Map
-import qualified New.Engine.Data.Tree as Tree
-
-import New.Engine.Search (search)
+import qualified Data.List                as List
+import qualified Data.Map.Strict          as Map
+import qualified New.Engine.Data.Database as Database
+import qualified New.Engine.Search        as Search
 
 
 
 spec :: Spec
 spec = do
-    describe "search function" $ do
+    describe "matchQuery function" $ do
         it "all values from tree are in map" $ let
-            (tree, _, idxMap) = Tree.run $ Tree.insertMultiple ["aa", "ab"] def
+            input :: [Text]
+            input = ["aa", "ab"]
+            database = Database.mk input
+            root     = database ^. Database.tree
+            hints'   = database ^. Database.hints
             in shouldMatchList
-                (Map.elems idxMap)
-                (Map.keys $ search mempty tree)
+                (Map.keys hints')
+                (Map.keys $ Search.matchQuery mempty root)
         it "case sensitive is better than insensitive" $ let
-            (tree, _, idxMap) = Tree.run
-                $ Tree.insertMultiple ["bar", "Bar"] def
-            results = search "bar" tree
-            maxIdx  = fst $ List.maximumBy
+            input :: [Text]
+            input = ["bar", "Bar"]
+            database = Database.mk input
+            root     = database ^. Database.tree
+            results  = Search.matchQuery "bar" root
+            maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
-            in Just maxIdx `shouldBe` Map.lookup "bar" idxMap
+            in maxIdx `shouldBe` 0
         it "equality is better then matching" $ let
-            (tree, _, idxMap) = Tree.run
-                $ Tree.insertMultiple ["baru", "Bar"] def
-            results = search "bar" tree
-            maxIdx  = fst $ List.maximumBy
+            input :: [Text]
+            input = ["baru", "Bar"]
+            database = Database.mk input
+            root     = database ^. Database.tree
+            results  = Search.matchQuery "bar" root
+            maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
-            in Just maxIdx `shouldBe` Map.lookup "Bar" idxMap
+            in maxIdx `shouldBe` 1
         it "matching all is better than not" $ let
-            (tree, _, idxMap) = Tree.run
-                $ Tree.insertMultiple ["abc", "adc"] def
-            results = search "ab" tree
-            maxIdx  = fst $ List.maximumBy
+            input :: [Text]
+            input = ["abc", "adc"]
+            database = Database.mk input
+            root     = database ^. Database.tree
+            results  = Search.matchQuery "ab" root
+            maxIdx   = fst $ List.maximumBy
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
-            in Just maxIdx `shouldBe` Map.lookup "abc" idxMap
+            in maxIdx `shouldBe` 0
