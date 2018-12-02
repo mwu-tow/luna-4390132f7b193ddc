@@ -61,7 +61,6 @@ insertToNode = \suffix txt node -> case Text.uncons suffix of
             nextBranch    = fromJust def mayNextBranch
         branch <- insertToNode t txt nextBranch
         pure $! node & branches . at h ?~ branch
-{-# INLINE insertToNode #-}
 
 
 updateValue :: State.Monad IndexMap m => Text -> Node -> m Node
@@ -86,4 +85,3 @@ lookupNode :: Text -> Node -> Maybe Node
 lookupNode = \txt n -> case Text.uncons txt of
     Nothing       -> Just n
     Just (!h, !t) -> n ^? branches . at h . _Just . to (lookupNode t) . _Just
-{-# INLINE lookupNode #-}

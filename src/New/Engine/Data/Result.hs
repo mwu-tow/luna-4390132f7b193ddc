@@ -54,6 +54,8 @@ data Result a = Result
 makeLenses ''Result
 
 instance NFData a => NFData (Result a)
+instance SearcherData a => Ord (Result a) where
+    compare r1 r2 = (r2 ^. score) `compare` (r1 ^. score)
 
 score :: SearcherData a => Getter (Result a) Int
 score = to $! \r -> let

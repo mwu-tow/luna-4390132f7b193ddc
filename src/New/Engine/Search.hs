@@ -3,27 +3,48 @@ module New.Engine.Search where
 
 import Prologue hiding (Index)
 
+import qualified Data.List           as List
 import qualified Data.Map.Strict           as Map
 import qualified Data.Text                 as Text
+import qualified New.Engine.Data.Database  as Database
 import qualified New.Engine.Data.Index     as Index
 import qualified New.Engine.Data.Substring as Substring
 import qualified New.Engine.Data.Tree      as Tree
 
 import Data.Char                 (isLetter, isUpper, toLower, toUpper)
 import Data.Map.Strict           (Map)
+import New.Engine.Data.Database  (SearcherData, Database)
 import New.Engine.Data.Index     (Index)
-import New.Engine.Data.Result    (Match (Match))
+import New.Engine.Data.Result    (Match (Match), Result (Result))
 import New.Engine.Data.Substring (Substring)
+
 
 -- === API === --
 
+search :: SearcherData a => Text -> Database a -> [Result a]
+search query database = let
+    root    = database ^. Database.tree
+    hints   = database ^. Database.hints
+    matches = matchQuery query root
+    in List.sort $! concat $! Map.elems $! toResultMap hints matches
+{-# INLINE search #-}
+
+
 -- === Utils === --
+
+toResultMap :: Map Index [a] -> Map Index Match -> Map Index [Result a]
+toResultMap hintsMap matchesMap = let
+    toResults hints match = (\h -> Result h match) <$> hints
+    in Map.intersectionWith toResults hintsMap matchesMap
+{-# INLINE toResultMap #-}
+
 
 matchQuery :: Text -> Tree.Root -> Map Index Match
 matchQuery query root = let
     initPosition = 0
     equality     = Substring.Equal
     in recursiveMatchQuery query root equality mempty initPosition mempty
+{-# INLINE matchQuery #-}
 
 -- TODO[LJK]: If performance is good enough we could also try to skip chars in query so `hread` could be matched with `head`
 recursiveMatchQuery :: Text
