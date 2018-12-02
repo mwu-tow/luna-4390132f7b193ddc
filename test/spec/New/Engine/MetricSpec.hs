@@ -63,13 +63,13 @@ evalMetrics metricFn = State.evalDefT @DummyMetric3
     $ metricFn
 
 combinedMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
-combinedMetricUpdate = Metric.updateMetrics @MetricPasses "a" "a" >>= pure
+combinedMetricUpdate = Metric.updateMetrics @MetricPasses 'a' 'a' >>= pure
 
 splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m Score
 splitMetricUpdate = do
-    res1 <- Metric.updateMetric @DummyMetric  "a" "a"
-    res2 <- Metric.updateMetric @DummyMetric2 "a" "a"
-    res3 <- Metric.updateMetric @DummyMetric3 "a" "a"
+    res1 <- Metric.updateMetric @DummyMetric  'a' 'a'
+    res2 <- Metric.updateMetric @DummyMetric2 'a' 'a'
+    res3 <- Metric.updateMetric @DummyMetric3 'a' 'a'
 
     pure $ res1 + res2 + res3
 
