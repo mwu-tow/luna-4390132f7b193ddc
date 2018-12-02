@@ -1,4 +1,4 @@
-module TreeSpec (spec) where
+module New.Engine.TreeSpec (spec) where
 
 import Prologue   hiding (Index)
 import Test.Hspec

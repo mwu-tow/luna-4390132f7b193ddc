@@ -46,7 +46,10 @@ matchQuery query root = let
     in recursiveMatchQuery query root equality mempty initPosition mempty
 {-# INLINE matchQuery #-}
 
--- TODO[LJK]: If performance is good enough we could also try to skip chars in query so `hread` could be matched with `head`
+-- TODO [LJK]: If performance is good enough we could also try to skip chars in
+-- query so `hread` could be matched with `head`
+-- [Ara] This should only come into play if there are no matches for a given
+-- query.
 recursiveMatchQuery :: Text
     -> Tree.Node
     -> Substring.Kind
@@ -113,3 +116,7 @@ matchQueryHead qHead qSuffix node sKind matched pos scoreMap =
         processSuffix n
             = recursiveMatchQuery qSuffix n sKind newRange newPos scoreMap
     in maybe scoreMap processSuffix mayMatchedNode
+
+test :: [Result Text]
+test = search "Tst" $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]
+

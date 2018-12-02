@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module New.Engine.Data.Tree
     ( module New.Engine.Data.Tree
     , module X

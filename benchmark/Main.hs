@@ -211,3 +211,4 @@ main = let
         [ bgroup   "tree"   benchTree
         , bgroup   "search" benchSearch
         ]
+

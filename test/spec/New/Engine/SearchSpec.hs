@@ -1,4 +1,4 @@
-module SearchSpec (spec) where
+module New.Engine.SearchSpec (spec) where
 
 import Prologue   hiding (Index)
 import Test.Hspec
