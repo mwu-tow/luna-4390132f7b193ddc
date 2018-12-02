@@ -125,7 +125,7 @@ skipDataHead node state scoreMap = let
         & Match.currentKind .~ Substring.FullMatch
         & Match.positionInData %~ (+1)
     in foldlM
-        (\acc n -> recursiveMatchQuery n updatedState acc)
+        (\acc n -> transaction $! recursiveMatchQuery n updatedState acc)
         scoreMap
         $! node ^. Tree.branches
 
@@ -161,7 +161,7 @@ matchQueryHead node state scoreMap = let
                 => Map Index Match -> m (Map Index Match)
             matchCaseSensitive = \scoreMap' -> maybe
                 (pure scoreMap')
-                (\n -> recursiveMatchQuery n caseSensitiveState scoreMap')
+                (\n -> transaction $! recursiveMatchQuery n caseSensitiveState scoreMap')
                 mayCaseSensitiveNextNode
             {-# INLINEABLE matchCaseSensitive #-}
 
@@ -169,7 +169,7 @@ matchQueryHead node state scoreMap = let
                 => Map Index Match -> m (Map Index Match)
             matchCaseInsensitive = \scoreMap' -> maybe
                 (pure scoreMap')
-                (\n -> recursiveMatchQuery n caseInsensitiveState scoreMap')
+                (\n -> transaction $! recursiveMatchQuery n caseInsensitiveState scoreMap')
                 mayCaseInsensitiveNextNode
             {-# INLINEABLE matchCaseInsensitive #-}
 
