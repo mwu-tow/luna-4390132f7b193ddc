@@ -3,21 +3,21 @@ module New.Engine.Search where
 
 import Prologue hiding (Index)
 
-import qualified Data.List           as List
+import qualified Data.List                 as List
 import qualified Data.Map.Strict           as Map
 import qualified Data.Text                 as Text
 import qualified New.Engine.Data.Database  as Database
-import qualified New.Engine.Data.Result  as Result
 import qualified New.Engine.Data.Index     as Index
+import qualified New.Engine.Data.Match     as Match
 import qualified New.Engine.Data.Substring as Substring
 import qualified New.Engine.Data.Tree      as Tree
 
-import Data.Char                 (isLetter, isUpper, toLower, toUpper)
-import Data.Map.Strict           (Map)
-import New.Engine.Data.Database  (SearcherData, Database)
-import New.Engine.Data.Index     (Index)
-import New.Engine.Data.Result    (Match (Match), Result (Result))
-import New.Engine.Data.Substring (Substring)
+import Data.Char                (isLetter, isUpper, toLower, toUpper)
+import Data.Map.Strict          (Map)
+import New.Engine.Data.Database (Database, SearcherData)
+import New.Engine.Data.Index    (Index)
+import New.Engine.Data.Match    (Match)
+import New.Engine.Data.Result   (Result (Result))
 
 
 
@@ -82,9 +82,9 @@ recursiveMatchQuery :: Tree.Node
     -> MatchState
     -> Map Index Match
     -> Map Index Match
-recursiveMatchQuery node state scoreMap 
-    =  skipDataHead   node state 
-    $! matchQueryHead node state 
+recursiveMatchQuery node state scoreMap
+    =  skipDataHead   node state
+    $! matchQueryHead node state
     $! updateValue    node state scoreMap
 
 
@@ -97,7 +97,7 @@ updateValue node state scoreMap = let
     suffix = state ^. remainingSuffix
     match  = state ^. currentMatch
     updateKind   = \k -> if Text.null suffix then k else Substring.Other
-    updatedMatch = match & Result.matchKind %~ updateKind
+    updatedMatch = match & Match.kind %~ updateKind
     in insertMatch idx updatedMatch scoreMap
 {-# INLINE updateValue #-}
 
@@ -111,7 +111,7 @@ skipDataHead :: Tree.Node
     -> Map Index Match
 skipDataHead node state scoreMap = let
     updatedState = state
-        & currentMatch . Result.matchKind .~ Substring.FullMatch
+        & currentMatch . Match.kind .~ Substring.FullMatch
         & positionInData %~ (+1)
     in Map.foldl
         (\acc n -> recursiveMatchQuery n updatedState acc)
@@ -122,7 +122,7 @@ matchQueryHead :: Tree.Node
     -> MatchState
     -> Map Index Match
     -> Map Index Match
-matchQueryHead node state scoreMap = let 
+matchQueryHead node state scoreMap = let
     suffix = state ^. remainingSuffix
     in case Text.uncons suffix of
         Nothing            -> scoreMap
@@ -135,22 +135,22 @@ matchQueryHead node state scoreMap = let
             mayCaseInsensitiveNextNode = Map.lookup counterCaseH branches
             updateKind = \prev -> min prev Substring.CaseInsensitiveEqual
             posInData  = state ^. positionInData
-            substring  = state ^. currentMatch . Result.matchedChars
+            substring  = state ^. currentMatch . Match.substring
             updatedSubstring = Substring.addPosition posInData substring
-            caseSensitiveState = state 
+            caseSensitiveState = state
                 & remainingSuffix .~ t
                 & positionInData  %~ (+1)
                 & positionInQuery %~ (+1)
-                & currentMatch . Result.matchedChars .~ updatedSubstring
-            caseInsensitiveState = caseSensitiveState 
-                & currentMatch . Result.matchKind %~ updateKind
+                & currentMatch . Match.substring .~ updatedSubstring
+            caseInsensitiveState = caseSensitiveState
+                & currentMatch . Match.kind %~ updateKind
             matchCaseSensitive :: Map Index Match -> Map Index Match
-            matchCaseSensitive = \scoreMap' -> maybe 
+            matchCaseSensitive = \scoreMap' -> maybe
                 scoreMap'
                 (\n -> recursiveMatchQuery n caseSensitiveState scoreMap')
                 mayCaseSensitiveNextNode
             matchCaseInsensitive :: Map Index Match -> Map Index Match
-            matchCaseInsensitive = \scoreMap' -> maybe 
+            matchCaseInsensitive = \scoreMap' -> maybe
                 scoreMap'
                 (\n -> recursiveMatchQuery n caseInsensitiveState scoreMap')
                 mayCaseInsensitiveNextNode

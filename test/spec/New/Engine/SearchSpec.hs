@@ -7,7 +7,7 @@ import qualified Data.List                as List
 import qualified Data.Map.Strict          as Map
 import qualified New.Engine.Data.Database as Database
 import qualified New.Engine.Data.Tree     as Tree
-import qualified New.Engine.Data.Result     as Result
+import qualified New.Engine.Data.Match     as Match
 import qualified New.Engine.Data.Substring     as Substring
 import qualified New.Engine.Search        as Search
 
@@ -28,7 +28,7 @@ spec = do
             state    = mkMatchState def
             scoreMap = Search.updateValue node state mempty
             mayMatch = Map.lookup 0 scoreMap
-            mayMatchKind = view Result.matchKind <$> mayMatch
+            mayMatchKind = view Match.kind <$> mayMatch
             in mayMatchKind `shouldBe` Just Substring.Equal
     describe "matchQuery function" $ do
         it "all values from tree are in map" $ let

@@ -17,10 +17,10 @@ import Data.Map.Strict           (Map)
 import Data.Text                 (Text)
 import New.Engine.Data.Database  (Database)
 import New.Engine.Data.Index     (Index (Index), IndexMap)
-import New.Engine.Data.Result    (Match)
+import New.Engine.Data.Match     (Match)
 import New.Engine.Data.Substring (Substring)
-import System.Random             (Random (random, randomR), mkStdGen, randomRs)
 import New.Engine.Search         (mkMatchState)
+import System.Random             (Random (random, randomR), mkStdGen, randomRs)
 
 
 
@@ -79,7 +79,7 @@ inputRoot = databaseInput ^. Database.tree
 
 
 nextIndex :: Index
-nextIndex = Database.nextIndex databaseInput 
+nextIndex = Database.nextIndex databaseInput
 {-# NOINLINE nextIndex #-}
 
 randomIndex :: Index
@@ -87,7 +87,7 @@ randomIndex = fst $ randomR (0, nextIndex - 1) $ mkStdGen 23
 {-# NOINLINE randomIndex #-}
 
 randomHint :: Text
-randomHint = txt ^. Database.text where 
+randomHint = txt ^. Database.text where
     (Just txts) = Map.lookup randomIndex hintsMap
     (Just txt)  = head txts
 {-# NOINLINE randomHint #-}
