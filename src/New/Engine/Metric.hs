@@ -101,7 +101,8 @@ import New.Engine.Data.Score (Score)
 -- === Definition === --
 
 class (Default s, NFData s) => Metric s where
-    updateMetric :: State.Monad (s :: Type) m => Char -> Match.State -> m Score
+    updateMetric :: State.Monad (s :: Type) m 
+        => Char -> Char -> Match.State -> m Score
 
 type Monad s m        = (P.Monad m, Metric s, State.Monad s m)
 type MonadMetrics s m = (P.Monad m, Metrics s, State.MonadStates s m)
@@ -114,24 +115,24 @@ type family Metrics ss :: Constraint where
 -- === API === --
 
 class P.Monad m => Update (t :: k) m where
-    updateMetrics :: Char -> Match.State -> m Score
+    updateMetrics :: Char -> Char -> Match.State -> m Score
 
 
 
 -- === Instances === --
 
 instance (Monad s m, Update ss m) => Update ((s ': ss) :: [Type]) m where
-    updateMetrics h ms = do
-        res1 <- updateMetrics @s  h ms
-        res2 <- updateMetrics @ss h ms
+    updateMetrics c1 c2 ms = do
+        res1 <- updateMetrics @s  c1 c2 ms
+        res2 <- updateMetrics @ss c1 c2 ms
 
         pure $ res1 + res2
 
 instance P.Monad m => Update ('[] :: [Type]) m where
-    updateMetrics _ _ = pure $ def @Score
+    updateMetrics _ _ _ = pure $ def @Score
 
 instance Monad s m => Update (s :: Type) m where
-    updateMetrics h ms = updateMetric @s h ms
+    updateMetrics c1 c2 ms = updateMetric @s c1 c2 ms
 
 
 -- === Under Development === --

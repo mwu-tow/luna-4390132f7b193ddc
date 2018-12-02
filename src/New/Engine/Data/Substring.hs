@@ -60,6 +60,13 @@ range :: Getter Substring [Range]
 range = reversedRange . to reverse
 {-# INLINE range #-}
 
+totalLength :: Getter Substring Int
+totalLength = to $ \s -> let
+    addLengths = \acc r -> acc + r ^. len
+    revRange   = s ^. reversedRange
+    in foldl addLengths def revRange
+{-# INLINE totalLength #-}
+
 singleton :: Range -> Substring
 singleton r = Substring [r]
 {-# INLINE singleton #-}

@@ -16,7 +16,7 @@ import Data.Char                (isLetter, isUpper, toLower, toUpper)
 import Data.Map.Strict          (Map)
 import New.Engine.Data.Database (Database, SearcherData)
 import New.Engine.Data.Index    (Index)
-import New.Engine.Data.Match    (Match)
+import New.Engine.Data.Match    (Match (Match))
 import New.Engine.Data.Result   (Result (Result))
 
 
@@ -70,12 +70,13 @@ updateValue :: Tree.Node
     -> Map Index Match
     -> Map Index Match
 updateValue node state scoreMap = let
-    idx    = node  ^. Tree.index
-    suffix = state ^. Match.remainingSuffix
-    match  = state ^. Match.currentMatch
-    updateKind   = \k -> if Text.null suffix then k else Substring.Other
-    updatedMatch = match & Match.kind %~ updateKind
-    in insertMatch idx updatedMatch scoreMap
+    idx       = node  ^. Tree.index
+    suffix    = state ^. Match.remainingSuffix
+    substring = state ^. Match.currentSubstring
+    kind      = state ^. Match.currentKind
+    kind'     = if Text.null suffix then kind else Substring.Other
+    match     = Match substring kind' def
+    in insertMatch idx match scoreMap
 {-# INLINE updateValue #-}
 
 insertMatch :: Index -> Match -> Map Index Match -> Map Index Match
@@ -88,7 +89,7 @@ skipDataHead :: Tree.Node
     -> Map Index Match
 skipDataHead node state scoreMap = let
     updatedState = state
-        & Match.currentMatch . Match.kind .~ Substring.FullMatch
+        & Match.currentKind .~ Substring.FullMatch
         & Match.positionInData %~ (+1)
     in Map.foldl
         (\acc n -> recursiveMatchQuery n updatedState acc)
@@ -112,15 +113,15 @@ matchQueryHead node state scoreMap = let
             mayCaseInsensitiveNextNode = Map.lookup counterCaseH branches
             updateKind = \prev -> min prev Substring.CaseInsensitiveEqual
             posInData  = state ^. Match.positionInData
-            substring  = state ^. Match.currentMatch . Match.substring
+            substring  = state ^. Match.currentSubstring
             updatedSubstring = Substring.addPosition posInData substring
             caseSensitiveState = state
                 & Match.remainingSuffix .~ t
                 & Match.positionInData  %~ (+1)
                 & Match.positionInQuery %~ (+1)
-                & Match.currentMatch . Match.substring .~ updatedSubstring
+                & Match.currentSubstring .~ updatedSubstring
             caseInsensitiveState = caseSensitiveState
-                & Match.currentMatch . Match.kind %~ updateKind
+                & Match.currentKind %~ updateKind
             matchCaseSensitive :: Map Index Match -> Map Index Match
             matchCaseSensitive = \scoreMap' -> maybe
                 scoreMap'

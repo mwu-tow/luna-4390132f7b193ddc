@@ -43,15 +43,16 @@ instance Ord     Match where
 -- === Definition === --
 
 data State = State
-    { _remainingSuffix :: Text
-    , _currentMatch    :: Match
-    , _positionInQuery :: Int
-    , _positionInData  :: Int
+    { _remainingSuffix  :: Text
+    , _currentSubstring :: Substring
+    , _currentKind      :: Substring.Kind
+    , _positionInQuery  :: Int
+    , _positionInData   :: Int
     } deriving (Eq, Generic, Show)
 makeLenses ''State
 
 instance NFData State
 
 mkState :: Text -> State
-mkState = \query -> State query def def def
+mkState = \query -> State query def Substring.Equal def def
 {-# INLINE mkState #-}
