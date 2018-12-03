@@ -6,7 +6,26 @@ import Prologue hiding (Index)
 
 import qualified New.Engine.Data.Substring as Substring
 
+import Control.Lens              (makePrisms)
+import New.Engine.Data.Score     (Score)
 import New.Engine.Data.Substring (Substring)
+
+
+-----------------------
+-- === CharMatch === --
+-----------------------
+
+-- === Definition === ---
+
+data CharMatch
+    = NotMatched
+    | CaseInsensitive
+    | Equal
+    deriving (Eq, Generic, Ord, Show)
+
+makePrisms ''CharMatch
+
+instance NFData CharMatch
 
 
 
@@ -19,7 +38,7 @@ import New.Engine.Data.Substring (Substring)
 data Match = Match
     { _substring :: Substring
     , _kind      :: Substring.Kind -- TODO: This should be converted into points and removed
-    , _points    :: Int
+    , _points    :: Score
     } deriving (Eq, Generic, Show)
 makeLenses ''Match
 
@@ -55,4 +74,3 @@ instance NFData State
 mkState :: Text -> State
 mkState = \query -> State query def Substring.Equal def def
 {-# INLINE mkState #-}
-

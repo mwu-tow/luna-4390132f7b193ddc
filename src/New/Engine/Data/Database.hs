@@ -5,15 +5,14 @@ module New.Engine.Data.Database where
 import Prologue hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
-import qualified Data.IntMap                 as IntMap
 import qualified Data.Map.Strict             as Map
 import qualified New.Engine.Data.Tree        as Tree
 
 import Control.Lens          (Getter, to)
-import Data.IntMap           (IntMap)
 import Data.Map.Strict       (Map)
 import Data.Text             (Text)
 import New.Engine.Data.Index (Index, IndexMap)
+import New.Engine.Data.Score (Score)
 
 
 
@@ -25,7 +24,7 @@ import New.Engine.Data.Index (Index, IndexMap)
 
 class Eq a => SearcherData a where
     text           :: Getter a Text
-    calculateScore :: Int -> a -> Int
+    calculateScore :: Score -> a -> Score
 
 instance SearcherData Text where
     text               = to id
@@ -71,8 +70,8 @@ mk input = Database hints' root where
 
 textMap :: SearcherData a => Getter (Database a) IndexMap
 textMap = to $ \d -> let
-    toTxt []     = Nothing
-    toTxt (h:_)  = Just $! h ^. text
+    toTxt []    = Nothing
+    toTxt (h:_) = Just $! h ^. text
     idxToTxtMap  = Map.mapMaybe toTxt $! d ^. hints
     idxToTxtList = toList idxToTxtMap
     txtToIdxList = swap <$> idxToTxtList

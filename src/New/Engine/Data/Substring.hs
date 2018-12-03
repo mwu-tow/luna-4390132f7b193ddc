@@ -103,13 +103,12 @@ merge m1 m2 = Substring $ mergeRanges range1 range2 where
         minBeg    = min h1Beg h2Beg
         maxEnd    = max h1End h2End
         mergedLen = maxEnd - minBeg
-        mergedH1  = Range minBeg mergedLen
-        new1      = mergedH1:t1
+        mergedH   = Range minBeg mergedLen
         in if h1Beg > h2Beg
                 then mergeRanges prev2 prev1
-            else if h1Beg > h2End
-                then let newT1 = mergeRanges t1 prev2 in h1 : newT1
-            else mergeRanges new1 t2
+            else if h2Beg > h1End 
+                then let newT1 = mergeRanges prev1 t2 in h2 : newT1
+            else mergeRanges (mergedH : t1) t2
 {-# INLINE merge #-}
 
 

@@ -24,4 +24,3 @@ instance Default Score where
     def = Score (def @Int)
 
 instance NFData Score
-

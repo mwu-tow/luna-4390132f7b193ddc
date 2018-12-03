@@ -10,18 +10,25 @@ import qualified Criterion.Types             as Options
 import qualified Data.Map.Strict             as Map
 import qualified New.Engine.Data.Database    as Database
 import qualified New.Engine.Data.Index       as Index
-import qualified New.Engine.Data.Substring   as Substring
 import qualified New.Engine.Data.Match       as Match
+import qualified New.Engine.Data.Substring   as Substring
 import qualified New.Engine.Data.Tree        as Tree
 import qualified New.Engine.Search           as Search
 
-import Data.Map.Strict           (Map)
-import Data.Text                 (Text)
-import New.Engine.Data.Database  (Database)
-import New.Engine.Data.Index     (Index, IndexMap)
-import New.Engine.Data.Match     (Match)
-import New.Engine.Data.Substring (Substring)
-import System.Random             (Random (randomR), mkStdGen, randomRs)
+import Data.Map.Strict                   (Map)
+import Data.Text                         (Text)
+import New.Engine.Data.Database          (Database, SearcherData)
+import New.Engine.Data.Index             (Index, IndexMap)
+import New.Engine.Data.Match             (Match)
+import New.Engine.Data.Result            (Result)
+import New.Engine.Data.Substring         (Substring)
+import New.Engine.Metric.PrefixBonus     (PrefixBonus)
+import New.Engine.Metric.SequenceBonus   (SequenceBonus)
+import New.Engine.Metric.MismatchPenalty     (MismatchPenalty)
+import New.Engine.Metric.SuffixBonus     (SuffixBonus)
+import New.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
+import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
+import System.Random                     (Random (randomR), mkStdGen, randomRs)
 
 
 
@@ -109,6 +116,40 @@ envBench :: (NFData a, NFData env)
 envBench name pre fun = env pre $ \ ~input -> bench name $ nf fun input
 {-# INLINE envBench #-}
 
+defSearch :: SearcherData a => Text -> Database a -> [Result a]
+defSearch = \query database -> runIdentity
+        $! State.evalDefT @WordSuffixBonus
+        .  State.evalDefT @WordPrefixBonus
+        .  State.evalDefT @SuffixBonus
+        .  State.evalDefT @SequenceBonus
+        .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
+        $! Search.search query database
+{-# INLINE defSearch #-}
+
+defMatchQuery :: Text -> Tree.Root -> (Map Index Match)
+defMatchQuery = \query database -> runIdentity
+        $! State.evalDefT @WordSuffixBonus
+        .  State.evalDefT @WordPrefixBonus
+        .  State.evalDefT @SuffixBonus
+        .  State.evalDefT @SequenceBonus
+        .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
+        $! Search.matchQuery query database
+{-# INLINE defMatchQuery #-}
+
+defSearchUpdateValue
+    :: Tree.Node -> Match.State -> Map Index Match -> (Map Index Match)
+defSearchUpdateValue = \node state resultMap -> runIdentity
+        $! State.evalDefT @WordSuffixBonus
+        .  State.evalDefT @WordPrefixBonus
+        .  State.evalDefT @SuffixBonus
+        .  State.evalDefT @SequenceBonus
+        .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
+        $! Search.updateValue node state resultMap
+{-# INLINE defSearchUpdateValue #-}
+
 
 -- === Test functions === --
 
@@ -145,15 +186,14 @@ test_substrMerge :: (Substring, Substring) -> Substring
 test_substrMerge (s1, s2) = Substring.merge s1 s2
 {-# NOINLINE test_substrMerge #-}
 
-test_searchUpdateValue
-    :: (Tree.Node, Match.State, Map Index Match)
+test_searchUpdateValue :: (Tree.Node, Match.State, Map Index Match)
     -> Map Index Match
 test_searchUpdateValue (node, state, resultMap)
-    = Search.updateValue node state resultMap
+    = defSearchUpdateValue node state resultMap
 {-# NOINLINE test_searchUpdateValue #-}
 
 test_matchQuery :: (Text, Tree.Root) -> Map Index Match
-test_matchQuery (query, root) = Search.matchQuery query root
+test_matchQuery (query, root) = defMatchQuery query root
 {-# NOINLINE test_matchQuery #-}
 
 ------------------------
