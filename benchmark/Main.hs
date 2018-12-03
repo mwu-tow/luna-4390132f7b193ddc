@@ -24,7 +24,7 @@ import New.Engine.Data.Result            (Result)
 import New.Engine.Data.Substring         (Substring)
 import New.Engine.Metric.PrefixBonus     (PrefixBonus)
 import New.Engine.Metric.SequenceBonus   (SequenceBonus)
-import New.Engine.Metric.SkipPenalty     (SkipPenalty)
+import New.Engine.Metric.MismatchPenalty     (MismatchPenalty)
 import New.Engine.Metric.SuffixBonus     (SuffixBonus)
 import New.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
 import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
@@ -121,9 +121,9 @@ defSearch = \query database -> runIdentity
         $! State.evalDefT @WordSuffixBonus
         .  State.evalDefT @WordPrefixBonus
         .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SkipPenalty
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
         $! Search.search query database
 {-# INLINE defSearch #-}
 
@@ -132,9 +132,9 @@ defMatchQuery = \query database -> runIdentity
         $! State.evalDefT @WordSuffixBonus
         .  State.evalDefT @WordPrefixBonus
         .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SkipPenalty
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
         $! Search.matchQuery query database
 {-# INLINE defMatchQuery #-}
 
@@ -144,9 +144,9 @@ defSearchUpdateValue = \node state resultMap -> runIdentity
         $! State.evalDefT @WordSuffixBonus
         .  State.evalDefT @WordPrefixBonus
         .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SkipPenalty
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
         $! Search.updateValue node state resultMap
 {-# INLINE defSearchUpdateValue #-}
 
