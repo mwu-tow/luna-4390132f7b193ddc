@@ -23,7 +23,7 @@ import New.Engine.Data.Index (Index, IndexMap)
 -- === Definition === --
 
 data Node = Node
-    { _index   :: Index
+    { _index    :: Index
     , _branches :: Map Char Node
     } deriving (Eq, Generic, Show)
 makeLenses ''Node

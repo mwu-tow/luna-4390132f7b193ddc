@@ -9,7 +9,7 @@ import qualified New.Engine.Data.Match       as Match
 import qualified New.Engine.Data.Substring   as Substring
 
 import New.Engine.Data.Score (Score (Score))
-import New.Engine.Metric     (Metric (updateMetric, getMetric))
+import New.Engine.Metric     (Metric (getMetric, updateMetric))
 
 
 

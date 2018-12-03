@@ -38,7 +38,6 @@ import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 
 -- === API === --
 
--- DefaultMetrics in all signatures should go back to ss once we figure out how to do transaction
 search :: forall m a . (Metric.MonadMetrics DefaultMetrics m , SearcherData a)
     => Text -> Database a -> m [Result a]
 search query database = do
@@ -52,6 +51,8 @@ search query database = do
 
 -- === Utils === --
 
+-- [TODO]: DefaultMetrics in all signatures should go back to ss once 
+-- we figure out how to do transaction without get and put
 transaction :: forall m a . Metric.MonadMetrics DefaultMetrics m
     => m a -> m a
 transaction action = do
@@ -127,12 +128,10 @@ skipDataHead node state scoreMap = let
     updatedState = state
         & Match.currentKind .~ Substring.FullMatch
         & Match.positionInData %~ (+1)
-    in foldlM
-        ( \acc (c, n) -> transaction $! do
-            updateMetrics @DefaultMetrics c Match.NotMatched updatedState
-            recursiveMatchQuery n updatedState acc )
-        scoreMap
-        $! toList $! node ^. Tree.branches
+    skipChar = \acc (c, n) -> transaction $! do
+        updateMetrics @DefaultMetrics c Match.NotMatched updatedState
+        recursiveMatchQuery n updatedState acc
+    in foldlM skipChar scoreMap $! toList $! node ^. Tree.branches
 
 matchQueryHead :: forall m . Metric.MonadMetrics DefaultMetrics m
     => Tree.Node
@@ -162,7 +161,8 @@ matchQueryHead node state scoreMap = let
             caseInsensitiveState = caseSensitiveState
                 & Match.currentKind %~ updateKind
 
-            matchCaseSensitive :: forall m . Metric.MonadMetrics DefaultMetrics m
+            matchCaseSensitive 
+                :: forall m . Metric.MonadMetrics DefaultMetrics m
                 => Map Index Match -> m (Map Index Match)
             matchCaseSensitive = \scoreMap' -> transaction $! do
                 updateMetrics @DefaultMetrics h Match.Equal caseSensitiveState
@@ -172,7 +172,8 @@ matchQueryHead node state scoreMap = let
                     mayCaseSensitiveNextNode
             {-# INLINEABLE matchCaseSensitive #-}
 
-            matchCaseInsensitive :: forall m . Metric.MonadMetrics DefaultMetrics m
+            matchCaseInsensitive 
+                :: forall m . Metric.MonadMetrics DefaultMetrics m
                 => Map Index Match -> m (Map Index Match)
             matchCaseInsensitive = \scoreMap' -> transaction $! do
                 updateMetrics @DefaultMetrics

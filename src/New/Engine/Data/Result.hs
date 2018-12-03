@@ -3,13 +3,13 @@ module New.Engine.Data.Result where
 
 import Prologue hiding (Index)
 
-import qualified New.Engine.Data.Database  as Database
-import qualified New.Engine.Data.Match     as Match
+import qualified New.Engine.Data.Database as Database
+import qualified New.Engine.Data.Match    as Match
 
-import Control.Lens              (Getter, to)
-import New.Engine.Data.Database  (SearcherData)
-import New.Engine.Data.Match     (Match)
-import New.Engine.Data.Score     (Score)
+import Control.Lens             (Getter, to)
+import New.Engine.Data.Database (SearcherData)
+import New.Engine.Data.Match    (Match)
+import New.Engine.Data.Score    (Score)
 
 
 

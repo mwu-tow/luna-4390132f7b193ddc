@@ -5,14 +5,14 @@ module New.Engine.Metric.WordPrefixBonus where
 import Prologue
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Match     as Match
-import qualified New.Engine.Data.Substring as Substring
+import qualified New.Engine.Data.Match       as Match
+import qualified New.Engine.Data.Substring   as Substring
 
-import Control.Lens ((?~))
-import New.Engine.Metric (Metric (updateMetric, getMetric))
-import New.Engine.Data.Score (Score (Score))
+import Control.Lens              ((?~))
+import Data.Char                 (isLetter, isLower, isUpper)
+import New.Engine.Data.Score     (Score (Score))
 import New.Engine.Data.Substring (Substring)
-import Data.Char (isLower, isUpper, isLetter)
+import New.Engine.Metric         (Metric (getMetric, updateMetric))
 
 
 
@@ -59,7 +59,7 @@ instance Metric  WordPrefixBonus where
             isWordHead     = case mayPrevChar of
                 Nothing    -> True
                 Just prevC -> startsNewWord dataChar prevC
-            updatedPrefixes = if charMatch == Match.Equal then if isWordHead 
+            updatedPrefixes = if charMatch == Match.Equal then if isWordHead
                         then appendWordHead
                         else maybe prefixes appendChar mayRangeEnd
                     else prefixes

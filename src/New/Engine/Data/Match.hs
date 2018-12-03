@@ -6,9 +6,9 @@ import Prologue hiding (Index)
 
 import qualified New.Engine.Data.Substring as Substring
 
+import Control.Lens              (makePrisms)
+import New.Engine.Data.Score     (Score)
 import New.Engine.Data.Substring (Substring)
-import Control.Lens (makePrisms)
-import New.Engine.Data.Score (Score)
 
 
 -----------------------

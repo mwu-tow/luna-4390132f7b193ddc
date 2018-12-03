@@ -18,7 +18,6 @@ import New.Engine.Metric.SkipPenalty     (SkipPenalty)
 import New.Engine.Metric.SuffixBonus     (SuffixBonus)
 import New.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
 import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
-import New.Engine.Search                 (DefaultMetrics)
 
 
 spec :: Spec

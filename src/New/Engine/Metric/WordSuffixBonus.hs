@@ -5,14 +5,14 @@ module New.Engine.Metric.WordSuffixBonus where
 import Prologue
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Match     as Match
-import qualified New.Engine.Data.Substring as Substring
+import qualified New.Engine.Data.Match       as Match
+import qualified New.Engine.Data.Substring   as Substring
 
-import Control.Lens ((?~))
-import New.Engine.Metric (Metric (updateMetric, getMetric))
-import New.Engine.Data.Score (Score (Score))
+import Control.Lens              ((?~))
+import Data.Char                 (isLetter, isLower, isUpper)
+import New.Engine.Data.Score     (Score (Score))
 import New.Engine.Data.Substring (Substring (Substring))
-import Data.Char (isLower, isUpper, isLetter)
+import New.Engine.Metric         (Metric (getMetric, updateMetric))
 
 
 
@@ -64,8 +64,8 @@ instance Metric  WordSuffixBonus where
                 hEnd   = h ^. Substring.end
                 newLen = wordStart - hBeg
                 newH   = h & Substring.len .~ newLen
-                in if hEnd < wordStart then prev 
-                    else if newLen > 0 then newH : t 
+                in if hEnd < wordStart then prev
+                    else if newLen > 0 then newH : t
                     else t
             updatedWordsSuffixes = if matchKind == Match.Equal then addPosition
                 else if isWordHead then suffixes
