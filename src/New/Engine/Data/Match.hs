@@ -8,7 +8,7 @@ import qualified New.Engine.Data.Substring as Substring
 
 import New.Engine.Data.Substring (Substring)
 import Control.Lens (makePrisms)
-
+import New.Engine.Data.Score (Score)
 
 
 -----------------------
@@ -38,7 +38,7 @@ instance NFData CharMatch
 data Match = Match
     { _substring :: Substring
     , _kind      :: Substring.Kind -- TODO: This should be converted into points and removed
-    , _points    :: Int
+    , _points    :: Score
     } deriving (Eq, Generic, Show)
 makeLenses ''Match
 
