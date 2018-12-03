@@ -24,7 +24,7 @@ import New.Engine.Data.Result            (Result (Result))
 import New.Engine.Metric     (updateMetrics, getMetrics)
 import New.Engine.Metric.PrefixBonus     (PrefixBonus)
 import New.Engine.Metric.SequenceBonus   (SequenceBonus)
-import New.Engine.Metric.SkipPenalty     (SkipPenalty)
+import New.Engine.Metric.MismatchPenalty     (MismatchPenalty)
 import New.Engine.Metric.SuffixBonus     (SuffixBonus)
 import New.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
 import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
@@ -56,16 +56,16 @@ search query database = do
 transaction :: forall m a . Metric.MonadMetrics DefaultMetrics m
     => m a -> m a
 transaction action = do
+    mismatchPenalty <- State.get @MismatchPenalty
     prefixBonus     <- State.get @PrefixBonus
     sequenceBonus   <- State.get @SequenceBonus
-    skipPenalty     <- State.get @SkipPenalty
     suffixBonus     <- State.get @SuffixBonus
     wordPrefixBonus <- State.get @WordPrefixBonus
     wordSuffixBonus <- State.get @WordSuffixBonus
     result <- action
+    State.put @MismatchPenalty mismatchPenalty
     State.put @PrefixBonus     prefixBonus
     State.put @SequenceBonus   sequenceBonus
-    State.put @SkipPenalty     skipPenalty
     State.put @SuffixBonus     suffixBonus
     State.put @WordPrefixBonus wordPrefixBonus
     State.put @WordSuffixBonus wordSuffixBonus
@@ -110,9 +110,10 @@ updateValue node state scoreMap = do
         kind         = state ^. Match.currentKind
         kind'        = if Text.null suffix then kind else Substring.Other
         updatedState = state & Match.currentKind .~ kind'
-    score <- getMetrics @DefaultMetrics updatedState
-    let match = Match substring kind' score
-    pure $! insertMatch idx match scoreMap
+    if Index.isInvalid idx then pure scoreMap else do
+        score <- getMetrics @DefaultMetrics updatedState
+        let match = Match substring kind' score
+        pure $! insertMatch idx match scoreMap
 {-# INLINE updateValue #-}
 
 insertMatch :: Index -> Match -> Map Index Match -> Map Index Match
@@ -202,9 +203,9 @@ matchQueryHead node state scoreMap = let
             in foldlM (\acc matcher -> matcher acc) scoreMap $! matchers
 
 type DefaultMetrics =
-    '[ PrefixBonus
+    '[ MismatchPenalty
+    , PrefixBonus
     , SequenceBonus
-    , SkipPenalty
     , SuffixBonus
     , WordPrefixBonus
     , WordSuffixBonus ]
@@ -214,9 +215,9 @@ test = runIdentity
     $! State.evalDefT @WordSuffixBonus
     .  State.evalDefT @WordPrefixBonus
     .  State.evalDefT @SuffixBonus
-    .  State.evalDefT @SkipPenalty
     .  State.evalDefT @SequenceBonus
     .  State.evalDefT @PrefixBonus
+    .  State.evalDefT @MismatchPenalty
     $! search
         "Tst"
         $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]

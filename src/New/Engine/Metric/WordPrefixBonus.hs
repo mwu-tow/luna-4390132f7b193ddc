@@ -59,7 +59,7 @@ instance Metric  WordPrefixBonus where
             isWordHead     = case mayPrevChar of
                 Nothing    -> True
                 Just prevC -> startsNewWord dataChar prevC
-            updatedPrefixes = if charMatch == Match.Equal then if isWordHead
+            updatedPrefixes = if charMatch /= Match.NotMatched then if isWordHead
                         then appendWordHead
                         else maybe prefixes appendChar mayRangeEnd
                     else prefixes

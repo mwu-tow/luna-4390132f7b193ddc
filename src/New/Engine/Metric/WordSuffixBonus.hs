@@ -40,7 +40,7 @@ startsNewWord c prevC = let xor a b = (a && not b) || (not a && b)
 
 -- === Instances === --
 
-instance Default WordSuffixBonus where def = WordSuffixBonus 6 def def def
+instance Default WordSuffixBonus where def = WordSuffixBonus 3 def def def
 
 instance NFData  WordSuffixBonus
 
