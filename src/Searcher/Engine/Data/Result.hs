@@ -1,15 +1,15 @@
 {-# LANGUAGE Strict #-}
-module New.Engine.Data.Result where
+module Searcher.Engine.Data.Result where
 
 import Prologue hiding (Index)
 
-import qualified New.Engine.Data.Database as Database
-import qualified New.Engine.Data.Match    as Match
+import qualified Searcher.Engine.Data.Database as Database
+import qualified Searcher.Engine.Data.Match    as Match
 
 import Control.Lens             (Getter, to)
-import New.Engine.Data.Database (SearcherData)
-import New.Engine.Data.Match    (Match)
-import New.Engine.Data.Score    (Score)
+import Searcher.Engine.Data.Database (SearcherData)
+import Searcher.Engine.Data.Match    (Match)
+import Searcher.Engine.Data.Score    (Score)
 
 
 

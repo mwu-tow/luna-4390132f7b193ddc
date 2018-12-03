@@ -1,5 +1,5 @@
 {-# LANGUAGE Strict #-}
-module New.Engine.Data.Index where
+module Searcher.Engine.Data.Index where
 
 import Prologue hiding (Index)
 

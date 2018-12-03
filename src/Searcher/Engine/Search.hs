@@ -1,6 +1,6 @@
 {-# LANGUAGE Strict #-}
 
-module New.Engine.Search where
+module Searcher.Engine.Search where
 
 import Prologue hiding (Index)
 
@@ -8,26 +8,26 @@ import qualified Control.Monad.State.Layered as State
 import qualified Data.List                   as List
 import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
-import qualified New.Engine.Data.Database    as Database
-import qualified New.Engine.Data.Index       as Index
-import qualified New.Engine.Data.Match       as Match
-import qualified New.Engine.Data.Substring   as Substring
-import qualified New.Engine.Data.Tree        as Tree
-import qualified New.Engine.Metric           as Metric
+import qualified Searcher.Engine.Data.Database    as Database
+import qualified Searcher.Engine.Data.Index       as Index
+import qualified Searcher.Engine.Data.Match       as Match
+import qualified Searcher.Engine.Data.Substring   as Substring
+import qualified Searcher.Engine.Data.Tree        as Tree
+import qualified Searcher.Engine.Metric           as Metric
 
 import Data.Char                         (isLetter, isUpper, toLower, toUpper)
 import Data.Map.Strict                   (Map)
-import New.Engine.Data.Database          (Database, SearcherData)
-import New.Engine.Data.Index             (Index)
-import New.Engine.Data.Match             (Match (Match))
-import New.Engine.Data.Result            (Result (Result))
-import New.Engine.Metric     (updateMetrics, getMetrics)
-import New.Engine.Metric.PrefixBonus     (PrefixBonus)
-import New.Engine.Metric.SequenceBonus   (SequenceBonus)
-import New.Engine.Metric.MismatchPenalty     (MismatchPenalty)
-import New.Engine.Metric.SuffixBonus     (SuffixBonus)
-import New.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
-import New.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
+import Searcher.Engine.Data.Database          (Database, SearcherData)
+import Searcher.Engine.Data.Index             (Index)
+import Searcher.Engine.Data.Match             (Match (Match))
+import Searcher.Engine.Data.Result            (Result (Result))
+import Searcher.Engine.Metric     (updateMetrics, getMetrics)
+import Searcher.Engine.Metric.PrefixBonus     (PrefixBonus)
+import Searcher.Engine.Metric.SequenceBonus   (SequenceBonus)
+import Searcher.Engine.Metric.MismatchPenalty     (MismatchPenalty)
+import Searcher.Engine.Metric.SuffixBonus     (SuffixBonus)
+import Searcher.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
+import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 
 
 

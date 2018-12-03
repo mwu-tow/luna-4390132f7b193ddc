@@ -1,18 +1,18 @@
 {-# LANGUAGE Strict #-}
 
-module New.Engine.Data.Database where
+module Searcher.Engine.Data.Database where
 
 import Prologue hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
 import qualified Data.Map.Strict             as Map
-import qualified New.Engine.Data.Tree        as Tree
+import qualified Searcher.Engine.Data.Tree        as Tree
 
 import Control.Lens          (Getter, to)
 import Data.Map.Strict       (Map)
 import Data.Text             (Text)
-import New.Engine.Data.Index (Index, IndexMap)
-import New.Engine.Data.Score (Score)
+import Searcher.Engine.Data.Index (Index, IndexMap)
+import Searcher.Engine.Data.Score (Score)
 
 
 

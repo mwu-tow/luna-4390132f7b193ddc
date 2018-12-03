@@ -1,4 +1,4 @@
-module New.Engine.TreeSpec (spec) where
+module Searcher.Engine.TreeSpec (spec) where
 
 import Prologue   hiding (Index)
 import Test.Hspec
@@ -6,15 +6,15 @@ import Test.Hspec
 import qualified Control.Monad.State.Layered as State
 import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
-import qualified New.Engine.Data.Index       as Index
-import qualified New.Engine.Data.Tree        as Tree
+import qualified Searcher.Engine.Data.Index       as Index
+import qualified Searcher.Engine.Data.Tree        as Tree
 
 import Control.Exception     (throw)
 import Control.Lens          (makePrisms)
 import Data.Map.Strict       (Map)
 import Data.Set              (Set)
-import New.Engine.Data.Index (Index, IndexMap)
-import New.Engine.Data.Tree  (Node (Node), Root, branches, index)
+import Searcher.Engine.Data.Index (Index, IndexMap)
+import Searcher.Engine.Data.Tree  (Node (Node), Root, branches, index)
 
 
 data TreeStructureExceptionType

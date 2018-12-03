@@ -1,15 +1,15 @@
 {-# LANGUAGE Strict #-}
 
-module New.Engine.Metric.SequenceBonus where
+module Searcher.Engine.Metric.SequenceBonus where
 
 import Prologue
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Match       as Match
-import qualified New.Engine.Data.Substring   as Substring
+import qualified Searcher.Engine.Data.Match       as Match
+import qualified Searcher.Engine.Data.Substring   as Substring
 
-import New.Engine.Data.Score (Score (Score))
-import New.Engine.Metric     (Metric (getMetric, updateMetric))
+import Searcher.Engine.Data.Score (Score (Score))
+import Searcher.Engine.Metric     (Metric (getMetric, updateMetric))
 
 
 

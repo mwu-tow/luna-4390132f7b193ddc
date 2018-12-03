@@ -81,16 +81,16 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE Strict    #-}
 
-module New.Engine.Metric where
+module Searcher.Engine.Metric where
 
 import Prologue hiding (Monad)
 
 import qualified Prologue as P (Monad)
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Match       as Match
+import qualified Searcher.Engine.Data.Match       as Match
 
-import New.Engine.Data.Score (Score)
+import Searcher.Engine.Data.Score (Score)
 
 -- TODO [Ara] Implement getMetrics
 -- TODO [Ara] Fix sig and impl of updateMetrics

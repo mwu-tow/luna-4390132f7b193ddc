@@ -1,6 +1,6 @@
 {-# LANGUAGE Strict #-}
 
-module New.Engine.Data.Substring where
+module Searcher.Engine.Data.Substring where
 
 import Prologue hiding (Index)
 

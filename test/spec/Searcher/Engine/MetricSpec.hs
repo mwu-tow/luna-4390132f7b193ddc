@@ -1,16 +1,16 @@
-module New.Engine.MetricSpec where
+module Searcher.Engine.MetricSpec where
 
 import Prologue
 import Test.Hspec
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Match       as Match
-import qualified New.Engine.Data.Score       as Score
-import qualified New.Engine.Data.Substring   as Substring
-import qualified New.Engine.Metric           as Metric
+import qualified Searcher.Engine.Data.Match       as Match
+import qualified Searcher.Engine.Data.Score       as Score
+import qualified Searcher.Engine.Data.Substring   as Substring
+import qualified Searcher.Engine.Metric           as Metric
 
-import New.Engine.Data.Score (Score)
-import New.Engine.Metric     (Metric)
+import Searcher.Engine.Data.Score (Score)
+import Searcher.Engine.Metric     (Metric)
 
 
 

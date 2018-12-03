@@ -1,17 +1,17 @@
 {-# LANGUAGE Strict #-}
 
-module New.Engine.Data.Tree where
+module Searcher.Engine.Data.Tree where
 
 import Prologue hiding (Index, lookup)
 
 import qualified Control.Monad.State.Layered as State
 import qualified Data.Map.Strict             as Map
 import qualified Data.Text                   as Text
-import qualified New.Engine.Data.Index       as Index
+import qualified Searcher.Engine.Data.Index       as Index
 
 import Control.Lens          (to, (?~), _Just)
 import Data.Map.Strict       (Map)
-import New.Engine.Data.Index (Index, IndexMap)
+import Searcher.Engine.Data.Index (Index, IndexMap)
 
 
 

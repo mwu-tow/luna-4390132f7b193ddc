@@ -1,18 +1,18 @@
 {-# LANGUAGE Strict #-}
 
-module New.Engine.Metric.WordSuffixBonus where
+module Searcher.Engine.Metric.WordSuffixBonus where
 
 import Prologue
 
 import qualified Control.Monad.State.Layered as State
-import qualified New.Engine.Data.Match       as Match
-import qualified New.Engine.Data.Substring   as Substring
+import qualified Searcher.Engine.Data.Match       as Match
+import qualified Searcher.Engine.Data.Substring   as Substring
 
 import Control.Lens              ((?~))
 import Data.Char                 (isLetter, isLower, isUpper)
-import New.Engine.Data.Score     (Score (Score))
-import New.Engine.Data.Substring (Substring (Substring))
-import New.Engine.Metric         (Metric (getMetric, updateMetric))
+import Searcher.Engine.Data.Score     (Score (Score))
+import Searcher.Engine.Data.Substring (Substring (Substring))
+import Searcher.Engine.Metric         (Metric (getMetric, updateMetric))
 
 
 
