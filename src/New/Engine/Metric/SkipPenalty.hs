@@ -32,13 +32,13 @@ instance Default SkipPenalty where def = SkipPenalty $! -4
 instance NFData  SkipPenalty
 
 instance Metric  SkipPenalty where
-    updateMetric _ _ updatedState = undefined -- let
-        -- posInData     = updatedState ^. Match.positionInData
-        -- substring     = updatedState ^. Match.currentSubstring
-        -- matchedLen    = substring ^. Substring.totalLength
-        -- missedLetters = posInData - matchedLen
-        -- mkScore       = \m -> Score $! m * missedLetters
-        -- multM         = State.use @SkipPenalty multiplier
-        -- in mkScore <$> multM
-    getMetric = undefined
+    updateMetric _ _ _   = pure ()
+    getMetric matchState = let
+        posInData     = matchState ^. Match.positionInData
+        substring     = matchState ^. Match.currentSubstring
+        matchedLen    = substring ^. Substring.totalLength
+        missedLetters = posInData - matchedLen
+        mkScore       = \m -> Score $! m * missedLetters
+        multM         = State.use @SkipPenalty multiplier
+        in mkScore <$> multM
 

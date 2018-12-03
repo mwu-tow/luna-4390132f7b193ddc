@@ -83,12 +83,13 @@ mockedState = Match.State mempty substring Substring.Equal 1 1 where
 
 combinedMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m ()
 combinedMetricUpdate
-    = Metric.updateMetrics @MetricPasses 'a' 'a' mockedState >> pure ()
+    = Metric.updateMetrics @MetricPasses 'a' Match.Equal mockedState >> pure ()
 
 splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m ()
-splitMetricUpdate = Metric.updateMetric @DummyMetric  'a' 'a' mockedState
-    >> Metric.updateMetric @DummyMetric2 'a' 'a' mockedState
-    >> Metric.updateMetric @DummyMetric3 'a' 'a' mockedState
+splitMetricUpdate 
+    =  Metric.updateMetric @DummyMetric  'a' Match.Equal mockedState
+    >> Metric.updateMetric @DummyMetric2 'a' Match.Equal mockedState
+    >> Metric.updateMetric @DummyMetric3 'a' Match.Equal mockedState
     >> pure ()
 
 combinedUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
@@ -107,8 +108,8 @@ splitUpdateAndGet = do
 
 dualUpdateAndGet :: forall m . Metric.MonadMetrics MetricPasses m => m Score
 dualUpdateAndGet = do
-    Metric.updateMetrics @MetricPasses 'a' 'a' mockedState
-    Metric.updateMetrics @MetricPasses 'a' 'a' mockedState
+    Metric.updateMetrics @MetricPasses 'a' Match.Equal mockedState
+    Metric.updateMetrics @MetricPasses 'a' Match.Equal mockedState
 
     Metric.getMetrics @MetricPasses mockedState >>= pure
 

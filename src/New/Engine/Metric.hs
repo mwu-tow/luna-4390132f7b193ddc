@@ -105,7 +105,7 @@ import New.Engine.Data.Score (Score)
 
 class (Default s, NFData s) => Metric s where
     updateMetric :: State.Monad (s :: Type) m
-        => Char -> Char -> Match.State -> m ()
+        => Char -> Match.CharMatch -> Match.State -> m ()
     getMetric :: State.Monad (s :: Type) m => Match.State -> m Score
 
 type Monad s m        = (P.Monad m, Metric s, State.Monad s m)
@@ -119,7 +119,7 @@ type family Metrics ss :: Constraint where
 -- === API === --
 
 class P.Monad m => Update (t :: k) m where
-    updateMetrics :: Char -> Char -> Match.State -> m ()
+    updateMetrics :: Char -> Match.CharMatch -> Match.State -> m ()
 
 class P.Monad m => Get (t :: k) m where
     getMetrics :: Match.State -> m Score

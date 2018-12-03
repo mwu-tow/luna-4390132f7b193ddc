@@ -7,6 +7,25 @@ import Prologue hiding (Index)
 import qualified New.Engine.Data.Substring as Substring
 
 import New.Engine.Data.Substring (Substring)
+import Control.Lens (makePrisms)
+
+
+
+-----------------------
+-- === CharMatch === --
+-----------------------
+
+-- === Definition === ---
+
+data CharMatch
+    = NotMatched
+    | CaseInsensitive
+    | Equal
+    deriving (Eq, Generic, Ord, Show)
+
+makePrisms ''CharMatch
+
+instance NFData CharMatch
 
 
 
@@ -55,4 +74,3 @@ instance NFData State
 mkState :: Text -> State
 mkState = \query -> State query def Substring.Equal def def
 {-# INLINE mkState #-}
-
