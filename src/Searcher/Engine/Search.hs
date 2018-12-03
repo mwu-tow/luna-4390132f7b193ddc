@@ -14,6 +14,7 @@ import qualified Searcher.Engine.Data.Match       as Match
 import qualified Searcher.Engine.Data.Substring   as Substring
 import qualified Searcher.Engine.Data.Tree        as Tree
 import qualified Searcher.Engine.Metric           as Metric
+import qualified Searcher.Engine.Data.Result           as Result
 
 import Data.Char                         (isLetter, isUpper, toLower, toUpper)
 import Data.Map.Strict                   (Map)
@@ -39,13 +40,15 @@ import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 -- === API === --
 
 search :: forall m a . (Metric.MonadMetrics DefaultMetrics m , SearcherData a)
-    => Text -> Database a -> m [Result a]
-search query database = do
+    => Text -> Database a -> (a -> Double) -> m [Result a]
+search query database hintWeightGetter = do
     let root    = database ^. Database.tree
         hints   = database ^. Database.hints
     matches <- matchQuery query root
-    let results = concat $! Map.elems $! toResultMap hints matches
-    pure $! List.sort results
+    let results   = concat $! Map.elems $! toResultMap hints matches
+        getScore = Result.getScore hintWeightGetter
+        compareRes r1 r2 = getScore r2 `compare` getScore r1
+    pure $! List.sortBy compareRes results
 {-# INLINE search #-}
 
 
@@ -211,14 +214,15 @@ type DefaultMetrics =
     , WordSuffixBonus ]
 
 test :: [Result Text]
-test = runIdentity
-    $! State.evalDefT @WordSuffixBonus
-    .  State.evalDefT @WordPrefixBonus
-    .  State.evalDefT @SuffixBonus
-    .  State.evalDefT @SequenceBonus
-    .  State.evalDefT @PrefixBonus
-    .  State.evalDefT @MismatchPenalty
-    $! search
-        "Tst"
-        $ Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]
+test = let
+    query    = "Tst"
+    database = Database.mk ["Test", "Testing", "Tester", "Foo", "Foot"]
+    in runIdentity
+        $! State.evalDefT @WordSuffixBonus
+        .  State.evalDefT @WordPrefixBonus
+        .  State.evalDefT @SuffixBonus
+        .  State.evalDefT @SequenceBonus
+        .  State.evalDefT @PrefixBonus
+        .  State.evalDefT @MismatchPenalty
+        $! search query database (const 1)
 

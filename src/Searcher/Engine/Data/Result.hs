@@ -6,10 +6,9 @@ import Prologue hiding (Index)
 import qualified Searcher.Engine.Data.Database as Database
 import qualified Searcher.Engine.Data.Match    as Match
 
-import Control.Lens             (Getter, to)
-import Searcher.Engine.Data.Database (SearcherData)
+import Control.Lens                  (Getter, to)
+import Searcher.Engine.Data.Database (SearcherData (fixedScore, text))
 import Searcher.Engine.Data.Match    (Match)
-import Searcher.Engine.Data.Score    (Score)
 
 
 
@@ -27,11 +26,15 @@ data Result a = Result
 makeLenses ''Result
 
 instance NFData a => NFData (Result a)
-instance SearcherData a => Ord (Result a) where
-    compare r1 r2 = (r2 ^. score) `compare` (r1 ^. score)
+instance SearcherData a => SearcherData (Result a) where
+    text       = hint . text
+    fixedScore = hint . fixedScore
 
-score :: SearcherData a => Getter (Result a) Score
-score = to $! \r -> let
-    points = r ^. match . Match.points
-    hint'  = r ^. hint
-    in Database.calculateScore points hint'
+
+
+getScore :: SearcherData a => (a -> Double) -> Result a -> Double
+getScore weightGetter results = let
+    points = results ^. match . Match.points
+    hint'  = results ^. hint
+    in Database.calculateScore points weightGetter hint'
+{-# INLINE getScore #-}

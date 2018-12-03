@@ -6,13 +6,13 @@ import Prologue hiding (Index)
 
 import qualified Control.Monad.State.Layered as State
 import qualified Data.Map.Strict             as Map
-import qualified Searcher.Engine.Data.Tree        as Tree
+import qualified Searcher.Engine.Data.Tree   as Tree
 
-import Control.Lens          (Getter, to)
-import Data.Map.Strict       (Map)
-import Data.Text             (Text)
+import Control.Lens               (Getter, to)
+import Data.Map.Strict            (Map)
+import Data.Text                  (Text)
 import Searcher.Engine.Data.Index (Index, IndexMap)
-import Searcher.Engine.Data.Score (Score)
+import Searcher.Engine.Data.Score (Score (Score))
 
 
 
@@ -24,11 +24,16 @@ import Searcher.Engine.Data.Score (Score)
 
 class Eq a => SearcherData a where
     text           :: Getter a Text
-    calculateScore :: Score -> a -> Score
+    fixedScore     :: Getter a Score
+    calculateScore :: Score -> (a -> Double) -> a -> Double
+    calculateScore (Score points) weightGetter searcherData = let
+        weight         = weightGetter searcherData
+        (Score fixed)  = searcherData ^. fixedScore
+        in (fromIntegral points) * weight + (fromIntegral fixed)
 
 instance SearcherData Text where
-    text               = to id
-    calculateScore p _ = p
+    text       = to id
+    fixedScore = to $! const def
 
 
 ----------------------
@@ -39,8 +44,8 @@ instance SearcherData Text where
 -- === Definition === --
 
 data Database a = Database
-    { _hints :: Map Index [a]
-    , _tree  :: Tree.Root
+    { _hints            :: Map Index [a]
+    , _tree             :: Tree.Root
     } deriving (Eq, Generic, Show)
 
 makeLenses ''Database
@@ -79,3 +84,20 @@ textMap = to $ \d -> let
     in txtToIdxMap
 {-# INLINE textMap #-}
 
+insert :: SearcherData a => a -> Database a -> Database a
+insert hint database = let
+    txtMap  = database ^. textMap
+    hintTxt = hint ^. text
+    root    = database ^. tree
+    insert' = Tree.insert hintTxt root
+    (root', txtMap') = State.run @IndexMap insert' txtMap
+    mayIdx = Map.lookup hintTxt txtMap'
+    updateHints = \idx hintMap -> Map.insertWith (<>) idx [hint] hintMap
+    in database
+        & hints %~ maybe id updateHints mayIdx
+        & tree  .~ root'
+{-# INLINE insert #-}
+
+insertMultiple :: SearcherData a => [a] -> Database a -> Database a
+insertMultiple input database = foldl (flip insert) database input
+{-# INLINE insertMultiple #-}

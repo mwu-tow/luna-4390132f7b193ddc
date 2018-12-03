@@ -39,7 +39,7 @@ defSearch = \query database -> runIdentity
         .  State.evalDefT @SequenceBonus
         .  State.evalDefT @PrefixBonus
         .  State.evalDefT @MismatchPenalty
-        $! Search.search query database
+        $! Search.search query database (const 1)
 {-# INLINE defSearch #-}
 
 defMatchQuery :: Text -> Tree.Root -> (Map Index Match)
