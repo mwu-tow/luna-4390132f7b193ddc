@@ -1,23 +1,23 @@
 module Empire.Server.Server where
 
 import qualified Compress
-import           Control.Arrow                 ((&&&))
-import           Control.Concurrent.STM.TChan  (writeTChan)
-import           Control.Lens                  (to, use, (.=), (^..), _Left)
-import           Control.Monad.Catch           (handle, try)
-import           Control.Monad.State           (StateT)
-import           Control.Monad.STM             (atomically)
-import           Data.Binary                   (Binary)
-import qualified Data.Binary                   as Bin
-import           Data.ByteString.Lazy          (toStrict)
-import qualified Data.Map                      as Map
-import qualified Data.Set                      as Set
-import qualified Data.Text                     as Text
-import           GHC.Stack                     (renderStack, whoCreated)
-import           Prelude                       ((++))
+import           Control.Arrow                ((&&&))
+import           Control.Concurrent.STM.TChan (writeTChan)
+import           Control.Lens                 (to, use, (.=), (^..), _Left)
+import           Control.Monad.Catch          (handle, try)
+import           Control.Monad.State          (StateT)
+import           Control.Monad.STM            (atomically)
+import           Data.Binary                  (Binary)
+import qualified Data.Binary                  as Bin
+import           Data.ByteString.Lazy         (toStrict)
+import qualified Data.Map                     as Map
+import qualified Data.Set                     as Set
+import qualified Data.Text                    as Text
+import           GHC.Stack                    (renderStack, whoCreated)
+import           Prelude                      ((++))
 import           Prologue
-import           System.Environment            (getEnv)
-import           System.FilePath               (replaceFileName, (</>))
+import           System.Environment           (getEnv)
+import           System.FilePath              (replaceFileName, (</>))
 
 import qualified Empire.ApiHandlers            as Api
 import qualified Empire.Commands.Graph         as Graph

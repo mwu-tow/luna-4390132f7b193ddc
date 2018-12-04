@@ -27,9 +27,9 @@ import LunaStudio.Data.Node                 (ExpressionNode, InputSidebar,
                                              toExpressionNodesMap)
 import LunaStudio.Data.NodeLoc              (HasNodeLoc (nodeLoc), NodeLoc)
 import LunaStudio.Data.NodeMeta             (NodeMeta)
+import LunaStudio.Data.NodeSearcher         (ImportName)
 import LunaStudio.Data.Port                 (InPort, InPortTree, OutPort,
                                              OutPortTree)
-import LunaStudio.Data.Searcher.Node        (LibraryName)
 import LunaStudio.Data.TypeRep              (TypeRep)
 import LunaStudio.Data.Visualizer           (ExternalVisualizers, Visualizer)
 
@@ -116,7 +116,7 @@ data ModificationSetGraphError = ModificationSetGraphError
     } deriving (Eq, Generic, Show)
 
 data ModificationSetImports = ModificationSetImports
-    { _newImports :: Set LibraryName
+    { _newImports :: Set ImportName
     } deriving (Eq, Generic, Show)
 
 data ModificationSetInPorts = ModificationSetInPorts
@@ -467,7 +467,6 @@ instance Diffable Graph where
     patch mod@(RenameNode       _) g = g & Graph.nodes         %~ patch mod
     patch mod@(SetCanEnterNode  _) g = g & Graph.nodes         %~ patch mod
     patch mod@(SetExpression    _) g = g & Graph.nodes         %~ patch mod
-    patch mod@(SetImports       _) g = g & Graph.imports       %~ patch mod
     patch mod@(SetInPorts       _) g = g & Graph.nodes         %~ patch mod
     patch     (SetInputSidebar  m) g = g & Graph.inputSidebar  .~ m ^. newInputSidebar
     patch mod@(SetIsDefinition  _) g = g & Graph.nodes         %~ patch mod
@@ -477,7 +476,7 @@ instance Diffable Graph where
     patch mod@(SetOutPorts      _) g = g & Graph.nodes         %~ patch mod
     patch     (SetOutputSidebar m) g = g & Graph.outputSidebar .~ m ^. newOutputSidebar
     patch     _                    g = g
-    diff g1 g2 = nodesDiff <> inSidebarDiff <> outSidebarDiff <> connsDiff <> monadsDiff <> importsDiff where
+    diff g1 g2 = nodesDiff <> inSidebarDiff <> outSidebarDiff <> connsDiff <> monadsDiff where
         nodesDiff     = diff (g1 ^. Graph.nodes) (g2 ^. Graph.nodes)
         connsDiff     = diff (g1 ^. Graph.connections) (g2 ^. Graph.connections)
         inSidebarDiff = Diff $ if g1 ^. Graph.inputSidebar /= g2 ^. Graph.inputSidebar
@@ -489,9 +488,6 @@ instance Diffable Graph where
         monadsDiff     = Diff $ if g1 ^. Graph.monads /= g2 ^. Graph.monads
             then pure . toModification . ModificationSetMonadPath $ g2 ^. Graph.monads
             else mempty
-        importsDiff    = Diff $ if g1 ^. Graph.imports /= g2 ^. Graph.imports
-            then pure . toModification . ModificationSetImports $ g2 ^. Graph.imports
-            else mempty
 
 instance Diffable (Either (Error GraphError) Graph) where
     patch (SetGraphError m) _         = Left  $ m ^. graphError
@@ -502,7 +498,7 @@ instance Diffable (Either (Error GraphError) Graph) where
     diff (Left _)   (Right g)  = Diff . pure . toModification $ ModificationSetGraph      g
     diff (Right g1) (Right g2) = diff g1 g2
 
-instance Diffable (Set LibraryName) where
+instance Diffable (Set ImportName) where
     patch (SetImports m) = const $ m ^. newImports
     patch _              = id
     diff imps1 imps2 = if imps1 == imps2
@@ -589,18 +585,18 @@ instance Diffable GUIState where
 
 
 guiStateDiff :: GUIState -> Diff
-guiStateDiff s = mconcat [bcDiff, defVisDiff, camDiff, visPathDiff, codeDiff,
-    graphDiff] where
-        bcDiff      = toDiff . ModificationSetBreadcrumb
-                    $ s ^. GUIState.breadcrumb
-        defVisDiff  = toDiff . ModificationSetDefaultVisualizers
-                    $ s ^. GUIState.defaultVisualizers
-        camDiff     = toDiff . ModificationSetCamera
-                    $ s ^. GUIState.camera
-        visPathDiff = toDiff . ModificationSetExternalVisPath
-                    $ s ^. GUIState.externalVisualizersPaths
-        codeDiff    = toDiff . ModificationSetCode
-                    $ s ^. GUIState.code
-        graphDiff   = case s ^. GUIState.graph of
-            Left  e -> toDiff $ ModificationSetGraphError e
-            Right g -> toDiff $ ModificationSetGraph      g
+guiStateDiff s = let
+    bcDiff      = toDiff . ModificationSetBreadcrumb
+                $ s ^. GUIState.breadcrumb
+    defVisDiff  = toDiff . ModificationSetDefaultVisualizers
+                $ s ^. GUIState.defaultVisualizers
+    camDiff     = toDiff . ModificationSetCamera
+                $ s ^. GUIState.camera
+    visPathDiff = toDiff . ModificationSetExternalVisPath
+                $ s ^. GUIState.externalVisualizersPaths
+    codeDiff    = toDiff . ModificationSetCode
+                $ s ^. GUIState.code
+    graphDiff   = case s ^. GUIState.graph of
+        Left  e -> toDiff $ ModificationSetGraphError e
+        Right g -> toDiff $ ModificationSetGraph      g
+    in mconcat [bcDiff, defVisDiff, camDiff, visPathDiff, codeDiff, graphDiff]

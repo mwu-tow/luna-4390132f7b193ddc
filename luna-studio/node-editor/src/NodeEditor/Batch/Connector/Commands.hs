@@ -55,7 +55,7 @@ import           LunaStudio.Data.PortRef                  (AnyPortRef (InPortRef
 import           LunaStudio.Data.Position                 (Position)
 import           LunaStudio.Data.Project                  (LocationSettings,
                                                            ProjectId)
-import           LunaStudio.Data.Searcher.Node            (LibraryName)
+import           LunaStudio.Data.NodeSearcher             (ImportName)
 import           NodeEditor.Batch.Workspace               (Workspace)
 import           NodeEditor.Batch.Workspace               (currentLocation)
 import           NodeEditor.React.Model.Connection        (ConnectionId)
@@ -99,7 +99,7 @@ addConnection src dst workspace uuid guiID = sendRequest
             conv (Left a)  = Left a --TODO normalise
             conv (Right a) = Right $ a ^. NodeLoc.nodeId
 
-addImports :: Set LibraryName -> Workspace -> UUID -> Maybe UUID -> IO ()
+addImports :: Set ImportName -> Workspace -> UUID -> Maybe UUID -> IO ()
 addImports libs workspace uuid guiID = sendRequest . Message uuid guiID
     . withLibrary workspace AddImports.Request $ libs
 
@@ -189,7 +189,7 @@ saveSettings :: LocationSettings -> Workspace -> UUID -> Maybe UUID -> IO ()
 saveSettings settings workspace uuid guiID = sendRequest $ Message uuid guiID
     $ withLibrary workspace SaveSettings.Request settings
 
-searchNodes :: Set LibraryName -> Workspace -> UUID -> Maybe UUID -> IO ()
+searchNodes :: Set ImportName -> Workspace -> UUID -> Maybe UUID -> IO ()
 searchNodes libsNames workspace uuid guiID = sendRequest $ Message uuid guiID
     $ withLibrary workspace SearchNodes.Request libsNames
 

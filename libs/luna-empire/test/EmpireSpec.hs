@@ -37,8 +37,10 @@ import           Empire.Data.Graph               (breadcrumbHierarchy,
                                                   userState)
 import qualified Empire.Data.Graph               as Graph hiding (Graph)
 import           Empire.Empire                   (InterpreterEnv (..))
+import           Empire.Prelude                  hiding (seq, toList)
 import qualified Luna.Package.Structure.Generate as Package
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
+import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..),
+                                                  BreadcrumbItem (Definition))
 import           LunaStudio.Data.Connection      (Connection (Connection))
 import qualified LunaStudio.Data.Graph           as Graph
 import           LunaStudio.Data.GraphLocation   (GraphLocation (..), (|>|))
@@ -47,20 +49,18 @@ import qualified LunaStudio.Data.Node            as Node
 import           LunaStudio.Data.NodeMeta        (NodeMeta (..), position)
 import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortDefault     (PortDefault (Expression))
-import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
+import           LunaStudio.Data.PortRef         (AnyPortRef (..),
+                                                  InPortRef (..),
+                                                  OutPortRef (..))
 import qualified LunaStudio.Data.Position        as Position
 import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
-import           Empire.Prelude                  hiding (toList, seq)
-import           Text.RawString.QQ               (r)
 import           System.FilePath                 ((</>))
 import qualified System.IO.Temp                  as Temp
+import           Text.RawString.QQ               (r)
 
-import           Test.Hspec                      (Selector, Spec, around,
-                                                  describe, it, parallel,
-                                                  shouldBe, shouldContain,
-                                                  shouldMatchList,
-                                                  shouldSatisfy, shouldThrow,
-                                                  xit)
+import Test.Hspec (Selector, Spec, around, describe, it, parallel, shouldBe,
+                   shouldContain, shouldMatchList, shouldSatisfy, shouldThrow,
+                   xit)
 
 import EmpireUtils
 
@@ -93,7 +93,7 @@ spec = around withChannels $ parallel $ do
                 topLevel <- graphIDs top
                 n1Level  <- Graph.getGraph (top |>| u1)
                 return (topLevel, n1Level)
-            withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _ _) -> do
+            withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _) -> do
                 length topLevel `shouldBe` 1
                 topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
@@ -106,7 +106,7 @@ spec = around withChannels $ parallel $ do
                 topLevel <- graphIDs top
                 n1Level <- Graph.getGraph (top |>| u1)
                 return (topLevel, n1Level)
-            withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _ _) -> do
+            withResult res $ \(topLevel, Graph.Graph n1LevelNodes _ i o _) -> do
                 length topLevel `shouldBe` 1
                 topLevel `shouldContain` [u1]
                 i            `shouldSatisfy` isJust
@@ -723,7 +723,7 @@ spec = around withChannels $ parallel $ do
                 Graph.setNodeExpression top u1 "a: b: a + b"
                 Graph.getGraph (top |>| u1)
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                 let [node] = nodes
                 node ^. Node.expression `shouldBe` "• + •"
                 connections `shouldSatisfy` ((== 3) . length)

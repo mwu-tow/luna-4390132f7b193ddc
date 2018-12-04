@@ -18,7 +18,7 @@ import LunaStudio.Data.TypeRep (TypeRep (TCons), toConstructorRep)
 
 type VisualizerName = Text
 type VisualizerPath = Text
-type LibraryName    = Text
+type ImportName    = Text
 
 
 data RawVisualizer = RawVisualizer
@@ -36,7 +36,7 @@ data VisualizerType
     = InternalVisualizer
     | LunaVisualizer
     | ProjectVisualizer
-    | ImportedVisualizer LibraryName
+    | ImportedVisualizer ImportName
     deriving (Eq, Generic, Ord, Show)
 
 makePrisms ''VisualizerType
@@ -70,7 +70,7 @@ instance ToJSON   Visualizer
 
 data ExternalVisualizers a = ExternalVisualizers
     { _projectVisualizers   :: Maybe a
-    , _librariesVisualizers :: Map LibraryName a
+    , _librariesVisualizers :: Map ImportName a
     } deriving (Eq, Foldable, Functor, Generic, Show, Traversable)
 
 makeLenses ''ExternalVisualizers
@@ -96,14 +96,14 @@ mapExternalVisualizersM :: Monad m
 mapExternalVisualizersM = sequence .:. mapExternalVisualizers
 
 mapExternalVisualizersWithKey
-    :: (a -> b) -> (LibraryName -> a -> b) -> ExternalVisualizers a
+    :: (a -> b) -> (ImportName -> a -> b) -> ExternalVisualizers a
     -> ExternalVisualizers b
 mapExternalVisualizersWithKey projectF libsF vis = ExternalVisualizers
     (projectF            <$> vis ^. projectVisualizers)
     (Map.mapWithKey libsF $  vis ^. librariesVisualizers)
 
 mapExternalVisualizersWithKeyM :: Monad m
-    => (a -> m b) -> (LibraryName -> a -> m b) -> ExternalVisualizers a
+    => (a -> m b) -> (ImportName -> a -> m b) -> ExternalVisualizers a
     -> m (ExternalVisualizers b)
 mapExternalVisualizersWithKeyM = sequence .:. mapExternalVisualizersWithKey
 
@@ -136,7 +136,7 @@ mapVisualizersM :: Monad m
 mapVisualizersM = sequence .::. mapVisualizers
 
 mapVisualizersWithKey
-    :: (a -> b) -> (a -> b) -> (a -> b) -> (LibraryName -> a -> b)
+    :: (a -> b) -> (a -> b) -> (a -> b) -> (ImportName -> a -> b)
     -> Visualizers a
     -> Visualizers b
 mapVisualizersWithKey internalF lunaF projectF libsF vis = Visualizers
@@ -145,7 +145,7 @@ mapVisualizersWithKey internalF lunaF projectF libsF vis = Visualizers
     (mapExternalVisualizersWithKey projectF libsF $ vis ^. externalVisualizers)
 
 mapVisualizersWithKeyM :: Monad m
-    => (a -> m b) -> (a -> m b) -> (a -> m b) -> (LibraryName -> a -> m b)
+    => (a -> m b) -> (a -> m b) -> (a -> m b) -> (ImportName -> a -> m b)
     -> Visualizers a
     -> m (Visualizers b)
 mapVisualizersWithKeyM = sequence .::. mapVisualizersWithKey

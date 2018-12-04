@@ -41,8 +41,8 @@ module Empire.Commands.Persistence () where
 -- logger :: Logger.Logger
 -- logger = Logger.getLogger $(Logger.moduleName)
 
--- defaultLibraryName, defaultLibraryPath :: String
--- defaultLibraryName = "Main"
+-- defaultImportName, defaultLibraryPath :: String
+-- defaultImportName = "Main"
 -- defaultLibraryPath = "Main.luna"
 
 -- touch :: FilePath -> IO ()
@@ -55,4 +55,4 @@ module Empire.Commands.Persistence () where
 --   let path = lunaroot </> "projects" </> defaultLibraryPath
 --   logger Logger.info $ "Creating file " <> path
 --   liftIO $ touch path
---   void $ createLibrary (Just defaultLibraryName) (fromString path)
+--   void $ createLibrary (Just defaultImportName) (fromString path)

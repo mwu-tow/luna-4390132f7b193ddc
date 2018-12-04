@@ -79,7 +79,7 @@ import NodeEditor.Action.Basic                     (NodeUpdateModification (Keep
                                                     localUpdateNodeCode,
                                                     localUpdateNodeTypecheck,
                                                     localUpdateOrAddExpressionNode,
-                                                    setImportedLibraries,
+                                                    setCurrentImports,
                                                     updateNodeValueAndVisualization,
                                                     updateScene,
                                                     updateWithAPIGraph)
@@ -158,7 +158,7 @@ applyModification p nm = \case
     SetGraphError m ->
         handleGraphError $ m ^. Diff.graphError
     SetImports m ->
-        setImportedLibraries $ m ^. Diff.newImports
+        setCurrentImports $ m ^. Diff.newImports
     SetInPorts m ->
         localUpdateExpressionNodeInPorts
         (convert (p, m ^. Diff.setInPortsNodeLoc . NodeLoc.nodeId))

@@ -104,6 +104,9 @@ import LunaStudio.Data.GraphLocation        (GraphLocation (..), (|>))
 import LunaStudio.Data.Node                 (ExpressionNode (..), NodeId)
 import LunaStudio.Data.NodeLoc              (NodeLoc (..))
 import LunaStudio.Data.NodeMeta             (NodeMeta)
+import LunaStudio.Data.NodeSearcher         (ClassHints (..), ImportsHints,
+                                             ModuleHints (ModuleHints),
+                                             ImportName)
 import LunaStudio.Data.Port                 (InPortId, InPortIndex (..),
                                              getPortNumber)
 import LunaStudio.Data.PortDefault          (PortDefault)
@@ -111,9 +114,6 @@ import LunaStudio.Data.PortRef              (AnyPortRef (..), InPortRef (..),
                                              OutPortRef (..))
 import LunaStudio.Data.Position             (Position)
 import LunaStudio.Data.Range                (Range (..))
-import LunaStudio.Data.Searcher.Node        (ClassHints (..), LibrariesHintsMap,
-                                             LibraryHints (LibraryHints),
-                                             LibraryName)
 
 
 addImports :: GraphLocation -> Set Text -> Empire ()
@@ -1391,7 +1391,7 @@ getImportsInFile = do
     imports <- matchUnit unit
     return $ catMaybes imports
 
-getAvailableImports :: GraphLocation -> Empire (Set LibraryName)
+getAvailableImports :: GraphLocation -> Empire (Set ImportName)
 getAvailableImports gl = withUnit pureGl mkImports where
     pureGl = GraphLocation (gl ^. GraphLocation.filePath) mempty
     implicitImports = [nativeModuleName, "Std.Base"]
@@ -1408,9 +1408,9 @@ classToHints (Class.Class constructors methods _)
 isPublicMethod :: IR.Name -> Bool
 isPublicMethod (nameToString -> n) = Safe.headMay n /= Just '_'
 
-importsToHints :: Unit.Unit -> LibraryHints
+importsToHints :: Unit.Unit -> ModuleHints
 importsToHints (Unit.Unit definitions classes)
-    = LibraryHints funHints $ Map.mapKeys convert classHints where
+    = ModuleHints funHints $ Map.mapKeys convert classHints where
         funHints   = (convert *** (fromMaybe "" . view Def.documentation))
             <$> Map.toList (unwrap definitions)
         classHints = (classToHints . view Def.documented) <$> classes
@@ -1438,7 +1438,7 @@ getImportPaths (GraphLocation file _) = do
     importPaths     <- Package.packageImportPaths currentProjPath
     return $ map (view _2) importPaths
 
-getSearcherHints :: GraphLocation -> Empire LibrariesHintsMap
+getSearcherHints :: GraphLocation -> Empire ImportsHints
 getSearcherHints loc = do
     importPaths     <- liftIO $ getImportPaths loc
     availableSource <- liftIO $ forM importPaths $ \path -> do

@@ -1,47 +1,33 @@
+{-# LANGUAGE OverloadedStrings #-}
 module NodeEditor.Action.Basic.UpdateNode where
 
-import Common.Prelude
-
-import qualified Data.Map                                   as Map
-import qualified Data.Set                                   as Set
-import qualified LunaStudio.Data.Node                       as API
-import qualified LunaStudio.Data.PortRef                    as PortRef
-import qualified LunaStudio.Data.TypeRep                    as TypeRep
-import qualified NodeEditor.Action.State.NodeEditor         as NodeEditor
-import qualified NodeEditor.React.Model.Node.ExpressionNode as ExpressionNode
-import qualified NodeEditor.React.Model.Node.SidebarNode    as SidebarNode
-import qualified NodeEditor.React.Model.Port                as Port
-import qualified NodeEditor.React.Model.Searcher            as Searcher
-
-import Common.Action.Command                       (Command)
-import Data.Set                                    (Set)
-import LunaStudio.Data.Node                        (NodeTypecheckerUpdate,
-                                                    tcNodeId)
-import LunaStudio.Data.NodeLoc                     (NodeLoc)
-import NodeEditor.Action.Basic.AddNode             (localAddExpressionNode,
-                                                    localAddInputNode,
-                                                    localAddOutputNode)
-import NodeEditor.Action.Basic.Scene               (updateScene)
-import NodeEditor.Action.Basic.UpdateSearcherHints (localUpdateSearcherHintsPreservingSelection)
-import NodeEditor.Action.State.Model               (calculatePortSelfMode)
-import NodeEditor.React.Model.Node                 (ExpressionNode, InputNode,
-                                                    NodePath, OutputNode,
-                                                    inPortAt, nodeLoc)
-import NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected)
-import NodeEditor.React.Model.Port                 (InPort, InPortTree, OutPort,
-                                                    OutPortTree, isSelf, mode,
-                                                    portId)
-import NodeEditor.React.Model.Visualization        (VisualizationBackup (MessageBackup),
-                                                    awaitingDataMsg, noVisMsg,
-                                                    visualizers)
-import NodeEditor.State.Global                     (State)
+import           Common.Action.Command                       (Command)
+import           Common.Prelude
+import qualified Data.Map                                    as Map
+import           Data.Set                                    (Set)
+import qualified Data.Set                                    as Set
+import           LunaStudio.Data.Node                        (NodeTypecheckerUpdate, tcNodeId)
+import qualified LunaStudio.Data.Node                        as API
+import           LunaStudio.Data.NodeLoc                     (NodeLoc)
+import           NodeEditor.Action.Basic.AddNode             (localAddExpressionNode, localAddInputNode, localAddOutputNode)
+import           NodeEditor.Action.Basic.Scene               (updateScene)
+import           NodeEditor.Action.Basic.UpdateSearcherHints (localUpdateSearcherHintsPreservingSelection)
+import           NodeEditor.Action.State.Model               (calculatePortSelfMode)
+import qualified NodeEditor.Action.State.NodeEditor          as NodeEditor
+import           NodeEditor.React.Model.Node                 (ExpressionNode, InputNode, NodePath, OutputNode, inPortAt, nodeLoc)
+import           NodeEditor.React.Model.Node.ExpressionNode  (inPortsList, isSelected)
+import qualified NodeEditor.React.Model.Node.ExpressionNode  as ExpressionNode
+import qualified NodeEditor.React.Model.Node.SidebarNode     as SidebarNode
+import           NodeEditor.React.Model.Port                 (InPort, InPortTree, OutPort, OutPortTree, isSelf, mode, portId)
+import qualified NodeEditor.React.Model.Searcher             as Searcher
+import           NodeEditor.React.Model.Visualization        (awaitingDataMsg, noVisMsg, visualizers, VisualizationBackup (MessageBackup))
+import           NodeEditor.State.Global                     (State)
 
 
-data NodeUpdateModification
-    = KeepPorts
-    | KeepNodeMeta
-    | MergePorts
-    deriving (Eq, Ord)
+data NodeUpdateModification = KeepPorts
+                            | KeepNodeMeta
+                            | MergePorts
+                            deriving (Eq, Ord)
 
 
 localUpdateExpressionNodes :: Set NodeUpdateModification -> [ExpressionNode]
@@ -126,6 +112,7 @@ localUpdateExpressionNode mods node
                 defVis          = if preventNodeMeta
                     then prevNode ^. ExpressionNode.defaultVisualizer
                     else node ^. ExpressionNode.defaultVisualizer
+                value = prevNode ^. ExpressionNode.value
                 n = node
                     & isSelected                       .~ selected
                     & ExpressionNode.mode              .~ mode'
@@ -135,6 +122,7 @@ localUpdateExpressionNode mods node
                     & ExpressionNode.visEnabled        .~ visEnabled
                     & ExpressionNode.defaultVisualizer .~ defVis
                     & ExpressionNode.errorVisEnabled   .~ errVis
+                    & ExpressionNode.value             .~ value
 
                 mayPortSelfId = find isSelf . map (view portId) $ inPortsList n
                 updatePortSelfMode n' selfPid m
@@ -179,8 +167,7 @@ localUpdateNodeTypecheck path update = do
                     & ExpressionNode.inPorts  .~ convert `fmap` inPorts
                     & ExpressionNode.outPorts .~ convert `fmap` outPorts
                     & ExpressionNode.value    %~ (\value ->
-                        if  value == ExpressionNode.AwaitingTypecheck
-                            || ExpressionNode.returnsError node
+                        if value == ExpressionNode.AwaitingTypecheck
                             then ExpressionNode.AwaitingData else value)
         API.OutputSidebarUpdate _ inPorts -> NodeEditor.modifyOutputNode nl $
             SidebarNode.outputSidebarPorts .= convert `fmap` inPorts
@@ -188,19 +175,12 @@ localUpdateNodeTypecheck path update = do
             SidebarNode.inputSidebarPorts .= convert `fmap2` outPorts
 
 updateSearcherClassName :: ExpressionNode -> Command State ()
-updateSearcherClassName updatedNode = do
-    mayConnectedPortRef <- maybe
-        Nothing
-        (view Searcher.connectedPortRef)
-        <$> NodeEditor.getSearcher
-    let mayConnectedNL   = view PortRef.nodeLoc <$> mayConnectedPortRef
-        nl               = updatedNode ^. ExpressionNode.nodeLoc
-        mayConnectedPort = listToMaybe $ ExpressionNode.outPortsList updatedNode
-        className        = maybe mempty toClassName mayConnectedPort
-        toClassName p    = convert <$> p ^? Port.valueType . TypeRep._TCons . _1
-
-    when (mayConnectedNL == Just nl) $ do
-        NodeEditor.modifySearcher $ Searcher.mode
-            . Searcher._NodeSearcher . Searcher.modeData
-            . Searcher._ExpressionMode . Searcher.className .= className
+updateSearcherClassName node = do
+    let (className, _) = Searcher.getPredInfo node
+        isNodePred n s
+            = s ^. Searcher.predNl == Just (n ^. ExpressionNode.nodeLoc)
+    whenM (maybe False (isNodePred node) <$> NodeEditor.getSearcher) $ do
+        NodeEditor.modifySearcher
+            $ Searcher.mode . Searcher._Node . _2 . Searcher.className
+                .= className
         localUpdateSearcherHintsPreservingSelection

@@ -19,14 +19,14 @@ import NodeEditor.Action.Basic.RemoveNode          (localRemoveNodes)
 import NodeEditor.Action.Basic.UpdateNode          (localUpdateOrAddExpressionNode,
                                                     localUpdateOrAddInputNode,
                                                     localUpdateOrAddOutputNode)
-import NodeEditor.Action.Basic.UpdateSearcherHints (setImportedLibraries)
+import NodeEditor.Action.Basic.UpdateSearcherHints (setCurrentImports)
 import NodeEditor.Action.State.NodeEditor          (getExpressionNodes,
                                                     modifyNodeEditor,
                                                     setGraphStatus,
                                                     updateMonads)
 import NodeEditor.React.Model.Node                 (ExpressionNode, InputNode,
                                                     OutputNode, nodeLoc)
-import NodeEditor.React.Model.Searcher             (LibraryName)
+import LunaStudio.Data.NodeSearcher                (ImportName)
 import NodeEditor.State.Global                     (State)
 
 
@@ -43,7 +43,7 @@ updateWithAPIGraph p g = updateGraph nodes input output conns monads imports
 
 
 updateGraph :: [ExpressionNode] -> Maybe InputNode -> Maybe OutputNode
-    -> [Connection] -> [MonadPath] -> Set LibraryName -> Command State ()
+    -> [Connection] -> [MonadPath] -> Set ImportName -> Command State ()
 updateGraph nodes input output connections monads imports = do
     let nlsSet = Set.fromList $ map (view nodeLoc) nodes
     nlsToRemove <- filter (not . flip Set.member nlsSet) . map (view nodeLoc)
@@ -63,5 +63,6 @@ updateGraph nodes input output connections monads imports = do
     void $ localAddConnections connections
 
     updateMonads monads
-    setImportedLibraries imports
+    setCurrentImports imports
     updateNodeZOrder
+    

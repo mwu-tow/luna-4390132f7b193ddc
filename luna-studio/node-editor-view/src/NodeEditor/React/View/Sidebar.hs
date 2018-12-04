@@ -1,51 +1,36 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 module NodeEditor.React.View.Sidebar
     ( sidebar_
     , focusPortLabel
     ) where
 
-import Common.Prelude
-import React.Flux     as React hiding (view)
-
-import qualified Data.Aeson                                as Aeson
-import qualified JS.Mount                                  as Mount
-import qualified JS.UI                                     as UI
-import qualified LunaStudio.Data.PortRef                   as PortRef
-import qualified NodeEditor.Event.UI                       as UI
-import qualified NodeEditor.React.Event.Sidebar            as Sidebar
-import qualified NodeEditor.React.Model.Node.SidebarNode   as SidebarNode
-import qualified NodeEditor.React.Model.Port               as Port
+import           Common.Prelude
+import qualified Data.Aeson                              as Aeson
+import           Data.Timestamp                          (Timestamp (Timestamp))
+import qualified JS.Mount                                as Mount
+import           JS.Scene                                (inputSidebarId, outputSidebarId)
+import qualified JS.UI                                   as UI
+import           LunaStudio.Data.PortRef                 (AnyPortRef (OutPortRef'), OutPortRef (OutPortRef), toAnyPortRef)
+import qualified LunaStudio.Data.PortRef                 as PortRef
+import           LunaStudio.Data.Position                (y)
+import qualified NodeEditor.Event.UI                     as UI
+import qualified NodeEditor.React.Event.Sidebar          as Sidebar
+import           NodeEditor.React.IsRef                  (IsRef, dispatch)
+import           NodeEditor.React.Model.Node.SidebarNode (NodeLoc, SidebarMode (AddRemove, MoveConnect), SidebarNode, countProjectionPorts,
+                                                          isInputSidebar, minimalNumberOfPorts)
+import qualified NodeEditor.React.Model.Node.SidebarNode as SidebarNode
+import           NodeEditor.React.Model.Port             (AnyPort, OutPortIndex (Projection), getPortNumber, getPositionInSidebar,
+                                                          isHighlighted, isInMovedMode, isInNameEditMode, isInPort, isOutPort)
+import qualified NodeEditor.React.Model.Port             as Port
+import           NodeEditor.React.Model.SearcherProperties (SearcherProperties)
 import qualified NodeEditor.React.Model.SearcherProperties as Searcher
-import qualified NodeEditor.React.View.Style               as Style
-
-import Data.Timestamp                            (Timestamp (Timestamp))
-import JS.Scene                                  (inputSidebarId,
-                                                  outputSidebarId)
-import LunaStudio.Data.PortRef                   (AnyPortRef (OutPortRef'),
-                                                  OutPortRef (OutPortRef),
-                                                  toAnyPortRef)
-import LunaStudio.Data.Position                  (y)
-import NodeEditor.React.IsRef                    (IsRef, dispatch)
-import NodeEditor.React.Model.Node.SidebarNode   (NodeLoc, SidebarMode (AddRemove, MoveConnect),
-                                                  SidebarNode,
-                                                  countProjectionPorts,
-                                                  isInputSidebar,
-                                                  minimalNumberOfPorts)
-import NodeEditor.React.Model.Port               (AnyPort,
-                                                  OutPortIndex (Projection),
-                                                  getPortNumber,
-                                                  getPositionInSidebar,
-                                                  isHighlighted, isInMovedMode,
-                                                  isInNameEditMode, isInPort,
-                                                  isOutPort)
-import NodeEditor.React.Model.SearcherProperties (SearcherProperties)
-import NodeEditor.React.View.Port                (handleClick, handleMouseDown,
-                                                  handleMouseEnter,
-                                                  handleMouseLeave,
-                                                  handleMouseUp, handlers,
-                                                  jsShow2, modeClass)
-import NodeEditor.React.View.Searcher            (searcher_)
-import NodeEditor.React.View.Style               (plainPath_, plainRect_)
-
+import           NodeEditor.React.View.Port              (handleClick, handleMouseDown, handleMouseEnter, handleMouseLeave, handleMouseUp,
+                                                          handlers, jsShow2, modeClass)
+import           NodeEditor.React.View.Searcher          (searcher_)
+import           NodeEditor.React.View.Style             (plainPath_, plainRect_)
+import qualified NodeEditor.React.View.Style             as Style
+import           React.Flux                              as React hiding (view)
 
 name :: SidebarNode node => node -> JSString
 name node = "sidebarPorts" <> if isInputSidebar node then "Inputs" else "Outputs"
@@ -160,10 +145,7 @@ sidebarPortName_ ref portRef portName mayS = div_ ([ "className" $= Style.prefix
             let outPortRefRegularHandler = [ onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.SidebarEvent $ Sidebar.EditPortName outPortRef) ]
                 regularHandlersAndElem   = (outPortRefRegularHandler, regularName)
             flip (maybe regularHandlersAndElem) mayS $ \s -> case s ^. Searcher.mode of
-                Searcher.NodeSearcher ns -> case ns ^. Searcher.modeData of
-                    Searcher.PortNameMode d -> let sPortRef = OutPortRef (ns ^. Searcher.nodeLoc) (d ^. Searcher.portId)
-                        in if sPortRef == outPortRef then ([], searcher_ ref s) else regularHandlersAndElem
-                    _ -> regularHandlersAndElem
+                Searcher.PortName sPortRef _ -> if sPortRef == outPortRef then ([], searcher_ ref s) else regularHandlersAndElem
                 _                            -> regularHandlersAndElem
         _ -> ([], regularName)
 
@@ -247,9 +229,6 @@ focusPortLabel = UI.focus portLabelId
 
 filterOutSearcherIfNotRelated :: AnyPortRef -> Maybe SearcherProperties -> Maybe SearcherProperties
 filterOutSearcherIfNotRelated (OutPortRef' portRef) (Just s) = case s ^. Searcher.mode of
-    Searcher.NodeSearcher ns -> case ns ^. Searcher.modeData of
-        Searcher.PortNameMode d -> let sPortRef = OutPortRef (ns ^. Searcher.nodeLoc) (d ^. Searcher.portId)
-            in if portRef == sPortRef then Just s else Nothing
-        _ -> Nothing
+    Searcher.PortName sPortRef _ -> if portRef == sPortRef then Just s else Nothing
     _                            -> Nothing
 filterOutSearcherIfNotRelated _ _ = Nothing

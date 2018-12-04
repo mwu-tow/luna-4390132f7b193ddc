@@ -6,44 +6,44 @@
 
 module FileModuleSpec (spec) where
 
-import           Control.Lens                    (toListOf)
-import           Data.List                       (find)
-import qualified Data.Map                        as Map
-import qualified Data.Set                        as Set
-import qualified Data.Text                       as Text
-import           Empire.ASTOp                    (runASTOp)
-import           Empire.ASTOps.Parse             (SomeParserException)
-import qualified Empire.Commands.Code            as Code
-import qualified Empire.Commands.Graph           as Graph
-import qualified Empire.Commands.GraphBuilder    as GraphBuilder
-import qualified Empire.Commands.Library         as Library
-import qualified Empire.Data.Graph               as Graph
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (..))
-import qualified LunaStudio.Data.Breadcrumb      as Breadcrumb
-import           LunaStudio.Data.Constants       (gapBetweenNodes)
-import qualified LunaStudio.Data.Graph           as APIGraph
-import           LunaStudio.Data.GraphLocation   (GraphLocation (..), (|>=))
-import qualified LunaStudio.Data.Node            as Node
-import qualified LunaStudio.Data.NodeMeta        as NodeMeta
-import           LunaStudio.Data.Point           (Point (..))
-import           LunaStudio.Data.Port            (Port (..), PortState (..))
-import qualified LunaStudio.Data.Port            as Port
-import           LunaStudio.Data.PortDefault     (PortDefault (..))
-import           LunaStudio.Data.PortRef         (AnyPortRef (..))
-import qualified LunaStudio.Data.Position        as Position
-import           LunaStudio.Data.Range           (Range (..))
-import           LunaStudio.Data.TextDiff        (TextDiff (..))
-import           LunaStudio.Data.TypeRep         (TypeRep (TStar))
+import           Control.Lens                  (toListOf)
+import           Data.List                     (find)
+import qualified Data.Map                      as Map
+import qualified Data.Set                      as Set
+import qualified Data.Text                     as Text
+import           Empire.ASTOp                  (runASTOp)
+import           Empire.ASTOps.Parse           (SomeParserException)
+import qualified Empire.Commands.Code          as Code
+import qualified Empire.Commands.Graph         as Graph
+import qualified Empire.Commands.GraphBuilder  as GraphBuilder
+import qualified Empire.Commands.Library       as Library
+import qualified Empire.Data.Graph             as Graph
+import           LunaStudio.Data.Breadcrumb    (Breadcrumb (..),
+                                                BreadcrumbItem (..))
+import qualified LunaStudio.Data.Breadcrumb    as Breadcrumb
+import           LunaStudio.Data.Constants     (gapBetweenNodes)
+import qualified LunaStudio.Data.Graph         as APIGraph
+import           LunaStudio.Data.GraphLocation (GraphLocation (..), (|>=))
+import qualified LunaStudio.Data.Node          as Node
+import qualified LunaStudio.Data.NodeMeta      as NodeMeta
+import           LunaStudio.Data.Point         (Point (..))
+import           LunaStudio.Data.Port          (Port (..), PortState (..))
+import qualified LunaStudio.Data.Port          as Port
+import           LunaStudio.Data.PortDefault   (PortDefault (..))
+import           LunaStudio.Data.PortRef       (AnyPortRef (..))
+import qualified LunaStudio.Data.Position      as Position
+import           LunaStudio.Data.Range         (Range (..))
+import           LunaStudio.Data.TextDiff      (TextDiff (..))
+import           LunaStudio.Data.TypeRep       (TypeRep (TStar))
 
-import           Empire.Prelude                  as P
+import Empire.Prelude as P
 
-import           Test.Hspec                      (Spec, around, describe, it,
-                                                  parallel, shouldBe,
-                                                  shouldMatchList, shouldSatisfy)
+import Test.Hspec (Spec, around, describe, it, parallel, shouldBe,
+                   shouldMatchList, shouldSatisfy)
 
-import           EmpireUtils
+import EmpireUtils
 
-import           Text.RawString.QQ               (r)
+import Text.RawString.QQ (r)
 
 
 multiFunCode :: Text
@@ -692,7 +692,7 @@ spec = around withChannels $ parallel $ do
                 let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
                 u1 <- mkUUID
                 Graph.addNode (loc |>= bar) u1 "5" (atXPos 10)
-                APIGraph.Graph _ _ _ (Just output) _ _ <- Graph.getGraph (loc |>= bar)
+                APIGraph.Graph _ _ _ (Just output) _ <- Graph.getGraph (loc |>= bar)
                 Graph.connect (loc |>= bar) (outPortRef u1 []) (InPortRef' $ inPortRef (output ^. Node.nodeId) [])
                 u2 <- mkUUID
                 Graph.addNode (loc |>= bar) u2 "1" (atXPos (-20))
@@ -722,7 +722,7 @@ spec = around withChannels $ parallel $ do
                 let Just bar = view Node.nodeId <$> find (\n -> n ^. Node.name == Just "bar") nodes
                 u1 <- mkUUID
                 Graph.addNode (loc |>= bar) u1 "5" (atXPos 10)
-                APIGraph.Graph _ _ _ (Just output) _ _ <- Graph.getGraph (loc |>= bar)
+                APIGraph.Graph _ _ _ (Just output) _ <- Graph.getGraph (loc |>= bar)
                 Graph.connect (loc |>= bar) (outPortRef u1 []) (InPortRef' $ inPortRef (output ^. Node.nodeId) [])
                 blockEnd <- Graph.withGraph (loc |>= bar) $ runASTOp $ Code.getCurrentBlockEnd
                 code <- Graph.withUnit loc $ use Graph.code
@@ -866,7 +866,7 @@ spec = around withChannels $ parallel $ do
                 # Docs
                 def foo:
                     5
-                
+
                 def quux: None
                 # Docs
                 def bar:

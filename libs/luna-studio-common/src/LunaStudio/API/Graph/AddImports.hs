@@ -10,12 +10,12 @@ import Data.Binary                   (Binary)
 import Data.Set                      (Set)
 import LunaStudio.Data.Diff          (Diff)
 import LunaStudio.Data.GraphLocation (GraphLocation)
-import LunaStudio.Data.Searcher.Node (LibraryName)
+import LunaStudio.Data.NodeSearcher  (ImportName)
 
 
 data Request = Request
     { _location :: GraphLocation
-    , _modules  :: Set LibraryName
+    , _modules  :: Set ImportName
     } deriving (Eq, Generic, Show)
 
 makeLenses ''Request

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module CaseSpec (spec) where
 
@@ -12,37 +13,61 @@ import qualified Empire.ASTOps.Parse             as Parser
 import           Empire.ASTOps.Print             (printExpression)
 import qualified Empire.ASTOps.Read              as ASTRead
 import qualified Empire.Commands.AST             as AST (isTrivialLambda)
-import qualified Empire.Commands.Graph           as Graph (addNode, addPort, connect, disconnect, getConnections, getGraph, getNodes,
-                                                           movePort, removeNodes, removePort, renameNode, renamePort, withGraph)
+import qualified Empire.Commands.Graph           as Graph (addNode, addPort,
+                                                           connect, disconnect,
+                                                           getConnections,
+                                                           getGraph, getNodes,
+                                                           movePort,
+                                                           removeNodes,
+                                                           removePort,
+                                                           renameNode,
+                                                           renamePort,
+                                                           withGraph)
 import qualified Empire.Commands.GraphBuilder    as GraphBuilder
 import           Empire.Commands.Library         (withLibrary)
 import qualified Empire.Commands.Typecheck       as Typecheck (run)
 import           Empire.Data.BreadcrumbHierarchy (BreadcrumbDoesNotExistException)
-import qualified Empire.Data.BreadcrumbHierarchy as BH
 import           Empire.Data.Graph               (breadcrumbHierarchy)
 import qualified Empire.Data.Graph               as Graph (breadcrumbHierarchy)
 import qualified Empire.Data.Library             as Library (body)
 import           Empire.Empire                   (InterpreterEnv (..))
 import           LunaStudio.Data.Connection      (Connection (..))
+import           LunaStudio.Data.Connection      (Connection (..))
 import qualified LunaStudio.Data.Graph           as Graph
-import           LunaStudio.Data.GraphLocation   (GraphLocation (..), (|>|), (|>-))
+import qualified LunaStudio.Data.Graph           as Graph
+import           LunaStudio.Data.GraphLocation   (GraphLocation (..))
+import           LunaStudio.Data.GraphLocation   (GraphLocation (..), (|>-),
+                                                  (|>|))
+import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
 import           LunaStudio.Data.LabeledTree     (LabeledTree (..))
 import qualified LunaStudio.Data.Node            as Node
+import qualified LunaStudio.Data.Node            as Node
+import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
 import           LunaStudio.Data.NodeLoc         (NodeLoc (..))
 import           LunaStudio.Data.NodeMeta        (NodeMeta (..))
+import           LunaStudio.Data.NodeMeta        (NodeMeta (..))
+import           LunaStudio.Data.Port            (OutPortTree (..))
 import           LunaStudio.Data.Port            (OutPortTree (..))
 import qualified LunaStudio.Data.Port            as Port
+import qualified LunaStudio.Data.Port            as Port
 import           LunaStudio.Data.PortDefault     (PortDefault (Constant, Expression))
-import           LunaStudio.Data.PortRef         (AnyPortRef (..), InPortRef (..), OutPortRef (..))
+import           LunaStudio.Data.PortDefault     (PortDefault (Constant, Expression))
+import           LunaStudio.Data.PortRef         (AnyPortRef (..),
+                                                  InPortRef (..),
+                                                  OutPortRef (..))
+import           LunaStudio.Data.PortRef         (AnyPortRef (..),
+                                                  InPortRef (..),
+                                                  OutPortRef (..))
+import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar, TVar))
 import           LunaStudio.Data.TypeRep         (TypeRep (TCons, TLam, TStar, TVar))
 import           Prologue                        hiding (mapping, toList, (|>))
 -- import           OCI.IR.Class                    (exprs, links)
 
-import           Test.Hspec                      (Selector, Spec, around, describe, expectationFailure, it, parallel, shouldBe,
-                                                  shouldContain, shouldMatchList, shouldSatisfy, shouldStartWith, shouldThrow, xdescribe,
-                                                  xit)
+import Test.Hspec (Selector, Spec, around, describe, expectationFailure, it,
+                   parallel, shouldBe, shouldContain, shouldMatchList,
+                   shouldSatisfy, shouldStartWith, shouldThrow, xdescribe, xit)
 
-import           EmpireUtils
+import EmpireUtils
 
 
 spec :: Spec
@@ -72,7 +97,7 @@ spec = around withChannels $ parallel $ do
                     , Port.Port [Port.Self]  "self" TStar Port.NotConnected
                     , Port.Port [Port.Arg 0] "arg0" TStar (Port.WithDefault (Expression "x: x"))
                     ]
-                let Graph.Graph nodes connections (Just inputEdge) (Just outputEdge) _ _ = graph
+                let Graph.Graph nodes connections (Just inputEdge) (Just outputEdge) _ = graph
                 (inputEdge ^. Node.inputEdgePorts) `shouldMatchList` [
                       LabeledTree def (Port.Port [Port.Projection 0] "x" TStar Port.NotConnected)
                     ]

@@ -3,70 +3,73 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeApplications    #-}
 
 module FileLoadSpec (spec) where
 
-import           Control.Concurrent.STM          (atomically)
-import           Control.Concurrent.STM.TChan    (tryReadTChan)
-import           Control.Lens                    ((^..), prism)
-import           Control.Monad                   (forM)
-import           Control.Monad.Loops             (unfoldM)
-import qualified Data.Graph.Data.Component.Set   as MutableSet
-import qualified Data.Graph.Store                as Store
-import           Data.List                       (find, maximum)
-import           Data.Maybe                      (fromJust)
-import qualified Data.Set                        as Set
-import qualified Data.Text                       as Text
-import           Empire.ASTOp                    (runASTOp)
-import qualified Empire.ASTOps.Builder           as ASTBuilder
-import qualified Empire.ASTOps.Modify            as ASTModify
-import qualified Empire.ASTOps.Read              as ASTRead
-import qualified Empire.Commands.Code            as Code
-import qualified Empire.Commands.Graph           as Graph
-import qualified Empire.Commands.GraphBuilder    as GraphBuilder
-import qualified Empire.Commands.Library         as Library
-import qualified Empire.Commands.Typecheck       as Typecheck
-import qualified Empire.Data.Graph               as Graph (CommandState(..),
-                                                           clsClass, code,
-                                                           defaultPMState,
-                                                           nodeCache, userState)
-import           Empire.Empire                   (CommunicationEnv (..), InterpreterEnv(..))
-import qualified Luna.Package.Structure.Generate as Package
-import           LunaStudio.API.AsyncUpdate      (AsyncUpdate(ResultUpdate))
+import           Control.Concurrent.STM                (atomically)
+import           Control.Concurrent.STM.TChan          (tryReadTChan)
+import           Control.Lens                          (prism, (^..))
+import           Control.Monad                         (forM)
+import           Control.Monad.Loops                   (unfoldM)
+import qualified Data.Graph.Data.Component.Set         as MutableSet
+import qualified Data.Graph.Store                      as Store
+import           Data.List                             (find, maximum)
+import           Data.Maybe                            (fromJust)
+import qualified Data.Set                              as Set
+import qualified Data.Text                             as Text
+import           Empire.ASTOp                          (runASTOp)
+import qualified Empire.ASTOps.Builder                 as ASTBuilder
+import qualified Empire.ASTOps.Modify                  as ASTModify
+import qualified Empire.ASTOps.Read                    as ASTRead
+import qualified Empire.Commands.Code                  as Code
+import qualified Empire.Commands.Graph                 as Graph
+import qualified Empire.Commands.GraphBuilder          as GraphBuilder
+import qualified Empire.Commands.Library               as Library
+import qualified Empire.Commands.Typecheck             as Typecheck
+import qualified Empire.Data.Graph                     as Graph (CommandState (..),
+                                                                 clsClass, code,
+                                                                 defaultPMState,
+                                                                 nodeCache,
+                                                                 userState)
+import           Empire.Empire                         (CommunicationEnv (..),
+                                                        InterpreterEnv (..))
+import qualified Luna.Package.Structure.Generate       as Package
+import           LunaStudio.API.AsyncUpdate            (AsyncUpdate (ResultUpdate))
 import qualified LunaStudio.API.Graph.NodeResultUpdate as NodeResult
-import           LunaStudio.Data.Breadcrumb      (Breadcrumb (..), BreadcrumbItem (Definition))
-import qualified LunaStudio.Data.Connection      as Connection
-import           LunaStudio.Data.Connection      (Connection (..))
-import qualified LunaStudio.Data.Graph           as Graph
-import           LunaStudio.Data.GraphLocation   (GraphLocation (..), (|>|), (|>=))
-import qualified LunaStudio.Data.Node            as Node
-import           LunaStudio.Data.NodeMeta        (NodeMeta (..))
-import qualified LunaStudio.Data.NodeMeta        as NodeMeta
-import           LunaStudio.Data.Point           (Point (Point))
-import qualified LunaStudio.Data.Port            as Port
-import qualified LunaStudio.Data.PortDefault     as PortDefault
-import           LunaStudio.Data.PortRef         (AnyPortRef (..))
-import qualified LunaStudio.Data.PortRef         as PortRef
-import qualified LunaStudio.Data.Position        as Position
-import           LunaStudio.Data.Range           (Range (..))
-import           LunaStudio.Data.TextDiff        (TextDiff (..))
+import           LunaStudio.Data.Breadcrumb            (Breadcrumb (..), BreadcrumbItem (Definition))
+import           LunaStudio.Data.Connection            (Connection (..))
+import qualified LunaStudio.Data.Connection            as Connection
+import qualified LunaStudio.Data.Graph                 as Graph
+import           LunaStudio.Data.GraphLocation         (GraphLocation (..),
+                                                        (|>=), (|>|))
+import qualified LunaStudio.Data.LabeledTree           as LabeledTree
+import qualified LunaStudio.Data.Node                  as Node
+import           LunaStudio.Data.NodeMeta              (NodeMeta (..))
+import qualified LunaStudio.Data.NodeMeta              as NodeMeta
 import           LunaStudio.Data.NodeValue
+import           LunaStudio.Data.Point                 (Point (Point))
+import qualified LunaStudio.Data.Port                  as Port
+import qualified LunaStudio.Data.PortDefault           as PortDefault
+import           LunaStudio.Data.PortRef               (AnyPortRef (..))
+import qualified LunaStudio.Data.PortRef               as PortRef
+import qualified LunaStudio.Data.Position              as Position
+import           LunaStudio.Data.Range                 (Range (..))
+import           LunaStudio.Data.TextDiff              (TextDiff (..))
 import           LunaStudio.Data.Vector2               (Vector2 (..))
 import           LunaStudio.Data.Visualization         (VisualizationValue (Value))
-import qualified LunaStudio.Data.LabeledTree           as LabeledTree
 import           System.FilePath                       ((</>))
 import qualified System.IO.Temp                        as Temp
 
-import           Empire.Prelude                        hiding (fromJust, minimum, maximum, pi)
+import Empire.Prelude hiding (fromJust, maximum, minimum, pi)
 
-import           Test.Hspec                            (Selector, Spec, around, describe, it, parallel, shouldBe,
-                                                        shouldMatchList, shouldSatisfy, shouldThrow)
+import Test.Hspec (Selector, Spec, around, describe, it, parallel, shouldBe,
+                   shouldMatchList, shouldSatisfy, shouldThrow)
 
-import           EmpireUtils
+import EmpireUtils
 
-import           Text.RawString.QQ                     (r)
+import Text.RawString.QQ (r)
 
 
 mainCondensed :: Text
@@ -181,7 +184,7 @@ spec = around withChannels $ parallel $ do
                 let loc' = GraphLocation "TestPath" $ Breadcrumb [Definition (main ^. Node.nodeId)]
                 graph <- Graph.withGraph loc' $ runASTOp $ GraphBuilder.buildGraph
                 return graph
-            withResult res $ \(Graph.Graph nodes connections i _ _ _) -> do
+            withResult res $ \(Graph.Graph nodes connections i _ _) -> do
                 let Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
                 pi ^. Node.code `shouldBe` "3.14"
                 pi ^. Node.canEnter `shouldBe` False
@@ -232,7 +235,7 @@ def main:
                 Graph.substituteCode "TestPath" [(71, 71, "3")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                     cNodes = filter (\node -> node ^. Node.name == Just "c") nodes
                 length cNodes `shouldBe` 1
                 let [cNode] = cNodes
@@ -253,7 +256,7 @@ def main:
                 Graph.substituteCode "TestPath" [(71, 71, "3")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                     cNodes = filter (\node -> node ^. Node.name == Just "c") nodes
                 length nodes `shouldBe` 4
                 length cNodes `shouldBe` 1
@@ -276,7 +279,7 @@ def main:
                 Graph.substituteCode "TestPath" [(91, 91, "1")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                     cNodes = filter (\node -> node ^. Node.name == Just "c") nodes
                 length nodes `shouldBe` 4
                 length cNodes `shouldBe` 1
@@ -299,7 +302,7 @@ def main:
                 Graph.substituteCode "TestPath" [(92, 92, "    d = 10\n")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                     Just d = find (\node -> node ^. Node.name == Just "d") nodes
                 d ^. Node.code `shouldBe` "10"
                 let Just c = find (\node -> node ^. Node.name == Just "c") nodes
@@ -361,7 +364,7 @@ def main:
                 Graph.substituteCode "TestPath" [(25, 26, "5")]
                 Graph.getGraph loc'
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                     Just pi = find (\node -> node ^. Node.name == Just "pi") nodes
                     Just c = find (\node -> node ^. Node.name == Just "c") nodes
                     Just bar = find (\node -> node ^. Node.name == Just "bar") nodes
@@ -387,7 +390,7 @@ def main:
                 Just foo <- Graph.withGraph loc' $ runASTOp $ Graph.getNodeIdForMarker 0
                 Graph.withGraph (loc' |>| foo) $ runASTOp $ GraphBuilder.buildGraph
             withResult res $ \graph -> do
-                let Graph.Graph nodes connections _ _ _ _ = graph
+                let Graph.Graph nodes connections _ _ _ = graph
                 nodes `shouldSatisfy` ((== 1) . length)
                 connections `shouldSatisfy` ((== 3) . length)
         it "lambda in code can be entered" $ \env -> do

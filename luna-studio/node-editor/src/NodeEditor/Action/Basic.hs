@@ -97,8 +97,8 @@ import NodeEditor.Action.Basic.UpdateSearcherHints as X (localAddSearcherHints,
                                                          localClearSearcherHints,
                                                          localUpdateSearcherHints,
                                                          selectHint,
-                                                         setImportedLibraries,
-                                                         updateDocumentation)
+                                                         setCurrentImports,
+                                                         updateDocs)
 import NodeEditor.Action.State.Model               as X (isArgConstructorConnectSrc,
                                                          updateAllPortsMode,
                                                          updateArgConstructorMode,

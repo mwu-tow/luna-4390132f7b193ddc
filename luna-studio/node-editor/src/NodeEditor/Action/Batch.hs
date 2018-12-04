@@ -20,7 +20,7 @@ import LunaStudio.Data.PortRef           (AnyPortRef (InPortRef', OutPortRef'),
                                           nodeLoc)
 import LunaStudio.Data.Position          (Position)
 import LunaStudio.Data.Project           (LocationSettings)
-import LunaStudio.Data.Searcher.Node     (LibraryName)
+import LunaStudio.Data.NodeSearcher      (ImportName)
 import NodeEditor.Action.State.App       (getWorkspace)
 import NodeEditor.Action.UUID            (registerRequest)
 import NodeEditor.Batch.Workspace        (Workspace)
@@ -75,10 +75,10 @@ addConnection src dst = do
     collaborativeModify [nl]
     withWorkspace $ BatchCmd.addConnection src dst
 
-addImport :: LibraryName -> Command State ()
+addImport :: ImportName -> Command State ()
 addImport = addImports . Set.singleton
 
-addImports :: Set LibraryName -> Command State ()
+addImports :: Set ImportName -> Command State ()
 addImports = withWorkspace . BatchCmd.addImports
 
 addNode :: NodeLoc -> Text -> NodeMeta -> Maybe NodeLoc -> Command State ()
@@ -139,7 +139,7 @@ paste = withWorkspace .: BatchCmd.paste
 saveSettings :: LocationSettings -> Command State ()
 saveSettings = withWorkspace . BatchCmd.saveSettings
 
-searchNodes :: Set LibraryName -> Command State ()
+searchNodes :: Set ImportName -> Command State ()
 searchNodes = withWorkspace . BatchCmd.searchNodes
 
 setNodeExpression :: NodeLoc -> Text -> Command State ()
