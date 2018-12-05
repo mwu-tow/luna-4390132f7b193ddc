@@ -30,6 +30,7 @@ class Eq a => SearcherData a where
         weight         = weightGetter searcherData
         (Score fixed)  = searcherData ^. fixedScore
         in (fromIntegral points) * weight + (fromIntegral fixed)
+    {-# MINIMAL text, fixedScore #-}
 
 instance SearcherData Text where
     text       = to id
@@ -39,7 +40,6 @@ instance SearcherData Text where
 ----------------------
 -- === Database === --
 ----------------------
-
 
 -- === Definition === --
 
@@ -101,3 +101,4 @@ insert hint database = let
 insertMultiple :: SearcherData a => [a] -> Database a -> Database a
 insertMultiple input database = foldl (flip insert) database input
 {-# INLINE insertMultiple #-}
+

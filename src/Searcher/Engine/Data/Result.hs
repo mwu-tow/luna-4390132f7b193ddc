@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module Searcher.Engine.Data.Result where
 
 import Prologue hiding (Index)
@@ -6,7 +7,6 @@ import Prologue hiding (Index)
 import qualified Searcher.Engine.Data.Database as Database
 import qualified Searcher.Engine.Data.Match    as Match
 
-import Control.Lens                  (Getter, to)
 import Searcher.Engine.Data.Database (SearcherData (fixedScore, text))
 import Searcher.Engine.Data.Match    (Match)
 
@@ -25,12 +25,8 @@ data Result a = Result
     } deriving (Eq, Generic, Show)
 makeLenses ''Result
 
-instance NFData a => NFData (Result a)
-instance SearcherData a => SearcherData (Result a) where
-    text       = hint . text
-    fixedScore = hint . fixedScore
 
-
+-- === API === --
 
 getScore :: SearcherData a => (a -> Double) -> Result a -> Double
 getScore weightGetter results = let
@@ -38,3 +34,12 @@ getScore weightGetter results = let
     hint'  = results ^. hint
     in Database.calculateScore points weightGetter hint'
 {-# INLINE getScore #-}
+
+
+-- === Instances === --
+
+instance NFData a => NFData (Result a)
+instance SearcherData a => SearcherData (Result a) where
+    text       = hint . text
+    fixedScore = hint . fixedScore
+

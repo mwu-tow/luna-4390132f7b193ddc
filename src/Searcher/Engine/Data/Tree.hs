@@ -2,7 +2,7 @@
 
 module Searcher.Engine.Data.Tree where
 
-import Prologue hiding (Index, lookup, index)
+import Prologue hiding (Index, lookup)
 
 import qualified Control.Monad.State.Layered as State
 import qualified Data.Map.Strict             as Map
@@ -27,9 +27,6 @@ data Node = Node
     , _branches :: Map Char Node
     } deriving (Eq, Generic, Show)
 makeLenses ''Node
-
-instance Default  Node where def   = Node Index.notExists def
-instance NFData   Node
 
 type Root = Node
 
@@ -56,7 +53,7 @@ insertToNode = \suffix txt node -> case Text.uncons suffix of
             nextBranch    = fromJust def mayNextBranch
         branch <- insertToNode t txt nextBranch
         pure $! node & branches . at h ?~ branch
-
+{-# INLINEABLE insertToNode #-}
 
 updateValue :: State.Monad IndexMap m => Text -> Node -> m Node
 updateValue = \txt node -> let
@@ -66,7 +63,7 @@ updateValue = \txt node -> let
         State.modify_ @IndexMap $! Map.insert txt newIndex
         pure $! node & index .~ newIndex
     in if Index.isInvalid nodeIdx then updateMap else pure node
-{-# INLINE updateValue #-}
+{-# INLINEABLE updateValue #-}
 
 insertMultiple :: State.Monad IndexMap m => [Text] -> Root -> m Root
 insertMultiple = \txts root -> foldlM (flip insert) root txts
@@ -80,4 +77,10 @@ lookupNode :: Text -> Node -> Maybe Node
 lookupNode = \txt n -> case Text.uncons txt of
     Nothing       -> Just n
     Just (!h, !t) -> n ^? branches . at h . _Just . to (lookupNode t) . _Just
+
+
+-- === Instances === --
+
+instance Default  Node where def   = Node Index.notExists def
+instance NFData   Node
 

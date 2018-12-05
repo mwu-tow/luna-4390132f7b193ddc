@@ -86,7 +86,7 @@ combinedMetricUpdate
     = Metric.updateMetrics @MetricPasses 'a' Match.Equal mockedState >> pure ()
 
 splitMetricUpdate :: forall m . Metric.MonadMetrics MetricPasses m => m ()
-splitMetricUpdate 
+splitMetricUpdate
     =  Metric.updateMetric @DummyMetric  'a' Match.Equal mockedState
     >> Metric.updateMetric @DummyMetric2 'a' Match.Equal mockedState
     >> Metric.updateMetric @DummyMetric3 'a' Match.Equal mockedState
@@ -139,6 +139,7 @@ spec = do
         it "is correct between evaluation strategies"
             $ (evalMetrics splitUpdateAndGet) `gives`
                 (evalMetrics combinedUpdateAndGet)
+
     describe "Updating Metrics" $ do
         it "is correct when updated once"
             $ (evalMetrics combinedUpdateAndGet) `gives` pure expectedScore

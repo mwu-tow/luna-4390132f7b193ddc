@@ -1,26 +1,26 @@
 module Searcher.Engine.SearchSpec (spec) where
 
-import Prologue   hiding (Index)
+import Prologue hiding (Index)
 import Test.Hspec
 
-import qualified Control.Monad.State.Layered as State
-import qualified Data.List                   as List
-import qualified Data.Map.Strict             as Map
-import qualified Searcher.Engine.Data.Database    as Database
-import qualified Searcher.Engine.Data.Match       as Match
-import qualified Searcher.Engine.Data.Result      as Result
-import qualified Searcher.Engine.Data.Substring   as Substring
-import qualified Searcher.Engine.Data.Tree        as Tree
-import qualified Searcher.Engine.Search           as Search
+import qualified Control.Monad.State.Layered    as State
+import qualified Data.List                      as List
+import qualified Data.Map.Strict                as Map
+import qualified Searcher.Engine.Data.Database  as Database
+import qualified Searcher.Engine.Data.Match     as Match
+import qualified Searcher.Engine.Data.Result    as Result
+import qualified Searcher.Engine.Data.Substring as Substring
+import qualified Searcher.Engine.Data.Tree      as Tree
+import qualified Searcher.Engine.Search         as Search
 
-import Data.Map.Strict                   (Map)
+import Data.Map.Strict                        (Map)
 import Searcher.Engine.Data.Database          (Database, SearcherData)
 import Searcher.Engine.Data.Index             (Index)
 import Searcher.Engine.Data.Match             (Match)
 import Searcher.Engine.Data.Result            (Result)
+import Searcher.Engine.Metric.MismatchPenalty (MismatchPenalty)
 import Searcher.Engine.Metric.PrefixBonus     (PrefixBonus)
 import Searcher.Engine.Metric.SequenceBonus   (SequenceBonus)
-import Searcher.Engine.Metric.MismatchPenalty     (MismatchPenalty)
 import Searcher.Engine.Metric.SuffixBonus     (SuffixBonus)
 import Searcher.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
 import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
@@ -91,6 +91,7 @@ spec = do
             mayMatch     = Map.lookup 0 scoreMap
             mayMatchKind = view Match.kind <$> mayMatch
             in mayMatchKind `shouldBe` Just Substring.Equal
+
     describe "matchQuery function" $ do
         it "all values from tree are in map" $ let
             input :: [Text]
@@ -130,6 +131,7 @@ spec = do
                 (\el1 el2 -> snd el1 `compare` snd el2)
                 $ Map.toList results
             in maxIdx `shouldBe` 0
+
     describe "search with default metrics" $ do
         it "match starting with capital is prefered over others" $ let
             input :: [Text]
@@ -188,13 +190,13 @@ spec = do
         --                     ]
         --         res = search "" entries
         --     res `topResultEntryShouldBe` bestEntry
-    
+
         describe "matched letters" $ do
             it "match should be eager" $ let
                 input :: [Text]
                 input    = ["xx"]
                 [result] = defSearch "x" $! Database.mk input
-                revRange = result ^. Result.match . Match.substring 
+                revRange = result ^. Result.match . Match.substring
                     . Substring.reversedRange
                 expected = pure $! Substring.Range 0 1
                 in revRange `shouldBe` expected
@@ -202,9 +204,8 @@ spec = do
                 input :: [Text]
                 input    = ["xxx"]
                 [result] = defSearch "xx" $! Database.mk input
-                revRange = result ^. Result.match . Match.substring 
+                revRange = result ^. Result.match . Match.substring
                     . Substring.reversedRange
                 expected = pure $! Substring.Range 0 2
                 in revRange `shouldBe` expected
 
-    

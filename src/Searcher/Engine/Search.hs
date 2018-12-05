@@ -4,31 +4,32 @@ module Searcher.Engine.Search where
 
 import Prologue hiding (Index)
 
-import qualified Control.Monad.State.Layered as State
-import qualified Data.List                   as List
-import qualified Data.Map.Strict             as Map
-import qualified Data.Text                   as Text
-import qualified Searcher.Engine.Data.Database    as Database
-import qualified Searcher.Engine.Data.Index       as Index
-import qualified Searcher.Engine.Data.Match       as Match
-import qualified Searcher.Engine.Data.Substring   as Substring
-import qualified Searcher.Engine.Data.Tree        as Tree
-import qualified Searcher.Engine.Metric           as Metric
-import qualified Searcher.Engine.Data.Result           as Result
+import qualified Control.Monad.State.Layered    as State
+import qualified Data.List                      as List
+import qualified Data.Map.Strict                as Map
+import qualified Data.Text                      as Text
+import qualified Searcher.Engine.Data.Database  as Database
+import qualified Searcher.Engine.Data.Index     as Index
+import qualified Searcher.Engine.Data.Match     as Match
+import qualified Searcher.Engine.Data.Substring as Substring
+import qualified Searcher.Engine.Data.Tree      as Tree
+import qualified Searcher.Engine.Metric         as Metric
+import qualified Searcher.Engine.Data.Result    as Result
 
-import Data.Char                         (isLetter, isUpper, toLower, toUpper)
-import Data.Map.Strict                   (Map)
-import Searcher.Engine.Data.Database          (Database, SearcherData)
-import Searcher.Engine.Data.Index             (Index)
-import Searcher.Engine.Data.Match             (Match (Match))
-import Searcher.Engine.Data.Result            (Result (Result))
-import Searcher.Engine.Metric     (updateMetrics, getMetrics)
-import Searcher.Engine.Metric.PrefixBonus     (PrefixBonus)
-import Searcher.Engine.Metric.SequenceBonus   (SequenceBonus)
-import Searcher.Engine.Metric.MismatchPenalty     (MismatchPenalty)
-import Searcher.Engine.Metric.SuffixBonus     (SuffixBonus)
-import Searcher.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
-import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
+import Data.Char                              ( isLetter, isUpper, toLower
+                                              , toUpper )
+import Data.Map.Strict                        ( Map )
+import Searcher.Engine.Data.Database          ( Database, SearcherData )
+import Searcher.Engine.Data.Index             ( Index )
+import Searcher.Engine.Data.Match             ( Match (Match) )
+import Searcher.Engine.Data.Result            ( Result (Result) )
+import Searcher.Engine.Metric                 ( updateMetrics, getMetrics )
+import Searcher.Engine.Metric.MismatchPenalty ( MismatchPenalty )
+import Searcher.Engine.Metric.PrefixBonus     ( PrefixBonus )
+import Searcher.Engine.Metric.SequenceBonus   ( SequenceBonus )
+import Searcher.Engine.Metric.SuffixBonus     ( SuffixBonus )
+import Searcher.Engine.Metric.WordPrefixBonus ( WordPrefixBonus )
+import Searcher.Engine.Metric.WordSuffixBonus ( WordSuffixBonus )
 
 
 
@@ -42,10 +43,10 @@ import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 search :: forall m a . (Metric.MonadMetrics DefaultMetrics m , SearcherData a)
     => Text -> Database a -> (a -> Double) -> m [Result a]
 search query database hintWeightGetter = do
-    let root    = database ^. Database.tree
-        hints   = database ^. Database.hints
+    let root  = database ^. Database.tree
+        hints = database ^. Database.hints
     matches <- matchQuery query root
-    let results   = concat $! Map.elems $! toResultMap hints matches
+    let results  = concat $! Map.elems $! toResultMap hints matches
         getScore = Result.getScore hintWeightGetter
         compareRes r1 r2 = getScore r2 `compare` getScore r1
     pure $! List.sortBy compareRes results
@@ -54,7 +55,7 @@ search query database hintWeightGetter = do
 
 -- === Utils === --
 
--- [TODO]: DefaultMetrics in all signatures should go back to ss once 
+-- [TODO]: DefaultMetrics in all signatures should go back to ss once
 -- we figure out how to do transaction without get and put
 transaction :: forall m a . Metric.MonadMetrics DefaultMetrics m
     => m a -> m a
@@ -80,11 +81,9 @@ toResultMap hintsMap matchesMap = let
     in Map.intersectionWith toResults hintsMap matchesMap
 {-# INLINE toResultMap #-}
 
-
 matchQuery :: forall m . Metric.MonadMetrics DefaultMetrics m
     => Text -> Tree.Root -> m (Map Index Match)
-matchQuery query root = recursiveMatchQuery root state mempty where
-    state = Match.mkState query
+matchQuery query root = recursiveMatchQuery root (Match.mkState query) mempty
 {-# INLINE matchQuery #-}
 
 -- TODO [LJK]: If performance is good enough we could also try to skip chars in
@@ -165,7 +164,7 @@ matchQueryHead node state scoreMap = let
             caseInsensitiveState = caseSensitiveState
                 & Match.currentKind %~ updateKind
 
-            matchCaseSensitive 
+            matchCaseSensitive
                 :: forall m . Metric.MonadMetrics DefaultMetrics m
                 => Map Index Match -> m (Map Index Match)
             matchCaseSensitive = \scoreMap' -> transaction $! do
@@ -176,7 +175,7 @@ matchQueryHead node state scoreMap = let
                     mayCaseSensitiveNextNode
             {-# INLINEABLE matchCaseSensitive #-}
 
-            matchCaseInsensitive 
+            matchCaseInsensitive
                 :: forall m . Metric.MonadMetrics DefaultMetrics m
                 => Map Index Match -> m (Map Index Match)
             matchCaseInsensitive = \scoreMap' -> transaction $! do

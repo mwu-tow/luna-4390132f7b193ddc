@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+
 module Searcher.Engine.Data.Index where
 
 import Prologue hiding (Index)
@@ -12,7 +13,6 @@ import Data.Map.Strict (Map)
 -------------------
 -- === Index === --
 -------------------
-
 
 -- === Definition === --
 

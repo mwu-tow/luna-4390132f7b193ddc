@@ -4,9 +4,9 @@ module Searcher.Engine.Metric.SuffixBonus where
 
 import Prologue
 
-import qualified Control.Monad.State.Layered as State
-import qualified Searcher.Engine.Data.Match       as Match
-import qualified Searcher.Engine.Data.Substring   as Substring
+import qualified Control.Monad.State.Layered    as State
+import qualified Searcher.Engine.Data.Match     as Match
+import qualified Searcher.Engine.Data.Substring as Substring
 
 import Searcher.Engine.Data.Score (Score (Score))
 import Searcher.Engine.Metric     (Metric (getMetric, updateMetric))
@@ -33,6 +33,7 @@ instance NFData  SuffixBonus
 
 instance Metric  SuffixBonus where
     updateMetric _ _ _ = pure ()
+
     getMetric matchState = let
         posInData   = matchState ^. Match.positionInData
         substring   = matchState ^. Match.currentSubstring

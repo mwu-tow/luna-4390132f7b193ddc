@@ -17,6 +17,11 @@ import Searcher.Engine.Data.Index (Index, IndexMap)
 import Searcher.Engine.Data.Tree  (Node (Node), Root, branches, index)
 
 
+
+----------------------------
+-- === Test Utilities === --
+----------------------------
+
 data TreeStructureExceptionType
     = IncorrectIndex    Index      Index
     | IncorrectBranches (Set Char) (Set Char)
@@ -31,7 +36,6 @@ makeLenses ''TreeStructureException
 makePrisms ''TreeStructureExceptionType
 
 instance Exception TreeStructureException
-
 
 recursiveCheckTreeStructure :: Text -> Map Text Index -> Node -> IO ()
 recursiveCheckTreeStructure matchedPrefix indexMap dict = check where
@@ -71,9 +75,14 @@ checkTreeStructure root indexMap = catch check handleException where
             IncorrectBranches m d -> expectEq m d
             IncorrectIndex    m d -> expectEq m d
 
-
 dictionaryStructureExceptionSelector :: Selector TreeStructureException
 dictionaryStructureExceptionSelector = const True
+
+
+
+-------------------
+-- === Tests === --
+-------------------
 
 spec :: Spec
 spec = do
@@ -106,6 +115,7 @@ spec = do
                     [ ('a', Node 0 mempty)
                     , ('b', Node 1 mempty) ])
             dictionaryStructureExceptionSelector
+
     describe "test insert function" $ do
         it "value is in map" $ let
             idxMap = State.exec @IndexMap (Tree.singleton "a") mempty

@@ -4,12 +4,12 @@ module Searcher.Engine.Metric.WordSuffixBonus where
 
 import Prologue
 
-import qualified Control.Monad.State.Layered as State
-import qualified Searcher.Engine.Data.Match       as Match
-import qualified Searcher.Engine.Data.Substring   as Substring
+import qualified Control.Monad.State.Layered    as State
+import qualified Searcher.Engine.Data.Match     as Match
+import qualified Searcher.Engine.Data.Substring as Substring
 
-import Control.Lens              ((?~))
-import Data.Char                 (isLetter, isLower, isUpper)
+import Control.Lens                   ((?~))
+import Data.Char                      (isLetter, isLower, isUpper)
 import Searcher.Engine.Data.Score     (Score (Score))
 import Searcher.Engine.Data.Substring (Substring (Substring))
 import Searcher.Engine.Metric         (Metric (getMetric, updateMetric))
@@ -74,6 +74,7 @@ instance Metric  WordSuffixBonus where
             & previousDataChar ?~ dataChar
             & lastWordStart    %~ updateWordStart
             & wordsSuffixes    .~ updatedWordsSuffixes
+
     getMetric _ = do
         mult     <- State.use @WordSuffixBonus multiplier
         suffixes <- State.use @WordSuffixBonus wordsSuffixes

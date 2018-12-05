@@ -8,8 +8,8 @@ import qualified Control.Monad.State.Layered as State
 import qualified Searcher.Engine.Data.Match       as Match
 import qualified Searcher.Engine.Data.Substring   as Substring
 
-import Control.Lens              ((?~))
-import Data.Char                 (isLetter, isLower, isUpper)
+import Control.Lens                   ((?~))
+import Data.Char                      (isLetter, isLower, isUpper)
 import Searcher.Engine.Data.Score     (Score (Score))
 import Searcher.Engine.Data.Substring (Substring)
 import Searcher.Engine.Metric         (Metric (getMetric, updateMetric))
@@ -67,6 +67,7 @@ instance Metric  WordPrefixBonus where
                 & wordsPrefixes    .~ updatedPrefixes
                 & previousDataChar ?~ dataChar
         State.put @WordPrefixBonus updatedBonusState
+
     getMetric _ = do
         mult     <- State.use @WordPrefixBonus multiplier
         prefixes <- State.use @WordPrefixBonus wordsPrefixes
@@ -77,3 +78,4 @@ instance Metric  WordPrefixBonus where
             appendAccLength = \acc r -> acc + accRangeLength r
             points          = foldl appendAccLength def revRange
         pure $! Score $! mult * points
+

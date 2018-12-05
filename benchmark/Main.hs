@@ -1,34 +1,34 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Main where
 
+import Prologue hiding (Index)
+
 import Criterion.Main
-import Prologue       hiding (Index)
 
-import qualified Control.Monad.State.Layered as State
-import qualified Criterion.Types             as Options
-import qualified Data.Map.Strict             as Map
-import qualified Searcher.Engine.Data.Database    as Database
-import qualified Searcher.Engine.Data.Index       as Index
-import qualified Searcher.Engine.Data.Match       as Match
-import qualified Searcher.Engine.Data.Substring   as Substring
-import qualified Searcher.Engine.Data.Tree        as Tree
-import qualified Searcher.Engine.Search           as Search
+import qualified Control.Monad.State.Layered    as State
+import qualified Criterion.Types                as Options
+import qualified Data.Map.Strict                as Map
+import qualified Searcher.Engine.Data.Database  as Database
+import qualified Searcher.Engine.Data.Index     as Index
+import qualified Searcher.Engine.Data.Match     as Match
+import qualified Searcher.Engine.Data.Substring as Substring
+import qualified Searcher.Engine.Data.Tree      as Tree
+import qualified Searcher.Engine.Search         as Search
 
-import Data.Map.Strict                   (Map)
-import Data.Text                         (Text)
-import Searcher.Engine.Data.Database          (Database, SearcherData)
-import Searcher.Engine.Data.Index             (Index, IndexMap)
-import Searcher.Engine.Data.Match             (Match)
-import Searcher.Engine.Data.Result            (Result)
-import Searcher.Engine.Data.Substring         (Substring)
-import Searcher.Engine.Metric.PrefixBonus     (PrefixBonus)
-import Searcher.Engine.Metric.SequenceBonus   (SequenceBonus)
-import Searcher.Engine.Metric.MismatchPenalty     (MismatchPenalty)
-import Searcher.Engine.Metric.SuffixBonus     (SuffixBonus)
-import Searcher.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
-import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
-import System.Random                     (Random (randomR), mkStdGen, randomRs)
+import Data.Map.Strict                        ( Map )
+import Data.Text                              ( Text )
+import Searcher.Engine.Data.Database          ( Database, SearcherData )
+import Searcher.Engine.Data.Index             ( Index, IndexMap )
+import Searcher.Engine.Data.Match             ( Match )
+import Searcher.Engine.Data.Result            ( Result )
+import Searcher.Engine.Data.Substring         ( Substring )
+import Searcher.Engine.Metric.MismatchPenalty ( MismatchPenalty )
+import Searcher.Engine.Metric.PrefixBonus     ( PrefixBonus )
+import Searcher.Engine.Metric.SequenceBonus   ( SequenceBonus )
+import Searcher.Engine.Metric.SuffixBonus     ( SuffixBonus )
+import Searcher.Engine.Metric.WordPrefixBonus ( WordPrefixBonus )
+import Searcher.Engine.Metric.WordSuffixBonus ( WordSuffixBonus )
+import System.Random                          ( Random (randomR), mkStdGen
+                                              , randomRs )
 
 
 
@@ -55,9 +55,9 @@ wordLengthRange = (minWordLength, maxWordLength)
 
 textInput :: [Text]
 textInput = do
-    let gen              = mkStdGen 13
-        wordsLength      = take inputLength $ randomRs wordLengthRange gen
-        infCharList      = randomRs ('a', 'z') gen
+    let gen         = mkStdGen 13
+        wordsLength = take inputLength $ randomRs wordLengthRange gen
+        infCharList = randomRs ('a', 'z') gen
         addWord (result, charStream) len
             = splitAt len charStream & _1 %~ (:result)
     convert . fst $ foldl addWord (mempty, infCharList) wordsLength
@@ -196,9 +196,19 @@ test_matchQuery :: (Text, Tree.Root) -> Map Index Match
 test_matchQuery (query, root) = defMatchQuery query root
 {-# NOINLINE test_matchQuery #-}
 
+
+
 ------------------------
 -- === Benchmarks === --
 ------------------------
+
+main :: IO ()
+main = let
+    cfg = defaultConfig { Options.resamples = 10000 }
+    in defaultMainWith cfg
+        [ bgroup   "tree"   benchTree
+        , bgroup   "search" benchSearch
+        ]
 
 benchTree :: [Benchmark]
 benchTree = benchmarks where
@@ -236,12 +246,4 @@ benchSearch =
     , envBench "matchQuery"  (pure (randomHint, inputRoot)) test_matchQuery
     ]
 {-# INLINE benchSearch #-}
-
-main :: IO ()
-main = let
-    cfg = defaultConfig { Options.resamples = 10000 }
-    in defaultMainWith cfg
-        [ bgroup   "tree"   benchTree
-        , bgroup   "search" benchSearch
-        ]
 

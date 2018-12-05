@@ -6,11 +6,11 @@ import Prologue
 
 import qualified Control.Monad.State.Layered as State
 import qualified Data.Text                   as Text
-import qualified Searcher.Engine.Data.Match       as Match
+import qualified Searcher.Engine.Data.Match  as Match
 
+import Control.Lens               (to)
 import Searcher.Engine.Data.Score (Score (Score))
 import Searcher.Engine.Metric     (Metric (getMetric, updateMetric))
-import Control.Lens (to)
 
 
 
@@ -39,6 +39,7 @@ instance Metric  MismatchPenalty where
         isMatched = charMatch == Match.Equal || finished
         in unless isMatched
             $! State.modify_ @MismatchPenalty $! mismatched %~ (+1)
+
     getMetric _ = do
         mult   <- State.use @MismatchPenalty multiplier
         points <- State.use @MismatchPenalty mismatched

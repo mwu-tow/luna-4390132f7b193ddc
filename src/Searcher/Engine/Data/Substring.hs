@@ -49,11 +49,6 @@ newtype Substring = Substring
 
 makeLenses ''Substring
 
-instance Mempty    Substring where mempty = Substring mempty
-instance Default   Substring where def    = mempty
-instance NFData    Substring
-instance Semigroup Substring where (<>) = merge
-
 
 -- === API === --
 
@@ -106,17 +101,24 @@ merge m1 m2 = Substring $ mergeRanges range1 range2 where
         mergedH   = Range minBeg mergedLen
         in if h1Beg > h2Beg
                 then mergeRanges prev2 prev1
-            else if h2Beg > h1End 
+            else if h2Beg > h1End
                 then let newT1 = mergeRanges prev1 t2 in h2 : newT1
             else mergeRanges (mergedH : t1) t2
 {-# INLINE merge #-}
+
+
+-- === Instances === --
+
+instance Mempty    Substring where mempty = Substring mempty
+instance Default   Substring where def    = mempty
+instance NFData    Substring
+instance Semigroup Substring where (<>) = merge
 
 
 
 ------------------
 -- === Kind === --
 ------------------
-
 
 -- === Definition === --
 
@@ -128,6 +130,8 @@ data Kind
     deriving (Eq, Generic, Ord, Show)
 makePrisms ''Kind
 
-instance NFData Kind
 
+-- === Instances === --
+
+instance NFData Kind
 
