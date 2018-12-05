@@ -10,16 +10,16 @@ import Data.Binary                   (Binary)
 import Data.Map                      (Map)
 import Data.Set                      (Set)
 import LunaStudio.Data.GraphLocation (GraphLocation)
-import LunaStudio.Data.NodeSearcher  (ImportName, ImportsHints)
+import LunaStudio.Data.Searcher.Node (LibraryHints, LibraryName)
 
 
 data Request = Request
     { _location         :: GraphLocation
-    , _missingLibraries :: Set ImportName
+    , _missingLibraries :: Set LibraryName
     } deriving (Eq, Generic, Show)
 
 data Result = Result
-    { _searcherHints :: ImportsHints
+    { _searcherHints :: Map LibraryName LibraryHints
     } deriving (Eq, Generic, Show)
 
 makeLenses ''Request

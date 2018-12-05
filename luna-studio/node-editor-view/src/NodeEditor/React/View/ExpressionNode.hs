@@ -14,25 +14,42 @@ import qualified JS.Mount                                             as Mount
 import           JS.Name                                              (toName)
 import qualified JS.UI                                                as UI
 import           LunaStudio.Data.Constants                            (gridSize)
-import           LunaStudio.Data.Matrix                               (showNodeMatrix, showNodeTranslate)
+import           LunaStudio.Data.Matrix                               (showNodeMatrix,
+                                                                       showNodeTranslate)
 import qualified LunaStudio.Data.MonadPath                            as MonadPath
 import           LunaStudio.Data.NodeLoc                              (toNodeIdList)
 import           LunaStudio.Data.PortRef                              (InPortRef)
 import qualified LunaStudio.Data.PortRef                              as PortRef
 import qualified NodeEditor.Event.Mouse                               as Mouse
 import qualified NodeEditor.Event.UI                                  as UI
-import qualified NodeEditor.React.Event.Node                          as Node hiding (nodeLoc)
+import qualified NodeEditor.React.Event.Node                          as Node hiding
+                                                                               (nodeLoc)
 import qualified NodeEditor.React.Event.Visualization                 as Visualization
-import           NodeEditor.React.IsRef                               (IsRef, dispatch)
-import           NodeEditor.React.Model.Constants                     (expandedNodePadding, nodeRadius, selectionPadding)
+import           NodeEditor.React.IsRef                               (IsRef,
+                                                                       dispatch)
+import           NodeEditor.React.Model.Constants                     (expandedNodePadding,
+                                                                       nodeRadius,
+                                                                       selectionPadding)
 import qualified NodeEditor.React.Model.Field                         as Field
-import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode, NodeLoc, Subgraph, argumentConstructorRef,
-                                                                       countVisibleArgPorts, countVisibleInPorts, countVisibleOutPorts,
-                                                                       isAnyPortHighlighted, isCollapsed, returnsError,
-                                                                       visibleArgPortNumber, visibleInPortNumber, visibleOutPortNumber)
+import           NodeEditor.React.Model.Node.ExpressionNode           (ExpressionNode,
+                                                                       NodeLoc,
+                                                                       Subgraph,
+                                                                       argumentConstructorRef,
+                                                                       countVisibleArgPorts,
+                                                                       countVisibleInPorts,
+                                                                       countVisibleOutPorts,
+                                                                       isAnyPortHighlighted,
+                                                                       isCollapsed,
+                                                                       returnsError,
+                                                                       visibleArgPortNumber,
+                                                                       visibleInPortNumber,
+                                                                       visibleOutPortNumber)
 import qualified NodeEditor.React.Model.Node.ExpressionNode           as Node
 import qualified NodeEditor.React.Model.Node.ExpressionNodeProperties as Prop
-import           NodeEditor.React.Model.Port                          (isAll, isInPort, isSelf, withOut)
+import           NodeEditor.React.Model.Port                          (isAll,
+                                                                       isInPort,
+                                                                       isSelf,
+                                                                       withOut)
 import qualified NodeEditor.React.Model.Port                          as Port
 import           NodeEditor.React.Model.SearcherProperties            (SearcherProperties)
 import qualified NodeEditor.React.Model.SearcherProperties            as Searcher
@@ -43,9 +60,12 @@ import           NodeEditor.React.View.ExpressionNode.Properties      (nodePrope
 import           NodeEditor.React.View.Field                          (multilineField_)
 import           NodeEditor.React.View.Monad                          (monads_)
 import           NodeEditor.React.View.Plane                          (planeMonads_)
-import           NodeEditor.React.View.Port                           (argumentConstructor_, portExpanded_, port_)
+import           NodeEditor.React.View.Port                           (argumentConstructor_,
+                                                                       portExpanded_,
+                                                                       port_)
 import           NodeEditor.React.View.Searcher                       (searcher_)
-import           NodeEditor.React.View.Style                          (errorMark_, selectionMark_)
+import           NodeEditor.React.View.Style                          (errorMark_,
+                                                                       selectionMark_)
 import qualified NodeEditor.React.View.Style                          as Style
 import           React.Flux
 import qualified React.Flux                                           as React
@@ -72,15 +92,17 @@ handleMouseDown ref nodeLoc e m =
     then stopPropagation e : dispatch ref (UI.NodeEvent $ Node.Event nodeLoc $ Node.MouseDown m)
     else []
 
-nodeName_ :: IsRef ref => ref -> NodeLoc -> Maybe Text -> Maybe Bool -> Maybe SearcherProperties -> ReactElementM ViewEventHandler ()
-nodeName_ ref nl name' visVisible mayS = React.viewWithSKey nodeName  "node-name" (ref, nl, name', visVisible, mayS) mempty
+nodeName_ :: IsRef ref => ref -> NodeLoc -> Maybe Text -> Bool -> Maybe SearcherProperties -> Bool -> ReactElementM ViewEventHandler ()
+nodeName_ ref nl name' visVisible mayS blockVisInBc = React.viewWithSKey nodeName  "node-name" (ref, nl, name', visVisible, mayS, blockVisInBc) mempty
 
-nodeName :: IsRef ref => ReactView (ref, NodeLoc, Maybe Text, Maybe Bool, Maybe SearcherProperties)
-nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisible, mayS) -> do
+nodeName :: IsRef ref => ReactView (ref, NodeLoc, Maybe Text, Bool, Maybe SearcherProperties, Bool)
+nodeName = React.defineView "node-name" $ \(ref, nl, name', visualizationVisible, mayS, blockVisInBc) -> do
     let regularHandlersAndElem = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.Event nl Node.EditName)]
                                  , elemString . convert $ fromMaybe def name' )
         (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \s -> case s ^. Searcher.mode of
-            Searcher.NodeName snl _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s)
+            Searcher.NodeSearcher ns -> case ns ^. Searcher.modeData of
+                Searcher.NodeNameMode {} -> if (ns ^. Searcher.nodeLoc) /= nl then regularHandlersAndElem else ([], searcher_ ref s)
+                _ -> regularHandlersAndElem
             _                       -> regularHandlersAndElem
     div_
         ([ "className" $= Style.prefixFromList ["node__name", "noselect"]
@@ -90,21 +112,20 @@ nodeName = React.defineView "node-name" $ \(ref, nl, name', mayVisualizationVisi
             [ "className" $= Style.prefix "node__name--positioner"
             ] $ do
             nameElement
-            withJust mayVisualizationVisible $ \isVisualization ->
-                svg_
-                    [ "key"       $= "ctrlSwitch"
-                    , "className" $= Style.prefix "ctrl-icon"
-                    , "xmlns"     $= "http://www.w3.org/2000/svg"
-                    , "viewBox"   $= "0 0 24 24"
-                    , onDoubleClick $ \e _ -> [stopPropagation e]
-                    , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.Event (Vis.Node nl) Visualization.ToggleVisualizations
-                    ] $ if isVisualization
-                        then path_ [ "d"         $= Style.iconEye
-                                   , "className" $= Style.prefix "icon--on"
-                                   ] mempty
-                        else path_ [ "d"         $= Style.iconEyeDisabled
-                                   , "className" $= Style.prefixFromList ["icon--off"]
-                                   ] mempty
+            unless (blockVisInBc) $ svg_
+                [ "key"       $= "ctrlSwitch"
+                , "className" $= Style.prefix "ctrl-icon"
+                , "xmlns"     $= "http://www.w3.org/2000/svg"
+                , "viewBox"   $= "0 0 24 24"
+                , onDoubleClick $ \e _ -> [stopPropagation e]
+                , onClick       $ \_ _ -> dispatch ref $ UI.VisualizationEvent $ Visualization.Event (Vis.Node nl) Visualization.ToggleVisualizations
+                ] $ if visualizationVisible
+                    then path_ [ "d"         $= Style.iconEye
+                               , "className" $= Style.prefix "icon--on"
+                               ] mempty
+                    else path_ [ "d"         $= Style.iconEyeDisabled
+                               , "className" $= Style.prefixFromList ["icon--off"]
+                               ] mempty
 
 
 nodeExpression_ :: IsRef ref => ref -> NodeLoc -> Text -> Maybe SearcherProperties -> ReactElementM ViewEventHandler ()
@@ -117,7 +138,9 @@ nodeExpression = React.defineView "node-expression" $ \(ref, nl, expr, mayS) -> 
         regularHandlersAndElem  = ( [onDoubleClick $ \e _ -> stopPropagation e : dispatch ref (UI.NodeEvent $ Node.Event nl Node.EditExpression)]
                                   , colorizedExpression_ expr )
         (handlers, nameElement) = flip (maybe regularHandlersAndElem) mayS $ \s -> case s ^. Searcher.mode of
-            Searcher.Node snl _ _ -> if snl /= nl then regularHandlersAndElem else ([], searcher_ ref s)
+            Searcher.NodeSearcher ns -> case ns ^. Searcher.modeData of
+                Searcher.ExpressionMode {} -> if (ns ^. Searcher.nodeLoc) /= nl then regularHandlersAndElem else ([], searcher_ ref s)
+                _ -> regularHandlersAndElem
             _                     -> regularHandlersAndElem
     div_
         (
@@ -178,7 +201,7 @@ node = React.defineView name $ \(ref, n, isTopLevel, performConnect, maySearcher
                 [ "className" $= Style.prefixFromList [ "node-translate","node__text", "noselect" ]
                 , "key"       $= "nodeText"
                 ] $ do
-                nodeName_ ref nodeLoc (n ^. Node.name) mayVisVisible maySearcher
+                nodeName_ ref nodeLoc (n ^. Node.name) (n ^. Node.visualizationsEnabled) maySearcher blockVisInBc
                 unless (isTopLevel && isDef) $ nodeExpression_ ref nodeLoc expression maySearcher
             nodeBody_ ref n mayEditedTextPortControlPortRef
             when showValue $ nodeValue_ ref n
