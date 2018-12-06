@@ -12,19 +12,12 @@ import           Shelly.Lifted                (MonadSh, MonadShControl)
 import qualified Shelly.Lifted                as Sh
 import           System.Directory             (getAppUserDataDirectory)
 import           System.IO                    (hFlush, stdout)
-import qualified System.Directory             as SystemDirectory
 import qualified System.Process.Typed        as Process
 
-import           Data.Aeson           (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON, encode)
-import qualified Data.Aeson           as JSON
-import qualified Data.Aeson.Types     as JSON
-import qualified Data.Aeson.Encoding  as JSON
-import qualified Data.ByteString.Lazy as BS
-import           Control.Lens.Aeson
+import           Data.Aeson (FromJSON, ToJSON, encode)
 
 import           Luna.Manager.Command.Options
 import           Luna.Manager.System.Env      (EnvConfig)
-import qualified Luna.Manager.System.Env      as System
 
 
 data WarningMessage = WarningMessage { message :: Text

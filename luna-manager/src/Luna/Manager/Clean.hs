@@ -6,7 +6,6 @@ import Prologue hiding (FilePath)
 
 import           Control.Concurrent        (ThreadId, killThread)
 import           Filesystem.Path.CurrentOS (FilePath, encodeString)
-import           GHC.ConsoleHandler
 import           System.Directory          (removeDirectoryRecursive)
 import qualified System.Signal             as Signal
 

@@ -3,13 +3,11 @@ module Luna.Manager.System.Path where
 import Prologue hiding (FilePath, null, fromText)
 
 import Luna.Manager.System.Env
-import qualified Luna.Manager.Logger as Logger
 import           Luna.Manager.Logger (LoggerMonad)
 
 import qualified Filesystem.Path as Path
 import Filesystem.Path (FilePath, null)
 import Filesystem.Path.CurrentOS (fromText, encodeString)
-import Control.Monad.Raise
 
 type URIPath  = Text
 

@@ -11,7 +11,6 @@ import Type.Known
 
 import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey)
 import qualified Data.Aeson          as JSON
-import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
 import qualified Data.Text           as Text
 

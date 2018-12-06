@@ -1,18 +1,15 @@
 module Luna.Manager.Component.Version where
 
 import Prologue
-import Control.Lens.Aeson
 import Luna.Manager.Component.Pretty
 
 import           Data.Aeson          (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON)
 import qualified Data.Aeson          as JSON
-import qualified Data.Aeson.Types    as JSON
 import qualified Data.Aeson.Encoding as JSON
 import           Data.Maybe          (isNothing)
 import qualified Data.Text           as Text
 import Control.Error.Util (hush)
 
-import qualified Control.Exception.Safe            as Exception
 import           Control.Monad.Raise
 
 ------------------------

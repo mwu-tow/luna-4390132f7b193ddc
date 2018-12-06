@@ -3,17 +3,11 @@
 module Luna.Manager.Gui.Initialize where
 
 import Prologue hiding (FilePath)
-import qualified Data.Map as Map
 import Luna.Manager.Component.Repository
 import Luna.Manager.Component.Version
-import Luna.Manager.System.Host
 import qualified Luna.Manager.Logger as Logger
 import Control.Monad.Raise
-import Data.Aeson                         (FromJSON, ToJSON, FromJSONKey, ToJSONKey, parseJSON, encode)
-import qualified Data.Aeson               as JSON
-import qualified Data.Aeson.Types         as JSON
-import qualified Data.Aeson.Encoding      as JSON
-import qualified Data.ByteString.Lazy     as BS
+import Data.Aeson                         (FromJSON, ToJSON, parseJSON, encode)
 import Control.Lens.Aeson
 
 -- === Definition === --
