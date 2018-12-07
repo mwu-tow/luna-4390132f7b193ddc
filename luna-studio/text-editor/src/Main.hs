@@ -2,6 +2,7 @@
 module Main where
 
 import           Common.Prelude
+import           Common.ClientId         (clientId)
 import           Control.Concurrent.Chan (Chan)
 import qualified Control.Concurrent.Chan as Chan
 import           Control.Concurrent.MVar
@@ -17,7 +18,6 @@ import           WebSocket               (WebSocket)
 runApp :: Chan (IO ()) -> WebSocket -> IO ()
 runApp chan socket = do
     random       <- newStdGen
-    clientId             <- generateUUID
     mdo
         let loop = LoopRef chan state
         Engine.scheduleInit loop
