@@ -92,4 +92,8 @@ dependencies:
 library:
   source-dirs: src
   cpp-options: -DCOMPRESS_REQUESTS
-  ghc-options: -Wall -O2 -fsimpl-tick-factor=1000
+  ghc-options:
+    - -Wall
+    - -O2
+    - -fsimpl-tick-factor=1000
+    # - -DDEBUG_PERF

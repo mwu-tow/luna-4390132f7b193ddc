@@ -4,7 +4,9 @@ module Debug.Safe
 , timeIt
 ) where
 
-import           Prologue
+import           Prologue hiding (print, putStrLn, printLn)
+
+import           Debug.Console
 
 #ifdef DEBUG_PERF
 import           Control.Concurrent

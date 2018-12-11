@@ -54,7 +54,10 @@ default-extensions:
   - ViewPatterns
 
 ghc-options:
-  -Wall -O2 -fsimpl-tick-factor=1000
+  - -Wall
+  - -O2
+  - -fsimpl-tick-factor=1000
+  # - -DDEBUG_PERF
 
 dependencies:
   - "base >= 4.9 && < 4.10"

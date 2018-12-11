@@ -18,10 +18,10 @@ import Text.Read                          (readMaybe)
 
 
 handle :: (Event -> IO ()) -> Event -> Maybe (Command State ())
-handle _ (Shortcut (Shortcut.Event Shortcut.SearcherEditExpression _)) = Just $ whenGraphLoaded Searcher.editSelectedNodeExpression
-handle _ (Shortcut (Shortcut.Event Shortcut.SearcherOpen         arg)) = Just $ whenGraphLoaded $ Searcher.open $ fmap fromTuple $ readMaybe =<< arg
+handle _ (Shortcut (Shortcut.Event Shortcut.SearcherEditExpression _)) = Just $ timeIt "Shortcut.SearcherEditExpression" $ whenGraphLoaded Searcher.editSelectedNodeExpression
+handle _ (Shortcut (Shortcut.Event Shortcut.SearcherOpen         arg)) = Just $ timeIt "Shortcut.SearcherOpen" $ whenGraphLoaded $ Searcher.open $ fmap fromTuple $ readMaybe =<< arg
 handle _ (UI (AppEvent App.ContextMenu))                               = Just $ whenGraphLoaded $ Searcher.open def
-handle scheduleEvent (UI (SearcherEvent evt))                          = Just $ handleEvent scheduleEvent evt
+handle scheduleEvent (UI (SearcherEvent evt))                          = Just $ timeIt "SearcherEvent" $ handleEvent scheduleEvent evt
 handle _ (UI (AppEvent (App.MouseDown _ _)))                           = Just $ continue Searcher.close
 handle _ _                                                             = Nothing
 

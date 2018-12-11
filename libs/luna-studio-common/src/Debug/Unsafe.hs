@@ -1,7 +1,8 @@
 module Debug.Unsafe where
 
 import           Data.Time.Clock  (diffUTCTime, getCurrentTime)
-import           Prologue
+import           Debug.Console
+import           Prologue         hiding (print, putStrLn, printLn)
 import           System.CPUTime
 import           System.IO.Unsafe
 

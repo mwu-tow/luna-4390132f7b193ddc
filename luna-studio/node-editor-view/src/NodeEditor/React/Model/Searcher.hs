@@ -20,7 +20,6 @@ import qualified Luna.Syntax.Text.Lexer               as Lexer
 import qualified LunaStudio.Data.PortRef              as PortRef
 import qualified NodeEditor.Event.Shortcut            as Shortcut
 import qualified NodeEditor.React.Model.Searcher.Mode as Mode
-import qualified Searcher.Engine.Data.Match           as Match
 
 import Data.Text32                          (Text32)
 import LunaStudio.Data.NodeLoc              (NodeId, NodeLoc)
