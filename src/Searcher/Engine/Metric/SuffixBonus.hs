@@ -4,7 +4,6 @@ module Searcher.Engine.Metric.SuffixBonus where
 
 import Prologue
 
-import qualified Control.Monad.State.Layered    as State
 import qualified Searcher.Engine.Data.Match     as Match
 import qualified Searcher.Engine.Data.Substring as Substring
 
@@ -32,9 +31,9 @@ instance Default SuffixBonus where def = SuffixBonus 4
 instance NFData  SuffixBonus
 
 instance Metric  SuffixBonus where
-    updateMetric _ _ _ = pure ()
+    updateMetric metricSt _ _ _ = metricSt
 
-    getMetric matchState = let
+    getMetric metricSt matchState = let
         posInData   = matchState ^. Match.positionInData
         substring   = matchState ^. Match.currentSubstring
         revRange    = substring ^. Substring.reversedRange
@@ -46,6 +45,6 @@ instance Metric  SuffixBonus where
             points' = rLen * (rLen + 1) `quot` 2
             in if rEnd == posInData then points' else 0
         mkScore     = \m -> Score $! m * points
-        multM       = State.use @SuffixBonus multiplier
-        in mkScore <$> multM
+        multM       = metricSt ^. multiplier
+        in mkScore multM
 

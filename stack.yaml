@@ -5,9 +5,6 @@ ghc-options:
     -O2
     -Wall
     -Wno-name-shadowing
-    -fexcess-precision
-    -fexpose-all-unfoldings
-    -flate-dmd-anal
     -fmax-worker-args=1000
     -fsimpl-tick-factor=400
     -fspec-constr-keen
@@ -29,7 +26,14 @@ extra-deps:
     - monoid-0.1.8
     - prologue-3.2.4
     - typelevel-1.2.2
+    - layered-state-1.1.4
     - git: 'git@github.com:luna/nested-containers.git'
       commit: 8b37f1fbcb7e4cada7b8e28e0778f73c7b69f0a8
-    - git: 'git@github.com:luna/luna-studio-layered-state.git'
-      commit: 3c705415bc4e558f48aac13e73debcc290f4781f
+    - git: 'git@github.com:luna/luna.git'
+      commit: 1f5f7194f371ea17df3c2f56f1c85a8eb6f3a320
+      subdirs:
+          - lib/data-typemap
+          - lib/th-builder
+          - lib/tuple-utils
+          - lib/typelevel
+

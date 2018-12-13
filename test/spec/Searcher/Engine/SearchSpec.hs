@@ -1,9 +1,10 @@
+{-# LANGUAGE Strict #-}
+
 module Searcher.Engine.SearchSpec (spec) where
 
 import Prologue hiding (Index)
 import Test.Hspec
 
-import qualified Control.Monad.State.Layered    as State
 import qualified Data.List                      as List
 import qualified Data.Map.Strict                as Map
 import qualified Searcher.Engine.Data.Database  as Database
@@ -13,17 +14,12 @@ import qualified Searcher.Engine.Data.Substring as Substring
 import qualified Searcher.Engine.Data.Tree      as Tree
 import qualified Searcher.Engine.Search         as Search
 
-import Data.Map.Strict                        (Map)
-import Searcher.Engine.Data.Database          (Database, SearcherData)
-import Searcher.Engine.Data.Index             (Index)
-import Searcher.Engine.Data.Match             (Match)
-import Searcher.Engine.Data.Result            (Result)
-import Searcher.Engine.Metric.MismatchPenalty (MismatchPenalty)
-import Searcher.Engine.Metric.PrefixBonus     (PrefixBonus)
-import Searcher.Engine.Metric.SequenceBonus   (SequenceBonus)
-import Searcher.Engine.Metric.SuffixBonus     (SuffixBonus)
-import Searcher.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
-import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
+import Data.Map.Strict                      (Map)
+import Searcher.Engine.Data.Database        (Database, SearcherData)
+import Searcher.Engine.Data.Index           (Index)
+import Searcher.Engine.Data.Match           (Match)
+import Searcher.Engine.Data.Result          (Result)
+import Searcher.Engine.Metric.DefaultMetric (DefaultMetric)
 
 
 
@@ -32,37 +28,19 @@ import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 -------------------
 
 defSearch :: SearcherData a => Text -> Database a -> [Result a]
-defSearch = \query database -> runIdentity
-        $! State.evalDefT @WordSuffixBonus
-        .  State.evalDefT @WordPrefixBonus
-        .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SequenceBonus
-        .  State.evalDefT @PrefixBonus
-        .  State.evalDefT @MismatchPenalty
-        $! Search.search query database (const 1)
+defSearch = \query database ->
+    Search.search query database (const 1) (def @DefaultMetric)
 {-# INLINE defSearch #-}
 
 defMatchQuery :: Text -> Tree.Root -> (Map Index Match)
-defMatchQuery = \query database -> runIdentity
-        $! State.evalDefT @WordSuffixBonus
-        .  State.evalDefT @WordPrefixBonus
-        .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SequenceBonus
-        .  State.evalDefT @PrefixBonus
-        .  State.evalDefT @MismatchPenalty
-        $! Search.matchQuery query database
+defMatchQuery = \query database ->
+    Search.matchQuery query database (def @DefaultMetric)
 {-# INLINE defMatchQuery #-}
 
-defUpdateValue
-    :: Tree.Node -> Match.State -> Map Index Match -> (Map Index Match)
-defUpdateValue = \node state resultMap -> runIdentity
-        $! State.evalDefT @WordSuffixBonus
-        .  State.evalDefT @WordPrefixBonus
-        .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SequenceBonus
-        .  State.evalDefT @PrefixBonus
-        .  State.evalDefT @MismatchPenalty
-        $! Search.updateValue node state resultMap
+defUpdateValue :: Tree.Node -> Match.State -> Map Index Match
+    -> (Map Index Match)
+defUpdateValue = \node state resultMap ->
+    Search.updateValue node state resultMap (def @DefaultMetric)
 {-# INLINE defUpdateValue #-}
 
 topResultNameShouldBe :: [Result Text] -> Text -> Expectation

@@ -12,7 +12,7 @@ tests:
       - containers
       - fuzzy-text
       - hspec
-      - luna-studio-layered-state
+      - layered-state
       - lens
       - prologue
       - text
@@ -26,21 +26,21 @@ benchmarks:
       - containers
       - criterion
       - fuzzy-text
-      - luna-studio-layered-state
+      - layered-state
       - prologue
       - random
       - text
-
 
 library:
   source-dirs: src
   dependencies:
     - base
     - containers
-    - luna-studio-layered-state
+    - layered-state
     - lens
     - prologue
     - text
+    - luna-data-typemap
 
 default-extensions:
     - AllowAmbiguousTypes

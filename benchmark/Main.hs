@@ -21,12 +21,7 @@ import Searcher.Engine.Data.Index             ( Index, IndexMap )
 import Searcher.Engine.Data.Match             ( Match )
 import Searcher.Engine.Data.Result            ( Result )
 import Searcher.Engine.Data.Substring         ( Substring )
-import Searcher.Engine.Metric.MismatchPenalty ( MismatchPenalty )
-import Searcher.Engine.Metric.PrefixBonus     ( PrefixBonus )
-import Searcher.Engine.Metric.SequenceBonus   ( SequenceBonus )
-import Searcher.Engine.Metric.SuffixBonus     ( SuffixBonus )
-import Searcher.Engine.Metric.WordPrefixBonus ( WordPrefixBonus )
-import Searcher.Engine.Metric.WordSuffixBonus ( WordSuffixBonus )
+import Searcher.Engine.Metric.DefaultMetric   ( DefaultMetric )
 import System.Random                          ( Random (randomR), mkStdGen
                                               , randomRs )
 
@@ -39,7 +34,7 @@ import System.Random                          ( Random (randomR), mkStdGen
 -- === Config === --
 
 inputLength :: Int
-inputLength = 50000
+inputLength = 5000
 
 minWordLength :: Int
 minWordLength = 3
@@ -117,37 +112,19 @@ envBench name pre fun = env pre $ \ ~input -> bench name $ nf fun input
 {-# INLINE envBench #-}
 
 defSearch :: SearcherData a => Text -> Database a -> [Result a]
-defSearch = \query database -> runIdentity
-        $! State.evalDefT @WordSuffixBonus
-        .  State.evalDefT @WordPrefixBonus
-        .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SequenceBonus
-        .  State.evalDefT @PrefixBonus
-        .  State.evalDefT @MismatchPenalty
-        $! Search.search query database (const 1)
+defSearch = \query database ->
+    Search.search query database (const 1) (def @DefaultMetric)
 {-# INLINE defSearch #-}
 
 defMatchQuery :: Text -> Tree.Root -> (Map Index Match)
-defMatchQuery = \query database -> runIdentity
-        $! State.evalDefT @WordSuffixBonus
-        .  State.evalDefT @WordPrefixBonus
-        .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SequenceBonus
-        .  State.evalDefT @PrefixBonus
-        .  State.evalDefT @MismatchPenalty
-        $! Search.matchQuery query database
+defMatchQuery = \query database ->
+    Search.matchQuery query database (def @DefaultMetric)
 {-# INLINE defMatchQuery #-}
 
 defSearchUpdateValue
     :: Tree.Node -> Match.State -> Map Index Match -> (Map Index Match)
-defSearchUpdateValue = \node state resultMap -> runIdentity
-        $! State.evalDefT @WordSuffixBonus
-        .  State.evalDefT @WordPrefixBonus
-        .  State.evalDefT @SuffixBonus
-        .  State.evalDefT @SequenceBonus
-        .  State.evalDefT @PrefixBonus
-        .  State.evalDefT @MismatchPenalty
-        $! Search.updateValue node state resultMap
+defSearchUpdateValue = \node state resultMap ->
+    Search.updateValue node state resultMap (def @DefaultMetric)
 {-# INLINE defSearchUpdateValue #-}
 
 
@@ -204,7 +181,7 @@ test_matchQuery (query, root) = defMatchQuery query root
 
 main :: IO ()
 main = let
-    cfg = defaultConfig { Options.resamples = 10000 }
+    cfg = defaultConfig { Options.resamples = 100 }
     in defaultMainWith cfg
         [ bgroup   "tree"   benchTree
         , bgroup   "search" benchSearch

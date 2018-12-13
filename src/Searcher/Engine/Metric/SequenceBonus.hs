@@ -29,12 +29,12 @@ makeLenses ''SequenceBonus
 
 instance Default SequenceBonus where def = SequenceBonus 10
 
-instance NFData  SequenceBonus
+instance NFData SequenceBonus
 
-instance Metric  SequenceBonus where
-    updateMetric _ _ _   = pure ()
+instance Metric SequenceBonus where
+    updateMetric metricSt _ _ _ = metricSt -- pure ()
 
-    getMetric matchState = let
+    getMetric metricSt matchState = let
         revRange
             = matchState ^. Match.currentSubstring . Substring.reversedRange
         getRangeScore = \r -> let
@@ -44,6 +44,6 @@ instance Metric  SequenceBonus where
             in max 0 points
         points      = foldl (\acc r -> acc + getRangeScore r) def revRange
         mkScore     = \m -> Score $! m * points
-        multM       = State.use @SequenceBonus multiplier
-        in mkScore <$> multM
+        multM       = metricSt ^. multiplier
+        in mkScore multM
 
