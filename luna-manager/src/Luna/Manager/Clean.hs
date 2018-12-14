@@ -9,6 +9,9 @@ import           Filesystem.Path.CurrentOS (FilePath, encodeString)
 import           System.Directory          (removeDirectoryRecursive)
 import qualified System.Signal             as Signal
 
+#ifdef mingw32_HOST_OS
+import GHC.ConsoleHandler
+#endif
 
 cleanUp :: MonadIO m => FilePath -> m ()
 cleanUp tmp = liftIO $ removeDirectoryRecursive $ encodeString tmp
