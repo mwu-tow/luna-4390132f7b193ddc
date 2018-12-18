@@ -4,9 +4,10 @@ module Searcher.Engine.Data.Database where
 
 import Prologue hiding (Index)
 
-import qualified Control.Monad.State.Layered as State
-import qualified Data.Map.Strict             as Map
-import qualified Searcher.Engine.Data.Tree   as Tree
+-- TODO [LSR]
+import qualified Control.Monad.State.Strict as State
+import qualified Data.Map.Strict            as Map
+import qualified Searcher.Engine.Data.Tree  as Tree
 
 import Control.Lens               (Getter, to)
 import Data.Map.Strict            (Map)
@@ -64,7 +65,7 @@ mk input = Database hints' root where
     toTxt          = \h -> h ^. text
     txtInput       = toTxt <$> input
     mkTree         = Tree.mk txtInput
-    (root, txtMap) = State.run @IndexMap mkTree mempty
+    (root, txtMap) = State.runState @IndexMap mkTree mempty
     insertHint     = \acc hint -> let
         txt = hint ^. text
         in case Map.lookup txt txtMap of
@@ -90,7 +91,7 @@ insert hint database = let
     hintTxt = hint ^. text
     root    = database ^. tree
     insert' = Tree.insert hintTxt root
-    (root', txtMap') = State.run @IndexMap insert' txtMap
+    (root', txtMap') = State.runState @IndexMap insert' txtMap
     mayIdx = Map.lookup hintTxt txtMap'
     updateHints = \idx hintMap -> Map.insertWith (<>) idx [hint] hintMap
     in database

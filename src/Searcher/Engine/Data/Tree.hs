@@ -4,10 +4,10 @@ module Searcher.Engine.Data.Tree where
 
 import Prologue hiding (Index, lookup)
 
-import qualified Control.Monad.State.Layered as State
-import qualified Data.Map.Strict             as Map
-import qualified Data.Text                   as Text
-import qualified Searcher.Engine.Data.Index       as Index
+import qualified Control.Monad.State.Strict as State
+import qualified Data.Map.Strict            as Map
+import qualified Data.Text                  as Text
+import qualified Searcher.Engine.Data.Index as Index
 
 import Control.Lens          (to, (?~), _Just)
 import Data.Map.Strict       (Map)
@@ -33,19 +33,19 @@ type Root = Node
 
 -- === API === --
 
-mk :: State.Monad IndexMap m => [Text] -> m Root
+mk :: State.MonadState IndexMap m => [Text] -> m Root
 mk = \txts -> insertMultiple txts def
 {-# INLINE mk #-}
 
-singleton :: State.Monad IndexMap m => Text -> m Root
+singleton :: State.MonadState IndexMap m => Text -> m Root
 singleton = \txt -> insert txt def
 {-# INLINE singleton #-}
 
-insert :: State.Monad IndexMap m => Text -> Root -> m Root
+insert :: State.MonadState IndexMap m => Text -> Root -> m Root
 insert = \txt root -> insertToNode txt txt root
 {-# INLINE insert #-}
 
-insertToNode :: State.Monad IndexMap m => Text -> Text -> Node -> m Node
+insertToNode :: State.MonadState IndexMap m => Text -> Text -> Node -> m Node
 insertToNode = \suffix txt node -> case Text.uncons suffix of
     Nothing           -> updateValue txt node
     Just ((!h), (!t)) -> do
@@ -55,17 +55,17 @@ insertToNode = \suffix txt node -> case Text.uncons suffix of
         pure $! node & branches . at h ?~ branch
 {-# INLINEABLE insertToNode #-}
 
-updateValue :: State.Monad IndexMap m => Text -> Node -> m Node
+updateValue :: State.MonadState IndexMap m => Text -> Node -> m Node
 updateValue = \txt node -> let
     nodeIdx = node ^. index
     updateMap = do
         newIndex <- Index.get
-        State.modify_ @IndexMap $! Map.insert txt newIndex
+        State.modify' @IndexMap $! Map.insert txt newIndex
         pure $! node & index .~ newIndex
     in if Index.isInvalid nodeIdx then updateMap else pure node
 {-# INLINEABLE updateValue #-}
 
-insertMultiple :: State.Monad IndexMap m => [Text] -> Root -> m Root
+insertMultiple :: State.MonadState IndexMap m => [Text] -> Root -> m Root
 insertMultiple = \txts root -> foldlM (flip insert) root txts
 {-# INLINE insertMultiple #-}
 

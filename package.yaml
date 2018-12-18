@@ -12,10 +12,10 @@ tests:
       - containers
       - fuzzy-text
       - hspec
-      - layered-state
       - lens
       - prologue
       - text
+      - mtl
 
 benchmarks:
   searcher-benchmark:
@@ -26,21 +26,21 @@ benchmarks:
       - containers
       - criterion
       - fuzzy-text
-      - layered-state
       - prologue
       - random
       - text
+      - mtl
 
 library:
   source-dirs: src
   dependencies:
     - base
     - containers
-    - layered-state
     - lens
+    - luna-data-typemap
+    - mtl
     - prologue
     - text
-    - luna-data-typemap
 
 default-extensions:
     - AllowAmbiguousTypes

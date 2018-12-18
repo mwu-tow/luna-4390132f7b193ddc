@@ -18,6 +18,8 @@ import Searcher.Engine.Data.Score (Score)
 
 -- === Definition === --
 
+-- TODO [Ara] Use TypeMap to autogenerate the boilerplate for this.
+
 class (Default a, NFData a) => Metric a where
     updateMetric :: a -> Char -> Match.CharMatch -> Match.State -> a
     getMetric :: a -> Match.State -> Score

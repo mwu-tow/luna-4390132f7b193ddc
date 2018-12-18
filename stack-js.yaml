@@ -1,19 +1,16 @@
-resolver: lts-12.6
+resolver: lts-11.22
+compiler: ghcjs-0.2.1.9008011_ghc-8.0.2
+compiler-check: match-exact
+
+setup-info:
+  ghcjs:
+    source:
+      ghcjs-0.2.1.9008011_ghc-8.0.2:
+        url: https://github.com/matchwood/ghcjs-stack-dist/raw/master/ghcjs-0.2.1.9008011.tar.gz
+        sha1: a72a5181124baf64bcd0e68a8726e65914473b3b
 
 ghc-options:
-  $locals:
-    -O2
-    -Wall
-    -Wno-name-shadowing
-    -fmax-worker-args=1000
-    -fsimpl-tick-factor=400
-    -fspec-constr-keen
-    -fspecialise-aggressively
-    -fstatic-argument-transformation
-    -funbox-strict-fields
-    -threaded
-  $everything:
-    -fconstraint-solver-iterations=100
+  fuzzy-text: -DGHCJS_BROWSER
 
 extra-deps:
     - container-1.1.6
@@ -37,4 +34,7 @@ extra-deps:
           - lib/th-builder
           - lib/tuple-utils
           - lib/typelevel
+
+packages:
+    - .
 

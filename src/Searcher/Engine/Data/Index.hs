@@ -4,8 +4,8 @@ module Searcher.Engine.Data.Index where
 
 import Prologue hiding (Index)
 
-import qualified Control.Monad.State.Layered as State
-import qualified Data.Map.Strict             as Map
+import qualified Control.Monad.State.Strict as State
+import qualified Data.Map.Strict            as Map
 
 import Data.Map.Strict (Map)
 
@@ -24,7 +24,7 @@ type Index = Int
 isInvalid :: Index -> Bool
 isInvalid = (< 0)
 
-get :: State.Monad IndexMap m => m Index
+get :: State.MonadState IndexMap m => m Index
 get = State.get @IndexMap >>= pure . Map.size
 {-# INLINE get #-}
 

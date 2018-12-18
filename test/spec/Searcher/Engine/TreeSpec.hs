@@ -3,16 +3,16 @@ module Searcher.Engine.TreeSpec (spec) where
 import Prologue   hiding (Index)
 import Test.Hspec
 
-import qualified Control.Monad.State.Layered as State
-import qualified Data.Map.Strict             as Map
-import qualified Data.Text                   as Text
-import qualified Searcher.Engine.Data.Index       as Index
-import qualified Searcher.Engine.Data.Tree        as Tree
+import qualified Control.Monad.State.Strict as State
+import qualified Data.Map.Strict            as Map
+import qualified Data.Text                  as Text
+import qualified Searcher.Engine.Data.Index as Index
+import qualified Searcher.Engine.Data.Tree  as Tree
 
-import Control.Exception     (throw)
-import Control.Lens          (makePrisms)
-import Data.Map.Strict       (Map)
-import Data.Set              (Set)
+import Control.Exception          (throw)
+import Control.Lens               (makePrisms)
+import Data.Map.Strict            (Map)
+import Data.Set                   (Set)
 import Searcher.Engine.Data.Index (Index, IndexMap)
 import Searcher.Engine.Data.Tree  (Node (Node), Root, branches, index)
 
@@ -118,15 +118,15 @@ spec = do
 
     describe "test insert function" $ do
         it "value is in map" $ let
-            idxMap = State.exec @IndexMap (Tree.singleton "a") mempty
+            idxMap = State.execState @IndexMap (Tree.singleton "a") mempty
             in idxMap `shouldBe` Map.singleton "a" 0
         it "value is in dictionary" $ let
-            (root, idxMap) = State.run @IndexMap (Tree.singleton "a") mempty
+            (root, idxMap) = State.runState @IndexMap (Tree.singleton "a") mempty
             in checkTreeStructure root idxMap
         it "values are in map" $ let
-            idxMap = State.exec @IndexMap (Tree.mk ["aa", "ab"]) mempty
+            idxMap = State.execState @IndexMap (Tree.mk ["aa", "ab"]) mempty
             in idxMap `shouldBe` fromList [("aa", 0), ("ab", 1)]
         it "values are in dictionary" $ let
-            (root, idxMap) = State.run @IndexMap (Tree.mk ["aa", "ab"]) mempty
+            (root, idxMap) = State.runState @IndexMap (Tree.mk ["aa", "ab"]) mempty
             in checkTreeStructure root idxMap
 

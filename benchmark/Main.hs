@@ -4,7 +4,7 @@ import Prologue hiding (Index)
 
 import Criterion.Main
 
-import qualified Control.Monad.State.Layered    as State
+import qualified Control.Monad.State.Strict     as State
 import qualified Criterion.Types                as Options
 import qualified Data.Map.Strict                as Map
 import qualified Searcher.Engine.Data.Database  as Database
@@ -131,24 +131,24 @@ defSearchUpdateValue = \node state resultMap ->
 -- === Test functions === --
 
 test_mkTree :: [Text] -> (Tree.Root, IndexMap)
-test_mkTree txts = State.run @IndexMap mkTree mempty where
+test_mkTree txts = State.runState @IndexMap mkTree mempty where
     mkTree = Tree.mk txts
 {-# NOINLINE test_mkTree #-}
 
 test_insertToNode :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
 test_insertToNode (txt, node, idxMap) = let
     insertToNode = Tree.insertToNode txt txt node
-    in State.run @IndexMap insertToNode idxMap
+    in State.runState @IndexMap insertToNode idxMap
 {-# NOINLINE test_insertToNode #-}
 
 test_insertUpdateValue :: (Text, Tree.Node, IndexMap) -> (Tree.Node, IndexMap)
 test_insertUpdateValue (txt, n, txtMap) = let
     updateVal = Tree.updateValue txt n
-    in State.run @IndexMap updateVal txtMap
+    in State.runState @IndexMap updateVal txtMap
 {-# NOINLINE test_insertUpdateValue #-}
 
 test_nextIndex :: IndexMap -> Index
-test_nextIndex txtMap = State.eval @IndexMap Index.get txtMap
+test_nextIndex txtMap = State.evalState @IndexMap Index.get txtMap
 {-# NOINLINE test_nextIndex #-}
 
 test_lookup :: (Text, Tree.Root) -> Maybe Tree.Node
