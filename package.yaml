@@ -13,9 +13,10 @@ tests:
       - fuzzy-text
       - hspec
       - lens
+      - luna-data-typemap
+      - mtl
       - prologue
       - text
-      - mtl
 
 benchmarks:
   searcher-benchmark:
@@ -26,10 +27,10 @@ benchmarks:
       - containers
       - criterion
       - fuzzy-text
+      - mtl
       - prologue
       - random
       - text
-      - mtl
 
 library:
   source-dirs: src

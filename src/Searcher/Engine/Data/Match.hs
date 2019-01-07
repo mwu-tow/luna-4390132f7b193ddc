@@ -6,7 +6,7 @@ import Prologue hiding (Index)
 
 import qualified Searcher.Engine.Data.Substring as Substring
 
-import Control.Lens              (makePrisms)
+import Control.Lens                   (makePrisms)
 import Searcher.Engine.Data.Score     (Score)
 import Searcher.Engine.Data.Substring (Substring)
 

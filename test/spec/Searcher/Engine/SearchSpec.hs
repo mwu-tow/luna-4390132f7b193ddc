@@ -13,13 +13,19 @@ import qualified Searcher.Engine.Data.Result    as Result
 import qualified Searcher.Engine.Data.Substring as Substring
 import qualified Searcher.Engine.Data.Tree      as Tree
 import qualified Searcher.Engine.Search         as Search
+import qualified Searcher.Engine.Metric         as Metric
 
-import Data.Map.Strict                      (Map)
-import Searcher.Engine.Data.Database        (Database, SearcherData)
-import Searcher.Engine.Data.Index           (Index)
-import Searcher.Engine.Data.Match           (Match)
-import Searcher.Engine.Data.Result          (Result)
-import Searcher.Engine.Metric.DefaultMetric (DefaultMetric)
+import Data.Map.Strict                        (Map)
+import Searcher.Engine.Data.Database          (Database, SearcherData)
+import Searcher.Engine.Data.Index             (Index)
+import Searcher.Engine.Data.Match             (Match)
+import Searcher.Engine.Data.Result            (Result)
+import Searcher.Engine.Metric.MismatchPenalty (MismatchPenalty)
+import Searcher.Engine.Metric.PrefixBonus     (PrefixBonus)
+import Searcher.Engine.Metric.SequenceBonus   (SequenceBonus)
+import Searcher.Engine.Metric.SuffixBonus     (SuffixBonus)
+import Searcher.Engine.Metric.WordPrefixBonus (WordPrefixBonus)
+import Searcher.Engine.Metric.WordSuffixBonus (WordSuffixBonus)
 
 
 
@@ -27,20 +33,28 @@ import Searcher.Engine.Metric.DefaultMetric (DefaultMetric)
 -- === Utils === --
 -------------------
 
+type MetricStates =
+    '[ MismatchPenalty
+     , PrefixBonus
+     , SequenceBonus
+     , SuffixBonus
+     , WordPrefixBonus
+     , WordSuffixBonus ]
+
 defSearch :: SearcherData a => Text -> Database a -> [Result a]
 defSearch = \query database ->
-    Search.search query database (const 1) (def @DefaultMetric)
+    Search.search @MetricStates query database (const 1)
 {-# INLINE defSearch #-}
 
 defMatchQuery :: Text -> Tree.Root -> (Map Index Match)
 defMatchQuery = \query database ->
-    Search.matchQuery query database (def @DefaultMetric)
+    Search.matchQuery query database $ Metric.make @MetricStates
 {-# INLINE defMatchQuery #-}
 
 defUpdateValue :: Tree.Node -> Match.State -> Map Index Match
     -> (Map Index Match)
 defUpdateValue = \node state resultMap ->
-    Search.updateValue node state resultMap (def @DefaultMetric)
+    Search.updateValue node state resultMap $ Metric.make @MetricStates
 {-# INLINE defUpdateValue #-}
 
 topResultNameShouldBe :: [Result Text] -> Text -> Expectation

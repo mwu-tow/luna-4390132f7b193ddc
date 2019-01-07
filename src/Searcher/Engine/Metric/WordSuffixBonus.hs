@@ -6,12 +6,12 @@ import Prologue
 
 import qualified Searcher.Engine.Data.Match     as Match
 import qualified Searcher.Engine.Data.Substring as Substring
+import qualified Searcher.Engine.Metric         as Metric
 
 import Control.Lens                   ((?~))
 import Data.Char                      (isLetter, isLower, isUpper)
 import Searcher.Engine.Data.Score     (Score (Score))
 import Searcher.Engine.Data.Substring (Substring (Substring))
-import Searcher.Engine.Metric         (Metric (getMetric, updateMetric))
 
 
 
@@ -35,15 +35,18 @@ makeLenses ''WordSuffixBonus
 startsNewWord :: Char -> Char -> Bool
 startsNewWord c prevC = let xor a b = (a && not b) || (not a && b)
     in (isLetter prevC `xor` isLetter c) || (isLower prevC && isUpper c)
+{-# INLINE startsNewWord #-}
 
 
 -- === Instances === --
 
-instance Default WordSuffixBonus where def = WordSuffixBonus 3 def def def
+instance Default WordSuffixBonus where
+    def = WordSuffixBonus 3 def def def
+    {-# INLINE def #-}
 
 instance NFData WordSuffixBonus
 
-instance Metric WordSuffixBonus where
+instance Metric.State WordSuffixBonus where
     updateMetric metricSt dataChar matchKind updatedState = let
         posInData       = updatedState ^. Match.positionInData
         suffixes        = metricSt ^. wordsSuffixes
@@ -73,6 +76,7 @@ instance Metric WordSuffixBonus where
             & previousDataChar ?~ dataChar
             & lastWordStart    %~ updateWordStart
             & wordsSuffixes    .~ updatedWordsSuffixes
+    {-# INLINE updateMetric #-}
 
     getMetric metricSt _ = let
         revRange        = metricSt ^. wordsSuffixes ^. Substring.reversedRange
@@ -81,4 +85,5 @@ instance Metric WordSuffixBonus where
         appendAccLength = \acc r -> acc + accRangeLength r
         points = foldl' appendAccLength def revRange
         in Score $! (metricSt ^. multiplier) * points
+    {-# INLINE getMetric #-}
 

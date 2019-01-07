@@ -63,15 +63,6 @@ totalLength = to $! \s -> let
     in foldl addLengths def revRange
 {-# INLINE totalLength #-}
 
--- -- This returns number which is each range length multiplied by
--- -- `range * (range + 1) `quot` 2` and summed together
--- accumulatedLength :: Getter Substring Int
--- accumulatedLength = to $! \s -> let
---     accRangeLength  = \r -> let rLen = r ^. len in rLen * (rLen + 1) `quot` 2
---     appendAccLength = \acc r -> acc + accRangeLength r
---     revRange        = s ^. reversedRange
---     in foldl appendAccLength def revRange
-
 singleton :: Range -> Substring
 singleton r = Substring [r]
 {-# INLINE singleton #-}

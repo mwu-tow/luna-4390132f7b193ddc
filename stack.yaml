@@ -2,9 +2,14 @@ resolver: lts-12.6
 
 ghc-options:
   $locals:
-    -O2
     -Wall
+  $everything:
+    -O2
     -Wno-name-shadowing
+    -fconstraint-solver-iterations=100
+    -fexcess-precision
+    -fexpose-all-unfoldings
+    -flate-dmd-anal
     -fmax-worker-args=1000
     -fsimpl-tick-factor=400
     -fspec-constr-keen
@@ -12,8 +17,6 @@ ghc-options:
     -fstatic-argument-transformation
     -funbox-strict-fields
     -threaded
-  $everything:
-    -fconstraint-solver-iterations=100
 
 extra-deps:
     - container-1.1.6
@@ -31,7 +34,7 @@ extra-deps:
       commit: 8b37f1fbcb7e4cada7b8e28e0778f73c7b69f0a8
 
     - git: 'git@github.com:luna/luna.git'
-      commit: 1f5f7194f371ea17df3c2f56f1c85a8eb6f3a320
+      commit: 05ab8fe679dc4237ec74d6bd9263aca2a2a562a2
       subdirs:
           - lib/data-typemap
           - lib/th-builder

@@ -6,9 +6,9 @@ import Prologue
 
 import qualified Searcher.Engine.Data.Match     as Match
 import qualified Searcher.Engine.Data.Substring as Substring
+import qualified Searcher.Engine.Metric         as Metric
 
 import Searcher.Engine.Data.Score (Score (Score))
-import Searcher.Engine.Metric     (Metric (getMetric, updateMetric))
 
 
 
@@ -26,12 +26,15 @@ makeLenses ''SuffixBonus
 
 -- === Instances === --
 
-instance Default SuffixBonus where def = SuffixBonus 4
+instance Default SuffixBonus where
+    def = SuffixBonus 4
+    {-# INLINE def #-}
 
-instance NFData  SuffixBonus
+instance NFData SuffixBonus
 
-instance Metric  SuffixBonus where
+instance Metric.State SuffixBonus where
     updateMetric metricSt _ _ _ = metricSt
+    {-# INLINE updateMetric #-}
 
     getMetric metricSt matchState = let
         posInData   = matchState ^. Match.positionInData
@@ -47,4 +50,5 @@ instance Metric  SuffixBonus where
         mkScore     = \m -> Score $! m * points
         multM       = metricSt ^. multiplier
         in mkScore multM
+    {-# INLINE getMetric #-}
 
