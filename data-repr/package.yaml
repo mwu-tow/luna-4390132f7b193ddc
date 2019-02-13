@@ -1,0 +1,21 @@
+author: Wojciech Danilo
+bug-reports: https://github.com/wdanilo/data-repr/issues
+category: Text
+copyright: Copyright (C) 2014 Wojciech Danilo
+default-extensions: [ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTypeable,
+  DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable, DoAndIfThenElse,
+  EmptyDataDecls, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving,
+  InstanceSigs, LambdaCase, MultiParamTypeClasses, OverloadedStrings, StandaloneDeriving,
+  TemplateHaskell, TupleSections, TypeOperators, ViewPatterns, TypeFamilies]
+dependencies: [base, generic-deriving, lens]
+ghc-options: [-Wall, -O2]
+homepage: https://github.com/wdanilo/data-repr
+library:
+  exposed-modules: [Data.Repr, Data.Repr.Generics, Data.Repr.Meta]
+  source-dirs: src
+license: Apache-2.0
+maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
+name: data-repr
+stability: experimental
+synopsis: Alternative to Show data printing utility.
+version: 1.0.8
