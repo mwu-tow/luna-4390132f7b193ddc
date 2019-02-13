@@ -1,0 +1,92 @@
+name:       fuzzy-text
+version:    "0.1"
+author:     Luna Team <contact@luna-lang.org>
+maintainer: Luna Team <contact@luna-lang.org>
+
+tests:
+  spec:
+    main: Main.hs
+    source-dirs: test/spec
+    dependencies:
+      - base
+      - containers
+      - fuzzy-text
+      - hspec
+      - lens
+      - luna-data-typemap
+      - mtl
+      - prologue
+      - text
+
+benchmarks:
+  searcher-benchmark:
+    source-dirs: benchmark
+    main: Main.hs
+    dependencies:
+      - base
+      - containers
+      - criterion
+      - fuzzy-text
+      - mtl
+      - prologue
+      - random
+      - text
+
+library:
+  source-dirs: src
+  dependencies:
+    - base
+    - containers
+    - lens
+    - luna-data-typemap
+    - mtl
+    - prologue
+    - text
+
+default-extensions:
+    - AllowAmbiguousTypes
+    - ApplicativeDo
+    - Arrows
+    - BangPatterns
+    - BinaryLiterals
+    - ConstraintKinds
+    - DataKinds
+    - DefaultSignatures
+    - DeriveDataTypeable
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - DoAndIfThenElse
+    - DuplicateRecordFields
+    - EmptyDataDecls
+    - FlexibleContexts
+    - FlexibleInstances
+    - FunctionalDependencies
+    - GeneralizedNewtypeDeriving
+    - InstanceSigs
+    - LambdaCase
+    - LiberalTypeSynonyms
+    - MonadComprehensions
+    - MultiWayIf
+    - MultiParamTypeClasses
+    - NamedWildCards
+    - NegativeLiterals
+    - NoImplicitPrelude
+    - NumDecimals
+    - OverloadedLabels
+    - OverloadedStrings
+    - PackageImports
+    - QuasiQuotes
+    - RankNTypes
+    - RecursiveDo
+    - RelaxedPolyRec
+    - ScopedTypeVariables
+    - StandaloneDeriving
+    - TemplateHaskell
+    - TupleSections
+    - TypeApplications
+    - TypeFamilies
+    - TypeSynonymInstances
+    - TypeOperators
+    - ViewPatterns

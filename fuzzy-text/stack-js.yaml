@@ -1,0 +1,40 @@
+resolver: lts-11.22
+compiler: ghcjs-0.2.1.9008011_ghc-8.0.2
+compiler-check: match-exact
+
+setup-info:
+  ghcjs:
+    source:
+      ghcjs-0.2.1.9008011_ghc-8.0.2:
+        url: https://github.com/matchwood/ghcjs-stack-dist/raw/master/ghcjs-0.2.1.9008011.tar.gz
+        sha1: a72a5181124baf64bcd0e68a8726e65914473b3b
+
+ghc-options:
+  fuzzy-text: -DGHCJS_BROWSER
+
+extra-deps:
+    - container-1.1.6
+    - convert-1.5.1
+    - functor-utils-1.17.2
+    - impossible-1.1.4
+    - layered-state-1.1.5
+    - lens-utils-1.4.6
+    - monad-branch-1.0.4
+    - monoid-0.1.9
+    - prologue-3.2.6
+    - typelevel-1.2.3
+
+    - git: 'git@github.com:luna/nested-containers.git'
+      commit: 8b37f1fbcb7e4cada7b8e28e0778f73c7b69f0a8
+
+    - git: 'git@github.com:luna/luna.git'
+      commit: 1f5f7194f371ea17df3c2f56f1c85a8eb6f3a320
+      subdirs:
+          - lib/data-typemap
+          - lib/th-builder
+          - lib/tuple-utils
+          - lib/typelevel
+
+packages:
+    - .
+

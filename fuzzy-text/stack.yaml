@@ -1,0 +1,43 @@
+resolver: lts-12.6
+
+ghc-options:
+  $locals:
+    -Wall
+  $everything:
+    -O2
+    -Wno-name-shadowing
+    -fconstraint-solver-iterations=100
+    -fexcess-precision
+    -fexpose-all-unfoldings
+    -flate-dmd-anal
+    -fmax-worker-args=1000
+    -fsimpl-tick-factor=400
+    -fspec-constr-keen
+    -fspecialise-aggressively
+    -fstatic-argument-transformation
+    -funbox-strict-fields
+    -threaded
+
+extra-deps:
+    - container-1.1.6
+    - convert-1.5.1
+    - functor-utils-1.17.2
+    - impossible-1.1.4
+    - layered-state-1.1.5
+    - lens-utils-1.4.6
+    - monad-branch-1.0.4
+    - monoid-0.1.9
+    - prologue-3.2.6
+    - typelevel-1.2.3
+
+    - git: 'git@github.com:luna/nested-containers.git'
+      commit: 8b37f1fbcb7e4cada7b8e28e0778f73c7b69f0a8
+
+    - git: 'git@github.com:luna/luna.git'
+      commit: 05ab8fe679dc4237ec74d6bd9263aca2a2a562a2
+      subdirs:
+          - lib/data-typemap
+          - lib/th-builder
+          - lib/tuple-utils
+          - lib/typelevel
+
