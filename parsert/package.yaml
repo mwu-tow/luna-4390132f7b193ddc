@@ -1,0 +1,34 @@
+author: Wojciech Danilo
+benchmarks:
+  parsert-alt-core:
+    dependencies: [parsert]
+    ghc-options: -ddump-simpl -ddump-to-file -dsuppress-idinfo -dsuppress-module-prefixes
+    main: Alt.hs
+    source-dirs: test/bench/core
+  parsert-benchmark:
+    dependencies: [criterion, parsert, random, mtl, kan-extensions, mtl-c, megaparsec,
+      attoparsec, vector, lens, timeit]
+    main: Main.hs
+    source-dirs: test/bench
+category: Data
+default-extensions: [AllowAmbiguousTypes, ApplicativeDo, Arrows, BangPatterns, BinaryLiterals,
+  ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTypeable, DeriveFoldable,
+  DeriveFunctor, DeriveGeneric, DeriveTraversable, DoAndIfThenElse, DuplicateRecordFields,
+  EmptyDataDecls, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GeneralizedNewtypeDeriving,
+  InstanceSigs, LambdaCase, MonadComprehensions, MultiWayIf, NamedWildCards, NegativeLiterals,
+  NoImplicitPrelude, NumDecimals, OverloadedLabels, PackageImports, QuasiQuotes, RankNTypes,
+  RecursiveDo, ScopedTypeVariables, StandaloneDeriving, TemplateHaskell, TupleSections,
+  TypeApplications, TypeFamilies, TypeFamilyDependencies, TypeOperators, ViewPatterns,
+  LiberalTypeSynonyms, RelaxedPolyRec]
+dependencies: [deepseq, base, prologue, dependent-state, typelevel, transformers,
+  monad-branch, transformers-base, mtl, free, exceptions, MonadRandom, either, monad-control,
+  mmorph, semigroupoids, bytestring, vector-text, text]
+github: https://github.com/wdanilo/parsert
+library: {ghc-options: -Wall -O2, source-dirs: src}
+license: Apache-2.0
+maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
+name: parsert
+stability: experimental
+synopsis: Parsert is a collection of composable monad transformers allowing for building
+  parsers highly tailored for specific needs.
+version: 1.0.12
