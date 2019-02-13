@@ -1,0 +1,115 @@
+name:               luna-studio-common
+version:            0.1.0.0
+author:             New Byte Order <contact@luna-lang.org>
+maintainer:         New Byte Order <contact@luna-lang.org>
+
+flags:
+  debug:
+    description:      Enable debug support
+    default:          false
+    manual:           false
+
+dependencies:
+  - aeson
+  - base
+  - binary
+  - bytestring
+  - clock
+  - containers
+  - convert
+  - deepseq
+  - filepath
+  - fuzzy-text
+  - hashable
+  - lens
+  - lens-utils
+  - matrix
+  - pretty-show
+  - prologue
+  - storable-tuple
+  - template-haskell
+  - text
+  - time
+  - unordered-containers
+  - uuid
+  - uuid-types
+  - yaml
+  - zlib
+
+when:
+  - condition: "!impl(ghcjs)"
+    dependencies:
+      - luna-core
+      - luna-cpp-containers
+      - luna-foreign-utils
+  - condition: impl(ghcjs)
+    dependencies: [ghcjs-base]
+
+default-extensions:
+    - AllowAmbiguousTypes
+    - ApplicativeDo
+    - Arrows
+    - BangPatterns
+    - BinaryLiterals
+    - ConstraintKinds
+    - DataKinds
+    - DefaultSignatures
+    - DeriveDataTypeable
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - DoAndIfThenElse
+    - DuplicateRecordFields
+    - EmptyDataDecls
+    - FlexibleContexts
+    - FlexibleInstances
+    - FunctionalDependencies
+    - GeneralizedNewtypeDeriving
+    - InstanceSigs
+    - LambdaCase
+    - LiberalTypeSynonyms
+    - MonadComprehensions
+    - MultiWayIf
+    - MultiParamTypeClasses
+    - NamedWildCards
+    - NegativeLiterals
+    - NoImplicitPrelude
+    - NumDecimals
+    - OverloadedLabels
+    - OverloadedStrings
+    - PackageImports
+    - QuasiQuotes
+    - RankNTypes
+    - RecursiveDo
+    - RelaxedPolyRec
+    - ScopedTypeVariables
+    - StandaloneDeriving
+    - TemplateHaskell
+    - TupleSections
+    - TypeApplications
+    - TypeFamilies
+    - TypeFamilyDependencies
+    - TypeSynonymInstances
+    - TypeOperators
+    - ViewPatterns
+
+library:
+  source-dirs: src
+  ghc-options:
+    - -Wall
+    - -O2
+    - -threaded
+    - -DCOMPRESS_REQUESTS
+    # - -DDEBUG_PERF
+
+
+executables:
+  luna-studio-common-test:
+    source-dirs: test
+    main: Main.hs
+    ghc-options: -Wall -O2 -threaded
+    dependencies:
+      - base
+      - prologue
+      - luna-studio-common

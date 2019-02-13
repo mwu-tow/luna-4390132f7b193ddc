@@ -1,0 +1,59 @@
+name:               luna-undo-redo
+version:            0.1.0.0
+author:             New Byte Order <contact@luna-lang.org>
+maintainer:         New Byte Order <contact@luna-lang.org>
+
+dependencies:
+  - base
+  - batch-lib-luna-empire
+  - binary
+  - bytestring
+  - containers
+  - errors
+  - ghc
+  - hspec
+  - lens
+  - luna-studio-common
+  - mtl
+  - m-logger
+  - prologue
+  - safe-exceptions
+  - stm
+  - text
+  - uuid
+  - uuid-types
+  - zeromq4-haskell
+  - zmq-bus
+  - zmq-bus-config
+  - zmq-rpc
+
+default-extensions:
+  - DeriveGeneric
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - TemplateHaskell
+  - TypeApplications
+
+library:
+    source-dirs: src
+    ghc-options: -Wall -O2
+
+
+executables:
+ luna-undo-redo:
+   dependencies:
+     - m-logger
+     - luna-undo-redo
+
+
+   source-dirs: app
+   main:        Main.hs
+   ghc-options: -Wall -O2 -threaded
+
+tests:
+   spec:
+       main: Spec.hs
+       source-dirs: test
+       dependencies:
+           - hspec
+           - luna-undo-redo

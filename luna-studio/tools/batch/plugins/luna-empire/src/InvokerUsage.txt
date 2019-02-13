@@ -1,0 +1,19 @@
+Usage:
+  luna-empire-invoker addNode        <pid> <lid> <expression> <x> <y>
+  luna-empire-invoker removeNode     <pid> <lid> <nodeId>
+  luna-empire-invoker setNodeMeta <pid> <lid> <nodeId>     <x> <y> <req>
+  luna-empire-invoker connect        <pid> <lid> <srcNodeId> <outPort> <dstNodeId> <inPort>
+  luna-empire-invoker setValue       <pid> <lid> <nodeId>    <portId>  <value>
+  luna-empire-invoker disconnect     <pid> <lid>                       <dstNodeId> <inPort>
+  luna-empire-invoker getProgram     <pid> <lid>
+  luna-empire-invoker createLibrary  <pid>               <name>
+  luna-empire-invoker createProject              <path> [<name>]
+  luna-empire-invoker libraries      <pid>
+  luna-empire-invoker projects
+  luna-empire-invoker dump
+  luna-empire-invoker graphviz       <pid> <lid>
+  luna-empire-invoker typecheck      <pid> <lid>
+
+Options:
+  <outPort>          All  or an integer value
+  <inPort>           Self or an integer value

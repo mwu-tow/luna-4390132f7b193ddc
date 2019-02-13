@@ -1,0 +1,146 @@
+name: luna-empire
+version: "0.1"
+author: New Byte Order <contact@luna-lang.org>
+maintainer: New Byte Order <contact@luna-lang.org>
+build-type: Simple
+
+library:
+    source-dirs: src
+
+tests:
+    spec:
+        main: Main.hs
+        source-dirs: test
+        ghc-options: -Wno-unused-do-bind -threaded -with-rtsopts=-N4
+        dependencies:
+            - hspec
+            - hspec-expectations-lifted
+            - luna-empire
+            - monad-loops
+            - QuickCheck
+            - raw-strings-qq
+            - reflection
+            - safe-exceptions
+            - template-haskell
+            - temporary
+
+benchmarks:
+    bench:
+        main: Main.hs
+        source-dirs: bench
+        ghc-options: -O2 -threaded -with-rtsopts=-N
+        dependencies:
+            - criterion
+            - luna-empire
+
+ghc-options: -Wall
+
+dependencies:
+    - aeson
+    - aeson-pretty
+    - async
+    - base
+    - bimap
+    - binary
+    - bytestring
+    - constraints
+    - container
+    - containers
+    - convert
+    - data-default
+    - directory
+    - exceptions
+    - filepath
+    - layered-state
+    - layouting
+    - lens
+    - lens-utils
+    - lifted-base
+    - luna-core
+    - luna-cpp-containers
+    - luna-data-storable
+    - luna-data-tag
+    - luna-data-typemap
+    - luna-debug
+    - luna-exception
+    - luna-foreign-utils
+    - luna-generic-traversable
+    - luna-memory-pool
+    - luna-nested-containers
+    - luna-package
+    - luna-passes
+    - luna-runtime
+    - luna-stdlib
+    - luna-studio-common
+    - luna-syntax-definition
+    - luna-syntax-text-lexer
+    - luna-syntax-text-model
+    - luna-syntax-text-parser
+    - luna-syntax-text-builder
+    - luna-syntax-text-prettyprint
+    - luna-text-processing
+    - m-logger
+    - matrix
+    - mtl
+    - open-browser
+    - path
+    - prologue
+    - safe
+    - safe-exceptions
+    - scientific
+    - split
+    - stm
+    - text
+    - transformers
+    - typelevel
+    - unordered-containers
+    - uuid
+    - vector-text
+    - zlib == 0.6.1.2
+
+default-extensions:
+    - AllowAmbiguousTypes
+    - ApplicativeDo
+    - Arrows
+    - BangPatterns
+    - BinaryLiterals
+    - ConstraintKinds
+    - DataKinds
+    - DefaultSignatures
+    - DeriveDataTypeable
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - DoAndIfThenElse
+    - DuplicateRecordFields
+    - EmptyDataDecls
+    - FlexibleContexts
+    - FlexibleInstances
+    - FunctionalDependencies
+    - GeneralizedNewtypeDeriving
+    - InstanceSigs
+    - LambdaCase
+    - LiberalTypeSynonyms
+    - MonadComprehensions
+    - MultiWayIf
+    - NamedWildCards
+    - NegativeLiterals
+    - NoImplicitPrelude
+    - NumDecimals
+    - OverloadedLabels
+    - OverloadedStrings
+    - PackageImports
+    - QuasiQuotes
+    - RankNTypes
+    - RecursiveDo
+    - RelaxedPolyRec
+    - ScopedTypeVariables
+    - StandaloneDeriving
+    - TemplateHaskell
+    - TupleSections
+    - TypeApplications
+    - TypeFamilies
+    - TypeFamilyDependencies
+    - TypeOperators
+    - ViewPatterns

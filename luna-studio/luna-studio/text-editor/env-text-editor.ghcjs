@@ -1,0 +1,26 @@
+var analytics        = require('./analytics')
+    app              = require('./app-text-editor'),
+    init             = require('./init'),
+    common           = require('./common'),
+    config           = require('./config'),
+    gzip             = require('./gzip');
+    atomCallbackTextEditor = require('./atom-callback-text-editor');
+    globalRegistry = {};
+
+var run = function() {
+
+GHCJS_CODE_BE_THERE
+
+};
+
+return { connect             : function(connector) { connector(globalRegistry); }
+       , start               : function() { run();}
+       , lex                 : function(stack, data) { return atomCallbackTextEditor.lex(stack, data); }
+       , onInsertCode        : function(callback) { atomCallbackTextEditor.onInsertCode(callback); }
+       , onInterpreterUpdate : function(callback) { atomCallbackTextEditor.onInterpreterUpdate(callback); }
+       , onSetBuffer         : function(callback) { atomCallbackTextEditor.onSetBuffer(callback); }
+       , onSetClipboard      : function(callback) { atomCallbackTextEditor.onSetClipboard(callback); }
+       , pushDiffs           : function(diffs) { atomCallbackTextEditor.pushDiffs(diffs); }
+       , pushInternalEvent   : function(data) { atomCallbackTextEditor.pushInternalEvent(data); }
+       , onStatus            : function(callback) { atomCallbackTextEditor.onStatus(callback); }
+       }

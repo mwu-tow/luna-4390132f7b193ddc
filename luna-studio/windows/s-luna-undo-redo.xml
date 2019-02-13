@@ -1,0 +1,24 @@
+
+<configuration>
+  <id>s-luna-undo-redo</id>
+  <name>Luna Undo-Redo Service</name>
+  <description>Undo-Redo support for Luna</description>
+  <executable>%BASE%\..\..\bin\private\luna-undo-redo.exe</executable>
+  <startmode>manual</startmode>
+
+  <arguments>-v5</arguments>
+
+  <onfailure action="restart" delay="1 sec"/>
+  <onfailure action="restart" delay="1 sec"/>
+  <onfailure action="restart" delay="1 sec"/>
+  <onfailure action="restart" delay="10 sec"/>
+
+  <resetfailure>1 hour</resetfailure>
+
+  <env name="LUNA_LIBS_PATH" value="%BASE%\..\env" />
+  <env name="LUNA_STUDIO_LOG_PATH" value="%BASE%\..\logs" />
+
+  <logpath>%BASE%\..\logs</logpath>
+  <log mode="roll-by-size">
+  </log>
+</configuration>

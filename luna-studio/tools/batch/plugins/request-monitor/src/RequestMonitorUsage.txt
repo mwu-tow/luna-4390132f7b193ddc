@@ -1,0 +1,2 @@
+Usage:
+  request-monitor runOnIdle <seconds> <script>

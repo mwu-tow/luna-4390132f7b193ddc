@@ -1,0 +1,29 @@
+name:           luna-broker
+version:        0.0.1
+author:         New Byte Order <contact@luna-lang.org>
+
+default-extensions:
+    - NoImplicitPrelude
+
+ghc-options:
+    - -Wall
+    - -O2
+    - -threaded
+
+dependencies:
+    - base
+    - bytestring
+    - containers
+    - zmq-bus
+    - zmq-rpc
+    - m-logger
+    - zmq-bus-config
+    - prologue
+    - transformers
+    - protocol-buffers
+    - zeromq4-haskell >=0.4
+
+executables:
+  luna-broker:
+    main: Main.hs
+    source-dirs: src

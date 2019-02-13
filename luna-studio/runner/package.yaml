@@ -1,0 +1,34 @@
+name:               luna-studio-runner
+version:            "0.1"
+author:             New Byte Order <contact@luna-lang.org>
+maintainer:         New Byte Order <contact@luna-lang.org>
+
+dependencies:
+    - base
+    - containers
+    - dependent-state
+    - prologue
+    - typelevel
+    - lens-utils
+    - lens
+    - mtl
+    - dependent-state
+    - aeson
+    - bytestring
+    - directory
+    - exceptions
+    - optparse-applicative
+    - path
+    - safe-exceptions
+    - split
+    - shelly
+    - system-filepath
+    - temporary
+    - text
+    - template-haskell
+    - typed-process
+
+executables:
+  luna-studio:
+    main: StudioRunner.hs
+    source-dirs: src

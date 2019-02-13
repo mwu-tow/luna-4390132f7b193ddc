@@ -1,0 +1,99 @@
+name:               luna-node-editor-view
+version:            0.1.0.0
+author:             New Byte Order <contact@luna-lang.org>
+maintainer:         New Byte Order <contact@luna-lang.org>
+
+flags:
+  debug:
+    description:      Enable debug support
+    default:          false
+    manual:           false
+
+default-extensions:
+  - AllowAmbiguousTypes
+  - ApplicativeDo
+  - Arrows
+  - BangPatterns
+  - BinaryLiterals
+  - ConstraintKinds
+  - DataKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - DuplicateRecordFields
+  - EmptyDataDecls
+  - FlexibleContexts
+  - FlexibleInstances
+  - FunctionalDependencies
+  - GeneralizedNewtypeDeriving
+  - InstanceSigs
+  - LambdaCase
+  - LiberalTypeSynonyms
+  - MonadComprehensions
+  - MultiWayIf
+  - NamedWildCards
+  - NegativeLiterals
+  - NoImplicitPrelude
+  - NumDecimals
+  - OverloadedLabels
+  - OverloadedStrings
+  - PackageImports
+  - QuasiQuotes
+  - RankNTypes
+  - RecursiveDo
+  - RelaxedPolyRec
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeFamilyDependencies
+  - TypeOperators
+  - ViewPatterns
+
+dependencies:
+  - "base >= 4.9 && < 4.10"
+  - aeson
+  - binary
+  - bytestring
+  - common
+  - containers
+  - convert
+  - datetime
+  - deepseq
+  - extra
+  - fuzzy-text
+  - ghcjs-base
+  - ghcjs-prim
+  - hashable
+  - lens
+  - luna-studio-common
+  - luna-lexer
+  - matrix
+  - mtl
+  - prologue
+  - random
+  - react-flux
+  - split
+  - text
+  - time
+  - transformers
+  - unordered-containers
+  - uuid-types
+  - vector
+  - vector-text
+  - visualization-api
+
+library:
+  source-dirs: src
+  cpp-options: -DCOMPRESS_REQUESTS
+  ghc-options:
+    - -Wall
+    - -O2
+    - -fsimpl-tick-factor=1000
+    # - -DDEBUG_PERF

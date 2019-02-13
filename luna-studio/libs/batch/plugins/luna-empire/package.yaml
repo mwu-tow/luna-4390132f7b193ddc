@@ -1,0 +1,104 @@
+name:               batch-lib-luna-empire
+version:            0.1.0.0
+author:             New Byte Order <contact@luna-lang.org>
+maintainer:         New Byte Order <contact@luna-lang.org>
+
+dependencies:
+    - async
+    - base
+    - bimap
+    - binary
+    - bytestring
+    - constraints
+    - containers
+    - directory
+    - either
+    - ekg
+    - errors
+    - exceptions
+    - filemanip
+    - filepath
+    - groom
+    - lens
+    - lifted-async
+    - luna-core
+    - luna-package
+    - luna-empire
+    - luna-passes
+    - luna-stdlib
+    - luna-studio-common
+    - m-logger
+    - mtl
+    - optparse-applicative
+    - path
+    - pretty-show
+    - prologue
+    - safe
+    - safe-exceptions
+    - split
+    - stm
+    - temporary
+    - text
+    - time
+    - transformers
+    - unordered-containers
+    - uuid
+    - uuid-types
+    - zeromq4-haskell >= 0.4
+    - zmq-bus
+    - zmq-bus-config
+    - zlib
+
+default-extensions:
+    - AllowAmbiguousTypes
+    - ApplicativeDo
+    - Arrows
+    - BangPatterns
+    - BinaryLiterals
+    - ConstraintKinds
+    - DataKinds
+    - DefaultSignatures
+    - DeriveDataTypeable
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - DoAndIfThenElse
+    - DuplicateRecordFields
+    - EmptyDataDecls
+    - FlexibleContexts
+    - FlexibleInstances
+    - FunctionalDependencies
+    - GeneralizedNewtypeDeriving
+    - InstanceSigs
+    - LambdaCase
+    - LiberalTypeSynonyms
+    - MonadComprehensions
+    - MultiWayIf
+    - NamedWildCards
+    - NegativeLiterals
+    - NoImplicitPrelude
+    - NumDecimals
+    - OverloadedLabels
+    - OverloadedStrings
+    - PackageImports
+    - QuasiQuotes
+    - RankNTypes
+    - RecursiveDo
+    - RelaxedPolyRec
+    - ScopedTypeVariables
+    - StandaloneDeriving
+    - TemplateHaskell
+    - TupleSections
+    - TypeApplications
+    - TypeFamilies
+    - TypeFamilyDependencies
+    - TypeOperators
+    - ViewPatterns
+
+
+library:
+    source-dirs: src
+    ghc-options: -Wall -O2 -threaded
+    other-modules:
+        - Paths_batch_lib_luna_empire

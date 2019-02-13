@@ -1,0 +1,39 @@
+name:                m-logger
+version:             0.1.0.0
+license:             AllRightsReserved
+author:              New Byte Order
+maintainer:          contact@nodelab.io
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - FlexibleContexts
+  - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+
+dependencies:
+  - "base >= 4.8 && < 5.0"
+  - ansi-terminal
+  - hslogger
+  - MissingH
+  - mtl
+  - optparse-applicative
+  - prologue
+  - template-haskell
+
+library:
+    source-dirs: src
+    ghc-options: -Wall -O2

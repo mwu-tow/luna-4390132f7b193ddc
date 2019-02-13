@@ -1,0 +1,63 @@
+name:               common
+version:            0.1.0.0
+author:             New Byte Order <contact@luna-lang.org>
+maintainer:         New Byte Order <contact@luna-lang.org>
+
+flags:
+  debug:
+    description:      Enable debug support
+    default:          false
+    manual:           false
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - FlexibleContexts
+  - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - ViewPatterns
+
+
+dependencies:
+  - "base >= 4.9 && < 4.10"
+  - aeson
+  - base64-bytestring
+  - binary
+  - bytestring
+  - container
+  - convert
+  - data-default
+  - filepath
+  - ghcjs-base
+  - ghcjs-dom-jsffi
+  - hashable
+  - lens
+  - luna-studio-common
+  - mtl
+  - placeholders
+  - prologue
+  - react-flux
+  - text
+  - time
+  - transformers
+  - unordered-containers
+  - uuid-types
+
+library:
+  source-dirs: src
+  ghc-options: -Wall -O2
+  cpp-options: -DCOMPRESS_REQUESTS

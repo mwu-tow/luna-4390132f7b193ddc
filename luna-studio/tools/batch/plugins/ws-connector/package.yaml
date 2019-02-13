@@ -1,0 +1,30 @@
+name:                luna-ws-connector
+version:             0.1.0.0
+synopsis:            luna-ws-connector
+license:             AllRightsReserved
+author:              New Byte Order
+maintainer:          contact@nodelab.io
+
+default-extensions:
+  - NoImplicitPrelude
+  - OverloadedStrings
+
+executables:
+  luna-ws-connector:
+    source-dirs: src
+    ghc-options:    -Wall -O2 -threaded
+    main: Main.hs
+
+dependencies:
+  - base
+  - bytestring
+  - either
+  - ekg
+  - lib-ws-connector
+  - m-logger
+  - mtl
+  - prologue
+  - zeromq4-haskell
+  - optparse-applicative
+  - zmq-bus
+  - zmq-bus-config

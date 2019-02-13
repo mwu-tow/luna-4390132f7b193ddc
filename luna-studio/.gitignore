@@ -1,0 +1,95 @@
+*.o
+*.hi
+*.chi
+*.chs.h
+.virthualenv
+*.tix
+*~
+*.swp
+*.imports
+*.dll
+*.dll.a
+out
+a.out
+*.li
+*.pyc
+
+# profiling results
+*.hp
+*.prof
+
+# tags file
+tags
+TAGS
+
+# haskell coverage reports
+.hpc
+
+#generated files
+gen
+luna-shell.sh
+.python-version
+
+# patch artifacts
+*.rej
+
+# OS X temp
+.DS_Store
+
+# emacs backup files
+.\#*
+\#*\#
+
+# eclipse files
+.dist-buildwrapper/
+.project
+.settings
+
+# haste compilation files
+*.jsmod
+
+# python files
+*.py[cod]
+
+# jester
+.jester
+
+#IntelliJ IDEA
+.idea
+
+#Atom
+.imdone
+
+# cabal configs - they should be generated from tcabal files
+libs/*/*.cabal
+libs/*/*/*.cabal
+libs/*/*/*/*.cabal
+tools/*/*.cabal
+tools/*/*/*.cabal
+tools/*/*/*/*.cabal
+runner/*.cabal
+
+#general builds
+dist
+dist-package
+DllWrappers
+
+# cabal sandbox
+cabal.sandbox.config
+.cabal-sandbox
+.build.config
+
+# aws credentials
+aws.config
+
+build_*/**/.stack-work
+.autoenv.zsh
+
+temp
+stack
+!**/.gitkeep
+supervisor/tmp/*
+**/.stack-work
+supervisord.log
+workspace
+scripts

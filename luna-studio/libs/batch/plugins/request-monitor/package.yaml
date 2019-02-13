@@ -1,0 +1,48 @@
+name:               batch-lib-request-monitor
+version:            0.1.0.0
+author:             Nodelab <contact@nodelab.io>
+maintainer:         Nodelab <contact@nodelab.io>
+
+dependencies:
+  - base
+  - binary
+  - bytestring
+  - containers
+  - directory
+  - either
+  - errors
+  - filemanip
+  - filepath
+  - groom
+  - lens
+  - luna-empire
+  - luna-studio-common
+  - luna-undo-redo
+  - m-logger
+  - mtl
+  - optparse-applicative
+  - pretty-show
+  - process
+  - prologue
+  - prologue
+  - split
+  - stm
+  - text
+  - time
+  - transformers
+  - uuid
+  - uuid-types
+  - zeromq4-haskell >= 0.4
+  - zmq-bus
+  - zmq-bus-config
+
+
+default-extensions:
+  - NoImplicitPrelude
+  - TemplateHaskell
+
+library:
+    source-dirs: src
+    ghc-options: -Wall -O2 -threaded
+    # other-modules:
+    #   - Paths_batch_lib_request_monitor
