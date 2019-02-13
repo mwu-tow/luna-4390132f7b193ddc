@@ -1,0 +1,20 @@
+_config/lib: !include "../../config/hpack-common.yaml"
+
+name:       luna-ci
+version:    "0.1"
+author:     Luna Team <contact@luna-lang.org>
+maintainer: Luna Team <contact@luna-lang.org>
+
+library:
+    source-dirs:
+        - src
+
+dependencies:
+    - base
+    - directory
+    - filepath
+    - hspec
+    - hspec-jenkins
+
+default-extensions: *luna-extensions
+

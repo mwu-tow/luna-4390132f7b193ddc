@@ -1,0 +1,24 @@
+_config/lib: !include "../../config/hpack-common.yaml"
+
+name:       luna-parser-utils
+version:    "0.1"
+author:     Luna Team <contact@luna-lang.org>
+maintainer: Luna Team <contact@luna-lang.org>
+
+library:
+    source-dirs:
+        - src
+    dependencies:
+        - base
+        - bytestring
+        - megaparsec
+        - prologue
+        - text
+        - yaml
+        - hspec
+        - hspec-megaparsec
+        - layered-state
+        - luna-text-processing
+
+default-extensions: *luna-extensions
+

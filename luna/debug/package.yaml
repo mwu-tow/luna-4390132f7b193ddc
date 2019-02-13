@@ -1,0 +1,25 @@
+_config/lib: !include "../config/hpack-common.yaml"
+
+name:       luna-debug
+version:    "0.1"
+author:     Luna Team <contact@luna-lang.org>
+maintainer: Luna Team <contact@luna-lang.org>
+
+library:
+  source-dirs:
+    - src
+  dependencies:
+    - aeson
+    - base
+    - bytestring
+    - containers
+    - filepath
+    - lens-utils
+    - luna-core
+    - luna-data-tag
+    - mtl
+    - open-browser
+    - prologue
+
+default-extensions: *luna-extensions
+

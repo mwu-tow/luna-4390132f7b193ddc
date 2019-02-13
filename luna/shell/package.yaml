@@ -1,0 +1,69 @@
+_config/lib: !include "../config/hpack-common.yaml"
+
+name:       luna-shell
+version:    "1.2"
+author:     Luna Team <contact@luna-lang.org>
+maintainer: Luna Team <contact@luna-lang.org>
+
+library:
+    source-dirs:
+        - src
+    dependencies:
+        - aeson
+        - base
+        - bimap
+        - containers
+        - directory
+        - filepath
+        - githash
+        - layered-state
+        - lens
+        - luna-core
+        - luna-exception
+        - luna-package
+        - luna-passes
+        - luna-runtime
+        - luna-stdlib
+        - megaparsec
+        - mtl
+        - optparse-applicative
+        - path
+        - prologue
+        - safe-exceptions
+        - text
+        - unordered-containers
+        - yaml
+
+executables:
+    luna:
+        main: src-app/Main.hs
+        ghc-options: -threaded "-with-rtsopts=-N -T"
+        dependencies:
+            - base
+            - luna-shell
+            - prologue
+
+benchmarks:
+    interpreter-benchmark:
+        main: Main.hs
+        source-dirs:
+            - test/bench
+        ghc-options:
+            - -rtsopts
+            - -threaded
+            - -with-rtsopts=-N
+            - -with-rtsopts=-T
+        dependencies:
+            - base
+            - directory
+            - filepath
+            - luna-benchmark
+            - luna-exception
+            - luna-package
+            - luna-shell
+            - path
+            - prologue
+            - template-haskell
+
+default-extensions: *luna-extensions
+

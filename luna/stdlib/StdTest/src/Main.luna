@@ -1,0 +1,25 @@
+import Std.Base
+import Std.Test
+import StdTest.Lang.Errors
+import StdTest.Lang.PatternMatch
+import StdTest.Lang.Recursion
+import StdTest.Lang.SideEffects
+import StdTest.Lang.ToJSONGeneration
+
+import StdTest.Data.List
+import StdTest.Data.Map
+
+import StdTest.Lib.Basic
+
+def main:
+    ErrorsTest.run
+    PatternMatchTest.run
+    RecursionTest.run
+    SideEffectsTest.run
+    ToJSONGenerationTest.run
+
+    ListTest.run
+    MapTest.run
+
+    BasicTest.run
+
