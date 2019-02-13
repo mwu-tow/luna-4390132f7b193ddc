@@ -1,0 +1,20 @@
+author: Luna language team (luna-lang.org)
+category: Data, Text
+default-extensions: [AllowAmbiguousTypes, ApplicativeDo, Arrows, BangPatterns, BinaryLiterals,
+  ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTypeable, DeriveFoldable,
+  DeriveFunctor, DeriveGeneric, DeriveTraversable, DoAndIfThenElse, DuplicateRecordFields,
+  EmptyDataDecls, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GeneralizedNewtypeDeriving,
+  InstanceSigs, LambdaCase, MonadComprehensions, MultiWayIf, NamedWildCards, NegativeLiterals,
+  NoImplicitPrelude, NumDecimals, OverloadedLabels, PackageImports, QuasiQuotes, RankNTypes,
+  RecursiveDo, ScopedTypeVariables, StandaloneDeriving, TemplateHaskell, TupleSections,
+  TypeApplications, TypeFamilies, TypeFamilyDependencies, TypeOperators, ViewPatterns,
+  LiberalTypeSynonyms, RelaxedPolyRec]
+dependencies: [base, lens, prologue, layered-state]
+github: https://github.com/luna/text-processing
+library: {ghc-options: -Wall -O2, source-dirs: src}
+license: Apache-2.0
+maintainer: Wojciech Danilo <wojciech.danilo@gmail.com>
+name: text-processing
+stability: experimental
+synopsis: Text processing primitives.
+version: '1.2'
