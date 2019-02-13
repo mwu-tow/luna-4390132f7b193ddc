@@ -1,0 +1,14 @@
+resolver: lts-7.2
+
+packages:
+  - '.'
+  - location:
+      git:    https://github.com/luna/convert.git
+      commit: 5cb0cedea0c761ad3f833888f4c70c4231392316
+    extra-dep: true
+
+extra-deps:
+
+flags: {}
+
+extra-package-dbs: []
