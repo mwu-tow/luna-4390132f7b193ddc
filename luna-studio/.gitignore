@@ -1,44 +1,95 @@
-bower_components/*
-public/*
+*.o
+*.hi
+*.chi
+*.chs.h
+.virthualenv
+*.tix
+*~
+*.swp
+*.imports
+*.dll
+*.dll.a
+out
+a.out
+*.li
+*.pyc
 
-lib-cov
-*.seed
-*.log
-*.csv
-*.dat
-*.out
-*.pid
-*.gz
-*.iml
-*.idea
+# profiling results
+*.hp
+*.prof
 
-pids
-logs
-results
+# tags file
+tags
+TAGS
 
-node_modules
-npm-debug.log
+# haskell coverage reports
+.hpc
+
+#generated files
+gen
+luna-shell.sh
+.python-version
+
+# patch artifacts
+*.rej
+
+# OS X temp
+.DS_Store
+
+# emacs backup files
+.\#*
+\#*\#
+
+# eclipse files
+.dist-buildwrapper/
+.project
+.settings
+
+# haste compilation files
+*.jsmod
+
+# python files
+*.py[cod]
+
+# jester
+.jester
+
+#IntelliJ IDEA
+.idea
+
+#Atom
+.imdone
+
+# cabal configs - they should be generated from tcabal files
+libs/*/*.cabal
+libs/*/*/*.cabal
+libs/*/*/*/*.cabal
+tools/*/*.cabal
+tools/*/*/*.cabal
+tools/*/*/*/*.cabal
+runner/*.cabal
+
+#general builds
 dist
-www
+dist-package
+DllWrappers
+
+# cabal sandbox
 cabal.sandbox.config
 .cabal-sandbox
-public
+.build.config
 
-node-editor/features.local.js
-node-editor/config.local.js
-brunch-config.local.coffee
+# aws credentials
+aws.config
 
-atom/styles/app.css
-atom/*.backup
-
-*.js_o
-*.js_hi
+build_*/**/.stack-work
 .autoenv.zsh
-.stack-work
-lib/common.cabal
-text-editor/text-editor.cabal
-node-editor/node-editor.cabal
-node-editor-view/luna-node-editor-view.cabal
 
-.config-luna.yaml
-.config.luna
+temp
+stack
+!**/.gitkeep
+supervisor/tmp/*
+**/.stack-work
+supervisord.log
+workspace
+scripts
