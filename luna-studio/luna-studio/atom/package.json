@@ -35,7 +35,7 @@
         "request": "2.83.x",
         "request-progress": "3.0.x",
         "resize-observer-polyfill": "1.3.x",
-        "showdown": "1.8.x",
+        "showdown": "1.9.x",
         "sub-atom": "1.0.x",
         "underscore": "1.8.x",
         "unzipper": "0.9.x",
